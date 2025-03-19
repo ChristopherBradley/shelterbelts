@@ -1,9 +1,5 @@
 # +
-# Using a bounding box around Tasmania generate a list of coordinates as the center of each 6km x 6km tiles, 
-# but only if the tile intersects with the Australia polygon
-
-# Australia polygon was downloaded from here: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026/access-and-downloads/digital-boundary-files
-# (GDA2020 Australia - 2021 - Shapefile)
+# Create 125 tiles, each 5kmx5km, representing similar locations to the LIDAR used to train the model in Stewart et al. 2025
 # -
 
 import pandas as pd
@@ -11,44 +7,81 @@ import geopandas as gpd
 import shapely
 import json
 import numpy as np
+import pyproj
+import shapely.geometry
+from shapely.ops import transform
+from shapely.geometry import Point
 
-tile_size = 0.05  # 5km ~ 0.05 degrees
-radius = tile_size/2
 
 # +
-# Five center coordinates of 25kmx25km regions that overlap with the LIDAR data available in Tasmania
-c1 = 147.6, -42.7
-c2 = 146.9, -42.7
-c3 = 147.4, -41.8
-c4 = 146.7, -41.7
-c5 = 146.3, -41.4
+# Define the correct projected CRS for Tasmania
+crs_epsg4326 = "EPSG:4326"  # WGS 84 (lat/lon)
+crs_projected = "EPSG:7855"  # GDA2020 / MGA Zone 55 (meters)
 
-center_coords_25km = [c1, c2, c3, c4, c5]
-adj = [-2, -1, 0, 1, 2]
-# -
+# Tile size in meters
+tile_size_m = 5000  # 5 km
 
-center_coords_5km = []
+# Five center coordinates (WGS 84). These were chosen by eyeballing the locations in Stewart et al. 2025
+center_coords_25km = [
+    (147.6, -42.8),
+    (146.9, -42.8),
+    (147.4, -41.8),
+    (146.7, -41.7),
+    (146.3, -41.4),
+]
+
+# Transform function
+project = pyproj.Transformer.from_crs(crs_epsg4326, crs_projected, always_xy=True).transform
+unproject = pyproj.Transformer.from_crs(crs_projected, crs_epsg4326, always_xy=True).transform
+
+# Generate 5km tiles
 tiles = []
-for center_coord in center_coords_25km:
-    for i in adj:
-        lat = center_coord[1] + tile_size * i
-        for j in adj:
-            lon = center_coord[0] + tile_size * j
-            lon = round(lon, 2)
-            lat = round(lat, 2)
-            tile = shapely.geometry.box(lon - radius, lat - radius, lon + radius, lat + radius)
-            center_coords_5km.append([lat, lon])
-            tiles.append(tile)
+center_coords_5km = []
+adj = [-2, -1, 0, 1, 2]  # 5x5 grid around each center
 
-# Save the tiles as a geojson
-grid_gdf = gpd.GeoDataFrame(geometry=tiles, crs="EPSG:4326")
+for lon, lat in center_coords_25km:
+    # Convert center to projected coordinates
+    x, y = project(lon, lat)
+    
+    for i in adj:
+        for j in adj:
+            # Calculate tile center
+            x_tile = x + i * tile_size_m
+            y_tile = y + j * tile_size_m
+            
+            # Create a 5km box around the center
+            tile = shapely.geometry.box(
+                x_tile - tile_size_m / 2, y_tile - tile_size_m / 2,
+                x_tile + tile_size_m / 2, y_tile + tile_size_m / 2
+            )
+            
+            # Convert back to WGS84
+            tile_wgs84 = transform(unproject, tile)
+            tiles.append(tile_wgs84)
+
+            # Find the center of each tile in WGS84
+            center_lon = tile_wgs84.bounds[0] + (tile_wgs84.bounds[2] - tile_wgs84.bounds[0])/2
+            center_lat = tile_wgs84.bounds[1] + (tile_wgs84.bounds[3] - tile_wgs84.bounds[1])/2
+            center_coords_5km.append([center_lon, center_lat])
+            
+
+# Convert to GeoDataFrame and save as GeoJSON
+grid_gdf = gpd.GeoDataFrame(geometry=tiles, crs=crs_epsg4326)
 filename = "../data/lidar_tiles_tasmania.geojson"
 grid_gdf.to_file(filename, driver="GeoJSON")
 print("Saved:", filename)
 
+# -
+
 # Save the coordinates as a csv
-df = pd.DataFrame(center_coords_5km, columns=["Latitude", "Longitude"])
-df = df.round(2)
+df = pd.DataFrame(center_coords_5km, columns=["Longitude", "Latitude"])
 filename = "../data/lidar_tiles_tasmania.csv"
 df.to_csv(filename, index=False)
 print("Saved:", filename)
+
+# Save the coordinates as a geojson to check they line up with the tile centres
+geometry = [Point(lon, lat) for lon, lat in zip(df["Longitude"], df["Latitude"])]
+gdf_points = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
+filename_points = "../data/lidar_points_tasmania.geojson"
+gdf_points.to_file(filename_points, driver="GeoJSON")
+print("Saved points as GeoJSON:", filename_points)
