@@ -6,7 +6,7 @@ dir=/g/data/xe2/cb8590/shelterbelts
 tmpdir=/scratch/xe2/cb8590/shelterbelts  
 
 # params
-buffer=0.05 
+buffer=2.5  #km 
 start='2019-01-01'
 end_='2019-04-01'
 
@@ -23,9 +23,9 @@ while IFS=, read -r lon lat; do
     stub="$(printf "%.2f_%.2f" $lat $lon | sed 's/-//' | tr '.' '_')"
 
     ## Run first job
-    # job_id1=$(qsub -v wd=$wd,stub=$stub,dir=$dir,lat=$lat,lon=$lon,buffer=$buffer,start_time=$start,end_time=$end_ Code/run_sentinel.sh)
-    # echo "First job submitted for stub $stub with ID $job_id1"
+    job_id1=$(qsub -v wd=$wd,stub=$stub,dir=$dir,lat=$lat,lon=$lon,buffer=$buffer,start_time=$start,end_time=$end_ run_sentinel.sh)
+    echo "First job submitted for stub $stub with ID $job_id1"
 
-    echo "Latitude: $lat, Longitude $lon"
+    # echo "Latitude: $lat, Longitude $lon"
 
 done < "$coordinates_file"
