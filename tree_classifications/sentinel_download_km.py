@@ -61,13 +61,14 @@ def define_query(lat, lon, buffer, time_range):
 
     # Specifying a buffer in km instead of degrees, to get square tiles instead of rectangles
     import pyproj
-    crs_epsg4326 = "EPSG:4326"  # WGS 84 (lat/lon)
-    crs_projected = "EPSG:7855"  # GDA2020 / MGA Zone 55 (meters)
-    project = pyproj.Transformer.from_crs(crs_epsg4326, crs_projected, always_xy=True).transform
-    x, y = project(lon, lat)
     buffer_m = buffer * 1000
-    lon_range = (x - buffer_m, x + buffer_m)
-    lat_range = (y - buffer_m, y + buffer_m)
+    project = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:7855", always_xy=True).transform
+    unproject = pyproj.Transformer.from_crs("EPSG:7855", "EPSG:4326", always_xy=True).transform
+    x, y = project(lon, lat)
+    min_coord = unproject(x - buffer_m, y - buffer_m)
+    max_coord = unproject(x + buffer_m, y + buffer_m)
+    lon_range = (min_coord[0], max_coord[0])
+    lat_range = (min_coord[1], max_coord[1])
 
     # lat_range = (lat-buffer, lat+buffer)
     # lon_range = (lon-buffer, lon+buffer)
@@ -97,7 +98,7 @@ def load_and_process_data(dc, query):
         **query
     )
     return ds
-    
+
 
 def main(args):
     client = create_local_dask_cluster(return_client=True)
@@ -116,5 +117,19 @@ def main(args):
 
 if __name__ == "__main__":
     args = parse_arguments()
+    # args = argparse.Namespace(
+    #     lat=-34.3890427,
+    #     lon=148.469499,
+    #     buffer=2.5,
+    #     stub="Test",
+    #     start_time="2019-01-01",
+    #     end_time="2019-03-01",
+    #     outdir="/g/data/xe2/cb8590/shelterbelts",
+    # )
     main(args)
-    
+
+
+# +
+# with open(f'/g/data/xe2/cb8590/shelterbelts/Test_ds2.pkl', 'rb') as f:
+#     ds = pickle.load(f)
+# ds

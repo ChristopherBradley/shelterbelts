@@ -23,9 +23,9 @@ while IFS=, read -r lon lat; do
     stub="$(printf "%.2f_%.2f" $lat $lon | sed 's/-//' | tr '.' '_')"
 
     ## Run first job
-    job_id1=$(qsub -v wd=$wd,stub=$stub,dir=$dir,lat=$lat,lon=$lon,buffer=$buffer,start_time=$start,end_time=$end_ Code/run_sentinel.sh)
-    echo "First job submitted for stub $stub with ID $job_id1"
+    # job_id1=$(qsub -v wd=$wd,stub=$stub,dir=$dir,lat=$lat,lon=$lon,buffer=$buffer,start_time=$start,end_time=$end_ Code/run_sentinel.sh)
+    # echo "First job submitted for stub $stub with ID $job_id1"
 
-    # echo "Latitude: $lat, Longitude $lon"
+    echo "Latitude: $lat, Longitude $lon"
 
 done < "$coordinates_file"

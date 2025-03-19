@@ -30,8 +30,8 @@ cd $wd
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
-python3 Code/00_sentinel.py --stub $stub --outdir $dir --lat $lat --lon $lon --buffer $buffer --start_time $start_time --end_time $end_time
+python3 sentinel_download_km.py --stub $stub --outdir $dir --lat $lat --lon $lon --buffer $buffer --start_time $start_time --end_time $end_time
 
 # Example usage:
-# python Code/00_sentinel.py --stub 34_8_148_0 --outdir /g/data/xe2/cb8590/Data/shelter/ --tmpdir /scratch/xe2/cb8590/shelter --lat -35.273807 --lon 148.272152 --buffer 0.05 --start_time '2017-01-01' --end_time '2024-12-31'
+# python sentinel_download_km.py --stub TEST --outdir /g/data/xe2/cb8590/shelterbelts --lat -35.273807 --lon 148.272152 --buffer 2.5 --start_time '2019-01-01' --end_time '2019-03-01'
 
