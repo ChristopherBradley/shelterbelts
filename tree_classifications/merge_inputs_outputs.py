@@ -11,39 +11,15 @@ import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
 
-pd.set_option('display.max_rows', 100)
-pd.set_option('display.max_columns', 100)
+# pd.set_option('display.max_rows', 100)
+# pd.set_option('display.max_columns', 100)
 
 outdir = "/g/data/xe2/cb8590/shelterbelts/"
 
 tiles = glob.glob("/g/data/xe2/cb8590/shelterbelts/*_ds2.pkl")
 
-dfs = []
-
-# %%time
-# Testing with a single tile for now. Later put this in a loop for all tiles
-for tile in tiles:
-    stub = tile.replace(outdir,"").replace("_ds2.pkl","")
-
-    # Load the imagery
-    with open(tile, 'rb') as file:
-        ds = pickle.load(file)
-
-    # Load the woody veg and add to the main xarray
-    filename = os.path.join(outdir, f"{stub}_woodyveg_2019.tif")
-    ds1 = rxr.open_rasterio(filename)
-    ds['woody_veg'] = ds1.isel(band=0).drop_vars('band')
-
-    # Calculate vegetation indices
-    B8 = ds['nbart_nir_1']
-    B4 = ds['nbart_red']
-    B3 = ds['nbart_green']
-    B2 = ds['nbart_blue']
-
-    # Used in Stewart et al. 2025
-    ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
-    ds['NDVI'] = (B8 - B4) / (B8 + B4)
-
+def aggregated_metrics(ds):
+    """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
     # Make a list of the variables with a time dimension
     time_vars = [var for var in ds.data_vars if 'time' in ds[var].dims]
 
@@ -67,23 +43,21 @@ for tile in tiles:
             ds_median_temporal, 
             kwargs={'function': lambda x: x.std(), 'size': kernel_size, 'mode': 'nearest'}
         )
-        layer = f"variable"
         ds[f"{variable}_temporal_median"] = ds_median_temporal
         ds[f"{variable}_temporal_std"] = ds_std_temporal
         ds[f"{variable}_focal_mean"] = ds_mean_focal_7p
         ds[f"{variable}_focal_std"] = ds_std_focal_7p
 
-    # Create a grid of coordinates spaced 100m apart, with a random 2 pixel jitter. 
-    variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
-    ds_selected = ds[variables] 
+    return ds
 
-    # Define spacing and jitter
+def jittered_grid(ds):
+    """Create a grid of coordinates spaced 100m apart, with a random 2 pixel jitter"""
     spacing = 10
     jitter_range = np.arange(-2, 3)  # [-2, -1, 0, 1, 2]
 
-    # Create coordinate grid (starting 5 pixels from the edge)
-    y_coords = np.arange(5, ds_selected.sizes['y'] - 5, spacing)
-    x_coords = np.arange(5, ds_selected.sizes['x'] - 5, spacing)
+    # Create a coordinate grid (starting 5 pixels from the edge)
+    y_coords = np.arange(5, ds.sizes['y'] - 5, spacing)
+    x_coords = np.arange(5, ds.sizes['x'] - 5, spacing)
 
     # Apply jitter to each coordinate
     y_jittered = y_coords + np.random.choice(jitter_range, size=len(y_coords))
@@ -93,26 +67,61 @@ for tile in tiles:
     data_list = []
     for y in y_jittered:
         for x in x_jittered:
-            values = {var: ds_selected[var].isel(y=y, x=x).item() for var in variables}
+            values = {var: ds[var].isel(y=y, x=x).item() for var in variables}
             values.update({'y': y, 'x': x})  # Store coordinates
             data_list.append(values)
 
     # Create DataFrame
     df = pd.DataFrame(data_list)
+    return df
+
+
+# %%time
+# Create a dataframe of imagery and woody veg classifications for each tile
+dfs = []
+for tile in tiles:
+    stub = tile.replace(outdir,"").replace("_ds2.pkl","")
+
+    # Load the imagery
+    with open(tile, 'rb') as file:
+        ds = pickle.load(file)
+
+    # Load the woody veg and add to the main xarray
+    filename = os.path.join(outdir, f"{stub}_woodyveg_2019.tif")
+    ds1 = rxr.open_rasterio(filename)
+    ds['woody_veg'] = ds1.isel(band=0).drop_vars('band')
+
+    # Calculate vegetation indices
+    B8 = ds['nbart_nir_1']
+    B4 = ds['nbart_red']
+    B3 = ds['nbart_green']
+    B2 = ds['nbart_blue']
+    ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
+    ds['NDVI'] = (B8 - B4) / (B8 + B4)
+
+    # Calculate the aggregated metrics
+    ds = aggregated_metrics(ds)
+
+    # Remove the temporal bands
+    variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
+    ds_selected = ds[variables] 
+
+    # Select pixels to use for training/testing
+    df = jittered_grid(ds)
 
     # Change outputs to 0 and 1, instead of 1 and 2
     df['woody_veg'] = df['woody_veg'] - 1
 
     # Normalize all columns in the DataFrame to be between 0 and 1
     df_normalized = (df - df.min()) / (df.max() - df.min())
-    dfs.append(df_normalized)
 
-    # Save a copy just in case something goes wrong later (since this is going to take 2 to 4 hours)
+    # Save a copy of this dataframe just in case something messes up later (since this is going to take 2 to 4 hours)
     filename = os.path.join(outdir, f"{stub}_df.csv")
     df_normalized.to_csv(filename)
     print("Saved", filename)
 
-# +
+    dfs.append(df_normalized)
+
 # Combine all the dataframes
 df_all = pd.concat(dfs)
 
