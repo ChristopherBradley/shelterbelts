@@ -78,7 +78,7 @@ def define_query(lat, lon, buffer, time_range):
         'x': lon_range,
         'time': time_range,
         'resolution': (-10, 10),
-        'output_crs': 'epsg:6933',
+        'output_crs': 'epsg:6933', # Should use EPSG:7844 when working with imagery in Australia
         'group_by': 'solar_day'
     }
     # note that centre is not recognized as query option in load_arc, but we want to output it as a record.
