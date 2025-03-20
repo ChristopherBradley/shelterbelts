@@ -5,39 +5,31 @@
 # region
 # Standard Libraries
 import os
-import subprocess
 
 # Dependencies
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon, box, mapping
-from shapely.ops import transform
 import rasterio
-from rasterio.plot import show
 from rasterio.merge import merge
 from rasterio.transform import Affine
-from pyproj import Transformer
 import matplotlib.pyplot as plt
 from matplotlib import colors
+import requests
+import shutil
+from pyproj import Transformer
 
-import boto3
-# Note: To make boto3 work, I had to create a file named .aws/credentials in my /home/147/cb8590 with these contents:  
-# [default]
-# aws_access_key_id = ACCESS_KEY
-# aws_secret_access_key = SECRET_KEY
-
-# Local imports
-os.chdir(os.path.join(os.path.expanduser('~'), "Projects/PaddockTS"))
-from DAESIM_preprocess.util import create_bbox, transform_bbox, scratch_dir, gdata_dir
 # endregion
 
-canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
+# canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
+canopy_height_dir ='../data'
+
 
 def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005):
     """Find the tiles that overlap with the region of interest"""
     tiles_geojson_filename = os.path.join(canopy_height_dir, 'tiles_global.geojson')
     gdf = gpd.read_file(tiles_geojson_filename)
-    bbox = create_bbox(lat, lon, buffer)
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
     roi_coords = box(*bbox)
     roi_polygon = Polygon(roi_coords)
 
@@ -51,34 +43,40 @@ def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005):
 
 def download_new_tiles(tiles):
     """Download any tiles that we haven't already downloaded"""
+
     # Find tiles we haven't downloaded yet
     to_download = []
     for tile in tiles:
         tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
         if not os.path.isfile(tile_path):
             to_download.append(tile)
-            
     if len(to_download) == 0:
         return
-    
-    # Setup the AWS connection
-    s3 = boto3.client('s3')
-    
-    # Download tiles if we don't have them in gdata already
-    print(f"Downloading {tiles}")
-    for tile in to_download:
-        bucket_name = 'dataforgood-fb-data'
-        file_key = f'forests/v1/alsgedi_global_v6_float/chm/{tile}.tif'
-        local_file_path = os.path.join(canopy_height_dir, f'{tile}.tif')
-        s3.download_file(bucket_name, file_key, local_file_path)
-        print("Downloaded:", local_file_path)
 
+    canopy_baseurl = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/chm/"
+
+    print(f"Downloading {to_download}")
+    for tile in to_download:
+        url = canopy_baseurl + f'{tile}.tif'
+        filename = os.path.join(canopy_height_dir, f'{tile}.tif')
+        response = requests.head(url)
+        if response.status_code == 200:
+            with requests.get(url, stream=True) as stream:
+                with open(filename, "wb") as file:
+                    shutil.copyfileobj(stream.raw, file)
+            print(f"Downloaded {filename}")
+
+def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputEPSG="EPSG:4326", outputEPSG="EPSG:3857"):
+    transformer = Transformer.from_crs(inputEPSG, outputEPSG)
+    x1,y1 = transformer.transform(bbox[1], bbox[0])
+    x2,y2 = transformer.transform(bbox[3], bbox[2])
+    return (x1, y1, x2, y2)
 
 def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir="/g/data/xe2/cb8590/", stub="Test", tmp_dir='/scratch/xe2/cb8590/tmp'):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
     
     # Convert the bounding box to EPSG:3857 (tiles.geojson uses EPSG:4326, but the tiff files use EPSG:3857')
-    bbox = create_bbox(lat, lon, buffer)
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
     bbox_3857 = transform_bbox(bbox)
     roi_coords_3857 = box(*bbox_3857)
     roi_polygon_3857 = Polygon(roi_coords_3857)
@@ -128,7 +126,7 @@ def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir="/g/data/x
     print("Saved:", output_tiff_filename)
 
 
-def visualise_canopy_height(filename, outpath=scratch_dir, stub="Test"):
+def visualise_canopy_height(filename, outpath=".", stub="Test"):
     """Pretty visualisation of the canopy height"""
 
     with rasterio.open(filename) as src:
@@ -168,7 +166,7 @@ def visualise_canopy_height(filename, outpath=scratch_dir, stub="Test"):
     print("Saved", filename)
     plt.show()
 
-def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=scratch_dir, stub="Test", tmp_dir='/scratch/xe2/cb8590/tmp'):
+def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='/scratch/xe2/cb8590/tmp'):
     """Create a merged canopy height raster, downloading new tiles if necessary"""
     tiles = identify_relevant_tiles(lat, lon, buffer)
     download_new_tiles(tiles)
@@ -186,4 +184,8 @@ if __name__ == '__main__':
     canopy_height(lat, lon, buffer, outdir, stub)
     # visualise_canopy_height("/g/data/xe2/cb8590/Data/PadSeg/MILG_canopy_height.tif")
 
+lat = -34.0
+lon = 148.5
+buffer = 0.05
 
+tiles = identify_relevant_tiles(lat, lon, buffer)
