@@ -1,5 +1,5 @@
 # +
-# Create a training dataset with satellite imagery inputs and woody veg outputs
+# Create a training dataset with satellite imagery inputs and woody veg or canopy cover outputs
 # -
 
 import os
@@ -11,8 +11,10 @@ import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
 
+# +
 # pd.set_option('display.max_rows', 100)
 # pd.set_option('display.max_columns', 100)
+# -
 
 outdir = "/g/data/xe2/cb8590/shelterbelts/"
 
@@ -76,8 +78,11 @@ def jittered_grid(ds):
     return df
 
 
+# +
 # %%time
-# Create a dataframe of imagery and woody veg classifications for each tile
+# Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
+# sub_stub = 'woodyveg'
+sub_stub = 'canopycover'
 dfs = []
 for tile in tiles:
     stub = tile.replace(outdir,"").replace("_ds2.pkl","")
@@ -87,9 +92,9 @@ for tile in tiles:
         ds = pickle.load(file)
 
     # Load the woody veg and add to the main xarray
-    filename = os.path.join(outdir, f"{stub}_woodyveg_2019.tif")
+    filename = os.path.join(outdir, f"{stub}_{sub_stub}_2019.tif")
     ds1 = rxr.open_rasterio(filename)
-    ds['woody_veg'] = ds1.isel(band=0).drop_vars('band')
+    ds[sub_stub] = ds1.isel(band=0).drop_vars('band')
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -110,22 +115,27 @@ for tile in tiles:
     df = jittered_grid(ds)
 
     # Change outputs to 0 and 1, instead of 1 and 2
-    df['woody_veg'] = df['woody_veg'] - 1
+    df[sub_stub] = df[sub_stub] - 1
 
     # Normalize all columns in the DataFrame to be between 0 and 1
     df_normalized = (df - df.min()) / (df.max() - df.min())
 
     # Save a copy of this dataframe just in case something messes up later (since this is going to take 2 to 4 hours)
-    filename = os.path.join(outdir, f"{stub}_df.csv")
+    filename = os.path.join(outdir, f"{stub}_df_{sub_stub}.csv")
     df_normalized.to_csv(filename)
     print("Saved", filename)
 
     dfs.append(df_normalized)
 
+# 1 min 30 secs each 
+# -
+
 # Combine all the dataframes
 df_all = pd.concat(dfs)
 
 # Should probs save this as a parquet or a feather file instead
-filename = os.path.join(outdir, f"woody_veg_preprocessed.csv")
+filename = os.path.join(outdir, f"{sub_stub}_preprocessed.csv")
 df_all.to_csv(filename)
 print("Saved", df_all)
+
+
