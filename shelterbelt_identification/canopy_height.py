@@ -1,38 +1,46 @@
-# region
 # The registry is here: https://registry.opendata.aws/dataforgood-fb-forests/
-# endregion
 
-# region
+# +
 # Standard Libraries
 import os
 
 # Dependencies
+import shutil
 import numpy as np
-import geopandas as gpd
-from shapely.geometry import Polygon, box, mapping
+import requests
 import rasterio
+import geopandas as gpd
+from pyproj import Transformer
 from rasterio.merge import merge
 from rasterio.transform import Affine
+from rasterio.windows import from_bounds
+from shapely.geometry import Polygon, box
+
 import matplotlib.pyplot as plt
 from matplotlib import colors
-import requests
-import shutil
-from pyproj import Transformer
 
-# endregion
-
-# canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
-canopy_height_dir ='../data'
-
-
-def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005):
+# +
+def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canopy_height_dir="."):
     """Find the tiles that overlap with the region of interest"""
-    tiles_geojson_filename = os.path.join(canopy_height_dir, 'tiles_global.geojson')
-    gdf = gpd.read_file(tiles_geojson_filename)
+    
+    # Download the 'tiles_global.geojson' to this folder if we haven't already
+    filename = os.path.join(canopy_height_dir, 'tiles_global.geojson')
+    if not os.path.exists(filename):
+        url = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson"
+        with requests.get(url, stream=True) as stream:
+            with open(filename, "wb") as file:
+                shutil.copyfileobj(stream.raw, file)
+        print(f"Downloaded {filename}")
+
+    # Load the canopy height tiles
+    gdf = gpd.read_file(filename)
+
+    # Create a polygon for the region of interest
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
     roi_coords = box(*bbox)
     roi_polygon = Polygon(roi_coords)
 
+    # Find any tiles that intersect with this polygon
     relevant_tiles = []
     for idx, row in gdf.iterrows():
         tile_polygon = row['geometry']
@@ -41,10 +49,10 @@ def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005):
     return relevant_tiles
 
 
-def download_new_tiles(tiles):
+def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
     """Download any tiles that we haven't already downloaded"""
 
-    # Find tiles we haven't downloaded yet
+    # Create a list of tiles we haven't downloaded yet
     to_download = []
     for tile in tiles:
         tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
@@ -55,6 +63,7 @@ def download_new_tiles(tiles):
 
     canopy_baseurl = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/chm/"
 
+    # And then download them
     print(f"Downloading {to_download}")
     for tile in to_download:
         url = canopy_baseurl + f'{tile}.tif'
@@ -72,10 +81,10 @@ def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputE
     x2,y2 = transformer.transform(bbox[3], bbox[2])
     return (x1, y1, x2, y2)
 
-def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir="/g/data/xe2/cb8590/", stub="Test", tmp_dir='/scratch/xe2/cb8590/tmp'):
+def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir='.'):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
     
-    # Convert the bounding box to EPSG:3857 (tiles.geojson uses EPSG:4326, but the tiff files use EPSG:3857')
+    # Convert the bounding box to EPSG:3857 (tiles.geojson uses EPSG:4326 (geographic), but the tiff files use EPSG:3857 (projected)')
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
     bbox_3857 = transform_bbox(bbox)
     roi_coords_3857 = box(*bbox_3857)
@@ -83,19 +92,22 @@ def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir="/g/data/x
     
     relevant_tiles = identify_relevant_tiles(lat, lon, buffer)
     
-    # Crop the images and save a cropped tiff file for each one
     for tile in relevant_tiles:
-        tiff_file = os.path.join(canopy_height_dir, f'{tile}.tif')
+        tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
         with rasterio.open(tiff_file) as src:
-            out_image, out_transform = rasterio.mask.mask(src, [mapping(roi_polygon_3857)], crop=True)
+            # Get window from polygon bounds
+            minx, miny, maxx, maxy = roi_polygon_3857.bounds
+            window = from_bounds(minx, miny, maxx, maxy, transform=src.transform)
+    
+            # Read data within the window
+            out_image = src.read(window=window)
+            out_transform = src.window_transform(window)
             out_meta = src.meta.copy()
-        cropped_tiff_filename = os.path.join(tmp_dir, f'{tile}_cropped.tif')
-        out_meta.update({
-            "driver": "GTiff",
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform
-        })
+    
+        # Save cropped image
+        cropped_tiff_filename = os.path.join(tmp_dir, f"{tile}_cropped.tif")
+        out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
+    
         with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
             dest.write(out_image)
             
@@ -109,6 +121,7 @@ def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir="/g/data/x
     out_meta = src_files_to_mosaic[0].meta.copy()
 
     # From visual inspection, it looks like the canopy height map is offset by about 10m south. This corrects that.
+    # My hypothesis is this is due to Australia being in the southern hemisphere so shadows point south at midday, whereas the model was trained in the United States where shadows point north at midday
     original_transform = out_meta['transform']
     new_transform = original_transform * Affine.translation(0, -10)
 
@@ -131,7 +144,6 @@ def visualise_canopy_height(filename, outpath=".", stub="Test"):
 
     with rasterio.open(filename) as src:
         image = src.read(1)  
-        transform = src.transform 
     
     # Bin the slope into categories
     bin_edges = np.arange(0, 16, 1) 
@@ -166,26 +178,24 @@ def visualise_canopy_height(filename, outpath=".", stub="Test"):
     print("Saved", filename)
     plt.show()
 
-def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='/scratch/xe2/cb8590/tmp'):
+def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir="."):
     """Create a merged canopy height raster, downloading new tiles if necessary"""
-    tiles = identify_relevant_tiles(lat, lon, buffer)
-    download_new_tiles(tiles)
-    merge_tiles(lat, lon, buffer, outdir, stub, tmp_dir)
+    tiles = identify_relevant_tiles(lat, lon, buffer, canopy_height_dir)
+    download_new_tiles(tiles, canopy_height_dir)
+    merge_tiles(lat, lon, buffer, outdir, stub, tmp_dir, canopy_height_dir)
 
-
+# +
 # %%time
 if __name__ == '__main__':
 
-    outdir = '/g/data/xe2/cb8590/Data/shelter/'
+    # canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
+    canopy_height_dir ='../data'
+    outdir = '../data'
+    tmp_dir = '../data'
     stub = '34_0_148_5'
     lat = -34.0
     lon = 148.5
     buffer = 0.05
-    canopy_height(lat, lon, buffer, outdir, stub)
-    # visualise_canopy_height("/g/data/xe2/cb8590/Data/PadSeg/MILG_canopy_height.tif")
-
-lat = -34.0
-lon = 148.5
-buffer = 0.05
-
-tiles = identify_relevant_tiles(lat, lon, buffer)
+    canopy_height(lat, lon, buffer, outdir, stub, tmp_dir, canopy_height_dir)
+    filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
+    visualise_canopy_height(filename)
