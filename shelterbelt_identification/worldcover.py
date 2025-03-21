@@ -48,6 +48,7 @@ def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="T
 
 def visualise_worldcover(ds, outdir=".", stub="Test"):
     """Pretty visualisation using the worldcover colour scheme"""
+    
     # Download the colour scheme
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -72,7 +73,6 @@ def visualise_worldcover(ds, outdir=".", stub="Test"):
         colors[int(key)] = f"#{value['hex']}"
     cmap = matplotlib.colors.ListedColormap(colors)
     
-    # sequences needed for an informative colorbar
     values = [key for key in classmap]
     boundaries = [(values[i + 1] + values[i]) / 2 for i in range(len(values) - 1)]
     boundaries = [0] + boundaries + [255]
