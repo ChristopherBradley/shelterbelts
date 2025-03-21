@@ -1,0 +1,1 @@
+# Train a random forest classifier to predict the woody veg classes, like in Stewart et al. 2025
