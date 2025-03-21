@@ -68,7 +68,7 @@ def jittered_grid(ds):
     for y in y_jittered:
         for x in x_jittered:
             values = {var: ds[var].isel(y=y, x=x).item() for var in variables}
-            values.update({'y': y, 'x': x})  # Store coordinates
+            values.update({'y': y, 'x': x})  # Should probs make these actual x and y coordinates in EPSG:4326 to help with debuggging
             data_list.append(values)
 
     # Create DataFrame
