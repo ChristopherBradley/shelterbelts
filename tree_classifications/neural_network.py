@@ -1,8 +1,7 @@
 # +
-# Train a random forest classifier to predict the woody veg classes, like in Stewart et al. 2025
+# Train a neural network to compare with random forest predictions
 # -
 
-# Import necessary libraries
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
@@ -10,8 +9,10 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.preprocessing import StandardScaler
 
-
-
+# +
+# Can't import pytorch in John's geospatenv. Need to use my own env on NCI run locally to use pytorch. 
+# import torch
+# -
 
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
@@ -44,7 +45,7 @@ X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
 # +
-# Define the neural network model
+# Define the neural network model. Should probs try fewer layers initially. Have a look at my code from COMP4660.
 model = keras.Sequential([
     keras.layers.Dense(128, activation='relu', input_shape=(X_train.shape[1],)),
     keras.layers.Dense(64, activation='relu'),
@@ -62,3 +63,5 @@ model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y
 # Evaluate on the test set
 test_loss, test_acc = model.evaluate(X_test, y_test)
 print(f"Test Accuracy: {test_acc * 100:.2f}%")
+
+# Training accuracies not increasing at all for some reason. Need to debug.
