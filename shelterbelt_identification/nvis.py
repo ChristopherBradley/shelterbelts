@@ -108,3 +108,52 @@ for item in legend_data["layers"][0]["legend"]:
 
 print(category_mapping)
 
+
+# +
+import numpy as np
+
+# Load the raster (from Step 2)
+data = ds.values  # Shape: (4, height, width) -> RGBA bands
+
+# Convert to RGB (drop Alpha channel)
+rgb_array = np.stack([data[0], data[1], data[2]], axis=-1)
+
+# Create a categorical array
+category_array = np.full(rgb_array.shape[:2], -1, dtype=np.int32)  # Default to -1 (unknown)
+
+# Assign category values based on the closest RGB match
+for rgb, category in category_mapping.items():
+    mask = np.all(rgb_array == rgb, axis=-1)  # Find matching pixels
+    category_array[mask] = list(category_mapping.keys()).index(rgb)  # Assign category index
+
+print(category_array)
+
+# +
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.patches as mpatches
+
+# Convert category indices back to colors for visualization
+color_array = np.zeros((*category_array.shape, 3), dtype=np.uint8)
+
+# Track categories present in the region
+unique_categories = np.unique(category_array)
+legend_patches = []
+
+for idx, (rgb, name) in enumerate(category_mapping.items()):
+    if idx in unique_categories:
+        color_array[category_array == idx] = rgb  # Assign legend color
+        legend_patches.append(mpatches.Patch(color=np.array(rgb) / 255, label=name))
+
+# Plot the categorical raster
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.imshow(color_array)
+ax.set_title("NVIS Major Vegetation Groups")
+ax.axis("off")
+
+# Add a legend (only for categories present in the region)
+if legend_patches:
+    ax.legend(handles=legend_patches, loc="upper right", fontsize=8, frameon=True)
+
+plt.show()
+
