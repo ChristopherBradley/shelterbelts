@@ -1,34 +1,31 @@
 # NVIS data descriptions are here: https://www.dcceew.gov.au/environment/environment-information-australia/national-vegetation-information-system/data-products
 
 
-
-
+import pyproj
+import requests
+from io import BytesIO
+import rioxarray as rxr
+from affine import Affine  # Import Affine
 
 
 # +
-import requests
-import rioxarray as rxr
-import xarray as xr
-from io import BytesIO
+# NVIS MapServer export URL
+lat, lon = -35.0, 149.0
+buffer = 0.05  
 
-# Define the location and buffer
-lat, lon = -35.0, 149.0  # Example: Canberra region
-buffer = 0.05  # Buffer in degrees
-
-# Define bounding box (WMS requires minx, miny, maxx, maxy)
 minx, maxx = lon - buffer, lon + buffer
 miny, maxy = lat - buffer, lat + buffer
 
-# NVIS MapServer export URL
+
 url = "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/NVIS_ext_mvg/MapServer/export"
 
 # Define parameters for the request
 params = {
     "bbox": f"{minx},{miny},{maxx},{maxy}",
-    "bboxSR": 4326,   # Spatial reference EPSG:4326
-    "imageSR": 4326,  # Output projection EPSG:4326
-    "size": "512,512",  # Image resolution
-    "format": "tiff",  # Request TIFF output
+    "bboxSR": 4326,  
+    "imageSR": 3857,  
+    "size": "512,512", 
+    "format": "tiff",  
     "f": "image"
 }
 
@@ -40,10 +37,63 @@ response.raise_for_status()  # Raise error for bad response
 with BytesIO(response.content) as file:
     ds = rxr.open_rasterio(file)
 
-# Print dataset details
-print(ds)
 
+# +
+
+
+# Original lat/lon bounding box (EPSG:4326)
+# lat, lon = -35.0, 149.0
+# buffer = 0.05
+# minx, maxx = lon - buffer, lon + buffer
+# miny, maxy = lat - buffer, lat + buffer
+
+# First, transform the corners from EPSG:4326 (WGS84) to EPSG:3857 (Web Mercator)
+transformer = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+minx_3857, miny_3857 = transformer.transform(minx, miny)
+maxx_3857, maxy_3857 = transformer.transform(maxx, maxy)
+
+# Calculate pixel resolution
+width = 512
+height = 512
+resx = (maxx_3857 - minx_3857) / width
+resy = (maxy_3857 - miny_3857) / height
+
+# Create an affine transformation
+transform = Affine.translation(minx_3857, maxy_3857) * Affine.scale(resx, -resy)
+
+# Update the dataset with the geospatial information
+ds = ds.rio.write_transform(transform)
+ds = ds.rio.write_crs("EPSG:3857")
+
+# Save as GeoTIFF
+output_file = "nvis_vegetation.tiff"
+ds.rio.to_raster(output_file)
+
+print(f"Saved georeferenced GeoTIFF to {output_file}")
 # -
+
+num_pixels_x, num_pixels_y = 512, 512
+
+# +
+# Calculate the new x and y coordinates manually
+new_x = np.linspace(minx_3857, maxx_3857, num_pixels_x)  # Create the x coordinates
+new_y = np.linspace(maxy_3857, miny_3857, num_pixels_y)  # Create the y coordinates (reverse direction)
+
+# Replace the x and y coordinates with your calculated values
+ds.coords['x'] = new_x
+ds.coords['y'] = new_y
+
+# +
+# Define an output file path
+output_file = "nvis_vegetation.tiff"
+
+# Save the dataset to a GeoTIFF file
+ds.rio.to_raster(output_file)
+
+print(f"Saved GeoTIFF to {output_file}")
+# -
+
+ds.isel(band=0).values
 
 ds.sel(band=1).plot()
 
@@ -157,3 +207,12 @@ if legend_patches:
 
 plt.show()
 
+# -
+
+pixel_size = 100
+
+pixel_size=1
+# minx, maxx = lon - buffer, lon + buffer
+# miny, maxy = lat - buffer, lat + buffer
+lon_min = minx
+lat_max = maxy
