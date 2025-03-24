@@ -1,0 +1,1 @@
+# Download wind data from BARRA for a specific region, and create a wind rose based on data from 2017-2024

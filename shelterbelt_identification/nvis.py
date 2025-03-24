@@ -3,98 +3,114 @@
 # -
 
 
+# !pip install matplotlib
+
+import os
+from rasterio.enums import Resampling
+import numpy as np
 import pyproj
 import requests
+import rasterio
+import xarray as xr
 from io import BytesIO
 import rioxarray as rxr
-from affine import Affine  # Import Affine
+from affine import Affine
+import affine
+import math
+from pyproj import Transformer
+import matplotlib
 
+
+outdir = "../data"
+stub = '34_0_148_5'
 
 # +
-# NVIS MapServer export URL
-lat, lon = -35.0, 149.0
-buffer = 0.05  
-
-# Need to make the x, y buffers different if I want to a square region using EPSG:4326
+# NVIS download with all the pixels at 100m resolution
+lat, lon = -34.0, 148.5
+buffer = 0.05
 minx, maxx = lon - buffer, lon + buffer
 miny, maxy = lat - buffer, lat + buffer
+output_epsg = "EPSG:3857"  # GDA2020 / Australian Albers
 
-output_epsg = "EPSG:8944"
+# Calculate the dimensions in meters
+transformer = Transformer.from_crs("EPSG:4326", output_epsg, always_xy=True)
+sw_x, sw_y = transformer.transform(minx, miny)
+ne_x, ne_y = transformer.transform(maxx, maxy)
+width_meters = abs(ne_x - sw_x)
+height_meters = abs(ne_y - sw_y)
 
-url = "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/NVIS_ext_mvg/MapServer/export"
+# Calculate required pixels for 100m x 100m resolution
+pixel_size = 100  # meters per pixel
+width_pixels = math.ceil(width_meters / pixel_size)
+height_pixels = math.ceil(height_meters / pixel_size)
 
 # Define parameters for the request
+url = "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/NVIS_ext_mvg/MapServer/export"
 params = {
     "bbox": f"{minx},{miny},{maxx},{maxy}",
-    "bboxSR": 4326,  
-    "imageSR": output_epsg,  
-    "size": "512,512", 
-    "format": "tiff",  
+    "bboxSR": 4326,
+    "imageSR": output_epsg,
+    "size": f"{width_pixels},{height_pixels}",
+    "format": "tiff",
     "f": "image"
 }
-
 # Request the data
 response = requests.get(url, params=params)
 response.raise_for_status()  # Raise error for bad response
 
 # Load response into xarray
 with BytesIO(response.content) as file:
-    ds = rxr.open_rasterio(file)
-
+    ds_nvis = rxr.open_rasterio(file)
 
 # +
+# Load this canopy_height tif to grab the affine details. 
+filename = os.path.join(outdir, f"{stub}_canopy_height_temp.tif")
+da = rxr.open_rasterio(filename)
 
-transformer = pyproj.Transformer.from_crs("EPSG:4326", output_epsg, always_xy=True)
-minx_3857, miny_3857 = transformer.transform(minx, miny)
-maxx_3857, maxy_3857 = transformer.transform(maxx, maxy)
+# Match the dimensions of the NVIS
+new_y = np.linspace(float(da.y.min()), float(da.y.max()), height_pixels)
+new_x = np.linspace(float(da.x.min()), float(da.x.max()), width_pixels)
+resampled_da = da.interp(y=new_y, x=new_x, method="nearest")
 
-# Calculate pixel resolution
-width = 512
-height = 512
-resx = (maxx_3857 - minx_3857) / width
-resy = (maxy_3857 - miny_3857) / height
-
-# Create an affine transformation
-transform = Affine.translation(minx_3857, maxy_3857) * Affine.scale(resx, -resy)
-
-# Update the dataset with the geospatial information
-ds = ds.rio.write_transform(transform)
-ds = ds.rio.write_crs(output_epsg)
-
-num_pixels_x, num_pixels_y = 512, 512
-
-# Calculate the new x and y coordinates manually
-new_x = np.linspace(minx_3857, maxx_3857, num_pixels_x)  # Create the x coordinates
-new_y = np.linspace(maxy_3857, miny_3857, num_pixels_y)  # Create the y coordinates (reverse direction)
-
-# Replace the x and y coordinates with your calculated values
-ds.coords['x'] = new_x
-ds.coords['y'] = new_y
-
-# Define an output file path
-output_file = "nvis_vegetation.tiff"
-
-# Save the dataset to a GeoTIFF file
-ds.rio.to_raster(output_file)
-
-print(f"Saved GeoTIFF to {output_file}")
+# Remove the "band" coordina
+resampled_da = resampled_da.squeeze("band").reset_coords("band", drop=True)
+ds_canopy = resampled_da.to_dataset(name="canopy_height")
 # -
 
+ds_canopy
 
+# Add the NVIS to this Dataset
+new_band_da = xr.DataArray(
+    ds_nvis.isel(band=0).values,
+    dims=["y", "x"],
+    coords={"x": ds_canopy.x, "y": ds_canopy.y},  # Band index can be adjusted
+    name="NVIS"
+)
+ds_canopy["NVIS"] = new_band_da
 
+ds_canopy
 
+# Save the result as a tif
+filename = os.path.join(outdir, f"{stub}_nvis_red0.tif")
+ds_canopy["NVIS"].rio.to_raster(filename)
+print(filename)
 
+# +
+# Assuming ds_canopy has dimensions (y, x)
+y_size, x_size = ds_canopy.dims["y"], ds_canopy.dims["x"]
 
+# Generate a random array with one band
+random_band = np.random.rand(x_size, y_size)
 
-ds.isel(band=0).values
+# Create a new DataArray
+new_band_da = xr.DataArray(
+    random_band,
+    dims=["x", "y"],
+    coords={"y": ds_canopy.y, "x": ds_canopy.x},  # Band index can be adjusted
+    name="random_band"
+)
+ds_canopy["random_band"] = new_band_da
 
-ds.sel(band=1).plot()
-
-ds.sel(band=2).plot()
-
-ds.sel(band=3).plot()
-
-ds.sel(band=4).plot()
 
 # +
 legend_url = "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/NVIS_ext_mvg/MapServer/legend?f=json"

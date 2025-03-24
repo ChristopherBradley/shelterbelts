@@ -35,9 +35,8 @@ sample_size = 60000
 random_state = 0
 df_sample = df.sample(n=sample_size, random_state=random_state)
 
-# X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
+X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
 y = df_sample['woody_veg']  # target variable
-X = df_pca
 
 # Split the data into training and testing sets (70% train, 30% test)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
