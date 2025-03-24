@@ -98,6 +98,7 @@ for tile in tiles:
     B2 = ds['nbart_blue']
     ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
     ds['NDVI'] = (B8 - B4) / (B8 + B4)
+    ds['GRNDVI'] = (B8 - B3 + B4) / (B8 + B3 + B4)
 
     # Calculate the aggregated metrics
     ds = aggregated_metrics(ds)
