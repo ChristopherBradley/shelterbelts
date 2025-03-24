@@ -1,4 +1,6 @@
+# +
 # NVIS data descriptions are here: https://www.dcceew.gov.au/environment/environment-information-australia/national-vegetation-information-system/data-products
+# -
 
 
 import pyproj
@@ -13,9 +15,11 @@ from affine import Affine  # Import Affine
 lat, lon = -35.0, 149.0
 buffer = 0.05  
 
+# Need to make the x, y buffers different if I want to a square region using EPSG:4326
 minx, maxx = lon - buffer, lon + buffer
 miny, maxy = lat - buffer, lat + buffer
 
+output_epsg = "EPSG:8944"
 
 url = "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/NVIS_ext_mvg/MapServer/export"
 
@@ -23,7 +27,7 @@ url = "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/NVIS_
 params = {
     "bbox": f"{minx},{miny},{maxx},{maxy}",
     "bboxSR": 4326,  
-    "imageSR": 3857,  
+    "imageSR": output_epsg,  
     "size": "512,512", 
     "format": "tiff",  
     "f": "image"
@@ -40,15 +44,7 @@ with BytesIO(response.content) as file:
 
 # +
 
-
-# Original lat/lon bounding box (EPSG:4326)
-# lat, lon = -35.0, 149.0
-# buffer = 0.05
-# minx, maxx = lon - buffer, lon + buffer
-# miny, maxy = lat - buffer, lat + buffer
-
-# First, transform the corners from EPSG:4326 (WGS84) to EPSG:3857 (Web Mercator)
-transformer = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+transformer = pyproj.Transformer.from_crs("EPSG:4326", output_epsg, always_xy=True)
 minx_3857, miny_3857 = transformer.transform(minx, miny)
 maxx_3857, maxy_3857 = transformer.transform(maxx, maxy)
 
@@ -63,18 +59,10 @@ transform = Affine.translation(minx_3857, maxy_3857) * Affine.scale(resx, -resy)
 
 # Update the dataset with the geospatial information
 ds = ds.rio.write_transform(transform)
-ds = ds.rio.write_crs("EPSG:3857")
-
-# Save as GeoTIFF
-output_file = "nvis_vegetation.tiff"
-ds.rio.to_raster(output_file)
-
-print(f"Saved georeferenced GeoTIFF to {output_file}")
-# -
+ds = ds.rio.write_crs(output_epsg)
 
 num_pixels_x, num_pixels_y = 512, 512
 
-# +
 # Calculate the new x and y coordinates manually
 new_x = np.linspace(minx_3857, maxx_3857, num_pixels_x)  # Create the x coordinates
 new_y = np.linspace(maxy_3857, miny_3857, num_pixels_y)  # Create the y coordinates (reverse direction)
@@ -83,7 +71,6 @@ new_y = np.linspace(maxy_3857, miny_3857, num_pixels_y)  # Create the y coordina
 ds.coords['x'] = new_x
 ds.coords['y'] = new_y
 
-# +
 # Define an output file path
 output_file = "nvis_vegetation.tiff"
 
@@ -92,6 +79,12 @@ ds.rio.to_raster(output_file)
 
 print(f"Saved GeoTIFF to {output_file}")
 # -
+
+
+
+
+
+
 
 ds.isel(band=0).values
 

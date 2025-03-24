@@ -15,21 +15,27 @@ random_state = 0
 
 # %%time
 # From my testing, feather seems like the fastest and smallest filetype for a panda dataframe (better than parquet or csv, although csv more readable)
-filename = "/g/data/xe2/cb8590/shelterbelts/woody_veg_preprocessed.feather"
+# filename = "/g/data/xe2/cb8590/shelterbelts/woody_veg_preprocessed.feather"
+filename = "../data/woody_veg_preprocessed.feather"
 df = pd.read_feather(filename) 
 df.shape
 
 # Somehow I ended up with 3219 labels = 0.00393701. Need to look into if these should be 0 or NaN. 
-# df = df[(df['woody_veg'] == 0) | (df['woody_veg'] == 1)]
-df['woody_veg'] = df['woody_veg'].round()
+df = df[(df['woody_veg'] == 0) | (df['woody_veg'] == 1)]
+# df['woody_veg'] = df['woody_veg'].round()
+
+X.columns
 
 # +
 # %%time
 # Start out by training on just 60k samples like in Stewart et al. 2025
-# df_sample = df.sample(n=sample_size, random_state=random_state)
-df_sample = df
+sample_size = 60000
+df_sample = df.sample(n=sample_size, random_state=random_state)
+# df_sample = df
 
 X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
+X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0'] + columns_VI)
+X = df_sample[columns_focal]
 y = df_sample['woody_veg']  # target variable
 
 # Split the data into training and testing sets (70% train, 30% test)
@@ -60,5 +66,14 @@ print(classification_report(y_test, y_pred))
 # Based on tuning sample_size [10, 50, 100, 200], accuracy goes down as sample size is increased if not using randomly distributed values
 # Based on tuning sample_size [10, 50, 100, 200], accuracy goes up as sample size is increased if using randomly distributed values
 
-# I should be expecting a validation accuracy of 0.93 based on Stewart et al. 2025. I'm currently getting 93.85% accuracy if I increase the sample size to 300k
+# I should be expecting a validation accuracy of 0.93 based on Stewart et al. 2025. 
+# I'm currently getting 93.5% accuracy at sample_size = 60k, or 93.85% accuracy if I increase the sample size to 300k
 
+# Just the 10m pixels: Accuracy goes down to 91%
+# Just the temporal columns: Accuracy stays at 92.4%
+# Just the focal columns: Accuracy stays at 92.5%
+# No vegetation indices: 92.8%
+# No NDVI: 93.17%
+# No EVI: 92.99%
+# Extra indices: 
+# Just vegetation indices: 92.54%
