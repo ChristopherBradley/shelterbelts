@@ -31,19 +31,13 @@ outdir = "../data"
 stub = '34_0_148_5'
 
 # +
-# NVIS download with all the pixels at 100m resolution
-lat, lon = -34.0, 148.5
-buffer = 0.05
-minx, maxx = lon - buffer, lon + buffer
-miny, maxy = lat - buffer, lat + buffer
-output_epsg = "EPSG:3857"  # GDA2020 / Australian Albers
+# Load this canopy_height tif for the bbox and affine details. 
+filename = os.path.join(outdir, f"{stub}_canopy_height_temp.tif")
+da = rxr.open_rasterio(filename)
+minx,miny,maxx,maxy = da.rio.bounds()
 
-# Calculate the dimensions in meters
-transformer = Transformer.from_crs("EPSG:4326", output_epsg, always_xy=True)
-sw_x, sw_y = transformer.transform(minx, miny)
-ne_x, ne_y = transformer.transform(maxx, maxy)
-width_meters = abs(ne_x - sw_x)
-height_meters = abs(ne_y - sw_y)
+width_meters = abs(maxx - minx)
+height_meters = abs(maxy - miny)
 
 # Calculate required pixels for 100m x 100m resolution
 pixel_size = 100  # meters per pixel
@@ -54,8 +48,8 @@ height_pixels = math.ceil(height_meters / pixel_size)
 url = "https://gis.environment.gov.au/gispubmap/rest/services/ogc_services/NVIS_ext_mvg/MapServer/export"
 params = {
     "bbox": f"{minx},{miny},{maxx},{maxy}",
-    "bboxSR": 4326,
-    "imageSR": output_epsg,
+    "bboxSR": da.rio.crs.to_string(),
+    "imageSR": da.rio.crs.to_string(),
     "size": f"{width_pixels},{height_pixels}",
     "format": "tiff",
     "f": "image"
@@ -67,9 +61,6 @@ response.raise_for_status()  # Raise error for bad response
 # Load response into xarray
 with BytesIO(response.content) as file:
     ds_nvis = rxr.open_rasterio(file)
-# -
-
-
 
 # +
 # Download the colour labels
@@ -168,3 +159,13 @@ if legend_patches:
     ax.legend(handles=legend_patches, loc="upper right", fontsize=8, frameon=True)
 plt.show()
 
+# -
+
+def nvis(outdir, stub):
+    """Download an NVIS tiff for the same bbox as a predownloaded canopy_height tif"""
+
+
+if __name__ == '__main__':
+    outdir = "../data"
+    stub = '34_0_148_5'
+    nvis(outdir, stub)
