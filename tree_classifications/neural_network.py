@@ -24,19 +24,24 @@ df = pd.read_feather(filename)
 df.shape
 
 # Somehow I ended up with 3219 labels = 0.00393701. Need to look into if these should be 0 or NaN. 
-# df = df[(df['woody_veg'] == 0) | (df['woody_veg'] == 1)]
-df['woody_veg'] = df['woody_veg'].round()
+df = df[(df['woody_veg'] == 0) | (df['woody_veg'] == 1)]
+df = df[df.notna().all(axis=1)]
+# df['woody_veg'] = df['woody_veg'].round()
+
+y_categorical = keras.utils.to_categorical(y, 2)
+
 
 # +
+random_state = 0
 sample_size = 10000
 df_sample = df.sample(n=sample_size, random_state=random_state)
 
 X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
 y = df_sample['woody_veg']  # target variable
+y_categorical = keras.utils.to_categorical(y, 2)
 
 # Split the data into training and testing sets (70% train, 30% test)
-random_state = 0
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
+X_train, X_test, y_train, y_test = train_test_split(X, y_categorical, test_size=0.3, random_state=random_state)
 # -
 
 # Normalize the features (should probs do this before creating the .feather file)
@@ -50,7 +55,7 @@ model = keras.Sequential([
     keras.layers.Dense(128, activation='relu', input_shape=(X_train.shape[1],)),
     keras.layers.Dense(64, activation='relu'),
     keras.layers.Dense(32, activation='relu'),
-    keras.layers.Dense(1, activation='sigmoid')  # Binary classification (0 or 1)
+    keras.layers.Dense(2, activation='softmax')  # Binary classification (0 or 1)
 ])
 
 # Compile the model
