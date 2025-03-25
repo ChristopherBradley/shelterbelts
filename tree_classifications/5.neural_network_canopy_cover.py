@@ -20,38 +20,27 @@ pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
 
 # %%time
-# From my testing, feather seems like the fastest and smallest filetype for a panda dataframe (better than parquet or csv, although csv is more readable)
 filename = "/g/data/xe2/cb8590/shelterbelts/canopycover_preprocessed.csv"
 df = pd.read_csv(filename) 
 df = df[df.notna().all(axis=1)]
 
+random_state = 0
+sample_size = 60000
+df_sample = df.sample(n=sample_size, random_state=random_state)
+
 X = df_sample.drop(columns=['canopycover', 'y', 'x', 'Unnamed: 0']) # input variables
+X = StandardScaler().fit_transform(X)
 y = df_sample['canopycover']  # target variable
 
 
-# +
-random_state = 0
-# sample_size = 60000
-sample_size = 200000
-df_sample = df.sample(n=sample_size, random_state=random_state)
-# df_sample = df
-
-# Normalise the input features (should probs do this before creating the .feather file)
-X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
-X = StandardScaler().fit_transform(X)
-
-y = df_sample['woody_veg']  # target variable
-y_categorical = keras.utils.to_categorical(y, 2)
-
 # Split the data into training and testing sets (70% train, 30% test)
-X_train, X_test, y_train, y_test = train_test_split(X, y_categorical, test_size=0.3, random_state=random_state)
-# -
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
 
 # Define EarlyStopping callback
 early_stopping = EarlyStopping(
-    monitor='val_loss',   # Monitor validation loss
-    patience=5,           # Stop training if val_loss doesn't improve for 5 epochs
-    restore_best_weights=True  # Restore the best model weights
+    monitor='val_loss',   
+    patience=5,           
+    restore_best_weights=True 
 )
 
 # +
@@ -65,43 +54,29 @@ model = keras.Sequential([
     keras.layers.Dropout(0.3), 
     
     keras.layers.Dense(32, activation='relu'),
-    keras.layers.Dense(2, activation='softmax')
+    keras.layers.Dense(1, activation='linear')  # Continuous classification instead
 ])
 
 # Compile the model
-optimizer = keras.optimizers.Adam(learning_rate=0.001)  # Specify learning rate here
-model.compile(optimizer=optimizer, loss = 'CategoricalCrossentropy', metrics = 'CategoricalAccuracy')        
+optimizer = keras.optimizers.Adam(learning_rate=0.001)
+model.compile(optimizer=optimizer, loss = 'mse', metrics = 'mae')        
 history = model.fit(X_train, y_train, epochs=50, batch_size=32, 
                     callbacks=[early_stopping], validation_data=(X_test, y_test))
 
 history_df = pd.DataFrame.from_dict(history.history)
-sns.lineplot(data=history_df[['categorical_accuracy', 'val_categorical_accuracy']])
+sns.lineplot(data=history_df[['mae', 'val_mae']])
 plt.show()
 # -
 
-# Using default paramaters and 60k samples, Validation accuracy = 93.5% (same as the random forest). Takes 50 secs to train. 
-# Adding 2x batch normalization & dropout: Didn't finish training after 20 epochs
-# Adding a single dropout after 2nd layer: 93.7% 
-# Normalisation & Single dropout after 2nd layer: 93.1% otherwise kinda similar
-# 2x dropouts 0.3 (no batch normalization): 93.6% and didn't finish training
-# Single dropout of 50% right before last layer: 93.5% and did finish training
-# Single layer of 128 neurons: 93.7% and didn't finish training
-# Just 58 neurons: 93.1%
-# 256 neurons: 93% accuracy and definitely started overfitting.
-# 256 neurons + dropout: 93.5% accuracy and didn't overfit (12k params)
-# 256 neurons + dropout + early stopping: 35 epochs, and 93.7% accuracy 
-# 128 neurons + early stopping: 25 epochs, 93.26% accuracy
-# 128 neurons + dropout + early stopping: 36 epochs, 93.8% accuracy
-# 128 + dropout + 64 + dropout + 32: 40 epochs, 93.9% accuracy
-# 32 + dropout + 64 + dropout + 128: 18 epochs, 92.8% accuracy
-# 128 (d) + 64 (d) + 32: 27 epochs: 94% accuracy (not sure why it stopped)
-# 128 (d) + 128 (d) + 64: 25 epochs: 93.7% accuracy 
-# 256 (d) + 128 (d) + 64 (d) + 32: 25 epochs: 93.7% accuracy but started overfitting
-# 200k samples: 
+# Make predictions on the test set
+y_pred = model.predict(X_test)[:,0]
+r2 = r2_score(y_test, y_pred)
+threshold = 0.1
+y_test_bool = (y_test >= threshold).astype(int)
+y_pred_bool = (y_pred >= threshold).astype(int)
+accuracy = accuracy_score(y_test_bool, y_pred_bool)
+print(f"R²: {r2:.4f}")
+print(f"Accuracy: {accuracy:.4f}")
 
-
-y_train
-
-y_test
-
-model.summary()
+# +
+# First training w/ 60k samples (2 mins): 17 epochs, 0.08 MAE, 91.9% accuracy
