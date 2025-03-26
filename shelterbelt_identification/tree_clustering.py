@@ -71,19 +71,43 @@ def group_cells(bool_array):
     return groups
 
 
-
-woody_veg = np.array(da.values - 1, dtype = bool)
-
 # %%time
+woody_veg = np.array(da.values - 1, dtype = bool)
 groups = group_cells(woody_veg)
 # 27 secs for a 5km x 5km area
 
 # Just need list of coords per group for my purposes right now.
-group_coords = {list(group.keys()) for group in groups.values()]
+group_coords = [list(group.keys()) for group in groups.values()]
+
+group_coords[1]
+
+ys = [c[1] for c in group_coords[1]]
+ys
+
+min(ys)
+
+# Calculate area, width, length for each shelterbelt
+group_stats = []
+for i, coords in enumerate(group_coords):
+    xs = [coord[0] for coord in coords]
+    ys = [coord[0] for coord in coords]
+    
+    area = len(coords)
+    x_length = max(xs) - min(xs)
+    y_length = max(ys) - min(ys)
+    stats = {
+        'identifier': i,
+        'area':area,
+        'x_length':x_length,
+        'y_length':y_length,
+        'max_length':max(x_length, y_length)
+        # 'coords':coords
+    }
+    group_stats.append(stats)
+
 
 # +
-# Should add an area, length, width to each shelterbelt 
-# Should filter out any shelterbelts smaller than a certain size
+# Should filter out any shelterbelts less than a certain length, e.g. 100m
 # -
 
 # Add a group id to each pixel in woodyveg
@@ -104,3 +128,5 @@ da_shelterbelts = xr.DataArray(
 ds["shelterbelts"] = da_shelterbelts
 
 ds['shelterbelts'].rio.to_raster("../data/test_shelterbelts.tif")
+
+
