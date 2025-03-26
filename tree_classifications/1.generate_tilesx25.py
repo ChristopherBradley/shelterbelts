@@ -1,5 +1,6 @@
 # +
 # Create 125 tiles, each 5kmx5km, representing similar locations to the LIDAR used to train the model in Stewart et al. 2025
+# Then repeat with 125 tiles in new locations for an independent test of the model (separate from validation)
 # -
 
 import pandas as pd
@@ -22,13 +23,21 @@ crs_projected = "EPSG:7855"  # GDA2020 / MGA Zone 55 (meters)
 tile_size_m = 5000  # 5 km
 
 # Five center coordinates (WGS 84). These were chosen by eyeballing the locations in Stewart et al. 2025
-center_coords_25km = [
+training_center_coords_25km = [
     (147.6, -42.8),
     (146.9, -42.8),
     (147.4, -41.8),
     (146.7, -41.7),
     (146.3, -41.4),
 ]
+testing_center_coords_25km = [
+    (147.6, -42.3),
+    (146.9, -42.3),
+    (147.4, -41.3),
+    (148, -41),
+    (145.1, -40.9),
+]
+center_coords_25km = testing_center_coords_25km
 
 # Transform function
 project = pyproj.Transformer.from_crs(crs_epsg4326, crs_projected, always_xy=True).transform
@@ -64,24 +73,23 @@ for lon, lat in center_coords_25km:
             center_lat = tile_wgs84.bounds[1] + (tile_wgs84.bounds[3] - tile_wgs84.bounds[1])/2
             center_coords_5km.append([center_lon, center_lat])
             
+# -
 
-# Convert to GeoDataFrame and save as GeoJSON
+# Save the tiles as a geojson
 grid_gdf = gpd.GeoDataFrame(geometry=tiles, crs=crs_epsg4326)
-filename = "../data/lidar_tiles_tasmania.geojson"
+filename = "../data/tasmania_tiles_testing.geojson"
 grid_gdf.to_file(filename, driver="GeoJSON")
 print("Saved:", filename)
 
-# -
-
 # Save the coordinates as a csv
 df = pd.DataFrame(center_coords_5km, columns=["Longitude", "Latitude"])
-filename = "../data/lidar_tiles_tasmania.csv"
+filename = "../data/tasmania_tiles_testing.csv"
 df.to_csv(filename, index=False)
 print("Saved:", filename)
 
 # Save the coordinates as a geojson to check they line up with the tile centres
 geometry = [Point(lon, lat) for lon, lat in zip(df["Longitude"], df["Latitude"])]
 gdf_points = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
-filename_points = "../data/lidar_points_tasmania.geojson"
+filename_points = "../data/tasmania_center_coords_testing.geojson"
 gdf_points.to_file(filename_points, driver="GeoJSON")
 print("Saved points as GeoJSON:", filename_points)
