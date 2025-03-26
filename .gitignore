@@ -4,6 +4,7 @@ data
 *.png
 *.geojson
 *.tiff*
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
