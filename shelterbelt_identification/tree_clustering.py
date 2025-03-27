@@ -7,10 +7,17 @@ import os
 import glob
 import pickle
 import numpy as np
+import pandas as pd
 import xarray as xr
 import rioxarray as rxr
 import pyproj
+from scipy.ndimage import label
+import matplotlib.pyplot as plt
 
+
+# Make the panda displays more informative
+pd.set_option('display.max_rows', 100)
+pd.set_option('display.max_columns', 100)
 
 # Load the woody veg or canopy cover tiff file
 outdir = "../data/"
@@ -29,74 +36,26 @@ bbox
 
 # Select the 5km x 5km region
 da = ds_original.sel(band=1, x=slice(minx, maxx), y=slice(miny, maxy))
+bool_array = np.array(da.values - 1, dtype = bool)
 
-# Code from civilise.ai that I wrote during honours. There's probably a better way to do this now. 
-adjacencies = np.array([(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)])
-direct_adjacencies = np.array([(0, -1),  (1, 0),  (0, 1),  (-1, 0)])
-def group_cells(bool_array):
-    """Group the cells. Each group is a dictionary with the cell coord being the key and the value being a list of cells (initially empty)"""
-    xs, ys = np.where(bool_array)
-    coords = [(x,y) for x, y in zip(xs,ys)]
-    groups = dict()
-    for coord in coords:
-        # Find all the neighbours of the coord
-        neighbours = adjacencies + coord
-        neighbours = [tuple(n) for n in neighbours]
-        assigned_groups = set()
-        for neighbour in neighbours:
-            for group in groups.keys():
-                if neighbour in groups[group].keys():
-                    # A new cell may be attached to two different groups
-                    assigned_groups.add(group)
-        assigned_groups = list(assigned_groups)
-        # Create a new group
-        if len(assigned_groups) == 0:
-            if len(groups) == 0:
-                new_group = 0
-            else:
-                new_group = max(groups.keys()) + 1
-            groups[new_group] = {coord:[]}
-        # Simply add this cell to the other group
-        if len(assigned_groups) == 1:
-            groups[assigned_groups[0]][coord] = []
-        # Combine the groups together
-        if len(assigned_groups) > 1:
-            combined_group = {coord:[]}
-            assigned_groups = sorted(assigned_groups, reverse=True)
-            for group in assigned_groups:
-                combined_group = {**combined_group, **groups[group]}
-                del groups[group]
-            new_group = 0 if len(groups) == 0 else max(groups.keys()) + 1
-            groups[new_group] = combined_group
-    return groups
+# Assign a label to each group of pixels
+structure = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]) 
+shelterbelts, num_features = label(woody_veg, structure)
 
+# List the coords in each group
+coord_lists = {i: list(zip(*np.where(shelterbelts == i))) for i in range(1, num_features)}
 
-# %%time
-woody_veg = np.array(da.values - 1, dtype = bool)
-groups = group_cells(woody_veg)
-# 27 secs for a 5km x 5km area
-
-# Just need list of coords per group for my purposes right now.
-group_coords = [list(group.keys()) for group in groups.values()]
-
-group_coords[1]
-
-ys = [c[1] for c in group_coords[1]]
-ys
-
-min(ys)
-
+# +
 # Calculate area, width, length for each shelterbelt
 group_stats = []
-for i, coords in enumerate(group_coords):
+for i, coords in coord_lists.items():
     xs = [coord[0] for coord in coords]
-    ys = [coord[0] for coord in coords]
+    ys = [coord[1] for coord in coords]
     
     area = len(coords)
     x_length = max(xs) - min(xs)
     y_length = max(ys) - min(ys)
     stats = {
-        'identifier': i,
         'area':area,
         'x_length':x_length,
         'y_length':y_length,
@@ -105,16 +64,16 @@ for i, coords in enumerate(group_coords):
     }
     group_stats.append(stats)
 
-
-# +
-# Should filter out any shelterbelts less than a certain length, e.g. 100m
+df_shelterbelts = pd.DataFrame(group_stats, index=coord_lists.keys())
 # -
 
-# Add a group id to each pixel in woodyveg
-shelterbelts = np.zeros(woody_veg.shape, dtype=float)  # For some reason the export to tif doesn't work if I specify int
-for group_idx, coords in enumerate(group_coords):
-    for x, y in coords:
-        shelterbelts[x, y] = group_idx
+
+# Filter out any shelterbelts less than a certain length, e.g. 100m
+length_threshold = 10   # 100m 
+df_large_shelterbelts = df_shelterbelts[df_shelterbelts['max_length'] > length_threshold]
+large_shelterbelts = shelterbelts.copy()
+mask = ~np.isin(shelterbelts, df_large_shelterbelts.index)
+large_shelterbelts[mask] = 0
 
 # Add these groups to the original xarray
 da_reset = da.reset_coords("band", drop=True)
@@ -125,8 +84,15 @@ da_shelterbelts = xr.DataArray(
     coords={"x": ds.x, "y": ds.y},
     name="shelterbelts"
 )
+da_large_shelterbelts = xr.DataArray(
+    large_shelterbelts,
+    dims=["y", "x"],
+    coords={"x": ds.x, "y": ds.y},
+    name="large_shelterbelts"
+)
 ds["shelterbelts"] = da_shelterbelts
+ds["large_shelterbelts"] = da_large_shelterbelts
 
-ds['shelterbelts'].rio.to_raster("../data/test_shelterbelts.tif")
+ds['large_shelterbelts'].rio.to_raster("../data/test_large_shelterbelts.tif")
 
-
+ds['large_shelterbelts'].plot()
