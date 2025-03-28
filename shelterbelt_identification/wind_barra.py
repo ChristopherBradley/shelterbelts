@@ -111,7 +111,6 @@ def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffe
     return ds_concat
 
 
-# +
 # Requires the 'pip install windrose' library
 def wind_rose(ds, outdir=".", stub="Test"):
     """Uses the output from barra_daily to create a wind rose plot"""
@@ -137,33 +136,89 @@ def wind_rose(ds, outdir=".", stub="Test"):
     plt.savefig(filename)
     print("Saved", filename)
 
-wind_rose(ds, outdir=outdir, stub=stub)
 
-# -
+def wind_dataframe(ds):
+    """Create a dataframe of the frequency of each wind speed in each direction"""
+    ds = ds[['uas', 'vas']]
+    speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
+    speed_km_hr = speed * 3.6
+    direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
+    
+    # Convert wind speed into a categorical variables
+    speed_labels = "0-10km/hr", "10-20km/hr", "20-30km/hr", "30+ km/hr"
+    speed_bins = [0,10,20,30]
+    speed_binned = np.digitize(speed_km_hr, speed_bins) - 1
+    ds["speed_binned"] = xr.DataArray(
+        speed_binned,
+        dims=["time"],
+        coords={"time": ds.time},
+        name="speed_binned"
+    )
+    
+    # Convert the wind direction into a categorical variable
+    compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    sector_width = 360 / len(compass_labels)  # 45° per sector
+    direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
+    direction_binned = (direction_binned_da.values).astype(int)
+    
+    def direction_to_compass(direction_binned):
+        return np.array(compass_labels)[index.astype(int)]
+    
+    compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
+    ds["compass"] = compass
+    
+    # Create a matrix of the number of occurences of each speed and direction
+    freq_matrix = np.zeros((len(speed_labels), len(compass_labels)))
+    for s, d in zip(speed_binned, direction_binned):
+        freq_matrix[s,d] += 1
+        
+    percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
+    df = pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
 
-list(range(2017, 2024 + 1))
+    return df
+
+
+# Sometimes the direction with the maximum wind speed isn't obvious from the windrose
+def max_wind_direction(ds):
+    """Find the direction of the strongest wind"""
+    ds = ds_original[['uas', 'vas']]
+    speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
+    speed_km_hr = speed * 3.6
+    direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
+
+    # Convert the wind direction into a categorical variable
+    compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    sector_width = 360 / len(compass_labels)  # 45° per sector
+    direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
+    direction_binned = (direction_binned_da.values).astype(int)
+    def direction_to_compass(direction_binned):
+        return np.array(compass_labels)[index.astype(int)]
+    compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
+    ds["compass"] = compass
+        
+    max_speed = round(float(speed_km_hr.max()), 2)
+    direction_max_speed = str(compass[speed_km_hr.argmax()].values)
+    
+    return max_speed, direction_max_speed
+
 
 # %%time
 if __name__ == '__main__':
     outdir = "../data"
 
-    years = list(range(2017, 2024 + 1))
-    for year in years:
-        stub = f"Launceston_{year}"
-        print(f"Working on {stub}")
-        ds = barra_daily(lat=-41.541960, lon=148.469499, start_year=year, end_year=year, outdir=outdir, stub=stub)
-        wind_rose(ds, outdir=outdir, stub=stub)
-
-    # stub = "Melbourne_2017_2024"
-    # ds_original = barra_daily(lat=-37.670526, lon=144.841046, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
-    # wind_rose(ds_original, outdir=outdir, stub=stub)
-
-    # stub = "Bathurst_2017_2024"
-    # ds_original = barra_daily(lat=-33.420124, lon=149.553239, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
-    # wind_rose(ds_original, outdir=outdir, stub=stub)
-
-    # stub = "Cunnamulla_2017_2024"
-    # ds_original = barra_daily(lat=-28.078105, lon=145.689633, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
-    # wind_rose(ds_original, outdir=outdir, stub=stub)
+    stub = f"Launceston_2017_2024"
+    ds = barra_daily(lat=-41.541960, lon=148.469499, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
+    wind_rose(ds, outdir=outdir, stub=stub)
 
 
+# +
+# Some different ways to decide on the dominant wind direction
+df = wind_dataframe(ds)
+max_speed, max_direction = max_wind_direction(ds)
+print(df)
+print(f"Maximum speed {max_speed}km/hr, Direction: {max_direction}")
+
+# Calculating the direction with the most days with winds over 20km/hr
+df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
+direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
+print(f"Highest percentage of days with winds > 20km/hr: {round(df_20km_plus.max(), 2)}%, Direction: {direction_20km_plus}")
