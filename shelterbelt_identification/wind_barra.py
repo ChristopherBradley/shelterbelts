@@ -150,49 +150,16 @@ ds["speed_binned"] = xr.DataArray(
 # +
 # Create a matrix of the number of occurences of each speed and direction
 freq_matrix = np.zeros((len(speed_labels), len(compass_labels)))
-for speed, direction in zip(speed_binned, direction_binned):
-    freq_matrix[speed,direction] += 1
+for s, d in zip(speed_binned, direction_binned):
+    freq_matrix[s,d] += 1
     
 percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
+pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
 # -
 
+speed_km_hr.values
 
-
-pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
-
-theta
-
-freq_matrix[-(i+1), :]
-
-radii
-
-# +
-fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(12, 12))
-colors = plt.cm.viridis(np.linspace(0, 1, len(speed_labels)-1))
-
-# Width of each sector with spacing
-width = np.pi / 4 * 0.8  # 22.5 degrees, with 20% gap
-
-# Plot each speed bin
-for i in range(len(speed_bins)-1):
-    radii = freq_matrix[-(i+1), :]  # Reverse order of speed bins
-    ax.bar(theta, 
-           radii, 
-           width=width, 
-           bottom=sum(freq_matrix[-(j+1),:] for j in range(i)), 
-           color=colors[i], alpha=0.7, 
-           label=f'{speed_bins[-(i+1)]}-{speed_bins[-(i)]} km/hr')
-    
-# Customize plot
-ax.set_theta_zero_location('N')
-ax.set_theta_direction(-1)  # Clockwise
-ax.set_xticklabels(compass_labels, fontsize=8)
-ax.set_title('Wind Rose', fontsize=15)
-
-# Legend outside the plot
-plt.legend(loc='center left', bbox_to_anchor=(1.1, 0.5), title='Wind Speed (km/hr)')
-
-plt.tight_layout()
+direction.values
 
 # +
 import numpy as np
