@@ -111,12 +111,77 @@ def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffe
     return ds_concat
 
 
+# Requires the 'pip install windrose' library
+def wind_rose(ds, outdir=".", stub="Test"):
+    """Uses the output from barra_daily to create a wind rose plot"""
+    ds = ds[['uas', 'vas']]
+    speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
+    speed_km_hr = speed * 3.6
+    direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
+
+    # The looks nice if the maximum direction occurs about 15% of the time
+    y_ticks = range(0, 15, 5)   # Frequency percentage bins
+    x_ticks = range(0, 40, 10)  # Wind speed magnitude bins
+    title_fontsize = 20
+    
+    ax = WindroseAxes.from_ax()
+    ax.bar(direction.values, speed_km_hr.values, bins=x_ticks, normed=True)
+    ax.set_legend(
+        title="Wind Speed (km/hr)"
+    )
+    ax.set_rgrids(y_ticks, y_ticks)
+    ax.set_title("Wind Rose", fontsize=title_fontsize)
+
+    filename = os.path.join(outdir, f"{stub}_windrose.png")
+    plt.savefig(filename)
+
+
+def wind_dataframe(ds):
+    """Create a dataframe of the values that would go into a wind rose"""
+    # Remove the 'timebands' variable (not sure why it got added)
+    ds = ds_original[['uas', 'vas']]
+
+    # Convert wind speed into a categorical variables
+    speed_labels = "0-10km/hr", "10-20km/hr", "20-30km/hr", "30+ km/hr"
+    speed_bins = [0,10,20,30]
+    speed_binned = np.digitize(speed_km_hr, speed_bins) - 1
+    ds["speed_binned"] = xr.DataArray(
+        speed_binned,
+        dims=["time"],
+        coords={"time": ds.time},
+        name="speed_binned"
+    )
+
+    # Convert the wind direction into a categorical variable
+    compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    sector_width = 360 / len(compass_labels)  # 45° per sector
+    direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
+    direction_binned = (direction_binned_da.values).astype(int)
+    
+    def direction_to_compass(direction_binned):
+        return np.array(compass_labels)[index.astype(int)]
+    
+    compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
+    ds["compass"] = compass
+
+    # Create a matrix of the number of occurences of each speed and direction
+    freq_matrix = np.zeros((len(speed_labels), len(compass_labels)))
+    for s, d in zip(speed_binned, direction_binned):
+        freq_matrix[s,d] += 1
+        
+    percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
+    df = pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
+    return d
+            
+
+
 # %%time
 if __name__ == '__main__':
-    ds_original = barra_daily(start_year="2017", end_year="2024", outdir="../data")
+    outdir = "../data"
+    ds_original = barra_daily(start_year="2017", end_year="2024", outdir=outdir)
+    wind_rose(ds_original, outdir=outdir)
 
-# Remove the 'timebands' variable (not sure why it got added)
-ds = ds_original[['uas', 'vas']]
+
 
 # Use the eastward and westward wind to calculate a speed and direction
 speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
@@ -125,39 +190,11 @@ direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
 ds['speed'] = speed_km_hr
 ds['direction'] = direction
 
-# +
-# Convert the wind direction into a categorical variable
-compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-sector_width = 360 / len(compass_labels)  # 45° per sector
-direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
-direction_binned = (direction_binned_da.values).astype(int)
-def direction_to_compass(direction_binned):
-    return np.array(compass_labels)[index.astype(int)]
 
-compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
-ds["compass"] = compass
-# -
 
-# Convert wind speed into a categorical variables
-speed_labels = "0-10km/hr", "10-20km/hr", "20-30km/hr", "30+ km/hr"
-speed_bins = [0,10,20,30]
-speed_binned = np.digitize(speed_km_hr, speed_bins) - 1
-ds["speed_binned"] = xr.DataArray(
-    speed_binned,
-    dims=["time"],
-    coords={"time": ds.time},
-    name="speed_binned"
-)
 
-# +
-# Create a matrix of the number of occurences of each speed and direction
-freq_matrix = np.zeros((len(speed_labels), len(compass_labels)))
-for s, d in zip(speed_binned, direction_binned):
-    freq_matrix[s,d] += 1
-    
-percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
-pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
-# -
+
+
 
 # Plot the wind rose
 y_ticks = range(0, 15, 5)
