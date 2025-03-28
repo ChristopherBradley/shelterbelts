@@ -5,14 +5,18 @@
 # Publication is here: http://www.bom.gov.au/research/publications/researchreports/BRR-097.pdf
 
 # uas stands for Eastward Near-Surface Wind, and vas stands for Northward Near-Surface Wind
+
+# +
+# # !pip install windrose
 # -
 
 import os
 import numpy as np
 import xarray as xr
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
+
 
 barra_abbreviations = {
     "uas": "Eastward Near-Surface Wind",
@@ -116,122 +120,90 @@ ds = ds_original[['uas', 'vas']]
 speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
 speed_km_hr = speed * 3.6
 direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
-
+ds['speed'] = speed_km_hr
+ds['direction'] = direction
 
 # +
 # Convert the wind direction into a categorical variable
-def direction_to_compass(direction):
-    compass_directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-    sector_width = 360 / len(compass_directions)  # 45° per sector
-    index = np.round(direction / sector_width) % len(compass_directions)
-    return np.array(compass_directions)[index.astype(int)]
+compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+sector_width = 360 / len(compass_labels)  # 45° per sector
+direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
+direction_binned = (direction_binned_da.values).astype(int)
+def direction_to_compass(direction_binned):
+    return np.array(compass_labels)[index.astype(int)]
 
-compass = xr.apply_ufunc(direction_to_compass, direction)
+compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
+ds["compass"] = compass
 # -
 
-ds = ds.assign(speed=speed_km_hr, direction=direction, compass=compass)
-
-
-
-list(ds.to_dataframe()[['compass', 'speed']].values)
-
-dataset = ds
+# Convert wind speed into a categorical variables
+speed_labels = "0-10km/hr", "10-20km/hr", "20-30km/hr", "30+ km/hr"
+speed_bins = [0,10,20,30]
+speed_binned = np.digitize(speed_km_hr, speed_bins) - 1
+ds["speed_binned"] = xr.DataArray(
+    speed_binned,
+    dims=["time"],
+    coords={"time": ds.time},
+    name="speed_binned"
+)
 
 # +
-import xarray as xr
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-
-def create_wind_rose(dataset):
-    """
-    Create an enhanced wind rose diagram with 16 direction labels,
-    nested speed distribution, and spacing between directional cones.
+# Create a matrix of the number of occurences of each speed and direction
+freq_matrix = np.zeros((len(speed_labels), len(compass_labels)))
+for speed, direction in zip(speed_binned, direction_binned):
+    freq_matrix[speed,direction] += 1
     
-    Parameters:
-    -----------
-    dataset : xarray.Dataset
-        Dataset containing 'speed' and 'direction' variables
-    
-    Returns:
-    --------
-    matplotlib.figure.Figure
-        Wind rose plot
-    """
-    # Extract speed and direction
-    speeds = dataset['speed'].values
-    directions = dataset['direction'].values
-    
-    # Define speed bins (reversed to have min inside, max outside)
-    speed_bins = [0, 2, 5, 10, 15, 20, 25, 30]
-    
-    # 16 direction sectors (22.5 degrees each)
-    dir_bins = np.linspace(0, 360, 17)
-    dir_labels = [
-        'N', 'NNE', 'NE', 'ENE', 
-        'E', 'ESE', 'SE', 'SSE', 
-        'S', 'SSW', 'SW', 'WSW', 
-        'W', 'WNW', 'NW', 'NNW'
-    ]
-    
-    # Compute frequency of speeds in each direction
-    freq_matrix = np.zeros((len(speed_bins)-1, len(dir_bins)-1))
-    
-    for i in range(len(speeds)):
-        speed = speeds[i]
-        direction = directions[i]
-        
-        # Find speed bin (reversed order)
-        speed_bin_index = np.digitize(speed, speed_bins) - 1
-        if speed_bin_index >= len(speed_bins) - 1:
-            continue
-        
-        # Find direction bin
-        dir_bin_index = np.digitize(direction, dir_bins) - 1
-        if dir_bin_index >= len(dir_bins) - 1:
-            dir_bin_index = 0
-        
-        freq_matrix[speed_bin_index, dir_bin_index] += 1
-    
-    # Normalize to percentages
-    freq_matrix = freq_matrix / len(speeds) * 100
-    
-    # Create wind rose plot
-    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(12, 12))
-    
-    # Color palette (reversed to match speed bins)
-    colors = plt.cm.viridis(np.linspace(1, 0, len(speed_bins)-1))
-    
-    # Width of each sector with spacing
-    width = np.pi / 8 * 0.8  # 22.5 degrees, with 20% gap
-    
-    # Adjust angles for polar plot (0 at North, clockwise)
-    theta = np.linspace(np.pi/2, -3*np.pi/2, 16, endpoint=False)
-    
-    # Plot each speed bin (from inside to outside)
-    for i in range(len(speed_bins)-1):
-        radii = freq_matrix[-(i+1), :]  # Reverse order of speed bins
-        ax.bar(theta, radii, width=width, bottom=sum(freq_matrix[-(j+1),:] for j in range(i)), 
-               color=colors[i], alpha=0.7, 
-               label=f'{speed_bins[-(i+1)]}-{speed_bins[-(i)]} km/hr')
-    
-    # Customize plot
-    ax.set_theta_zero_location('N')
-    ax.set_theta_direction(-1)  # Clockwise
-    ax.set_xticks(theta)
-    ax.set_xticklabels(dir_labels, fontsize=8)
-    ax.set_title('Enhanced Wind Rose Diagram', fontsize=15)
-    
-    # Legend outside the plot
-    plt.legend(loc='center left', bbox_to_anchor=(1.1, 0.5), title='Wind Speed (km/hr)')
-    
-    plt.tight_layout()
-    return fig
-
-
-# Generate and plot
-wind_rose_fig = create_wind_rose(ds)
-plt.show()
+percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
 # -
 
 
+
+pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
+
+theta
+
+freq_matrix[-(i+1), :]
+
+radii
+
+# +
+fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(12, 12))
+colors = plt.cm.viridis(np.linspace(0, 1, len(speed_labels)-1))
+
+# Width of each sector with spacing
+width = np.pi / 4 * 0.8  # 22.5 degrees, with 20% gap
+
+# Plot each speed bin
+for i in range(len(speed_bins)-1):
+    radii = freq_matrix[-(i+1), :]  # Reverse order of speed bins
+    ax.bar(theta, 
+           radii, 
+           width=width, 
+           bottom=sum(freq_matrix[-(j+1),:] for j in range(i)), 
+           color=colors[i], alpha=0.7, 
+           label=f'{speed_bins[-(i+1)]}-{speed_bins[-(i)]} km/hr')
+    
+# Customize plot
+ax.set_theta_zero_location('N')
+ax.set_theta_direction(-1)  # Clockwise
+ax.set_xticklabels(compass_labels, fontsize=8)
+ax.set_title('Wind Rose', fontsize=15)
+
+# Legend outside the plot
+plt.legend(loc='center left', bbox_to_anchor=(1.1, 0.5), title='Wind Speed (km/hr)')
+
+plt.tight_layout()
+
+# +
+import numpy as np
+
+N = 500
+ws = np.random.random(N) * 6
+wd = np.random.random(N) * 360
+
+# +
+from windrose import WindroseAxes
+
+ax = WindroseAxes.from_ax()
+ax.bar(wd, ws, normed=True, opening=0.8, edgecolor="white")
+ax.set_legend()
