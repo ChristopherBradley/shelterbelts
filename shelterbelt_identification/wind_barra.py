@@ -8,8 +8,8 @@
 
 # +
 # # !pip install windrose
-# -
 
+# +
 import os
 import numpy as np
 import xarray as xr
@@ -17,6 +17,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from windrose import WindroseAxes
+# -
 
 barra_abbreviations = {
     "uas": "Eastward Near-Surface Wind",
@@ -157,20 +159,13 @@ percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
 pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
 # -
 
-speed_km_hr.values
-
-direction.values
-
-# +
-import numpy as np
-
-N = 500
-ws = np.random.random(N) * 6
-wd = np.random.random(N) * 360
-
-# +
-from windrose import WindroseAxes
-
+# Plot the wind rose
+y_ticks = range(0, 15, 5)
 ax = WindroseAxes.from_ax()
-ax.bar(wd, ws, normed=True, opening=0.8, edgecolor="white")
-ax.set_legend()
+ax.bar(direction.values, speed_km_hr.values, bins=np.arange(0, 40, 10), normed=True)
+ax.set_legend(
+    title="Wind Speed (km/hr)", bbox_to_anchor=(0, 1)
+)
+ax.set_rgrids(y_ticks, y_ticks)
+ax.set_title("Wind Rose", fontsize="20")
+plt.show()
