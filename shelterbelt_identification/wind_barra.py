@@ -111,6 +111,7 @@ def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffe
     return ds_concat
 
 
+# +
 # Requires the 'pip install windrose' library
 def wind_rose(ds, outdir=".", stub="Test"):
     """Uses the output from barra_daily to create a wind rose plot"""
@@ -119,90 +120,50 @@ def wind_rose(ds, outdir=".", stub="Test"):
     speed_km_hr = speed * 3.6
     direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
 
-    # The looks nice if the maximum direction occurs about 15% of the time
-    y_ticks = range(0, 15, 5)   # Frequency percentage bins
+    # The looks nice if the maximum direction occurs about 20% of the time
+    y_ticks = range(0, 30, 10)   # Frequency percentage bins
     x_ticks = range(0, 40, 10)  # Wind speed magnitude bins
     title_fontsize = 20
     
     ax = WindroseAxes.from_ax()
-    ax.bar(direction.values, speed_km_hr.values, bins=x_ticks, normed=True)
+    ax.bar(direction.values, speed_km_hr.values, bins=x_ticks, normed=True, nsector=8)
     ax.set_legend(
         title="Wind Speed (km/hr)"
     )
-    ax.set_rgrids(y_ticks, y_ticks)
+    ax.set_rgrids(y_ticks, labels=[f"{y}%" for y in y_ticks])
     ax.set_title("Wind Rose", fontsize=title_fontsize)
 
     filename = os.path.join(outdir, f"{stub}_windrose.png")
     plt.savefig(filename)
+    print("Saved", filename)
 
+wind_rose(ds, outdir=outdir, stub=stub)
 
-def wind_dataframe(ds):
-    """Create a dataframe of the values that would go into a wind rose"""
-    # Remove the 'timebands' variable (not sure why it got added)
-    ds = ds_original[['uas', 'vas']]
+# -
 
-    # Convert wind speed into a categorical variables
-    speed_labels = "0-10km/hr", "10-20km/hr", "20-30km/hr", "30+ km/hr"
-    speed_bins = [0,10,20,30]
-    speed_binned = np.digitize(speed_km_hr, speed_bins) - 1
-    ds["speed_binned"] = xr.DataArray(
-        speed_binned,
-        dims=["time"],
-        coords={"time": ds.time},
-        name="speed_binned"
-    )
-
-    # Convert the wind direction into a categorical variable
-    compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-    sector_width = 360 / len(compass_labels)  # 45° per sector
-    direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
-    direction_binned = (direction_binned_da.values).astype(int)
-    
-    def direction_to_compass(direction_binned):
-        return np.array(compass_labels)[index.astype(int)]
-    
-    compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
-    ds["compass"] = compass
-
-    # Create a matrix of the number of occurences of each speed and direction
-    freq_matrix = np.zeros((len(speed_labels), len(compass_labels)))
-    for s, d in zip(speed_binned, direction_binned):
-        freq_matrix[s,d] += 1
-        
-    percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
-    df = pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
-    return d
-            
-
+list(range(2017, 2024 + 1))
 
 # %%time
 if __name__ == '__main__':
     outdir = "../data"
-    ds_original = barra_daily(start_year="2017", end_year="2024", outdir=outdir)
-    wind_rose(ds_original, outdir=outdir)
+
+    years = list(range(2017, 2024 + 1))
+    for year in years:
+        stub = f"Launceston_{year}"
+        print(f"Working on {stub}")
+        ds = barra_daily(lat=-41.541960, lon=148.469499, start_year=year, end_year=year, outdir=outdir, stub=stub)
+        wind_rose(ds, outdir=outdir, stub=stub)
+
+    # stub = "Melbourne_2017_2024"
+    # ds_original = barra_daily(lat=-37.670526, lon=144.841046, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
+    # wind_rose(ds_original, outdir=outdir, stub=stub)
+
+    # stub = "Bathurst_2017_2024"
+    # ds_original = barra_daily(lat=-33.420124, lon=149.553239, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
+    # wind_rose(ds_original, outdir=outdir, stub=stub)
+
+    # stub = "Cunnamulla_2017_2024"
+    # ds_original = barra_daily(lat=-28.078105, lon=145.689633, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
+    # wind_rose(ds_original, outdir=outdir, stub=stub)
 
 
-
-# Use the eastward and westward wind to calculate a speed and direction
-speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
-speed_km_hr = speed * 3.6
-direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
-ds['speed'] = speed_km_hr
-ds['direction'] = direction
-
-
-
-
-
-
-
-# Plot the wind rose
-y_ticks = range(0, 15, 5)
-ax = WindroseAxes.from_ax()
-ax.bar(direction.values, speed_km_hr.values, bins=np.arange(0, 40, 10), normed=True)
-ax.set_legend(
-    title="Wind Speed (km/hr)", bbox_to_anchor=(0, 1)
-)
-ax.set_rgrids(y_ticks, y_ticks)
-ax.set_title("Wind Rose", fontsize="20")
-plt.show()
