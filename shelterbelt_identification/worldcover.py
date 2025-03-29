@@ -43,10 +43,10 @@ def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="T
     ds_map.rio.to_raster(filename)
     print("Downloaded", filename)
     
-    return ds_map
+    return ds_map, bbox
 
 
-def visualise_worldcover(ds, outdir=".", stub="Test"):
+def visualise_worldcover(ds, bbox, outdir=".", stub="Test"):
     """Pretty visualisation using the worldcover colour scheme"""
     
     # Download the colour scheme
@@ -101,6 +101,15 @@ def visualise_worldcover(ds, outdir=".", stub="Test"):
     print("Saved", filename)
 
 
+# %%time
 if __name__ == '__main__':
-    ds = worldcover()
-    visualise_worldcover(ds)
+
+    # Coords for Fulham: -42.887122, 147.760717
+    lat=-42.887122
+    lon=147.760717
+    buffer=0.025
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
+    ds, bbox = worldcover(lat=lat, lon=lon, buffer=buffer, outdir="../data", stub="Fulham")
+    visualise_worldcover(ds, bbox)
+
+

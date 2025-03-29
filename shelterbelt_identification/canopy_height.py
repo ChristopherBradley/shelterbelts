@@ -14,7 +14,7 @@ from pyproj import Transformer
 from rasterio.merge import merge
 from rasterio.transform import Affine
 from rasterio.windows import from_bounds
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon, box        
 
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -90,15 +90,19 @@ def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub=
     roi_coords_3857 = box(*bbox_3857)
     roi_polygon_3857 = Polygon(roi_coords_3857)
     
-    relevant_tiles = identify_relevant_tiles(lat, lon, buffer)
+    relevant_tiles = identify_relevant_tiles(lat, lon, buffer, canopy_height_dir)
     
     for tile in relevant_tiles:
         tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
+
+        # Get intersection of the tiff file and the region of interest. (any area outside this tiff file should be covered by another)
         with rasterio.open(tiff_file) as src:
-            # Get window from polygon bounds
-            minx, miny, maxx, maxy = roi_polygon_3857.bounds
-            window = from_bounds(minx, miny, maxx, maxy, transform=src.transform)
-    
+            # Get bounds of the TIFF file
+            tiff_bounds = src.bounds
+            roi_bounds = roi_polygon_3857.bounds
+            intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
+            window = from_bounds(*intersection_bounds, transform=src.transform)
+
             # Read data within the window
             out_image = src.read(window=window)
             out_transform = src.window_transform(window)
@@ -129,7 +133,7 @@ def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub=
     out_meta.update({
         "height": mosaic.shape[1],
         "width": mosaic.shape[2],
-        "transform": new_transform
+        "transform": out_trans
     })
     output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
     with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
@@ -184,7 +188,9 @@ def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stu
     download_new_tiles(tiles, canopy_height_dir)
     merge_tiles(lat, lon, buffer, outdir, stub, tmp_dir, canopy_height_dir)
 
-# +
+
+# -
+
 # %%time
 if __name__ == '__main__':
 
@@ -192,10 +198,13 @@ if __name__ == '__main__':
     canopy_height_dir ='../data'
     outdir = '../data'
     tmp_dir = '../data'
-    stub = '34_0_148_5'
-    lat = -34.0
-    lon = 148.5
-    buffer = 0.05
+    stub = 'Fulham'
+    # lat=-42.887122
+    # lon=147.760717
+    lat, lon = -35.267127, 149.071377 # Arboretum
+    buffer=0.025
     canopy_height(lat, lon, buffer, outdir, stub, tmp_dir, canopy_height_dir)
     filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
     visualise_canopy_height(filename)
+
+

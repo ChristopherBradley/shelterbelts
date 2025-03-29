@@ -210,15 +210,14 @@ if __name__ == '__main__':
     ds = barra_daily(lat=-41.541960, lon=148.469499, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
     wind_rose(ds, outdir=outdir, stub=stub)
 
+    # Some different ways to decide on the dominant wind direction
+    df = wind_dataframe(ds)
+    max_speed, max_direction = max_wind_direction(ds)
+    print(df)
+    print(f"Maximum speed {max_speed}km/hr, Direction: {max_direction}")
+    
+    # Calculating the direction with the most days with winds over 20km/hr
+    df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
+    direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
+    print(f"Highest percentage of days with winds > 20km/hr: {round(df_20km_plus.max(), 2)}%, Direction: {direction_20km_plus}")
 
-# +
-# Some different ways to decide on the dominant wind direction
-df = wind_dataframe(ds)
-max_speed, max_direction = max_wind_direction(ds)
-print(df)
-print(f"Maximum speed {max_speed}km/hr, Direction: {max_direction}")
-
-# Calculating the direction with the most days with winds over 20km/hr
-df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
-direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
-print(f"Highest percentage of days with winds > 20km/hr: {round(df_20km_plus.max(), 2)}%, Direction: {direction_20km_plus}")

@@ -164,7 +164,6 @@ def plot_nvis(ds, category_mapping):
     plt.show()
 
 
-
 def nvis(outdir, stub):
     """Download an NVIS tiff for the same bbox as a predownloaded canopy_height tif
     
@@ -173,13 +172,13 @@ def nvis(outdir, stub):
     ds_nvis, da_canopy_height = nvis_rgb_raster(outdir, stub)
     category_array = nvis_categories(ds_nvis, category_mapping)
     ds = georeference_nvis(category_array, da_canopy_height)
-    plot_nvis(ds, category_mapping)
-    
+    return ds
 
 
 if __name__ == '__main__':
     outdir = "../data"
-    stub = '34_0_148_5'
-    nvis(outdir, stub)
+    stub = 'Fulham'
+    ds = nvis(outdir, stub)
+    plot_nvis(ds, nvis_labels)
 
 
