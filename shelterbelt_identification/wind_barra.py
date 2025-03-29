@@ -162,7 +162,7 @@ def wind_dataframe(ds):
     direction_binned = (direction_binned_da.values).astype(int)
     
     def direction_to_compass(direction_binned):
-        return np.array(compass_labels)[index.astype(int)]
+        return np.array(compass_labels)[direction_binned.astype(int)]
     
     compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
     ds["compass"] = compass
@@ -181,7 +181,7 @@ def wind_dataframe(ds):
 # Sometimes the direction with the maximum wind speed isn't obvious from the windrose
 def max_wind_direction(ds):
     """Find the direction of the strongest wind"""
-    ds = ds_original[['uas', 'vas']]
+    ds = ds[['uas', 'vas']]
     speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
     speed_km_hr = speed * 3.6
     direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
@@ -191,8 +191,10 @@ def max_wind_direction(ds):
     sector_width = 360 / len(compass_labels)  # 45° per sector
     direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
     direction_binned = (direction_binned_da.values).astype(int)
+    
     def direction_to_compass(direction_binned):
-        return np.array(compass_labels)[index.astype(int)]
+        return np.array(compass_labels)[direction_binned.astype(int)]
+        
     compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
     ds["compass"] = compass
         
@@ -206,8 +208,10 @@ def max_wind_direction(ds):
 if __name__ == '__main__':
     outdir = "../data"
 
-    stub = f"Launceston_2017_2024"
-    ds = barra_daily(lat=-41.541960, lon=148.469499, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
+    stub = 'Fulham'
+    lat=-42.887122
+    lon=147.760717
+    ds = barra_daily(lat=lat, lon=lon, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
     wind_rose(ds, outdir=outdir, stub=stub)
 
     # Some different ways to decide on the dominant wind direction
@@ -220,4 +224,6 @@ if __name__ == '__main__':
     df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
     direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
     print(f"Highest percentage of days with winds > 20km/hr: {round(df_20km_plus.max(), 2)}%, Direction: {direction_20km_plus}")
+
+
 
