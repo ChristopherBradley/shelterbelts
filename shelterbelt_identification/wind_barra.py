@@ -175,34 +175,10 @@ def wind_dataframe(ds):
     percentage_matrix = np.round(100 * freq_matrix/len(speed_binned), 2)
     df = pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
 
-    return df
-
-
-# Sometimes the direction with the maximum wind speed isn't obvious from the windrose
-def max_wind_direction(ds):
-    """Find the direction of the strongest wind"""
-    ds = ds[['uas', 'vas']]
-    speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
-    speed_km_hr = speed * 3.6
-    direction = (270 - np.degrees(np.arctan2(ds["vas"], ds["uas"]))) % 360
-
-    # Convert the wind direction into a categorical variable
-    compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-    sector_width = 360 / len(compass_labels)  # 45° per sector
-    direction_binned_da = np.round(direction / sector_width) % len(compass_labels)
-    direction_binned = (direction_binned_da.values).astype(int)
-    
-    def direction_to_compass(direction_binned):
-        return np.array(compass_labels)[direction_binned.astype(int)]
-        
-    compass = xr.apply_ufunc(direction_to_compass, direction_binned_da)
-    ds["compass"] = compass
-        
     max_speed = round(float(speed_km_hr.max()), 2)
     direction_max_speed = str(compass[speed_km_hr.argmax()].values)
     
-    return max_speed, direction_max_speed
-
+    return df, max_speed, direction_max_speed
 
 # %%time
 if __name__ == '__main__':
@@ -215,8 +191,7 @@ if __name__ == '__main__':
     wind_rose(ds, outdir=outdir, stub=stub)
 
     # Some different ways to decide on the dominant wind direction
-    df = wind_dataframe(ds)
-    max_speed, max_direction = max_wind_direction(ds)
+    df, max_speed, max_direction = wind_dataframe(ds)
     print(df)
     print(f"Maximum speed {max_speed}km/hr, Direction: {max_direction}")
     

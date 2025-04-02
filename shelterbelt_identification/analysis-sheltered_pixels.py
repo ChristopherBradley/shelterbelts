@@ -3,15 +3,28 @@
 # -
 
 import os
+import sys
 import numpy as np
+import xarray as xr
 import rioxarray as rxr
 from rasterio.enums import Resampling
 from scipy.ndimage import label
 import matplotlib.pyplot as plt
 
+# Change directory to the PaddockTS repo
+if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+    paddockTS_dir = os.path.join(os.path.expanduser("~"), "Projects/shelterbelts")
+elif os.path.basename(os.getcwd()) != "shelterbelts":
+    paddockTS_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
+else:  # Already running locally from PaddockTS root
+    paddockTS_dir = os.getcwd()
+os.chdir(paddockTS_dir)
+sys.path.append(paddockTS_dir)
+print(paddockTS_dir)
 
+from shelterbelt_identification.wind_barra import wind_dataframe
 
-outdir = "../data/"
+outdir = "data"
 stub = "Fulham"
 
 # Load worldcover
@@ -48,20 +61,24 @@ large_shelterbelt_indices = [i for i, max_length in max_lengths.items() if max_l
 mask = ~np.isin(shelterbelts, large_shelterbelt_indices)
 large_shelterbelts = shelterbelts.copy()
 large_shelterbelts[mask] = 0
+# -
 
 
-# +
 # Load wind data
+filename = os.path.join(outdir, f"{stub}_barra_daily.nc")
+ds_barra = xr.open_dataset(filename)
 
 
-# +
 # Decide on dominant wind direction
+df, max_speed, max_direction = wind_dataframe(ds_barra)
+df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
+direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
+direction_20km_plus
 
 
-# +
 # Assign each pasture pixel a distance from shelterbelt in the prevailing wind direction
+plt.imshow(large_shelterbelts)
 
 
-# +
 # Save these distances as a tif file
 

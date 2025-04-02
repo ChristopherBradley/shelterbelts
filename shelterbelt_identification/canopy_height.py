@@ -199,9 +199,9 @@ if __name__ == '__main__':
     outdir = '../data'
     tmp_dir = '../data'
     stub = 'Fulham'
-    # lat=-42.887122
-    # lon=147.760717
-    lat, lon = -35.267127, 149.071377 # Arboretum
+    lat=-42.887122
+    lon=147.760717
+    # lat, lon = -35.267127, 149.071377 # Arboretum
     buffer=0.025
     canopy_height(lat, lon, buffer, outdir, stub, tmp_dir, canopy_height_dir)
     filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
