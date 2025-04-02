@@ -3,6 +3,7 @@
 # Google Earth Engine Collection is here: https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_DYNAMICWORLD_V1
 # -
 
+import numpy as np
 import ee
 import geemap
 import xarray as xr
@@ -27,85 +28,84 @@ dem_xr = xr.DataArray(array_2d, dims=('y', 'x'), name='elevation')
 
 dem_xr.plot(cmap='terrain')
 
-# Following the example to download dynamic earth: https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_DYNAMICWORLD_V1#colab-python
-
-
-START = ee.Date('2021-04-02')
-END = START.advance(1, 'day')
-
-# Filter by region and date
-col_filter = ee.Filter.And(
-    ee.Filter.bounds(ee.Geometry.Point(20.6729, 52.4305)),
-    ee.Filter.date(START, END),
+# Prep a collection of images for a given region and time range
+collection = (
+    ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+    .filterBounds(roi)
+    .filterDate("2023-01-01", "2023-03-31")
+    .select("label")  # Select the classification band
 )
 
-# Prep the imagecollections
-dw_col = ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1').filter(col_filter)
-s2_col = ee.ImageCollection('COPERNICUS/S2_HARMONIZED');
+# %%time
+# Get the metadata for each of the images in this filtered collection
+collection_info = collection.toList(collection.size()).getInfo()
+dates = [c['properties']['system:index'][:8] for c in collection_info]
+len(dates)
 
-
-# What does linking do?
-linked_col = dw_col.linkCollection(s2_col, s2_col.first().bandNames());
-
-linked_image = ee.Image(linked_col.first())
+collection_info
 
 # +
-# Prep the colours
+# %%time
+# Get the values for each of the images
+numpy_arrays = []
+for image in collection_info:
+    img = ee.Image(image["id"])
+    np_array = geemap.ee_to_numpy(img, region=roi, bands=["label"], scale=10)
+    
+    # Remove extra dimension (shape: (height, width, 1) → (height, width))
+    numpy_arrays.append(np_array[:, :, 0])
+
+# Took 23 secs (about 1 second per image for a 3kmx3km region)
+
+# +
+# Stack along time dimension
+data_3d = np.stack(numpy_arrays, axis=0)  # Shape: (time, y, x)
+
+# Create xarray DataArray
+dem_xr = xr.DataArray(
+    data_3d,
+    dims=("time", "y", "x"),
+    coords={"time": dates},
+    name="land_cover",
+)
+dem_xr
+
+# +
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.colors as mcolors
+
+# Define class names and colors
 CLASS_NAMES = [
-    'water',
-    'trees',
-    'grass',
-    'flooded_vegetation',
-    'crops',
-    'shrub_and_scrub',
-    'built',
-    'bare',
-    'snow_and_ice',
+    "water", "trees", "grass", "flooded_vegetation", "crops",
+    "shrub_and_scrub", "built", "bare", "snow_and_ice"
 ]
-
 VIS_PALETTE = [
-    '419bdf',
-    '397d49',
-    '88b053',
-    '7a87c6',
-    'e49635',
-    'dfc35a',
-    'c4281b',
-    'a59b8f',
-    'b39fe1',
+    "#419bdf", "#397d49", "#88b053", "#7a87c6", "#e49635",
+    "#dfc35a", "#c4281b", "#a59b8f", "#b39fe1"
 ]
-# -
 
-# Create an RGB image of the label (most likely class) on [0, 1].
-dw_rgb = (
-    linked_image.select('label')
-    .visualize(min=0, max=8, palette=VIS_PALETTE)
-    .divide(255)
-)
+# Create colormap
+cmap = mcolors.ListedColormap(VIS_PALETTE)
+bounds = np.arange(len(CLASS_NAMES) + 1) - 0.5
+norm = mcolors.BoundaryNorm(bounds, cmap.N)
 
-# Get the most likely class probability.
-top1_prob = linked_image.select(CLASS_NAMES).reduce(ee.Reducer.max())
+# Create figure
+fig, ax = plt.subplots(figsize=(6, 6))
+im = ax.imshow(dem_xr.isel(time=0), cmap=cmap, norm=norm)
+ax.set_title(f"Dynamic World - {dem_xr.time.values[0]}")
+cbar = plt.colorbar(im, ticks=np.arange(len(CLASS_NAMES)), ax=ax)
+cbar.set_ticklabels(CLASS_NAMES)
 
+# Update function for animation
+def update(frame):
+    im.set_array(dem_xr.isel(time=frame))
+    ax.set_title(f"Dynamic World - {dem_xr.time.values[frame]}")
 
-# Create a hillshade of the most likely class probability on [0, 1]
-top1_prob_hillshade = ee.Terrain.hillshade(top1_prob.multiply(100)).divide(255)
+# Create animation
+ani = animation.FuncAnimation(fig, update, frames=len(dem_xr.time), interval=500)
 
+# Save or show animation
+ani.save("dynamic_world.gif", writer="pillow", fps=2)  # Save as GIF
+plt.show()  # Display inline if running in a Jupyter Notebook
 
-# Combine the RGB image with the hillshade.
-dw_rgb_hillshade = dw_rgb.multiply(top1_prob_hillshade)
-
-
-# Display the Dynamic World visualization with the source Sentinel-2 image.
-m = geemap.Map()
-m.set_center(20.6729, 52.4305, 12)
-m.add_layer(
-    linked_image,
-    {'min': 0, 'max': 3000, 'bands': ['B4', 'B3', 'B2']},
-    'Sentinel-2 L1C',
-)
-m.add_layer(
-    dw_rgb_hillshade,
-    {'min': 0, 'max': 0.65},
-    'Dynamic World V1 - label hillshade',
-)
-m
