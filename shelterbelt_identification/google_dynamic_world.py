@@ -9,6 +9,13 @@ import geemap
 import xarray as xr
 import matplotlib.pyplot as plt
 
+import geopandas as gpd
+import zipfile
+import shapely.wkt
+import shapely.geometry
+import fiona
+import os
+
 ee.Authenticate()
 ee.Initialize()
 
@@ -20,13 +27,28 @@ polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (b
 roi = ee.Geometry.Polygon([polygon_coords])
 bbox
 
-# Download the data into a numpy array using geemap
+# Example GEE download of digital earth australia elevation data 
 dataset = ee.Image('AU/GA/DEM_1SEC/v10/DEM-H')
 array = geemap.ee_to_numpy(dataset, region=roi, bands=['elevation'], scale=30)
 array_2d = array[:,:,0]
 dem_xr = xr.DataArray(array_2d, dims=('y', 'x'), name='elevation')
-
 dem_xr.plot(cmap='terrain')
+
+# +
+# %%time
+# Load the Sentinel bounding boxes
+# I downloaded this file from here: https://github.com/justinelliotmeyers/Sentinel-2-Shapefile-Index
+filename_sentinel_bboxs = "../data/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
+gdf = gpd.read_file(filename_sentinel_bboxs)
+# Took 8 secs to read in all the sentinel bboxs
+
+# Find the sentinel tile with the greatest overlap
+footprint_geom = shapely.geometry.box(bbox[0], bbox[1], bbox[2], bbox[3])
+gdf["overlap_area"] = gdf.geometry.intersection(footprint_geom).area
+best_tile = gdf.loc[gdf["overlap_area"].idxmax()]
+sentinel_tilename = best_tile['Name']
+sentinel_tilename
+# -
 
 # Prep a collection of images for a given region and time range
 collection = (
@@ -39,10 +61,9 @@ collection = (
 # %%time
 # Get the metadata for each of the images in this filtered collection
 collection_info = collection.toList(collection.size()).getInfo()
-dates = [c['properties']['system:index'][:8] for c in collection_info]
+collection_info2 = [c for c in collection_info if c['id'][-5:] == sentinel_tilename]
+dates = [c['properties']['system:index'][:8] for c in collection_info2]
 len(dates)
-
-collection_info
 
 # +
 # %%time
@@ -109,3 +130,25 @@ ani = animation.FuncAnimation(fig, update, frames=len(dem_xr.time), interval=500
 ani.save("dynamic_world.gif", writer="pillow", fps=2)  # Save as GIF
 plt.show()  # Display inline if running in a Jupyter Notebook
 
+# -
+
+c = collection_info[1]
+
+c['properties']['system:footprint']
+
+# +
+
+
+
+# -
+
+bbox
+
+# Find the sentinel tile with the greatest overlap
+footprint_geom = shapely.geometry.box(bbox[0], bbox[1], bbox[2], bbox[3])
+gdf["overlap_area"] = gdf.geometry.intersection(footprint_geom).area
+best_tile = gdf.loc[gdf["overlap_area"].idxmax()]
+sentinel_tile = best_tile['Name']
+sentinel_tile
+
+best_tile['Name']
