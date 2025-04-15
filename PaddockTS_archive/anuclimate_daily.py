@@ -49,6 +49,7 @@ def anuclimate_singlemonth_thredds(var="rain", latitude=-34.3890427, longitude=1
 # +
 # %%time
 def anuclimate_singlemonth(var="rain", latitude=-34.3890427, longitude=148.469499, year="2021", month="01"):
+    ######## Note a bug here where I forgot the buffer as an input argument ###########
 
     buffer = 0.0000000001         # This buffer is less than the grid size of 1km (0.01 degrees), so you get a single point
     bbox = create_bbox(latitude, longitude, buffer)

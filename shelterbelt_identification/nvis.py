@@ -99,7 +99,7 @@ def nvis_categories(ds, category_mapping):
     """Convert the 4 bands into a single array representing the NVIS categories"""
     
     # Remove the alpha channel (starts with this shape (4, height, width) representing RGBA bands)
-    data = ds_nvis.values  # Shape:
+    data = ds.values  # Shape:
     rgb_array = np.stack([data[0], data[1], data[2]], axis=-1)
     
     # Assign category values
@@ -116,6 +116,7 @@ def georeference_nvis(category_array, da_canopy_height):
 
     # Change the canopy height dimensions to match the NVIS
     da = da_canopy_height
+    height_pixels, width_pixels = category_array.shape
     new_y = np.linspace(float(da.y.min()), float(da.y.max()), height_pixels)
     new_x = np.linspace(float(da.x.min()), float(da.x.max()), width_pixels)
     resampled_da = da.interp(y=new_y, x=new_x, method="nearest")
@@ -144,6 +145,7 @@ def georeference_nvis(category_array, da_canopy_height):
 def plot_nvis(ds, category_mapping):
     """Pretty plot with category labels"""
     # Convert category indices back to colors for visualization
+    category_array = ds['NVIS'].values
     color_array = np.zeros((*category_array.shape, 3), dtype=np.uint8)
     
     # Determine just the categories present in this region
@@ -164,22 +166,20 @@ def plot_nvis(ds, category_mapping):
     plt.show()
 
 
-
 def nvis(outdir, stub):
     """Download an NVIS tiff for the same bbox as a predownloaded canopy_height tif
     
     Assumes you have pre-downloaded a canopy_height tif for the bbox and affine details. 
     """
     ds_nvis, da_canopy_height = nvis_rgb_raster(outdir, stub)
+    category_mapping = nvis_labels
     category_array = nvis_categories(ds_nvis, category_mapping)
     ds = georeference_nvis(category_array, da_canopy_height)
-    plot_nvis(ds, category_mapping)
-    
+    return ds
 
 
 if __name__ == '__main__':
     outdir = "../data"
-    stub = '34_0_148_5'
-    nvis(outdir, stub)
-
-
+    stub = 'Fulham'
+    ds = nvis(outdir, stub)
+    plot_nvis(ds, nvis_labels)
