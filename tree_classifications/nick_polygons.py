@@ -111,6 +111,9 @@ gdf[gdf[name_cols].notna().sum(axis=1) > 1].shape
 # Combine the names into a single column
 gdf['name'] = gdf[name_cols].bfill(axis=1).iloc[:, 0]
 
+# Save a csv of the first 1000 names for seeing what metadata we have
+gdf[:1000].to_csv("../data/gdf_1000.csv")
+
 
 # +
 # I'm assuming that the year is the first 4 non letter digits in the string
@@ -167,7 +170,9 @@ gdf_maxyear
 gdf_maxyear.to_csv("../data/gdf_filename_maxyear.csv")
 
 # Plotting all the LIDAR measurements
-gdf['year'].dropna().astype(int).hist()
+gdf['year'].dropna().astype(int).hist(bins=13)
 
 # Plotting just the most recent lidar acquisition
-gdf_maxyear['year'].hist()
+gdf_maxyear['year'].hist(bins=13)
+
+gdf_maxyear['year'].value_counts()
