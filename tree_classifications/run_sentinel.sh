@@ -8,6 +8,16 @@
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
+# wd=/home/147/cb8590/Projects/shelterbelts 
+# dir=/g/data/xe2/cb8590/shelterbelts/tasmania_testdata
+# tmpdir=/scratch/xe2/cb8590/shelterbelts/  
+# buffer=2.5  #km 
+# start_time='2019-01-01'
+# end_time='2019-04-01'
+# stub=Test4
+# lat=-42.39062467274229
+# lon=147.47938065700737
+
 # Print out input variables to the error log
 echo "Running with the following input variables:"
 echo "stub: $stub"
@@ -34,4 +44,3 @@ python3 tree_classifications/sentinel_download_km.py --stub $stub --outdir $dir 
 
 # Example usage:
 # python sentinel_download_km.py --stub TEST --outdir /g/data/xe2/cb8590/shelterbelts --lat -35.273807 --lon 148.272152 --buffer 2.5 --start_time '2019-01-01' --end_time '2019-03-01'
-

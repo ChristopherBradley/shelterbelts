@@ -57,7 +57,23 @@ python3 Code/00_sentinel.py --stub test --outdir /g/data/xe2/cb8590/Data/shelter
     parser.add_argument("--end_time", type=str, required=True, help="End time for the data query (YYYY-MM-DD)")
     return parser.parse_args()
 
-def define_query(lat, lon, buffer, time_range):
+# Specific range so I can match Nick's tiff files
+def define_query_range(lat_range, lon_range, time_range, input_crs='epsg:4326', output_crs='epsg:6933'):
+
+    query = {
+        'y': lat_range,
+        'x': lon_range,
+        'time': time_range,
+        'resolution': (-10, 10),
+        'crs':'epsg:4326',  # Input CRS
+        'output_crs': 'epsg:6933', # Output CRS
+        'group_by': 'solar_day'
+    }
+    return query
+
+
+# Single point with km buffer
+def define_query_km(lat, lon, buffer, time_range):
 
     # Specifying a buffer in km instead of degrees, to get square tiles instead of rectangles
     import pyproj
@@ -72,6 +88,24 @@ def define_query(lat, lon, buffer, time_range):
 
     # lat_range = (lat-buffer, lat+buffer)
     # lon_range = (lon-buffer, lon+buffer)
+    query = {
+        'centre': (lat, lon),
+        'y': lat_range,
+        'x': lon_range,
+        'time': time_range,
+        'resolution': (-10, 10),
+        'output_crs': 'epsg:6933',
+        'group_by': 'solar_day'
+    }
+    # note that centre is not recognized as query option in load_arc, but we want to output it as a record.
+    return query
+
+
+# Single point with degrees buffer (the version John created)
+def define_query(lat, lon, buffer, time_range):
+
+    lat_range = (lat-buffer, lat+buffer)
+    lon_range = (lon-buffer, lon+buffer)
     query = {
         'centre': (lat, lon),
         'y': lat_range,
@@ -118,18 +152,22 @@ def main(args):
 if __name__ == "__main__":
     args = parse_arguments()
     # args = argparse.Namespace(
-    #     lat=-34.3890427,
-    #     lon=148.469499,
+    #     lat=-42.39062467274229,
+    #     lon=147.47938065700737,
     #     buffer=2.5,
     #     stub="Test",
     #     start_time="2019-01-01",
     #     end_time="2019-03-01",
-    #     outdir="/g/data/xe2/cb8590/shelterbelts",
+    #     outdir="/g/data/xe2/cb8590/shelterbelts/tasmania_testdata",
     # )
     main(args)
 
 
+# Load the tiff bboxs and filename dates
+
+
+# Choose a file to play with
+
+
 # +
-# with open(f'/g/data/xe2/cb8590/shelterbelts/Test_ds2.pkl', 'rb') as f:
-#     ds = pickle.load(f)
-# ds
+# 

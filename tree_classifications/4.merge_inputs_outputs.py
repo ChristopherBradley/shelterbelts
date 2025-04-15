@@ -18,7 +18,7 @@ import scipy.ndimage as ndimage
 
 outdir = "/g/data/xe2/cb8590/shelterbelts/"
 
-tiles = glob.glob("/g/data/xe2/cb8590/shelterbelts/*_ds2.pkl")
+tiles = glob.glob("{outdir}*_ds2.pkl")
 
 def aggregated_metrics(ds):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""

@@ -20,7 +20,7 @@ sub_stub = "canopycover"
 ds = rxr.open_rasterio(filename)
 # -
 
-tiles = glob.glob("/g/data/xe2/cb8590/shelterbelts/*_ds2.pkl")
+tiles = glob.glob("{outdir}*_ds2.pkl")
 
 # +
 # %%time

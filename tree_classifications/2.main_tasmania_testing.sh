@@ -3,7 +3,7 @@
 # specify working directory and storage directory:
 wd=/home/147/cb8590/Projects/shelterbelts 
 dir=/g/data/xe2/cb8590/shelterbelts/tasmania_testdata
-tmpdir=/scratch/xe2/cb8590/shelterbelts  
+tmpdir=/scratch/xe2/cb8590/shelterbelts/ 
 
 # params
 buffer=2.5  #km 
@@ -16,6 +16,7 @@ coordinates_file="tasmania_tiles_testing.csv"
 # Loop through each line in the file
 while IFS=, read -r lon lat; do
     # Trim any leading or trailing whitespace
+    echo "Latitude: $lat, Longitude $lon"
     lat=$(echo $lat | xargs)
     lon=$(echo $lon | xargs)
 
@@ -26,7 +27,4 @@ while IFS=, read -r lon lat; do
     job_id1=$(qsub -v wd=$wd,stub=$stub,dir=$dir,lat=$lat,lon=$lon,buffer=$buffer,start_time=$start,end_time=$end_ run_sentinel.sh)
     echo "First job submitted for stub $stub with ID $job_id1"
 
-    # echo "Latitude: $lat, Longitude $lon"
-
-done < "$coordinates_file"
 done < "$coordinates_file"
