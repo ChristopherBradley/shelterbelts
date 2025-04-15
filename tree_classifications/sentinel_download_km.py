@@ -1,3 +1,4 @@
+# +
 """
 Description:
 This script just downloads SENTINEL2 data (using DEA) as an xarray dataset and saves it as a pickle. Only variables necessary for the 05_shelter.py are included.
@@ -37,6 +38,14 @@ from dea_tools.plotting import display_map, rgb
 from dea_tools.dask import create_local_dask_cluster
 import hdstats
 
+import geopandas as gpd
+import pandas as pd
+import rasterio
+from shapely.geometry import box
+import psutil
+
+# -
+
 # Adjust logging configuration for the script
 logging.basicConfig(level=logging.INFO)
 
@@ -65,8 +74,8 @@ def define_query_range(lat_range, lon_range, time_range, input_crs='epsg:4326', 
         'x': lon_range,
         'time': time_range,
         'resolution': (-10, 10),
-        'crs':'epsg:4326',  # Input CRS
-        'output_crs': 'epsg:6933', # Output CRS
+        'crs':input_crs,  # Input CRS
+        'output_crs': output_crs, # Output CRS
         'group_by': 'solar_day'
     }
     return query
@@ -163,11 +172,64 @@ if __name__ == "__main__":
     main(args)
 
 
-# Load the tiff bboxs and filename dates
+# !ls /g/data/xe2/cb8590
 
 
-# Choose a file to play with
 
+
+# Load the tiff bboxs and filename dates. Filter to just 2019 for now.
+filename_bboxs = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints.geojson'
+filename_years = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
+filename_centroids = '/g/data/xe2/cb8590/Nick_outlines/tiff_centroids.geojson'
+
+# Merge the bounding box and year
+# %%time
+gdf_bboxs = gpd.read_file(filename_bboxs)
+df_years = pd.read_csv(filename_years)
+gdf_bbox_year = pd.merge(gdf_bboxs, df_years)
+filename_bbox_year = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+gdf_bbox_year.to_file(filename_bbox_year, layer="geometries")
+print("Saved", filename_bbox_year)
+
+# Save the centroids for viewing in QGIS coloured by year
+gdf_centroids = gpd.read_file(filename_centroids)
+gdf_centroid_year = pd.merge(gdf_centroids, df_years)
+filename_centroid_year = '/g/data/xe2/cb8590/Nick_outlines/tiff_centroids_years.gpkg'
+gdf_centroid_year.to_file(filename_centroid_year, layer="geometries")
+print("Saved", filename_centroid_year)
+
+# Double checking the bounds line up with the tiff exactly when I use the right crs. It does. 
+tif = df_years.loc[0]['filename']
+filename = os.path.join("/g/data/xe2/cb8590/Nick_Aus_treecover_10m", tif)
+with rasterio.open(filename) as src:
+    bounds = src.bounds
+    src_crs = src.crs
+geom = box(*bounds)
+gdf = gpd.GeoDataFrame([{"geometry": geom}], crs=src_crs)
+filename = "/scratch/xe2/cb8590/bounds_g1_01001_binary_tree_cover_10m.gpkg"
+gdf.to_file(filename, layer="bounds", driver="GPKG")
+print("Saved", filename)
+
+df_years = pd.read_csv(filename_years, index_col='filename')
+
+client = create_local_dask_cluster(return_client=True)
+dc = datacube.Datacube(app='Shelter')
 
 # +
-# 
+# %%time
+# Example Sentinel download using the same crs as the tif Nick provided
+tif = 'g1_05293_binary_tree_cover_10m.tiff'
+year = df_years.loc[tif]['year']
+filename = os.path.join("/g/data/xe2/cb8590/Nick_Aus_treecover_10m", tif)
+with rasterio.open(filename) as src:
+    bounds = src.bounds
+    src_crs = src.crs
+query = define_query_range((bounds[1], bounds[3]), (bounds[0], bounds[2]), (f"{year}-01-01", f"{year}-12-31"), src_crs, src_crs)
+
+ds = load_and_process_data(dc, query)
+filename = "/scratch/xe2/cb8590/g1_05293_red_2019-01-02.tif"
+ds.isel(time=0)['nbart_red'].rio.to_raster(filename)
+print(filename)
+
+# Took 1 min to load 62 timesteps of a 1kmx1km area
+
