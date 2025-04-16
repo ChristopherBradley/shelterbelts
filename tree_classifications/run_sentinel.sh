@@ -20,13 +20,10 @@
 
 # Print out input variables to the error log
 echo "Running with the following input variables:"
-echo "stub: $stub"
-echo "outdir: $dir"
-echo "latitude: $lat"
-echo "longitude: $lon"
-echo "buffer: $buffer"
-echo "start date: $start_time"
-echo "end date: $end_time"
+echo "indir: $indir"
+echo "tif: $tif"
+echo "year: $year"
+echo "outdir: $outdir"
 echo "-------------------"
 
 # Requirements:
@@ -40,7 +37,4 @@ cd $wd
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
-python3 tree_classifications/sentinel_download_km.py --stub $stub --outdir $dir --lat $lat --lon $lon --buffer $buffer --start_time $start_time --end_time $end_time
-
-# Example usage:
-# python sentinel_download_km.py --stub TEST --outdir /g/data/xe2/cb8590/shelterbelts --lat -35.273807 --lon 148.272152 --buffer 2.5 --start_time '2019-01-01' --end_time '2019-03-01'
+python3 sentinel_download.py --indir $indir  --tif $tif --year $year --outdir $outdir

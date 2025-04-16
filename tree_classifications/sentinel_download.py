@@ -47,11 +47,13 @@ def parse_arguments():
         description="""Download and save Sentinel data
         
 Example usage:
-python3 sentinel_download.py --indir /g/data/xe2/cb8590/Nick_Aus_treecover_10m  --csv_filename '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv' --outdir /scratch/xe2/cb8590/Nick_sentinel""",
+python3 sentinel_download.py --indir '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'  --tif 'g1_01001_binary_tree_cover_10m.tiff' --year '2020' --outdir '/scratch/xe2/cb8590/Nick_sentinel'""",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("--indir", type=str, required=True, help="Directory containing tree binary classification tiff files")
-    parser.add_argument("--csv_filename", type=str, required=True, help="CSV containing filenames we want to download and the corresponding year")
+    # parser.add_argument("--csv_filename", type=str, required=True, help="CSV containing filenames we want to download and the corresponding year")
+    parser.add_argument("--tif", type=str, required=True, help="Filename of the tiff with the bounding box and crs for loading sentinel data")
+    parser.add_argument("--year", type=str, required=True, help="Year to download sentinel data")
     parser.add_argument("--outdir", type=str, required=True, help="Output directory for saved files")
     return parser.parse_args()
 
@@ -137,41 +139,41 @@ def main(args):
     dc = datacube.Datacube(app='Shelter')
     
     indir = args.indir
-    csv_filename = args.csv_filename
+    tif = args.tif
+    year = args.year
     outdir = args.outdir
-    print("Starting sentinel_download:", indir, csv_filename, outdir)
+    print("Starting sentinel_download:", indir, tif, year, outdir)
     
-    df_years = pd.read_csv(csv_filename, index_col='filename')
-    for tif in df_years.index:
-        year = df_years.loc[tif]['year']
-        filename = os.path.join("/g/data/xe2/cb8590/Nick_Aus_treecover_10m", tif)
-        with rasterio.open(filename) as src:
-            bounds = src.bounds
-            src_crs = src.crs.to_string()
-        lat_range = (bounds[1], bounds[3])
-        lon_range = (bounds[0], bounds[2])
-        time_range = (f"{year}-01-01", f"{year}-12-31")
-        input_crs=src_crs 
-        output_crs=src_crs
-        query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
+    filename = os.path.join(indir, tif)
+    with rasterio.open(filename) as src:
+        bounds = src.bounds
+        src_crs = src.crs.to_string()
+    lat_range = (bounds[1], bounds[3])
+    lon_range = (bounds[0], bounds[2])
+    time_range = (f"{year}-01-01", f"{year}-12-31")
+    input_crs=src_crs 
+    output_crs=src_crs
+    query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
-        ds = load_and_process_data(dc, query)
+    ds = load_and_process_data(dc, query)
 
-        # save ds for later
-        filename = os.path.join(args.outdir, f'tif_ds2_{year}.pkl')
-        with open(filename, 'wb') as handle:
-            pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        print(f"Saved {filename}")
+    # save ds for later
+    tif_id = '_'.join(tif.split('_')[:2])
+    filename = os.path.join(args.outdir, f'{tif_id}_ds2_{year}.pkl')
+    with open(filename, 'wb') as handle:
+        pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f"Saved {filename}")
 
 
 # %%time
 if __name__ == "__main__":
-    # args = parse_arguments()
-    args = argparse.Namespace(
-        indir='/g/data/xe2/cb8590/Nick_Aus_treecover_10m',
-        csv_filename='/g/data/xe2/cb8590/Nick_outlines/gdf_x5.csv',
-        outdir='/scratch/xe2/cb8590/Nick_sentinel'
-    )
+    args = parse_arguments()
+    # args = argparse.Namespace(
+    #     indir='/g/data/xe2/cb8590/Nick_Aus_treecover_10m',
+    #     tif='g1_01001_binary_tree_cover_10m.tiff',
+    #     year='2019',
+    #     outdir='/scratch/xe2/cb8590/Nick_sentinel'
+    # )
     main(args)
 
 
