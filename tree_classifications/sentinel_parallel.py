@@ -28,6 +28,7 @@ from concurrent.futures import ProcessPoolExecutor
 import subprocess
 
 
+
 # Specific range so I can match Nick's tiff files
 def define_query_range(lat_range, lon_range, time_range, input_crs='epsg:4326', output_crs='epsg:6933'):
 
@@ -57,13 +58,10 @@ def load_and_process_data(dc, query):
     return ds
 
 def sentinel_download(tif, year, indir, outdir):
-
-    print("Starting sentinel_download:", tif, year, indir, outdir)
-
-    # Prep the database
-    client = create_local_dask_cluster(return_client=True)
-    dc = datacube.Datacube(app='Shelter')
     
+    tif_id = '_'.join(tif.split('_')[:2])
+    print(f"Starting sentinel_download: {tif_id}, {year}\n")
+
     # Specify the parameters
     filename = os.path.join(indir, tif)
     with rasterio.open(filename) as src:
@@ -77,10 +75,11 @@ def sentinel_download(tif, year, indir, outdir):
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
     # Load the data
+    client = create_local_dask_cluster(return_client=True)
+    dc = datacube.Datacube(app=tif_id)
     ds = load_and_process_data(dc, query)
 
     # Save the data
-    tif_id = '_'.join(tif.split('_')[:2])
     filename = os.path.join(args.outdir, f'{tif_id}_ds2_{year}.pkl')
     with open(filename, 'wb') as handle:
         pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -90,28 +89,23 @@ def run_download(row):
     tif, year = row
     sentinel_download(tif, year, indir, outdir)
 
+# +
+# %%time
 if __name__ == '__main__':
+    csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_x100.csv'
     indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
     outdir = '/scratch/xe2/cb8590/Nick_sentinel'
-    csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_x5.csv'
 
     df = pd.read_csv(csv_filename)
     rows = list(df[['filename', 'year']].itertuples(index=False, name=None))
-
-    # %%time
-    with ProcessPoolExecutor(max_workers=5) as executor:
+    
+    with ProcessPoolExecutor(max_workers=len(rows)) as executor:
         executor.map(run_download, rows)
+        
+# Took 1 min 13 secs with 5 workers and 5 datacubes. 
+# Timed out with 5 workers and 1 datacube.
 
-# +
-indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
-outdir = '/scratch/xe2/cb8590/Nick_sentinel'
-csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_x5.csv'
 
-df = pd.read_csv(csv_filename)
-rows = list(df[['filename', 'year']].itertuples(index=False, name=None))
-rows
 # -
 
-# %%time
-with ProcessPoolExecutor(max_workers=5) as executor:
-    executor.map(run_download, rows)
+

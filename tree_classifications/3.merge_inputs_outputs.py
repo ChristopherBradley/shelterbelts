@@ -1,5 +1,5 @@
 # +
-# Create a training dataset with satellite imagery inputs and woody veg or canopy cover outputs
+# Create a training dataset with satellite imagery inputs and tree cover outputs
 # -
 
 import os
@@ -10,64 +10,6 @@ import pandas as pd
 import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
-
-# +
-# pd.set_option('display.max_rows', 100)
-# pd.set_option('display.max_columns', 100)
-# -
-
-tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-
-sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
-tile_ids = ["_".join(tile.split('/')[-1].split('_')[:2]) for tile in sentinel_tiles]
-tree_cover_tiles = [f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile_id}_binary_tree_cover_10m.tiff' for tile_id in tile_ids]
-
-i = 0
-
-sentinel_tile = sentinel_tiles[i]
-tree_cover_tile = tree_cover_tiles[i]
-
-sentinel_tile, tree_cover_tile
-
-# Load the sentinel imagery and tree cover into an xarray
-with open(sentinel_tile, 'rb') as file:
-    ds = pickle.load(file)
-
-ds_original = ds
-
-# Load the woody veg and add to the main xarray
-ds1 = rxr.open_rasterio(tree_cover_tile)
-ds2 = ds1.isel(band=0).drop_vars('band')
-ds = ds.rio.reproject_match(ds2)
-ds['tree_cover'] = ds2.astype(float)
-
-
-ds['tree_cover'].plot()
-
-
-
-
-
-# +
-
-# Calculate vegetation indices
-B8 = ds['nbart_nir_1']
-B4 = ds['nbart_red']
-B3 = ds['nbart_green']
-B2 = ds['nbart_blue']
-ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
-ds['NDVI'] = (B8 - B4) / (B8 + B4)
-ds['GRNDVI'] = (B8 - B3 + B4) / (B8 + B3 + B4)
-# -
-
-# Calculate temporal and focal metrics
-
-
-# Select evenly spaced pixels (or a random sample?)
-
-
-# Construct a csv of inputs and outputs for training
 
 
 def aggregated_metrics(ds):
@@ -112,39 +54,54 @@ def jittered_grid(ds):
     x_coords = np.arange(5, ds.sizes['x'] - 5, spacing)
 
     # Apply jitter to each coordinate
-    y_jittered = y_coords + np.random.choice(jitter_range, size=len(y_coords))
-    x_jittered = x_coords + np.random.choice(jitter_range, size=len(x_coords))
+    y_jittered_inds = y_coords + np.random.choice(jitter_range, size=len(y_coords))
+    x_jittered_inds = x_coords + np.random.choice(jitter_range, size=len(x_coords))
 
-    # Extract values at jittered coordinates
+    # Get actual coordinates
+    y_jittered_coords = ds['y'].values[y_jittered_inds]
+    x_jittered_coords = ds['x'].values[x_jittered_inds]
+
+    # Get non-time-dependent variables
+    aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
+
     data_list = []
-    for y in y_jittered:
-        for x in x_jittered:
-            values = {var: ds[var].isel(y=y, x=x).item() for var in variables}
-            values.update({'y': y, 'x': x})  # Should probs make these actual x and y coordinates in EPSG:4326 to help with debuggging
+    for y_coord in y_jittered_coords:
+        for x_coord in x_jittered_coords:
+            values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
+            values.update({'y': y_coord, 'x': x_coord})
             data_list.append(values)
-
+        
     # Create DataFrame
     df = pd.DataFrame(data_list)
     return df
 
 
 # +
-# %%time
 # Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
-# sub_stub = 'woodyveg'
-sub_stub = 'canopycover'
-dfs = []
-for tile in tiles:
-    stub = tile.replace(outdir,"").replace("_ds2.pkl","")
+tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+outdir = "/scratch/xe2/cb8590/Nick_csv"
 
-    # Load the imagery
-    with open(tile, 'rb') as file:
+sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+
+# +
+# %%time
+
+dfs = []
+for sentinel_tile in sentinel_tiles[:2]:
+
+    tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
+    tree_cover_filename = f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile_id}_binary_tree_cover_10m.tiff'
+
+    # Load the sentinel imagery and tree cover into an xarray
+    with open(sentinel_tile, 'rb') as file:
         ds = pickle.load(file)
 
     # Load the woody veg and add to the main xarray
-    filename = os.path.join(outdir, f"{stub}_{sub_stub}_2019.tif")
-    ds1 = rxr.open_rasterio(filename)
-    ds[sub_stub] = ds1.isel(band=0).drop_vars('band')
+    ds1 = rxr.open_rasterio(tree_cover_filename)
+    ds2 = ds1.isel(band=0).drop_vars('band')
+    ds = ds.rio.reproject_match(ds2)
+    ds['tree_cover'] = ds2.astype(float)
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -166,27 +123,25 @@ for tile in tiles:
     df = jittered_grid(ds)
 
     # Change outputs to 0 and 1, instead of 1 and 2
-    df[sub_stub] = df[sub_stub] - 1
+    df['tree_cover'] = df['tree_cover'] - 1
 
     # Normalize all columns in the DataFrame to be between 0 and 1
     df_normalized = (df - df.min()) / (df.max() - df.min())
 
     # Save a copy of this dataframe just in case something messes up later (since this is going to take 2 to 4 hours)
-    filename = os.path.join(outdir, f"{stub}_df_{sub_stub}.csv")
+    filename = os.path.join(outdir, f"{tile_id}_df_tree_cover.csv")
     df_normalized.to_csv(filename)
     print("Saved", filename)
 
     dfs.append(df_normalized)
 
-# 1 min 30 secs each 
+# 30 secs each 
 # -
 
 # Combine all the dataframes
 df_all = pd.concat(dfs)
 
-# Should probs save this as a parquet or a feather file instead
-filename = os.path.join(outdir, f"{sub_stub}_preprocessed.csv")
+# Feather file is more efficient, but csv is more readable
+filename = os.path.join(outdir, f"tree_cover_preprocessed.csv")
 df_all.to_csv(filename)
-print("Saved", df_all)
-
-
+print("Saved", filename)

@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N Sentinel
 #PBS -l mem=32GB
-#PBS -l ncpus=4
+#PBS -l ncpus=10
 #PBS -l jobfs=24GB
 #PBS -P xe2
 #PBS -l walltime=00:15:00
