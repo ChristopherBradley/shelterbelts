@@ -173,3 +173,21 @@ gdf['year'].dropna().astype(int).hist(bins=13)
 gdf_maxyear['year'].hist(bins=13)
 
 gdf_maxyear['year'].value_counts()
+
+# Creating smaller csvs for testing the parallel processing bash script before running on everything
+csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
+df_years = pd.read_csv(csv_filename, index_col='filename')
+df_years_2017_2022 = df_years[df_years['year'] >= 2017]
+
+filename ='/g/data/xe2/cb8590/Nick_outlines/gdf_01001.csv'
+df_years_2017_2022.iloc[0:1].to_csv(filename)
+
+filename ='/g/data/xe2/cb8590/Nick_outlines/gdf_x5.csv'
+df_years_2017_2022.iloc[0:5].to_csv(filename)
+
+filename ='/g/data/xe2/cb8590/Nick_outlines/gdf_x100.csv'
+df_years_2017_2022.sample(n=100, random_state=0).to_csv(filename)
+
+filename ='/g/data/xe2/cb8590/Nick_outlines/gdf_2017_2022.csv'
+df_years_2017_2022.to_csv(filename)
+

@@ -16,9 +16,74 @@ import scipy.ndimage as ndimage
 # pd.set_option('display.max_columns', 100)
 # -
 
-outdir = "/g/data/xe2/cb8590/shelterbelts/"
+# !ls /g/data/xe2/cb8590/Nick_Aus_treecover_10m
 
-tiles = glob.glob("/g/data/xe2/cb8590/shelterbelts/*_ds2.pkl")
+# !ls /scratch/xe2/cb8590/Nick_sentinel/*
+
+tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+
+'/scratch/xe2/cb8590/Nick_sentinel/*'
+
+sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+tile_ids = ["_".join(tile.split('/')[-1].split('_')[:2]) for tile in sentinel_tiles]
+tree_cover_tiles = [f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile_id}_binary_tree_cover_10m.tiff' for tile_id in tile_ids]
+
+tree_cover_tiles
+
+i = 0
+
+sentinel_tile = sentinel_tiles[i]
+tree_cover_tile = tree_cover_tiles[i]
+
+sentinel_tile, tree_cover_tile
+
+# Load the sentinel imagery and tree cover into an xarray
+with open(sentinel_tile, 'rb') as file:
+    ds = pickle.load(file)
+
+# Load the woody veg and add to the main xarray
+ds1 = rxr.open_rasterio(tree_cover_tile)
+ds2 = ds1.isel(band=0).drop_vars('band')
+ds['tree_cover'] = ds2
+
+
+ds['tree_cover'] = ds2.astype(float)
+
+ds['nbart_red'].isel(time=0).plot()
+
+ds2.plot()
+
+ds['tree_cover'].plot()
+
+ds2.astype(float)
+
+ds['tree_cover']
+
+# +
+# Load the woody veg and add to the main xarray
+filename = os.path.join(outdir, f"{stub}_{sub_stub}_2019.tif")
+ds1 = rxr.open_rasterio(filename)
+ds[sub_stub] = ds1.isel(band=0).drop_vars('band')
+
+# Calculate vegetation indices
+B8 = ds['nbart_nir_1']
+B4 = ds['nbart_red']
+B3 = ds['nbart_green']
+B2 = ds['nbart_blue']
+ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
+ds['NDVI'] = (B8 - B4) / (B8 + B4)
+ds['GRNDVI'] = (B8 - B3 + B4) / (B8 + B3 + B4)
+# -
+
+# Calculate temporal and focal metrics
+
+
+# Select evenly spaced pixels (or a random sample?)
+
+
+# Construct a csv of inputs and outputs for training
+
 
 def aggregated_metrics(ds):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
