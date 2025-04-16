@@ -16,20 +16,12 @@ import scipy.ndimage as ndimage
 # pd.set_option('display.max_columns', 100)
 # -
 
-# !ls /g/data/xe2/cb8590/Nick_Aus_treecover_10m
-
-# !ls /scratch/xe2/cb8590/Nick_sentinel/*
-
 tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
 sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-
-'/scratch/xe2/cb8590/Nick_sentinel/*'
 
 sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
 tile_ids = ["_".join(tile.split('/')[-1].split('_')[:2]) for tile in sentinel_tiles]
 tree_cover_tiles = [f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile_id}_binary_tree_cover_10m.tiff' for tile_id in tile_ids]
-
-tree_cover_tiles
 
 i = 0
 
@@ -42,29 +34,22 @@ sentinel_tile, tree_cover_tile
 with open(sentinel_tile, 'rb') as file:
     ds = pickle.load(file)
 
+ds_original = ds
+
 # Load the woody veg and add to the main xarray
 ds1 = rxr.open_rasterio(tree_cover_tile)
 ds2 = ds1.isel(band=0).drop_vars('band')
-ds['tree_cover'] = ds2
-
-
+ds = ds.rio.reproject_match(ds2)
 ds['tree_cover'] = ds2.astype(float)
 
-ds['nbart_red'].isel(time=0).plot()
-
-ds2.plot()
 
 ds['tree_cover'].plot()
 
-ds2.astype(float)
 
-ds['tree_cover']
+
+
 
 # +
-# Load the woody veg and add to the main xarray
-filename = os.path.join(outdir, f"{stub}_{sub_stub}_2019.tif")
-ds1 = rxr.open_rasterio(filename)
-ds[sub_stub] = ds1.isel(band=0).drop_vars('band')
 
 # Calculate vegetation indices
 B8 = ds['nbart_nir_1']
