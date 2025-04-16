@@ -1,10 +1,10 @@
 #!/bin/bash
 #PBS -N Sentinel
-#PBS -l mem=96GB
-#PBS -l ncpus=24
+#PBS -l mem=32GB
+#PBS -l ncpus=4
 #PBS -l jobfs=24GB
 #PBS -P xe2
-#PBS -l walltime=01:00:00
+#PBS -l walltime=00:15:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
