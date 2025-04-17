@@ -75,12 +75,12 @@ def sentinel_download(tif, year, indir, outdir):
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
     # Load the data
-    client = create_local_dask_cluster(return_client=True)
+    # client = create_local_dask_cluster(return_client=True)
     dc = datacube.Datacube(app=tif_id)
     ds = load_and_process_data(dc, query)
 
     # Save the data
-    filename = os.path.join(args.outdir, f'{tif_id}_ds2_{year}.pkl')
+    filename = os.path.join(outdir, f'{tif_id}_ds2_{year}.pkl')
     with open(filename, 'wb') as handle:
         pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print(f"Saved {filename}")
@@ -92,20 +92,40 @@ def run_download(row):
 # +
 # %%time
 if __name__ == '__main__':
-    csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_x100.csv'
     indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
     outdir = '/scratch/xe2/cb8590/Nick_sentinel'
 
-    df = pd.read_csv(csv_filename)
-    rows = list(df[['filename', 'year']].itertuples(index=False, name=None))
+    csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
+    df_years = pd.read_csv(csv_filename, index_col='filename')
+    df_years_2017_2022 = df_years[df_years['year'] >= 2017]
+
+    t1 = "g1_1752_binary_tree_cover_10m.tiff"
+    t2 = "g1_2193_binary_tree_cover_10m.tiff"
+    t3 = "g1_71513_binary_tree_cover_10m.tiff"
+    t4 = "g1_8184_binary_tree_cover_10m.tiff"
+    df = df_years_2017_2022.loc[[t1, t2, t3, t4]]
+
+    # df = df_years_2017_2022.sample(n=1, random_state=0)
+    rows = list(df[['year']].itertuples(name=None))
     
     with ProcessPoolExecutor(max_workers=len(rows)) as executor:
+        print(f"Starting {len(rows)} workers")
         executor.map(run_download, rows)
         
 # Took 1 min 13 secs with 5 workers and 5 datacubes. 
 # Timed out with 5 workers and 1 datacube.
-
-
 # -
 
+
+# csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
+# df_years = pd.read_csv(csv_filename, index_col='filename')
+# df_years_2017_2022 = df_years[df_years['year'] >= 2017]
+# df = df_years_2017_2022
+# # Files that gave that bad tiff error
+# # ERROR 1: TIFFFillTile:Read error at row 256, col 256, tile 17; got 0 bytes, expected 95730
+# t1 = "g1_1752_binary_tree_cover_10m.tiff"
+# t2 = "g1_2193_binary_tree_cover_10m.tiff"
+# t3 = "g1_71513_binary_tree_cover_10m.tiff"
+# t4 = "g1_8184_binary_tree_cover_10m.tiff"
+# df.loc[[t1, t2, t3, t4]]
 
