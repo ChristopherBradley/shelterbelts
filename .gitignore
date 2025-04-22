@@ -7,6 +7,8 @@ data
 *.csv
 *.zip
 *.gif
+*.xlsx
+*.gpkg*
 
 # qsub logging files
 *.o*
