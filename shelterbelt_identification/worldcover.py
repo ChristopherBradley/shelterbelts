@@ -23,9 +23,9 @@ world_cover_layers = {
 }
 
 
-def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
+def worldcover_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], crs="EPSG:4326", outdir=".", stub="Test"):
     """Download worldcover data for the region of interest"""
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
+    
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
         modifier=planetary_computer.sign_inplace,
@@ -36,13 +36,22 @@ def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="T
     )
     items = list(search.items())
     items = [items[0]]
-    ds = odc.stac.load(items, crs="EPSG:4326", bbox=bbox)
+    ds = odc.stac.load(items, crs=crs, bbox=bbox)
     ds_map = ds.isel(time=0)['map']
 
     filename = os.path.join(outdir, f"{stub}_worldcover.tif")
     ds_map.rio.to_raster(filename)
     print("Downloaded", filename)
+
+    return ds_map
     
+
+
+def worldcover_centerpoint(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
+    """Download worldcover data for the region of interest"""
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
+    crs="EPSG:4326"
+    ds_map = worldcover_bbox(bbox, crs, outdir, stub)
     return ds_map, bbox
 
 
@@ -101,8 +110,6 @@ def visualise_worldcover(ds, bbox, outdir=".", stub="Test"):
     print("Saved", filename)
 
 
-# !ls
-
 # %%time
 if __name__ == '__main__':
     
@@ -124,7 +131,7 @@ if __name__ == '__main__':
     lon=147.760717
     buffer=0.025
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
-    ds, bbox = worldcover(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
+    ds, bbox = worldcover_centerpoint(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
     visualise_worldcover(ds, bbox)
 
 
