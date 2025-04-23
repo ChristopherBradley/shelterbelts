@@ -18,15 +18,32 @@ import hdstats
 
 import geopandas as gpd
 import pandas as pd
-import rasterio
 from shapely.geometry import box
 import psutil
+from pyproj import CRS, Transformer
 
 import csv
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import subprocess
+import networkx as nx
+from itertools import combinations
+from collections import defaultdict
 
+
+# Maybe using gdal instead of rasterio will fix the TIFFError?
+from osgeo import gdal
+def get_bounds_and_crs(filename):
+    ds = gdal.Open(filename, gdal.GA_ReadOnly)
+    gt = ds.GetGeoTransform()
+    x_min = gt[0]
+    y_max = gt[3]
+    x_max = x_min + gt[1] * ds.RasterXSize
+    y_min = y_max + gt[5] * ds.RasterYSize
+    bounds = (x_min, y_min, x_max, y_max)
+    crs = ds.GetProjection()
+    ds = None
+    return bounds, crs
 
 
 # Specific range so I can match Nick's tiff files
@@ -57,16 +74,20 @@ def load_and_process_data(dc, query):
     )
     return ds
 
-def sentinel_download(tif, year, indir, outdir):
+def sentinel_download(tif, year, outdir, bounds, src_crs):
     
     tif_id = '_'.join(tif.split('_')[:2])
     print(f"Starting sentinel_download: {tif_id}, {year}\n")
 
-    # Specify the parameters
-    filename = os.path.join(indir, tif)
-    with rasterio.open(filename) as src:
-        bounds = src.bounds
-        src_crs = src.crs.to_string()
+    # filename = os.path.join(indir, tif)
+
+    # Getting the TIFF FIle read error with either rasterio or gdal multi-processing
+    # bounds, src_crs = get_bounds_and_crs(filename)
+    # with rasterio.open(filename, sharing=False) as src: 
+    #     bounds = src.bounds
+    #     src_crs = src.crs.to_string()
+
+    # Prep the DEA query
     lat_range = (bounds[1], bounds[3])
     lon_range = (bounds[0], bounds[2])
     time_range = (f"{year}-01-01", f"{year}-12-31")
@@ -75,23 +96,25 @@ def sentinel_download(tif, year, indir, outdir):
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
     # Load the data
-    # client = create_local_dask_cluster(return_client=True)
     dc = datacube.Datacube(app=tif_id)
     ds = load_and_process_data(dc, query)
 
     # Save the data
     filename = os.path.join(outdir, f'{tif_id}_ds2_{year}.pkl')
+
     with open(filename, 'wb') as handle:
         pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print(f"Saved {filename}")
 
 def run_download(row):
-    tif, year = row
-    sentinel_download(tif, year, indir, outdir)
+    print(f"Starting run_download: {row}\n")
+    # tif, year = row
+    year, bounds, crs = row
+    sentinel_download(tif, year, outdir, bounds, crs)
 
-# +
 # %%time
 if __name__ == '__main__':
+
     indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
     outdir = '/scratch/xe2/cb8590/Nick_sentinel'
 
@@ -99,33 +122,119 @@ if __name__ == '__main__':
     df_years = pd.read_csv(csv_filename, index_col='filename')
     df_years_2017_2022 = df_years[df_years['year'] >= 2017]
 
-    t1 = "g1_1752_binary_tree_cover_10m.tiff"
-    t2 = "g1_2193_binary_tree_cover_10m.tiff"
-    t3 = "g1_71513_binary_tree_cover_10m.tiff"
-    t4 = "g1_8184_binary_tree_cover_10m.tiff"
-    df = df_years_2017_2022.loc[[t1, t2, t3, t4]]
-
-    # df = df_years_2017_2022.sample(n=1, random_state=0)
+    df = df_years_2017_2022.sample(n=200, random_state=0)
     rows = list(df[['year']].itertuples(name=None))
-    
+
+    # Pre-load the crs and bounds to avoid tif concurrency errors
+    rows2 = []
+    import rasterio
+    for row in rows:
+        tif, year = row
+        filename = os.path.join(indir, tif)
+        with rasterio.open(filename) as src:
+            bounds = src.bounds
+            crs = src.crs.to_string()
+        rows2.append((year, bounds, crs))
+
+    # This is stupid, but this parallelisation works in a jupyter notebook, but gets a TIFF Read Error when submitting it as a job with qsub
     with ProcessPoolExecutor(max_workers=len(rows)) as executor:
         print(f"Starting {len(rows)} workers")
-        executor.map(run_download, rows)
-        
-# Took 1 min 13 secs with 5 workers and 5 datacubes. 
-# Timed out with 5 workers and 1 datacube.
+        executor.map(run_download, rows2)
+
+# +
+indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+outdir = '/scratch/xe2/cb8590/Nick_sentinel'
+
+csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
+df_years = pd.read_csv(csv_filename, index_col='filename')
+df_years_2017_2022 = df_years[df_years['year'] >= 2017]
+
+df = df_years_2017_2022.sample(n=100, random_state=0)
+rows = list(df[['year']].itertuples(name=None))
+
+# Pre-load the crs and bounds to avoid tif concurrency errors
+rows2 = []
+import rasterio
+for row in rows:
+    tif, year = row
+    filename = os.path.join(indir, tif)
+    with rasterio.open(filename) as src:
+        bounds = src.bounds
+        crs = src.crs.to_string()
+    rows2.append((year, bounds, crs))
 # -
 
+# %%time
+filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
+gdf_sentinel_bboxs = gpd.read_file(filename_sentinel_bboxs)
 
-# csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
-# df_years = pd.read_csv(csv_filename, index_col='filename')
-# df_years_2017_2022 = df_years[df_years['year'] >= 2017]
-# df = df_years_2017_2022
-# # Files that gave that bad tiff error
-# # ERROR 1: TIFFFillTile:Read error at row 256, col 256, tile 17; got 0 bytes, expected 95730
-# t1 = "g1_1752_binary_tree_cover_10m.tiff"
-# t2 = "g1_2193_binary_tree_cover_10m.tiff"
-# t3 = "g1_71513_binary_tree_cover_10m.tiff"
-# t4 = "g1_8184_binary_tree_cover_10m.tiff"
-# df.loc[[t1, t2, t3, t4]]
 
+# Find the overlapping sentinel tiles for each tree cover tif
+def find_overlapping_tiles(row, sentinel_gdf):
+    bbox = row['bbox']
+    src_crs = CRS.from_user_input(row['crs'])
+    dst_crs = sentinel_gdf.crs
+
+    # Create shapely box and reproject
+    geom = box(*bbox)
+    transformer = Transformer.from_crs(src_crs, dst_crs, always_xy=True)
+    x1, y1 = transformer.transform(bbox[0], bbox[1])
+    x2, y2 = transformer.transform(bbox[2], bbox[3])
+    reprojected_geom = box(x1, y1, x2, y2)
+
+    # Find overlapping tiles
+    overlaps = sentinel_gdf[sentinel_gdf.intersects(reprojected_geom)]
+    return overlaps['Name'].tolist()
+
+
+
+# %%time
+df_rows = pd.DataFrame(rows2, columns=['year', 'bbox', 'crs'])
+df_rows['sentinel_tiles'] = df_rows.apply(find_overlapping_tiles, axis=1, sentinel_gdf=gdf_sentinel_bboxs)
+# 35 seconds
+
+# Create a key with the year_tile combinations
+df_rows['year_tile_keys'] = df_rows.apply(
+    lambda row: [f"{row['year']}_{tile}" for tile in row['sentinel_tiles']],
+    axis=1
+)
+
+
+# +
+# Create groups that don't have overlapping tile_years to avoid concurrent tiff access errors
+def group_rows_by_conflict(rows2_df):
+    df = rows2_df.copy().reset_index(drop=True)
+    G = nx.Graph()
+
+    # Add a node for each row
+    for idx in df.index:
+        G.add_node(idx)
+
+    # Map key → list of row indices that share it
+    key_to_rows = defaultdict(list)
+    for idx, keys in df['year_tile_keys'].items():
+        for key in keys:
+            key_to_rows[key].append(idx)
+
+    # Add edges between all rows that share a key
+    for row_idxs in key_to_rows.values():
+        for i, j in combinations(row_idxs, 2):
+            G.add_edge(i, j)
+
+    # Color the graph (each color = group)
+    coloring = nx.coloring.greedy_color(G, strategy='largest_first')
+
+    # Assign group numbers
+    df['group'] = df.index.map(coloring)
+    return df
+
+grouped_df = group_rows_by_conflict(df_rows)
+# -
+
+groups = {g for _, g in grouped_df.groupby('group')}
+
+group_lengths = [len(g) for g in groups]
+
+group_lengths
+
+group_sizes = {g.drop(columns=['sentinel_tiles', 'group']) for i, g in enumerate(groups)}
