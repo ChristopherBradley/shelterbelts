@@ -152,8 +152,6 @@ import pandas as pd
 import ast
 import traceback, sys
 
-
-
 # +
 tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
 worldcover_dir = "/scratch/xe2/cb8590/Nick_worldcover"
@@ -213,9 +211,10 @@ def tree_cover_tile(row):
         raise
 
 # tree_cover_tile(row)
-
-
 # -
+
+### I should move these worldcover tifs out of my main scratch and into a separate folder within scratch. And I should start using the tmp folder within scratch more consistently
+
 
 # Load the bounding boxes for each tiff file
 filename = os.path.join(outlines_dir, "nick_bbox_crs.csv")
@@ -241,6 +240,7 @@ for i, batch in enumerate(batches):
                 print(f"Worker failed with: {e}", flush=True)
 
 # Took 10 mins to download 1000 tiles
+# Should take about 2 hours 20 mins to download the full 14k tiles
 # -
 
 

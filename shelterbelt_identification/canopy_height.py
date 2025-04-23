@@ -19,9 +19,15 @@ from shapely.geometry import Polygon, box
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-# +
-def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canopy_height_dir="."):
+
+# -
+
+def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], canopy_height_dir="."):
     """Find the tiles that overlap with the region of interest"""
+    
+    # This assumes the crs is EPSG:4326, because the aws tiles.geojson is also in EPSG:4326
+    roi_coords = box(*bbox)
+    roi_polygon = Polygon(roi_coords)
     
     # Download the 'tiles_global.geojson' to this folder if we haven't already
     filename = os.path.join(canopy_height_dir, 'tiles_global.geojson')
@@ -35,57 +41,21 @@ def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canop
     # Load the canopy height tiles
     gdf = gpd.read_file(filename)
 
-    # Create a polygon for the region of interest
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
-    roi_coords = box(*bbox)
-    roi_polygon = Polygon(roi_coords)
-
     # Find any tiles that intersect with this polygon
     relevant_tiles = []
     for idx, row in gdf.iterrows():
         tile_polygon = row['geometry']
         if tile_polygon.intersects(roi_polygon):
             relevant_tiles.append(row['tile'])
+            
     return relevant_tiles
 
 
-def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
-    """Download any tiles that we haven't already downloaded"""
-
-    # Create a list of tiles we haven't downloaded yet
-    to_download = []
-    for tile in tiles:
-        tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
-        if not os.path.isfile(tile_path):
-            to_download.append(tile)
-    if len(to_download) == 0:
-        return
-
-    canopy_baseurl = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/chm/"
-
-    # And then download them
-    print(f"Downloading {to_download}")
-    for tile in to_download:
-        url = canopy_baseurl + f'{tile}.tif'
-        filename = os.path.join(canopy_height_dir, f'{tile}.tif')
-        response = requests.head(url)
-        if response.status_code == 200:
-            with requests.get(url, stream=True) as stream:
-                with open(filename, "wb") as file:
-                    shutil.copyfileobj(stream.raw, file)
-            print(f"Downloaded {filename}")
-
-def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputEPSG="EPSG:4326", outputEPSG="EPSG:3857"):
-    transformer = Transformer.from_crs(inputEPSG, outputEPSG)
-    x1,y1 = transformer.transform(bbox[1], bbox[0])
-    x2,y2 = transformer.transform(bbox[3], bbox[2])
-    return (x1, y1, x2, y2)
-
-def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir='.'):
+def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir='.'):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
-    
+
+    # Assumes the bbox starts as EPSG:4326
     # Convert the bounding box to EPSG:3857 (tiles.geojson uses EPSG:4326 (geographic), but the tiff files use EPSG:3857 (projected)')
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
     bbox_3857 = transform_bbox(bbox)
     roi_coords_3857 = box(*bbox_3857)
     roi_polygon_3857 = Polygon(roi_coords_3857)
@@ -143,6 +113,50 @@ def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub=
     print("Saved:", output_tiff_filename)
 
 
+# +
+def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canopy_height_dir="."):
+    """Find the tiles that overlap with the region of interest"""
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
+    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
+    return relevant_tiles
+
+def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
+    """Download any tiles that we haven't already downloaded"""
+
+    # Create a list of tiles we haven't downloaded yet
+    to_download = []
+    for tile in tiles:
+        tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
+        if not os.path.isfile(tile_path):
+            to_download.append(tile)
+    if len(to_download) == 0:
+        return
+
+    canopy_baseurl = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/chm/"
+
+    # And then download them
+    print(f"Downloading {to_download}")
+    for tile in to_download:
+        url = canopy_baseurl + f'{tile}.tif'
+        filename = os.path.join(canopy_height_dir, f'{tile}.tif')
+        response = requests.head(url)
+        if response.status_code == 200:
+            with requests.get(url, stream=True) as stream:
+                with open(filename, "wb") as file:
+                    shutil.copyfileobj(stream.raw, file)
+            print(f"Downloaded {filename}")
+
+def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputEPSG="EPSG:4326", outputEPSG="EPSG:3857"):
+    transformer = Transformer.from_crs(inputEPSG, outputEPSG)
+    x1,y1 = transformer.transform(bbox[1], bbox[0])
+    x2,y2 = transformer.transform(bbox[3], bbox[2])
+    return (x1, y1, x2, y2)
+
+def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir='.'):
+    """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
+    merge_tiles_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
+
 def visualise_canopy_height(filename, outpath=".", stub="Test"):
     """Pretty visualisation of the canopy height"""
 
@@ -191,20 +205,37 @@ def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stu
 
 # -
 
+def canopy_height_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir="."):
+    """Create a merged canopy height raster, downloading new tiles if necessary"""
+    # Assumes the bbox is in EPSG:4326
+    tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
+    download_new_tiles(tiles, canopy_height_dir)
+    merge_tiles_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
+
+
+# +
 # %%time
 if __name__ == '__main__':
 
-    # canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
-    canopy_height_dir ='../data'
-    outdir = '../data'
-    tmp_dir = '../data'
+    # canopy_height_dir ='../data'
+    # outdir = '../data'
+    
+    canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
+    outdir = '/scratch/xe2/cb8590/tmp'
+    tmp_dir = outdir
     stub = 'Fulham'
     lat=-42.887122
     lon=147.760717
     # lat, lon = -35.267127, 149.071377 # Arboretum
     buffer=0.025
-    canopy_height(lat, lon, buffer, outdir, stub, tmp_dir, canopy_height_dir)
+    
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
+
+    canopy_height_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
     filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
-    visualise_canopy_height(filename)
+    visualise_canopy_height(filename, outdir, stub)
+    
+# Took 5 mins for the download, and 33 secs for the rest
+# -
 
 
