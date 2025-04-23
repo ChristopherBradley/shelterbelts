@@ -2,6 +2,7 @@
 # Example code is here: https://planetarycomputer.microsoft.com/dataset/esa-worldcover#Example-Notebook
 
 # +
+# %%time
 import os
 import odc.stac
 import pystac_client
@@ -13,6 +14,7 @@ from matplotlib import cm
 import matplotlib.pyplot as plt
 
 from pyproj import Transformer
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # -
 
@@ -53,7 +55,6 @@ def worldcover_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], crs="
     print("Downloaded", filename)
 
     return ds_map, bbox_4326
-    
 
 
 def worldcover_centerpoint(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
@@ -119,41 +120,42 @@ def visualise_worldcover(ds, bbox, outdir=".", stub="Test"):
     print("Saved", filename)
 
 
-# %%time
-if __name__ == '__main__':
+# +
+# # %%time
+# if __name__ == '__main__':
     
-    # Change directory to this repo
-    import os, sys
-    repo_name = "shelterbelts"
-    if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-        repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-    elif os.path.basename(os.getcwd()) != repo_name:
-        repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
-    else:  # Already running locally from repo root
-        repo_dir = os.getcwd()
-    os.chdir(repo_dir)
-    sys.path.append(repo_dir)
-    print(f"Running from {repo_dir}")
+#     # Change directory to this repo
+#     import os, sys
+#     repo_name = "shelterbelts"
+#     if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+#         repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+#     elif os.path.basename(os.getcwd()) != repo_name:
+#         repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
+#     else:  # Already running locally from repo root
+#         repo_dir = os.getcwd()
+#     os.chdir(repo_dir)
+#     sys.path.append(repo_dir)
+#     print(f"Running from {repo_dir}")
 
-    # Coords for Fulham: -42.887122, 147.760717
-    lat=-42.887122
-    lon=147.760717
-    buffer=0.025
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
-    ds, bbox = worldcover_centerpoint(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
-    visualise_worldcover(ds, bbox)
+#     # Coords for Fulham: -42.887122, 147.760717
+#     lat=-42.887122
+#     lon=147.760717
+#     buffer=0.025
+#     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
+#     ds, bbox = worldcover_centerpoint(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
+#     visualise_worldcover(ds, bbox)
+# -
 
 import glob
 import rasterio
 import pandas as pd
 import ast
+import traceback, sys
+
 
 
 # +
-
 tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-outdir = "/scratch/xe2/cb8590/Nick_csv"
 worldcover_dir = "/scratch/xe2/cb8590/Nick_worldcover"
 outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
 
@@ -166,7 +168,7 @@ def extract_bbox_crs():
     """Extract the bbox and crs for each of Nick's tiles"""
     rows = []
     for filename in tree_cover_tiles:
-        tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
+        tile_id = "_".join(filename.split('/')[-1].split('_')[:2])
         with rasterio.open(filename) as src:
             bounds = src.bounds
             crs = src.crs.to_string()
@@ -180,23 +182,65 @@ def extract_bbox_crs():
     print("Saved", filename)
     # Took 5 mins
     
-df = extract_bbox_crs()
+# df = extract_bbox_crs()
+
+
+# +
+# %%time
+def tree_cover_tile(row):
+    # Save a tif file matching the bbox and crs for each of Nick's tree cover tiff files
+    stub, bbox, crs = row
+    try:
+        filename = f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{stub}_binary_tree_cover_10m.tiff'
+        ds_tree_cover = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+
+        bbox = ast.literal_eval(bbox) # The bbox is saved as a string initially because I stored it in a csv file with pandas
+
+        ds_worldcover, bbox_4326 = worldcover_bbox(bbox, crs, worldcover_dir, stub)
+        ds_worldcover_28355 = ds_worldcover.rio.reproject_match(ds_tree_cover)
+
+        filename = f'/scratch/xe2/cb8590/{stub}_worldcover.tif'
+        ds_worldcover_28355.rio.to_raster(filename)
+        # print("Saved", filename)
+
+        filename = f'/scratch/xe2/cb8590/{stub}_worldcover_trees.tif'
+        ds_worldcover_trees = (ds_worldcover_28355 == 10).astype(int)
+        # print("Saved", filename)
+        
+    except Exception as e:
+        print(f"Error in worker {stub}:", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        raise
+
+# tree_cover_tile(row)
+
+
 # -
 
+# Load the bounding boxes for each tiff file
 filename = os.path.join(outlines_dir, "nick_bbox_crs.csv")
 df = pd.read_csv(filename)
-
 rows = df.values.tolist()
+batches = [rows[i:i + 100] for i in range(0, len(rows), 100)]
 
-stub, bbox, crs = rows[0]
-stub, bbox, crs
+batches = batches[10:]
 
-# Convert from string to list. Should do this when creating the dataframe in the first place instead
-bbox = ast.literal_eval(bbox)
-
+# +
 # %%time
-ds, bbox_4326 = worldcover_bbox(bbox, crs, worldcover_dir, stub)
 
-visualise_worldcover(ds, bbox_4326)
+# Just use 100 workers at a time or else the planetary computer gets overwhelmed. 
+for i, batch in enumerate(batches):
+    rows = batch
+    with ProcessPoolExecutor(max_workers=len(rows)) as executor:
+        print(f"Starting {len(rows)} workers for batch {i}")
+        futures = [executor.submit(tree_cover_tile, row) for row in rows]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Worker failed with: {e}", flush=True)
+
+# Took 10 mins to download 1000 tiles
+# -
 
 
