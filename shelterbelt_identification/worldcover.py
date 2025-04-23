@@ -101,15 +101,30 @@ def visualise_worldcover(ds, bbox, outdir=".", stub="Test"):
     print("Saved", filename)
 
 
+# !ls
+
 # %%time
 if __name__ == '__main__':
+    
+    # Change directory to this repo
+    import os, sys
+    repo_name = "shelterbelts"
+    if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+        repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+    elif os.path.basename(os.getcwd()) != repo_name:
+        repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
+    else:  # Already running locally from repo root
+        repo_dir = os.getcwd()
+    os.chdir(repo_dir)
+    sys.path.append(repo_dir)
+    print(f"Running from {repo_dir}")
 
     # Coords for Fulham: -42.887122, 147.760717
     lat=-42.887122
     lon=147.760717
     buffer=0.025
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
-    ds, bbox = worldcover(lat=lat, lon=lon, buffer=buffer, outdir="../data", stub="Fulham")
+    ds, bbox = worldcover(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
     visualise_worldcover(ds, bbox)
 
 
