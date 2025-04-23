@@ -11,6 +11,8 @@ import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
 
+from concurrent.futures import ProcessPoolExecutor
+
 
 def aggregated_metrics(ds):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
@@ -50,12 +52,12 @@ def jittered_grid(ds):
     jitter_range = np.arange(-2, 3)  # [-2, -1, 0, 1, 2]
 
     # Create a coordinate grid (starting 5 pixels from the edge)
-    y_coords = np.arange(5, ds.sizes['y'] - 5, spacing)
-    x_coords = np.arange(5, ds.sizes['x'] - 5, spacing)
+    y_inds = np.arange(5, ds.sizes['y'] - 5, spacing)
+    x_inds = np.arange(5, ds.sizes['x'] - 5, spacing)
 
-    # Apply jitter to each coordinate
-    y_jittered_inds = y_coords + np.random.choice(jitter_range, size=len(y_coords))
-    x_jittered_inds = x_coords + np.random.choice(jitter_range, size=len(x_coords))
+    # Apply jitter
+    y_jittered_inds = y_inds + np.random.choice(jitter_range, size=len(y_inds))
+    x_jittered_inds = x_inds + np.random.choice(jitter_range, size=len(x_inds))
 
     # Get actual coordinates
     y_jittered_coords = ds['y'].values[y_jittered_inds]
@@ -70,26 +72,17 @@ def jittered_grid(ds):
             values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
             values.update({'y': y_coord, 'x': x_coord})
             data_list.append(values)
+
         
     # Create DataFrame
     df = pd.DataFrame(data_list)
     return df
 
 
-# +
-# Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
-tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-outdir = "/scratch/xe2/cb8590/Nick_csv"
-
-sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
-
-# +
-# %%time
-
-dfs = []
-for sentinel_tile in sentinel_tiles[:2]:
-
+def tile_csv(sentinel_tile):
+    """Create a csv file with a subset of training pixels for this tile"""
+    
+    # I'm currently undecided whether to use a jittered grid or random sample of points. 
     tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
     tree_cover_filename = f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile_id}_binary_tree_cover_10m.tiff'
 
@@ -122,26 +115,63 @@ for sentinel_tile in sentinel_tiles[:2]:
     # Select pixels to use for training/testing
     df = jittered_grid(ds)
 
-    # Change outputs to 0 and 1, instead of 1 and 2
-    df['tree_cover'] = df['tree_cover'] - 1
-
-    # Normalize all columns in the DataFrame to be between 0 and 1
-    df_normalized = (df - df.min()) / (df.max() - df.min())
+    # Leaving normalisation for later to help with debugging if I want to visually inspect the raw values
+    # df_normalized = (df - df.min()) / (df.max() - df.min())
 
     # Save a copy of this dataframe just in case something messes up later (since this is going to take 2 to 4 hours)
     filename = os.path.join(outdir, f"{tile_id}_df_tree_cover.csv")
-    df_normalized.to_csv(filename)
-    print("Saved", filename)
+    df.to_csv(filename, index=False)
+    print(f"Saved {filename}")
+    
 
-    dfs.append(df_normalized)
 
-# 30 secs each 
+# +
+# Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
+tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+outdir = "/scratch/xe2/cb8590/Nick_csv"
+
+sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+print(len(sentinel_tiles))
+
+# +
+# %%time
+# Preprocess the tiles in parallel (otherwise takes about 30 secs each)
+with ProcessPoolExecutor(max_workers=len(sentinel_tiles)) as executor:
+    print(f"Starting {len(sentinel_tiles)} workers")
+    executor.map(tile_csv, sentinel_tiles)
+    
+# Took 3 mins to do 500 tiles with XLarge compute
+
+# +
+# Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
+tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+outdir = "/scratch/xe2/cb8590/Nick_csv"
+outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
+
+csv_tiles = glob.glob(f'{outdir}/*')
+print(len(csv_tiles))  # Why did 11 of the pickle files not get converted to csv files?
 # -
+
+dfs = []
+for csv_tile in csv_tiles:
+    df = pd.read_csv(csv_tile, index_col=False)
+    dfs.append(df)
+
+# !du -sh {outlines_dir}/*
 
 # Combine all the dataframes
 df_all = pd.concat(dfs)
+df_all = df_all.drop(columns=['Unnamed: 0'])
 
-# Feather file is more efficient, but csv is more readable
-filename = os.path.join(outdir, f"tree_cover_preprocessed.csv")
-df_all.to_csv(filename)
+# Feather file is more efficient, but csv is more readable. Anything over 100MB I should probs use a feather file.
+filename = os.path.join(outlines_dir, f"tree_cover_preprocessed.csv")
+df_all.to_csv(filename, index=False)
 print("Saved", filename)
+
+# +
+# Why is 'tree_cover' sometimes the value 2?
+# -
+
+df_all

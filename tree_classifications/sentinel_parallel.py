@@ -89,7 +89,7 @@ def sentinel_download(tif, year, outdir, bounds, src_crs):
 
     with open(filename, 'wb') as handle:
         pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # print(f"Saved {filename}")
+    print(f"Saved {filename}", flush=True)
 
 def run_download(row):
     tif, year, bounds, crs = row
