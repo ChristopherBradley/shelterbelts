@@ -158,7 +158,7 @@ for row in rows:
         crs = src.crs.to_string()
     rows2.append((tif, year, bounds, crs))
 
-# Code for finding tiff files with overlapping sentinel tiles is below
+# I tried finding which sentinel tile likely gets read for each tree cover tif to fix the Tiff Read Error, but with no luck
 filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
 gdf_sentinel_bboxs = gpd.read_file(filename_sentinel_bboxs)
 

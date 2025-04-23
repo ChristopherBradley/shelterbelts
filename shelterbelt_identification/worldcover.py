@@ -11,6 +11,9 @@ import rioxarray as rxr
 import matplotlib.colors
 from matplotlib import cm
 import matplotlib.pyplot as plt
+
+from pyproj import Transformer
+
 # -
 
 world_cover_layers = {
@@ -26,24 +29,30 @@ world_cover_layers = {
 def worldcover_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], crs="EPSG:4326", outdir=".", stub="Test"):
     """Download worldcover data for the region of interest"""
     
+    # Need to have the bbox in EPSG:4326 for the catalog search
+    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    minx, miny = transformer.transform(bbox[0], bbox[1])
+    maxx, maxy = transformer.transform(bbox[2], bbox[3])
+    bbox_4326 = [minx, miny, maxx, maxy]
+
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
         modifier=planetary_computer.sign_inplace,
     )
     search = catalog.search(
         collections=["esa-worldcover"],
-        bbox=bbox,
+        bbox=bbox_4326
     )
     items = list(search.items())
     items = [items[0]]
-    ds = odc.stac.load(items, crs=crs, bbox=bbox)
+    ds = odc.stac.load(items, crs="EPSG:4326", bbox=bbox_4326)
     ds_map = ds.isel(time=0)['map']
 
     filename = os.path.join(outdir, f"{stub}_worldcover.tif")
     ds_map.rio.to_raster(filename)
     print("Downloaded", filename)
 
-    return ds_map
+    return ds_map, bbox_4326
     
 
 
@@ -133,5 +142,61 @@ if __name__ == '__main__':
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
     ds, bbox = worldcover_centerpoint(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
     visualise_worldcover(ds, bbox)
+
+import glob
+import rasterio
+import pandas as pd
+import ast
+
+
+# +
+
+tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+outdir = "/scratch/xe2/cb8590/Nick_csv"
+worldcover_dir = "/scratch/xe2/cb8590/Nick_worldcover"
+outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
+
+tree_cover_tiles = glob.glob(f'{tree_cover_dir}/*.tiff')
+
+
+# +
+# %%time
+def extract_bbox_crs():
+    """Extract the bbox and crs for each of Nick's tiles"""
+    rows = []
+    for filename in tree_cover_tiles:
+        tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
+        with rasterio.open(filename) as src:
+            bounds = src.bounds
+            crs = src.crs.to_string()
+        bbox = [bounds.left, bounds.bottom, bounds.right, bounds.top]
+        rows.append([tile_id, bbox, crs])
+
+    # Save this as a csv file for later
+    df = pd.DataFrame(rows, columns=["Tile", "bbox", "crs"])
+    filename = os.path.join(outlines_dir, "nick_bbox_crs.csv")
+    df.to_csv(filename, index=False)
+    print("Saved", filename)
+    # Took 5 mins
+    
+df = extract_bbox_crs()
+# -
+
+filename = os.path.join(outlines_dir, "nick_bbox_crs.csv")
+df = pd.read_csv(filename)
+
+rows = df.values.tolist()
+
+stub, bbox, crs = rows[0]
+stub, bbox, crs
+
+# Convert from string to list. Should do this when creating the dataframe in the first place instead
+bbox = ast.literal_eval(bbox)
+
+# %%time
+ds, bbox_4326 = worldcover_bbox(bbox, crs, worldcover_dir, stub)
+
+visualise_worldcover(ds, bbox_4326)
 
 
