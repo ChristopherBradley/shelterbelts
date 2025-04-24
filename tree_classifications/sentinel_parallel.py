@@ -256,14 +256,13 @@ df.iloc[0]['bbox']
 
 # After all that funny overlapping grouping stuff, I'm wondering if it might just be easiest to run in batches of 50 anyway
 rows = df[['tif', 'year', 'bbox', 'crs']].values.tolist()
-batch_size = 4
+batch_size = 50
 batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
 
-batches = batches[:1]
+batches = batches[20:30]
 
 # +
-# # %%time
-
+# %%time
 for i, batch in enumerate(batches):
     rows = batch
     with ProcessPoolExecutor(max_workers=len(rows)) as executor:
@@ -274,6 +273,8 @@ for i, batch in enumerate(batches):
                 future.result()
             except Exception as e:
                 print(f"Worker failed with: {e}", flush=True)
+                
+# 38 mins for 50 workers x 10 batches
 # -
 
 

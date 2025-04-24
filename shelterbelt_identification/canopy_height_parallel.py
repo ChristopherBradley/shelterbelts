@@ -64,9 +64,11 @@ outdir = '/scratch/xe2/cb8590/Nick_GCH'
 filename = os.path.join(outlines_dir, "nick_bbox_crs.csv")
 df = pd.read_csv(filename)
 rows = df.values.tolist()
-num_cpus_per_batch = 20
+num_cpus_per_batch = 1
 batches = [rows[i:i + num_cpus_per_batch] for i in range(0, len(rows), num_cpus_per_batch)]
-batches = batches[1:2]
+batches = batches[40:50]
+
+batches
 
 # +
 # %%time
@@ -83,7 +85,14 @@ for i, batch in enumerate(batches):
                 print(f"Worker failed with: {e}", flush=True)
                 
 # Took 54 mins for 10 downloads that in theory happened in parallel
-# Took 33 mins for the next 10 downloads that in theory happened in parallel
+# Took 33 mins for the next 10 downloads that in theory happened in parallel. 
+# Took 2 hours for next 20 downloads.
+
+# Doesn't seem like it's happening in parallel. So, assuming 10 per hour, it would take 1400 hours = way too long to do all of them. 
+# I think my next best bet is to make a bash script to submit something like 100 separate jobs. That would take about 14 hours which is much more reasonable. 
+# I want to try 2 jobs in parallel for 14 hours before doing 100 jobs in parallel for 14 hours.
+
+# Filesize about 20GB for 50 tiles. Estimating about 10k tiles. That would be about 4TB. Yikes quite a lot, but also well within scratch limits so that's fine.
 # -
 
 
