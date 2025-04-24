@@ -5,6 +5,7 @@ import argparse
 import os
 import sys
 import psutil
+import ast
 
 import csv
 import pickle
@@ -15,6 +16,7 @@ import datacube
 import hdstats
 import pandas as pd
 import geopandas as gpd
+import rasterio
 
 from dea_tools.temporal import xr_phenology, temporal_statistics
 from dea_tools.datahandling import load_ard
@@ -33,6 +35,7 @@ import logging
 import warnings
 import contextlib
 import io
+import traceback, sys
 warnings.filterwarnings('ignore')
 
 
@@ -93,12 +96,11 @@ def sentinel_download(tif, year, outdir, bounds, src_crs):
     print(f"Saved {filename}", flush=True)
 
 def run_download(row):
-
-    import traceback, sys
     try:
         tif, year, bounds, crs = row
+        bbox = ast.literal_eval(bounds) # The bbox is saved as a string initially because I stored it in a csv file with pandas
         print(f"Worker running: {tif}_{year}", flush=True)
-        sentinel_download(tif, year, outdir, bounds, crs)
+        sentinel_download(tif, year, outdir, bbox, crs)
     except Exception as e:
         print(f"Error in worker {tif}_{year}:", flush=True)
         traceback.print_exc(file=sys.stdout)
@@ -133,38 +135,13 @@ def run_download(row):
 # with ProcessPoolExecutor(max_workers=len(rows)) as executor:
 #     print(f"Starting {len(rows)} workers")
 #     executor.map(run_download, rows2)
-
-# +
-# # %%time
-
-indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
-outdir = '/scratch/xe2/cb8590/Nick_sentinel'
-
-csv_filename = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
-df_years = pd.read_csv(csv_filename, index_col='filename')
-df_years_2017_2022 = df_years[df_years['year'] >= 2017]
-
-df = df_years_2017_2022.sample(n=1000, random_state=0)
-rows = list(df[['year']].itertuples(name=None))
-
-# Pre-load the crs and bounds for each tif file
-rows2 = []
-import rasterio
-for row in rows:
-    tif, year = row
-    filename = os.path.join(indir, tif)
-    with rasterio.open(filename) as src:
-        bounds = src.bounds
-        crs = src.crs.to_string()
-    rows2.append((tif, year, bounds, crs))
-
-# I tried finding which sentinel tile likely gets read for each tree cover tif to fix the Tiff Read Error, but with no luck
-filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
-gdf_sentinel_bboxs = gpd.read_file(filename_sentinel_bboxs)
+# -
 
 # Find the overlapping sentinel tiles for each tree cover tif
 def find_overlapping_tiles(row, sentinel_gdf):
-    bbox = row['bbox']
+    bbox_string = row['bbox']
+    bbox = ast.literal_eval(bbox_string)
+
     src_crs = CRS.from_user_input(row['crs'])
     dst_crs = sentinel_gdf.crs
 
@@ -179,15 +156,6 @@ def find_overlapping_tiles(row, sentinel_gdf):
     overlaps = sentinel_gdf[sentinel_gdf.intersects(reprojected_geom)]
     return overlaps['Name'].tolist()
 
-df_rows = pd.DataFrame(rows2, columns=['tif', 'year', 'bbox', 'crs'])
-df_rows['sentinel_tiles'] = df_rows.apply(find_overlapping_tiles, axis=1, sentinel_gdf=gdf_sentinel_bboxs)
-# 35 seconds
-
-# Create a key with the year_tile combinations
-df_rows['year_tile_keys'] = df_rows.apply(
-    lambda row: [f"{row['year']}_{tile}" for tile in row['sentinel_tiles']],
-    axis=1
-)
 
 # Create groups that don't have overlapping tile_years to avoid concurrent tiff access errors
 def group_rows_by_conflict(rows2_df):
@@ -216,28 +184,96 @@ def group_rows_by_conflict(rows2_df):
     df['group'] = df.index.map(coloring)
     return df
 
-grouped_df = group_rows_by_conflict(df_rows)
+
+indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+outdir = '/scratch/xe2/cb8590/Nick_sentinel'
+filename_bbox_year = "/g/data/xe2/cb8590/Nick_outlines/nick_bbox_year_crs.csv"
+filename_gdf_maxyear = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
+outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
+
+
+# %%time
+def extract_bbox_year():
+    """I used this code to extract the bbox and year for each of Nick's tiles"""
+    # Read in the bbox and year for each of the tif files
+    df = pd.read_csv(filename_gdf_maxyear, index_col='filename')
+
+    # Load the crs and bounds for each tif file
+    rows = list(df[['year']].itertuples(name=None))
+    rows2 = []
+    for row in rows:
+        tif, year = row
+        filename = os.path.join(indir, tif)
+        with rasterio.open(filename) as src:
+            bounds = src.bounds
+            crs = src.crs.to_string()
+        bbox = [bounds.left, bounds.bottom, bounds.right, bounds.top]
+        rows2.append((tif, year, bbox, crs))
+
+    df = pd.DataFrame(rows2, columns=["tif", "year", "bbox", "crs"])
+    df.to_csv(filename_bbox_year, index=False)
+    print("Saved", filename_bbox_year)
+
+    # Took 3 mins
+
 
 # +
-# print(grouped_df['group'].value_counts())
+# Just trying out the gs_3117 tiff which failed in the qsub. It worked fine, confirming again this is a parallelisation error. 
+# rows = df[df['tif'] == 'g2_3117_binary_tree_cover_10m.tiff'][['tif', 'year', 'bbox', 'crs']].values.tolist()
 # -
 
-# Choose a selection of rows that don't overlap
-df_0 = grouped_df[grouped_df['group']==0]
-rows3 = []
-for i, row in df_0.iterrows():
-    rows3.append(list(row[['tif', 'year', 'bbox', 'crs']]))
+# Load the tiff bboxs
+df = pd.read_csv(filename_bbox_year)
+df_2017_2022 = df[df['year'] >= 2017]
 
-rows = rows3
+# %%time
+# Load the sentinel tile bboxs, downloaded from: https://github.com/justinelliotmeyers/Sentinel-2-Shapefile-Index
+filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
+gdf_sentinel_bboxs = gpd.read_file(filename_sentinel_bboxs)
 
+# +
+# %%time
+# Assigning a sentinel tile and year to each row to try to avoid concurrent access of the same location
+df['sentinel_tiles'] = df_2017_2022.apply(find_overlapping_tiles, axis=1, sentinel_gdf=gdf_sentinel_bboxs)
+
+# Replace NaN with []
+df['sentinel_tiles'] = df['sentinel_tiles'].apply(lambda x: [] if isinstance(x, float) and np.isnan(x) else x)
+# -
+
+# Create a key with the year_tile combinations
+df['year_tile_keys'] = df.apply(
+    lambda row: [f"{row['year']}_{tile}" for tile in row['sentinel_tiles']],
+    axis=1
+)
+
+df.sample(100)[:100]
+
+grouped_df = group_rows_by_conflict(df)
+
+grouped_df['group'].value_counts()
+
+df.iloc[0]['bbox']
+
+# After all that funny overlapping grouping stuff, I'm wondering if it might just be easiest to run in batches of 50 anyway
+rows = df[['tif', 'year', 'bbox', 'crs']].values.tolist()
+batch_size = 4
+batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+
+batches = batches[:1]
+
+# +
 # # %%time
-with ProcessPoolExecutor(max_workers=len(rows)) as executor:
-    print(f"Starting {len(rows)} workers")
-    futures = [executor.submit(run_download, row) for row in rows]
-    for future in as_completed(futures):
-        try:
-            future.result()
-        except Exception as e:
-            print(f"Worker failed with: {e}", flush=True)
+
+for i, batch in enumerate(batches):
+    rows = batch
+    with ProcessPoolExecutor(max_workers=len(rows)) as executor:
+        print(f"Starting {len(rows)} workers for batch {i}")
+        futures = [executor.submit(run_download, row) for row in rows]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Worker failed with: {e}", flush=True)
+# -
 
 

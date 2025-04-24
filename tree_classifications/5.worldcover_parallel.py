@@ -1,4 +1,5 @@
-# +
+# Download worldcover tiffs matching each of Nick's tiffs
+
 import glob
 import rasterio
 import pandas as pd
@@ -29,7 +30,7 @@ from shelterbelt_identification.worldcover import worldcover_bbox
 
 
 def extract_bbox_crs():
-    """Extract the bbox and crs for each of Nick's tiles"""
+    """I used this code to extract the bbox and crs for each of Nick's tiles"""
     rows = []
     for filename in tree_cover_tiles:
         tile_id = "_".join(filename.split('/')[-1].split('_')[:2])
@@ -63,10 +64,10 @@ def tree_cover_tile(row):
         ds_worldcover_28355.rio.to_raster(filename)
         print("Saved", filename)
 
-        filename = f'/scratch/xe2/cb8590/Nick_worldcover_trees/{stub}_worldcover_trees.tif'
-        ds_worldcover_trees = (ds_worldcover_28355 == 10).astype(int)
-        ds_worldcover_28355.rio.to_raster(filename)
-        print("Saved", filename)
+        # filename = f'/scratch/xe2/cb8590/Nick_worldcover_trees/{stub}_worldcover_trees.tif'
+        # ds_worldcover_trees = (ds_worldcover_28355 == 10).astype(int)
+        # ds_worldcover_28355.rio.to_raster(filename)
+        # print("Saved", filename)
         
     except Exception as e:
         print(f"Error in worker {stub}:", flush=True)

@@ -13,6 +13,7 @@ import scipy.ndimage as ndimage
 
 from concurrent.futures import ProcessPoolExecutor
 
+np.random.seed(0)
 
 def aggregated_metrics(ds):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""

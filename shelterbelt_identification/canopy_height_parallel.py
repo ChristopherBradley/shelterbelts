@@ -1,4 +1,3 @@
-
 import os
 import pandas as pd
 from pyproj import Transformer
@@ -47,7 +46,7 @@ def global_canopy_height_tile(row):
             
         filename = os.path.join(outdir, f'{stub}_10m.tif')
         ds_gch_10m.rio.to_raster(filename)
-        print("Saved", filename)
+        # print("Saved", filename)
         
     except Exception as e:
         print(f"Error in worker {stub}:", flush=True)
@@ -65,21 +64,26 @@ outdir = '/scratch/xe2/cb8590/Nick_GCH'
 filename = os.path.join(outlines_dir, "nick_bbox_crs.csv")
 df = pd.read_csv(filename)
 rows = df.values.tolist()
-num_cpus_per_batch = 10
+num_cpus_per_batch = 20
 batches = [rows[i:i + num_cpus_per_batch] for i in range(0, len(rows), num_cpus_per_batch)]
-batches = batches[:1]
+batches = batches[1:2]
 
+# +
 # %%time
 # Run all the tiles in batches
 for i, batch in enumerate(batches):
     rows = batch
     with ProcessPoolExecutor(max_workers=len(rows)) as executor:
-        print(f"Starting {len(rows)} workers for batch {i}")
+        print(f"Starting {len(rows)} workers for batch {i+1}")
         futures = [executor.submit(global_canopy_height_tile, row) for row in rows]
         for future in as_completed(futures):
             try:
                 future.result()
             except Exception as e:
                 print(f"Worker failed with: {e}", flush=True)
+                
+# Took 54 mins for 10 downloads that in theory happened in parallel
+# Took 33 mins for the next 10 downloads that in theory happened in parallel
+# -
 
 
