@@ -132,8 +132,5 @@ for i, batch in enumerate(batches):
             except Exception as e:
                 print(f"Worker failed with: {e}", flush=True)
 
-# Took 10 mins to download 1000 tiles
-# Should take about 2 hours 20 mins to download the full 14k tiles
-# -
-
-
+# Took 10 mins to download 1000 tiles using X Large Notebook on NCI ARE
+# Took 2 hours 30 mins to download the full 14k tiles

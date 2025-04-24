@@ -14,7 +14,7 @@ from pyproj import Transformer
 from rasterio.merge import merge
 from rasterio.transform import Affine
 from rasterio.windows import from_bounds
-from shapely.geometry import Polygon, box        
+from shapely.geometry import Polygon, box      
 
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -60,7 +60,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_d
     roi_coords_3857 = box(*bbox_3857)
     roi_polygon_3857 = Polygon(roi_coords_3857)
     
-    relevant_tiles = identify_relevant_tiles(lat, lon, buffer, canopy_height_dir)
+    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
     
     for tile in relevant_tiles:
         tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
@@ -111,6 +111,8 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_d
     for src in src_files_to_mosaic:
         src.close()
     print("Saved:", output_tiff_filename)
+    
+    return output_tiff_filename
 
 
 # +
@@ -210,7 +212,8 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height
     # Assumes the bbox is in EPSG:4326
     tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
     download_new_tiles(tiles, canopy_height_dir)
-    merge_tiles_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
+    filename = merge_tiles_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
+    return filename
 
 
 # +
@@ -220,7 +223,8 @@ if __name__ == '__main__':
     # canopy_height_dir ='../data'
     # outdir = '../data'
     
-    canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
+    # canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
+    canopy_height_dir ='/scratch/xe2/cb8590/Global_Canopy_Height'
     outdir = '/scratch/xe2/cb8590/tmp'
     tmp_dir = outdir
     stub = 'Fulham'
@@ -236,6 +240,3 @@ if __name__ == '__main__':
     visualise_canopy_height(filename, outdir, stub)
     
 # Took 5 mins for the download, and 33 secs for the rest
-# -
-
-
