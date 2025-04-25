@@ -19,8 +19,9 @@ df_bbox = pd.read_csv(filename_bbox)
 df_bbox['crs'].value_counts()
 
 tile_ids = df_bbox[df_bbox['crs'] == 'EPSG:28355']['Tile'].values
-tile_ids = tile_ids[:5000]
+# tile_ids = tile_ids[:5000]
 
+# +
 # %%time
 # Load all the tiles
 tiles = []
@@ -28,6 +29,9 @@ for tile_id in tile_ids:
     tree_cover_filename = f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile_id}_binary_tree_cover_10m.tiff'
     tile = rxr.open_rasterio(tree_cover_filename).isel(band=0).drop_vars('band').astype("uint8")
     tiles.append(tile)
+    
+# 5 mins for 5000 tiles
+# -
 
 # Compute global bounds from all tiles
 all_bounds = [tile.rio.bounds() for tile in tiles]
@@ -76,7 +80,7 @@ merged = xr.DataArray(
 )
 merged.rio.write_crs(tiles[0].rio.crs, inplace=True)
 
-diameter = 30000
+diameter = 10000
 radius = diameter//2
 subset = merged.sel(
     x=slice(merged.x.values[merged.x.size // 2 - radius],
@@ -95,10 +99,8 @@ subset.rio.to_raster(
     compress='deflate'
 )
 
-# 20km: 400ms 
-# 30km: 5 secs
-# 100km: 20 secs
-# 300km: 7 mins
+# 300km: 7 mins with dtype float, but only 1 min with dtype uint8 
+# 500km: 5 mins
 
 # +
 # %%time
@@ -112,3 +114,8 @@ merged_dask.rio.to_raster(
     blockysize=256,
     compress='deflate'
 )
+# -
+
+# Cool how easy it is to add pyramid rendering to the tif
+# gdaladdo -r average nick_merged.tif 2 4 8 16 32
+
