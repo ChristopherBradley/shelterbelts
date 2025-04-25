@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import rioxarray as rxr
+import rasterio
+from rasterio.enums import ColorInterp
 from tqdm import tqdm
 import dask
 
@@ -19,7 +21,7 @@ df_bbox = pd.read_csv(filename_bbox)
 df_bbox['crs'].value_counts()
 
 tile_ids = df_bbox[df_bbox['crs'] == 'EPSG:28355']['Tile'].values
-# tile_ids = tile_ids[:5000]
+tile_ids = tile_ids[:1000]
 
 # +
 # %%time
@@ -80,7 +82,7 @@ merged = xr.DataArray(
 )
 merged.rio.write_crs(tiles[0].rio.crs, inplace=True)
 
-diameter = 10000
+diameter = 30000
 radius = diameter//2
 subset = merged.sel(
     x=slice(merged.x.values[merged.x.size // 2 - radius],
@@ -90,32 +92,51 @@ subset = merged.sel(
 )
 
 # +
-# %%time
-subset.rio.to_raster(
-    filename_merged,
-    tiled=True,
-    blockxsize=256,
-    blockysize=256,
-    compress='deflate'
-)
-
-# 300km: 7 mins with dtype float, but only 1 min with dtype uint8 
-# 500km: 5 mins
-
-# +
-# %%time
-# Turn into Dask array with chunks
-merged_dask = merged.chunk({'x': 10, 'y': 10})
-
-merged_dask.rio.to_raster(
-    filename_merged,
-    tiled=True,
-    blockxsize=256,
-    blockysize=256,
-    compress='deflate'
-)
+# # %%time
+# This code makes a file that's 1MB but no colour
+# filename_merged = '/scratch/xe2/cb8590/tmp/merged_tree_cover.tif'
+# subset.rio.to_raster(
+#     filename_merged,
+#     tiled=True,
+#     blockxsize=256,
+#     blockysize=256,
+#     compress='deflate'
+# )
+# print("Saved filename_merged")
+# # 300km: 7 mins with dtype float, but only 1 min with dtype uint8 
+# # 500km: 5 mins
 # -
 
 # Cool how easy it is to add pyramid rendering to the tif
 # gdaladdo -r average nick_merged.tif 2 4 8 16 32
+
+
+# +
+# %%time
+# Save the raster with colour encodings embedded
+# This code makes a file that's 1GB but with colour
+filename_rasterio = '/scratch/xe2/cb8590/tmp/merged_tree_cover_rasterio.tif'
+with rasterio.open(filename_rasterio, "w",
+    driver="GTiff",
+    height=subset.shape[0],
+    width=subset.shape[1],
+    count=1,
+    dtype="uint8",
+    crs=subset.rio.crs,
+    transform=subset.rio.transform(),
+    photometric='palette') as dst:
+
+    dst.write(subset.values, 1)
+
+    # Define a simple colormap (value: (R, G, B))
+    colormap = {
+        0: (255, 255, 255),  # white for background
+        1: (0, 128, 0),      # green for trees
+    }
+    dst.write_colormap(1, colormap)
+print(filename_rasterio)
+
+# 20 secs to use rasterio when it only took 1 second with 
+# -
+
 
