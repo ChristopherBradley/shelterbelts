@@ -11,6 +11,9 @@ import rioxarray as rxr
 import matplotlib.colors
 from matplotlib import cm
 import matplotlib.pyplot as plt
+
+from pyproj import Transformer
+from concurrent.futures import ProcessPoolExecutor, as_completed
 # -
 
 world_cover_layers = {
@@ -23,26 +26,40 @@ world_cover_layers = {
 }
 
 
-def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
+def worldcover_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], crs="EPSG:4326", outdir=".", stub="Test"):
     """Download worldcover data for the region of interest"""
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
+    
+    # Need to have the bbox in EPSG:4326 for the catalog search
+    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    minx, miny = transformer.transform(bbox[0], bbox[1])
+    maxx, maxy = transformer.transform(bbox[2], bbox[3])
+    bbox_4326 = [minx, miny, maxx, maxy]
+
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
         modifier=planetary_computer.sign_inplace,
     )
     search = catalog.search(
         collections=["esa-worldcover"],
-        bbox=bbox,
+        bbox=bbox_4326
     )
     items = list(search.items())
     items = [items[0]]
-    ds = odc.stac.load(items, crs="EPSG:4326", bbox=bbox)
+    ds = odc.stac.load(items, crs="EPSG:4326", bbox=bbox_4326)
     ds_map = ds.isel(time=0)['map']
 
     filename = os.path.join(outdir, f"{stub}_worldcover.tif")
     ds_map.rio.to_raster(filename)
     print("Downloaded", filename)
-    
+
+    return ds_map, bbox_4326
+
+
+def worldcover_centerpoint(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
+    """Download worldcover data for the region of interest"""
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
+    crs="EPSG:4326"
+    ds_map = worldcover_bbox(bbox, crs, outdir, stub)
     return ds_map, bbox
 
 
@@ -103,13 +120,24 @@ def visualise_worldcover(ds, bbox, outdir=".", stub="Test"):
 
 # %%time
 if __name__ == '__main__':
+    
+    # Change directory to this repo
+    import os, sys
+    repo_name = "shelterbelts"
+    if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+        repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+    elif os.path.basename(os.getcwd()) != repo_name:
+        repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
+    else:  # Already running locally from repo root
+        repo_dir = os.getcwd()
+    os.chdir(repo_dir)
+    sys.path.append(repo_dir)
+    print(f"Running from {repo_dir}")
 
     # Coords for Fulham: -42.887122, 147.760717
     lat=-42.887122
     lon=147.760717
     buffer=0.025
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
-    ds, bbox = worldcover(lat=lat, lon=lon, buffer=buffer, outdir="../data", stub="Fulham")
+    ds, bbox = worldcover_centerpoint(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
     visualise_worldcover(ds, bbox)
-
-
