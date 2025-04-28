@@ -6,6 +6,7 @@ import os
 import sys
 import psutil
 import ast
+import glob
 
 import csv
 import pickle
@@ -37,6 +38,7 @@ import contextlib
 import io
 import traceback, sys
 warnings.filterwarnings('ignore')
+
 
 
 # -
@@ -95,6 +97,7 @@ def sentinel_download(tif, year, outdir, bounds, src_crs):
         pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print(f"Saved {filename}", flush=True)
 
+# It might make sense to get each worker to do a bunch of rows, insead of just one row and spawning new workers each time.
 def run_download(row):
     try:
         tif, year, bounds, crs = row
@@ -137,54 +140,6 @@ def run_download(row):
 #     executor.map(run_download, rows2)
 # -
 
-# Find the overlapping sentinel tiles for each tree cover tif
-def find_overlapping_tiles(row, sentinel_gdf):
-    bbox_string = row['bbox']
-    bbox = ast.literal_eval(bbox_string)
-
-    src_crs = CRS.from_user_input(row['crs'])
-    dst_crs = sentinel_gdf.crs
-
-    # Create shapely box and reproject
-    geom = box(*bbox)
-    transformer = Transformer.from_crs(src_crs, dst_crs, always_xy=True)
-    x1, y1 = transformer.transform(bbox[0], bbox[1])
-    x2, y2 = transformer.transform(bbox[2], bbox[3])
-    reprojected_geom = box(x1, y1, x2, y2)
-
-    # Find overlapping tiles
-    overlaps = sentinel_gdf[sentinel_gdf.intersects(reprojected_geom)]
-    return overlaps['Name'].tolist()
-
-
-# Create groups that don't have overlapping tile_years to avoid concurrent tiff access errors
-def group_rows_by_conflict(rows2_df):
-    df = rows2_df.copy().reset_index(drop=True)
-    G = nx.Graph()
-
-    # Add a node for each row
-    for idx in df.index:
-        G.add_node(idx)
-
-    # Map key → list of row indices that share it
-    key_to_rows = defaultdict(list)
-    for idx, keys in df['year_tile_keys'].items():
-        for key in keys:
-            key_to_rows[key].append(idx)
-
-    # Add edges between all rows that share a key
-    for row_idxs in key_to_rows.values():
-        for i, j in combinations(row_idxs, 2):
-            G.add_edge(i, j)
-
-    # Color the graph (each color = group)
-    coloring = nx.coloring.greedy_color(G, strategy='largest_first')
-
-    # Assign group numbers
-    df['group'] = df.index.map(coloring)
-    return df
-
-
 indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
 outdir = '/scratch/xe2/cb8590/Nick_sentinel'
 filename_bbox_year = "/g/data/xe2/cb8590/Nick_outlines/nick_bbox_year_crs.csv"
@@ -220,46 +175,28 @@ def extract_bbox_year():
 # +
 # Just trying out the gs_3117 tiff which failed in the qsub. It worked fine, confirming again this is a parallelisation error. 
 # rows = df[df['tif'] == 'g2_3117_binary_tree_cover_10m.tiff'][['tif', 'year', 'bbox', 'crs']].values.tolist()
-# -
 
+# +
 # Load the tiff bboxs
 df = pd.read_csv(filename_bbox_year)
 df_2017_2022 = df[df['year'] >= 2017]
+print("Number of tiles between 2017-2022", len(df_2017_2022))
 
-# %%time
-# Load the sentinel tile bboxs, downloaded from: https://github.com/justinelliotmeyers/Sentinel-2-Shapefile-Index
-filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
-gdf_sentinel_bboxs = gpd.read_file(filename_sentinel_bboxs)
+# Find the tiles we have already downloaded
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+print("Number of sentinel tiles downloaded:", len(sentinel_tiles))
 
-# +
-# %%time
-# Assigning a sentinel tile and year to each row to try to avoid concurrent access of the same location
-df['sentinel_tiles'] = df_2017_2022.apply(find_overlapping_tiles, axis=1, sentinel_gdf=gdf_sentinel_bboxs)
-
-# Replace NaN with []
-df['sentinel_tiles'] = df['sentinel_tiles'].apply(lambda x: [] if isinstance(x, float) and np.isnan(x) else x)
+# Find the tiles we haven't downloaded yet
+sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_tiles]
+downloaded = [f"{tile_id}_binary_tree_cover_10m.tiff" for tile_id in sentinel_tile_ids]
+df_new = df_2017_2022[~df_2017_2022['tif'].isin(downloaded)]
+print("Number of new tiles to download:", len(df_new))
 # -
 
-# Create a key with the year_tile combinations
-df['year_tile_keys'] = df.apply(
-    lambda row: [f"{row['year']}_{tile}" for tile in row['sentinel_tiles']],
-    axis=1
-)
-
-df.sample(100)[:100]
-
-grouped_df = group_rows_by_conflict(df)
-
-grouped_df['group'].value_counts()
-
-df.iloc[0]['bbox']
-
-# After all that funny overlapping grouping stuff, I'm wondering if it might just be easiest to run in batches of 50 anyway
-rows = df[['tif', 'year', 'bbox', 'crs']].values.tolist()
+rows = df_new[['tif', 'year', 'bbox', 'crs']].values.tolist()
 batch_size = 50
 batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
-
-batches = batches[20:30]
 
 # +
 # %%time
@@ -276,5 +213,4 @@ for i, batch in enumerate(batches):
                 
 # 38 mins for 50 workers x 10 batches
 # -
-
 

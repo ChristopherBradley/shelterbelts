@@ -14,10 +14,13 @@ import scipy.ndimage as ndimage
 import rasterio
 from rasterio.transform import from_origin
 from rasterio.crs import CRS
+import random
 
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import traceback, sys
 
 np.random.seed(0)
+random.seed(0)
 
 def aggregated_metrics(ds):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
@@ -51,40 +54,8 @@ def aggregated_metrics(ds):
 
     return ds
 
-# +
 def jittered_grid(ds):
     """Create an equally spaced 10x10 coordinate grid with a random 2 pixel jitter"""
-    
-    # Calculate grid
-#     spacing_x = ds.sizes['x'] // 10
-#     spacing_y = ds.sizes['y'] // 10
-#     half_spacing_x = spacing_x//2
-#     half_spacing_y = spacing_y//2
-#     jitter_range = np.arange(-2, 3)  # [-2, -1, 0, 1, 2]
-#     y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
-#     x_inds = np.arange(half_spacing_x, ds.sizes['x'] - half_spacing_x, spacing_x)
-
-#     # Apply jitter
-#     y_jittered_inds = y_inds + np.random.choice(jitter_range, size=len(y_inds))
-#     x_jittered_inds = x_inds + np.random.choice(jitter_range, size=len(x_inds))
-
-    # # Get actual coordinates. Note that these coords are in the EPSG of the original raster.
-    # y_jittered_coords = ds['y'].values[y_jittered]
-    # x_jittered_coords = ds['x'].values[x_jittered]
-
-#     # Get non-time-dependent variables
-#     aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
-
-#     data_list = []
-#     for y_coord in y_jittered_coords:
-#         for x_coord in x_jittered_coords:
-#             values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
-#             values.update({'y': y_coord, 'x': x_coord})
-#             data_list.append(values)
-
-#     # Create DataFrame
-#     df = pd.DataFrame(data_list)
-#     return df
 
     # Calculate grid
     spacing_x = ds.sizes['x'] // 10
@@ -125,7 +96,16 @@ def jittered_grid(ds):
 
 
 
-# -
+def tile_csv_verbose(sentinel_tile):
+    """Run tile_csv and report more info on errors that occur"""
+    tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
+    try:
+        return tile_csv(sentinel_tile)
+    except Exception as e:
+        print(f"Error in worker {tile_id}:", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        raise
+
 
 def tile_csv(sentinel_tile):
     """Create a csv file with a subset of training pixels for this tile"""
@@ -140,6 +120,15 @@ def tile_csv(sentinel_tile):
 
     # Load the woody veg and add to the main xarray
     ds1 = rxr.open_rasterio(tree_cover_filename)
+    
+    # Skip this file if the size is less than 900mx900m
+    left, bottom, right, top = ds1.rio.bounds()
+    width_m = right - left
+    height_m = top - bottom
+    if width_m < 900 or height_m < 900:
+        print("Tile smaller than 1kmx1km:", tile_id)
+        return None
+    
     ds2 = ds1.isel(band=0).drop_vars('band')
     ds = ds.rio.reproject_match(ds2)
     ds['tree_cover'] = ds2.astype(float)
@@ -175,20 +164,6 @@ def tile_csv(sentinel_tile):
 
 
 # +
-# Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
-tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-outdir = "/scratch/xe2/cb8590/Nick_csv"
-
-sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
-print(len(sentinel_tiles))
-
-csv_tiles = glob.glob(f'{outdir}/*')
-print(len(csv_tiles))
-
-
-# +
-# %%time
 def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079_df_tree_cover.csv"):
     """I used this function to visualise the jittered coordinates chosen in QGIS"""
     tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
@@ -242,26 +217,51 @@ def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079
     print("Saved", filename)
     
 # visualise_sample_coords(sentinel_tiles[0])
-# -
 
 
+# +
+# Load a list of all the downloaded sentinel tiles and training csv's
+tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+outdir = "/scratch/xe2/cb8590/Nick_csv"
 
+sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+print(len(sentinel_tiles))
 
+csv_tiles = glob.glob(f'{outdir}/*')
+print(len(csv_tiles))
 
+# +
+# Remove csv_tiles if they've already been downloaded (only need to do this if it doesn't all work first go)
 
+# +
+# Randomise the tiles so I can have a random sample before they all complete
+sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
 
+rows = sentinel_randomised
+batch_size = 50
+batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
 
 # +
 # %%time
 # Preprocess the tiles in parallel (otherwise takes about 30 secs each)
-with ProcessPoolExecutor(max_workers=len(sentinel_tiles)) as executor:
-    print(f"Starting {len(sentinel_tiles)} workers")
-    executor.map(tile_csv, sentinel_tiles)
-    
+for i, batch in enumerate(batches):
+    rows = batch
+    with ProcessPoolExecutor(max_workers=len(rows)) as executor:
+        print(f"Starting {len(rows)} workers for batch {i}")
+        futures = [executor.submit(tile_csv_verbose, row) for row in rows]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Worker failed with: {e}", flush=True)
+                
+# 60 secs for 16 tiles x 2 batches on Large compute (7 cores)
+# Took ... mins to do 4 tiles with Large compute
 # Took 3 mins to do 500 tiles with XLarge compute
 
 # +
-# Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
+# Create a dataframe of imagery and tree cover classifications for each tile
 tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
 sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
 outdir = "/scratch/xe2/cb8590/Nick_csv"
@@ -276,8 +276,6 @@ for csv_tile in csv_tiles:
     df = pd.read_csv(csv_tile, index_col=False)
     dfs.append(df)
 
-# !du -sh {outlines_dir}/*
-
 # Combine all the dataframes
 df_all = pd.concat(dfs)
 df_all = df_all.drop(columns=['Unnamed: 0'])
@@ -289,6 +287,3 @@ print("Saved", filename)
 
 # +
 # Why is 'tree_cover' sometimes the value 2?
-# -
-
-df_all
