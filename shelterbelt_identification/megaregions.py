@@ -53,8 +53,8 @@ joined.groupby('index_right').size().value_counts()
 # There are now just 10 polygons with 2 points. 
 
 # Fix up the rows where names and polygons were overlapping incorrectly (verified by looking at the kml file in google earth)
-joined.loc[joined['Name_left'] == '1452', 'Name_right'] = 'BWh'
-joined.loc[joined['Name_left'] == '1138', 'Name_right'] = 'BSh'
+joined.loc[joined['Name_left'] == '1452', 'Name_right'] = 'BSh'
+joined.loc[joined['Name_left'] == '1138', 'Name_right'] = 'BWh'
 joined.loc[joined['Name_left'] == '1622', 'Name_right'] = 'BSk'
 joined.loc[joined['Name_left'] == '2229', 'Name_right'] = 'CFa'
 
