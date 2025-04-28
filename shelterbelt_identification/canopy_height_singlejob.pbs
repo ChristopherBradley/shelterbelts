@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N canopy_height_bbox
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=0GB
+#PBS -P xe2
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/xe2
+#PBS -q copyq
+
+wd=/home/147/cb8590/Projects/shelterbelts/shelterbelt_identification
+
+# Remember to remove this when I run the multijob
+# csv=/g/data/xe2/cb8590/Nick_outlines/100_batches/batch_1.csv
+
+# Print out input variables to the error log
+echo "Running canopy_height_singlejob.pbs" with the following variables
+echo "batch: $csv"
+
+# Change working directory
+cd $wd
+
+# Setup DEA environment modules for running the Python script
+source /g/data/xe2/John/geospatenv/bin/activate
+
+# Run the script
+python3 canopy_height_batch.py --csv $csv

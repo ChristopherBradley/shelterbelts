@@ -79,7 +79,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_d
             out_meta = src.meta.copy()
     
         # Save cropped image
-        cropped_tiff_filename = os.path.join(tmp_dir, f"{tile}_cropped.tif")
+        cropped_tiff_filename = os.path.join(tmp_dir, f"{stub}_{tile}_cropped.tif")
         out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
     
         with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
@@ -88,7 +88,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_d
     # Merge the cropped tiffs
     src_files_to_mosaic = []
     for tile in relevant_tiles:
-        tiff_file = os.path.join(tmp_dir, f'{tile}_cropped.tif')
+        tiff_file = os.path.join(tmp_dir, f'{stub}_{tile}_cropped.tif')
         src = rasterio.open(tiff_file)
         src_files_to_mosaic.append(src)
     mosaic, out_trans = merge(src_files_to_mosaic)
