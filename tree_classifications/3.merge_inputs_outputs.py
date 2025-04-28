@@ -7,9 +7,13 @@ import glob
 import pickle
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
+import rasterio
+from rasterio.transform import from_origin
+from rasterio.crs import CRS
 
 from concurrent.futures import ProcessPoolExecutor
 
@@ -47,38 +51,81 @@ def aggregated_metrics(ds):
 
     return ds
 
+# +
 def jittered_grid(ds):
-    """Create a grid of coordinates spaced 100m apart, with a random 2 pixel jitter"""
-    spacing = 10
+    """Create an equally spaced 10x10 coordinate grid with a random 2 pixel jitter"""
+    
+    # Calculate grid
+#     spacing_x = ds.sizes['x'] // 10
+#     spacing_y = ds.sizes['y'] // 10
+#     half_spacing_x = spacing_x//2
+#     half_spacing_y = spacing_y//2
+#     jitter_range = np.arange(-2, 3)  # [-2, -1, 0, 1, 2]
+#     y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
+#     x_inds = np.arange(half_spacing_x, ds.sizes['x'] - half_spacing_x, spacing_x)
+
+#     # Apply jitter
+#     y_jittered_inds = y_inds + np.random.choice(jitter_range, size=len(y_inds))
+#     x_jittered_inds = x_inds + np.random.choice(jitter_range, size=len(x_inds))
+
+    # # Get actual coordinates. Note that these coords are in the EPSG of the original raster.
+    # y_jittered_coords = ds['y'].values[y_jittered]
+    # x_jittered_coords = ds['x'].values[x_jittered]
+
+#     # Get non-time-dependent variables
+#     aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
+
+#     data_list = []
+#     for y_coord in y_jittered_coords:
+#         for x_coord in x_jittered_coords:
+#             values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
+#             values.update({'y': y_coord, 'x': x_coord})
+#             data_list.append(values)
+
+#     # Create DataFrame
+#     df = pd.DataFrame(data_list)
+#     return df
+
+    # Calculate grid
+    spacing_x = ds.sizes['x'] // 10
+    spacing_y = ds.sizes['y'] // 10
+    half_spacing_x = spacing_x // 2
+    half_spacing_y = spacing_y // 2
     jitter_range = np.arange(-2, 3)  # [-2, -1, 0, 1, 2]
 
-    # Create a coordinate grid (starting 5 pixels from the edge)
-    y_inds = np.arange(5, ds.sizes['y'] - 5, spacing)
-    x_inds = np.arange(5, ds.sizes['x'] - 5, spacing)
+    # Regular grid
+    # y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
+    # x_inds = np.arange(half_spacing_x, ds.sizes['x'] - half_spacing_x, spacing_x)
+    y_inds = np.arange(half_spacing_y, ds.sizes['y'], spacing_y)
+    x_inds = np.arange(half_spacing_x, ds.sizes['x'], spacing_x)
 
-    # Apply jitter
-    y_jittered_inds = y_inds + np.random.choice(jitter_range, size=len(y_inds))
-    x_jittered_inds = x_inds + np.random.choice(jitter_range, size=len(x_inds))
+    # Create full grid
+    yy, xx = np.meshgrid(y_inds, x_inds, indexing='ij')
 
-    # Get actual coordinates
-    y_jittered_coords = ds['y'].values[y_jittered_inds]
-    x_jittered_coords = ds['x'].values[x_jittered_inds]
+    # Apply random jitter to each (row, col) separately
+    yy_jittered = yy + np.random.choice(jitter_range, size=yy.shape)
+    xx_jittered = xx + np.random.choice(jitter_range, size=xx.shape)
+
+    # Get actual coordinates. Note that these coords are in the EPSG of the original raster.
+    yy_jittered_coords = ds['y'].values[yy_jittered]
+    xx_jittered_coords = ds['x'].values[xx_jittered]
 
     # Get non-time-dependent variables
     aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
 
     data_list = []
-    for y_coord in y_jittered_coords:
-        for x_coord in x_jittered_coords:
-            values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
-            values.update({'y': y_coord, 'x': x_coord})
-            data_list.append(values)
+    for y_coord, x_coord in zip(yy_jittered_coords.ravel(), xx_jittered_coords.ravel()):
+        values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
+        values.update({'y': y_coord, 'x': x_coord})
+        data_list.append(values)
 
-        
     # Create DataFrame
     df = pd.DataFrame(data_list)
     return df
 
+
+
+# -
 
 def tile_csv(sentinel_tile):
     """Create a csv file with a subset of training pixels for this tile"""
@@ -124,6 +171,7 @@ def tile_csv(sentinel_tile):
     df.to_csv(filename, index=False)
     print(f"Saved {filename}")
     
+    return df
 
 
 # +
@@ -134,6 +182,74 @@ outdir = "/scratch/xe2/cb8590/Nick_csv"
 
 sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
 print(len(sentinel_tiles))
+
+csv_tiles = glob.glob(f'{outdir}/*')
+print(len(csv_tiles))
+
+
+# +
+# %%time
+def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079_df_tree_cover.csv"):
+    """I used this function to visualise the jittered coordinates chosen in QGIS"""
+    tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
+    tree_cover_filename = os.path.join(tree_cover_dir, f"{tile_id}_binary_tree_cover_10m.tiff")
+    ds = rxr.open_rasterio(tree_cover_filename)
+    crs = ds.rio.crs
+    df = tile_csv(sentinel_tile)
+    df = df[['tree_cover', 'y', 'x']]
+
+    # Convert to a GeoDataFrame
+    gdf = gpd.GeoDataFrame(
+        df,
+        geometry=gpd.points_from_xy(df['x'], df['y']),
+        crs=crs
+    )
+
+    # Create transform
+    resolution = 10  # meters
+    minx, miny, maxx, maxy = gdf.total_bounds
+    minx -= resolution / 2
+    miny -= resolution / 2
+    maxx += resolution / 2
+    maxy += resolution / 2
+    width = int(np.ceil((maxx - minx) / resolution))
+    height = int(np.ceil((maxy - miny) / resolution))
+    transform = from_origin(minx, maxy, resolution, resolution)
+
+    # Map points to raster
+    tree_cover_array = np.full((height, width), np.nan, dtype=np.float32)
+    for idx, row in gdf.iterrows():
+        col = int((row.geometry.x - minx) / resolution)
+        row_ = int((maxy - row.geometry.y) / resolution)
+        if 0 <= row_ < height and 0 <= col < width:
+            tree_cover_array[row_, col] = row['tree_cover']
+
+    # Write to GeoTIFF
+    filename = f'/scratch/xe2/cb8590/tmp/{tile_id}_training_sample.tif'
+    with rasterio.open(
+        filename,
+        'w',
+        driver='GTiff',
+        height=height,
+        width=width,
+        count=1,
+        dtype='float32',
+        crs=crs,
+        transform=transform,
+        nodata=np.nan
+    ) as dst:
+        dst.write(tree_cover_array, 1)
+    print("Saved", filename)
+    
+# visualise_sample_coords(sentinel_tiles[0])
+# -
+
+
+
+
+
+
+
 
 # +
 # %%time
