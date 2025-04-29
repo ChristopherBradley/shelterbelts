@@ -62,8 +62,52 @@ joined.loc[joined['Name_left'] == '2229', 'Name_right'] = 'CFa'
 print((len(joined[['geometry']].drop_duplicates())))
 print(len(joined[['geometry', 'Name_right']].drop_duplicates()))
 
-filename = "~/Desktop/Koppen_Australia.gpkg"
-koppen_australia = joined[['Name_right', 'geometry']].rename(columns={"Name_right": "Name"})
-koppen_australia.to_file(filename)
+filename_koppen = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/Koppen_Australia.gpkg"
+unique = joined[['geometry', 'Name_right']].drop_duplicates()
+koppen_australia = unique[['Name_right', 'geometry']].rename(columns={"Name_right": "Name"})
+koppen_australia.to_file(filename_koppen)
 
+# Load that koppen data
+filename_koppen = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/Koppen_Australia.gpkg"
+gdf_koppen = gpd.read_file(filename_koppen)
 
+# Load Nick's tiff centroids
+filename_centroids = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/tiff_centroids_years.gpkg"
+gdf_centroids = gpd.read_file(filename_centroids)
+
+# Label each of the tif centroids with a koppen class
+gdf_koppen['area'] = gdf_koppen.geometry.area
+joined = gpd.sjoin(gdf_centroids, gdf_koppen, how="left", predicate="within")
+joined = joined.sort_values('area', ascending=False).drop_duplicates(subset='filename')
+gdf = joined[['filename','year','geometry','Name']]
+
+# +
+# Manually edit some labels to make the groups more spatially consistent
+lon = gdf.geometry.x
+lat = gdf.geometry.y
+
+gdf.loc[(lon < 144) & (lat < -31), 'Name'] = 'BSk'
+gdf.loc[(lon < 131), 'Name'] = 'KUN'
+gdf.loc[(lat < -24) & (lat > -29) & (lon < 143.6), 'Name'] = 'BWh'
+gdf.loc[(gdf['Name'] == 'CFa') & (lat > -32.9), 'Name'] = 'CFx'
+gdf.loc[(gdf['Name'] == 'Cfb') & (lat > -30), 'Name'] = 'CFx'
+gdf.loc[(lon > 152.5), 'Name'] = 'CFx'
+names = ['CFa', 'Cfb', 'CFx', 'BWh', 'KUN', 'BSk', 'BSh']
+gdf.loc[~gdf['Name'].isin(names), 'Name'] = 'Aw'
+# -
+
+full_names = {
+    'CFa':'Warm oceanic NSW', 
+    'Cfb':'Temperate oceanic NSW', 
+    'CFx':'Warm oceanic QLD', 
+    'BWh':'Warm desert QLD', 
+    'KUN':'Tropical savanna NT', 
+    'BSk':'Cold semi-arid NSW', 
+    'BSh':'Warm semi-arid QLD',
+    'Aw':'Tropical savanna QLD'
+}
+gdf['Full Name'] = gdf['Name'].replace(full_names)
+
+gdf
+
+gdf.to_file("~/Desktop/centroids_named.gpkg")
