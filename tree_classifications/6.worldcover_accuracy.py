@@ -7,6 +7,7 @@ import glob
 import pickle
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import random
 import rioxarray as rxr
 import xarray as xr
@@ -59,10 +60,10 @@ def tile_csv(tile):
 
     worldcover_filename = f'/scratch/xe2/cb8590/Nick_worldcover_reprojected/{tile_id}_worldcover.tif'
     ds_worldcover = rxr.open_rasterio(worldcover_filename).isel(band=0).drop_vars('band')
-    ds_worldcover_trees = (ds_worldcover == 10).astype(int)
+    ds_worldcover_trees = ((ds_worldcover == 10) | (ds_worldcover == 20)).astype(int)  # 10 is trees, and 20 is shrubs
     
     gch_filename = f'/scratch/xe2/cb8590/Nick_GCH/{tile_id}_10m.tif'
-    ds_gch = rxr.open_rasterio(worldcover_filename).isel(band=0).drop_vars('band')
+    ds_gch = rxr.open_rasterio(gch_filename).isel(band=0).drop_vars('band')
     ds_gch_trees = (ds_gch >= 1).astype(int)
 
     ds = xr.Dataset({
@@ -72,6 +73,7 @@ def tile_csv(tile):
     })
 
     df = jittered_grid(ds)
+    df["tile_id"] = tile_id
     
     return df
 
@@ -118,20 +120,94 @@ df_all = pd.concat(dfs)
 filename = "/g/data/xe2/cb8590/Nick_outlines/nick_vs_gch.csv"
 df_all.to_csv(filename, index="False")
 
+df_all['global_canopy_height_trees'].value_counts()
+
 # +
 print(classification_report(df_all['nick_trees'], df_all['worldcover_trees']))
 
-# Worldcover has an accuracy of 82% but recall for 1's of only 55%. So it misses a lot of trees, as I've noticed qualitatively before.
+# Worldcover has an accuracy of 82% but recall for 1's of only 55% without shrubs or 62% with shrubs. So it misses a lot of trees, as I've noticed qualitatively before.
 
 # +
 print(classification_report(df_all['nick_trees'], df_all['global_canopy_height_trees']))
 
-# Worldcover has an accuracy of 82% but recall for 1's of only 55%. So it misses a lot of trees, as I've noticed qualitatively before.
-
-# +
-df_all['global_canopy_height_trees'].value_counts()
-
-# Global canopy height has an accuracy of 38% with a recall of 0% for 0's. So it's calling most everything a tree.
+# Global canopy height has an accuracy of 83% with a recall of 65% for 1's. So a little better than worldcover
 # -
 
+# Load the bioregions per tile generated in megaregions.py
+filename_bioregions = "/g/data/xe2/cb8590/Nick_outlines/centroids_named.gpkg"
+gdf_bioregions = gpd.read_file(filename_bioregions)
+gdf_bioregions["tile_id"] = ["_".join(tile.split('/')[-1].split('_')[:2]) for tile in gdf_bioregions['filename']]
 
+# Add the bioregions to the classifications
+df = df_all.merge(gdf_bioregions)[['nick_trees', 'worldcover_trees', 'global_canopy_height_trees', 'Name', 'Full Name']]
+df = df.rename(columns={'Full Name':'koppen_class'})
+
+# +
+# # Print a classification report for each bioregion
+# for bioregion in df['koppen_class'].unique():
+#     df_bioregion = df[df['koppen_class'] == bioregion]
+#     print(bioregion)
+#     print("Worldcover")
+#     print(classification_report(df_bioregion['nick_trees'], df_bioregion['worldcover_trees']))
+#     print("Global Canopy Height")
+#     print(classification_report(df_bioregion['nick_trees'], df_bioregion['global_canopy_height_trees']))
+
+# +
+# Create a classification report for each koppen category and tree class
+worldcover_rows = []
+canopy_rows = []
+
+# Loop through each bioregion
+for bioregion in df['koppen_class'].unique():
+    df_bioregion = df[df['koppen_class'] == bioregion]
+    
+    for tree_class in [0.0, 1.0]:
+        # Worldcover metrics
+        report_wc = classification_report(
+            df_bioregion['nick_trees'], 
+            df_bioregion['worldcover_trees'], 
+            output_dict=True, 
+            zero_division=0
+        )
+        accuracy_wc = accuracy_score(df_bioregion['nick_trees'], df_bioregion['worldcover_trees'])
+
+        if str(tree_class) in report_wc:
+            worldcover_rows.append({
+                'koppen_class': bioregion,
+                'tree_class': tree_class,
+                'precision': report_wc[str(tree_class)]['precision'],
+                'recall': report_wc[str(tree_class)]['recall'],
+                'f1-score': report_wc[str(tree_class)]['f1-score'],
+                'accuracy': accuracy_wc,
+                'support': report_wc[str(tree_class)]['support'],
+            })
+
+        # Global Canopy Height metrics
+        report_gch = classification_report(
+            df_bioregion['nick_trees'], 
+            df_bioregion['global_canopy_height_trees'], 
+            output_dict=True, 
+            zero_division=0
+        )
+        accuracy_gch = accuracy_score(df_bioregion['nick_trees'], df_bioregion['global_canopy_height_trees'])
+
+        if str(tree_class) in report_gch:
+            canopy_rows.append({
+                'koppen_class': bioregion,
+                'tree_class': tree_class,
+                'precision': report_gch[str(tree_class)]['precision'],
+                'recall': report_gch[str(tree_class)]['recall'],
+                'f1-score': report_gch[str(tree_class)]['f1-score'],
+                'accuracy': accuracy_gch,
+                'support': report_gch[str(tree_class)]['support'],
+            })
+
+# Convert to DataFrames
+worldcover_table = pd.DataFrame(worldcover_rows)
+canopy_height_table = pd.DataFrame(canopy_rows)
+
+# -
+
+worldcover_table
+
+canopy_height_table
