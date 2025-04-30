@@ -257,8 +257,7 @@ for i, batch in enumerate(batches):
                 print(f"Worker failed with: {e}", flush=True)
                 
 # 60 secs for 16 tiles x 2 batches on Large compute (7 cores)
-# Took ... mins to do 4 tiles with Large compute
-# Took 3 mins to do 500 tiles with XLarge compute
+# Took 1 hour 33 mins to do all 7791 tiles with XLarge computer, with batches of 50 tiles (14 cores)
 
 # +
 # Create a dataframe of imagery and tree cover classifications for each tile
@@ -278,8 +277,8 @@ for csv_tile in csv_tiles:
 
 # Combine all the dataframes
 df_all = pd.concat(dfs)
-df_all = df_all.drop(columns=['Unnamed: 0'])
 
+# %%time
 # Feather file is more efficient, but csv is more readable. Anything over 100MB I should probs use a feather file.
 filename = os.path.join(outlines_dir, f"tree_cover_preprocessed.csv")
 df_all.to_csv(filename, index=False)
@@ -287,3 +286,6 @@ print("Saved", filename)
 
 # +
 # Why is 'tree_cover' sometimes the value 2?
+# -
+
+df_all

@@ -59,10 +59,10 @@ def tile_csv(tile):
 
     worldcover_filename = f'/scratch/xe2/cb8590/Nick_worldcover_reprojected/{tile_id}_worldcover.tif'
     ds_worldcover = rxr.open_rasterio(worldcover_filename).isel(band=0).drop_vars('band')
-    ds_worldcover_trees = (ds_worldcover == 10).astype(int)
+    ds_worldcover_trees = ((ds_worldcover == 10) | (ds_worldcover == 20)).astype(int)  # 10 is trees, and 20 is shrubs
     
     gch_filename = f'/scratch/xe2/cb8590/Nick_GCH/{tile_id}_10m.tif'
-    ds_gch = rxr.open_rasterio(worldcover_filename).isel(band=0).drop_vars('band')
+    ds_gch = rxr.open_rasterio(gch_filename).isel(band=0).drop_vars('band')
     ds_gch_trees = (ds_gch >= 1).astype(int)
 
     ds = xr.Dataset({
@@ -72,6 +72,7 @@ def tile_csv(tile):
     })
 
     df = jittered_grid(ds)
+    df["tile_id"] = tile_id
     
     return df
 
@@ -118,20 +119,18 @@ df_all = pd.concat(dfs)
 filename = "/g/data/xe2/cb8590/Nick_outlines/nick_vs_gch.csv"
 df_all.to_csv(filename, index="False")
 
+df_all['global_canopy_height_trees'].value_counts()
+
 # +
 print(classification_report(df_all['nick_trees'], df_all['worldcover_trees']))
 
-# Worldcover has an accuracy of 82% but recall for 1's of only 55%. So it misses a lot of trees, as I've noticed qualitatively before.
+# Worldcover has an accuracy of 82% but recall for 1's of only 55% without shrubs or 62% with shrubs. So it misses a lot of trees, as I've noticed qualitatively before.
 
 # +
 print(classification_report(df_all['nick_trees'], df_all['global_canopy_height_trees']))
 
-# Worldcover has an accuracy of 82% but recall for 1's of only 55%. So it misses a lot of trees, as I've noticed qualitatively before.
-
-# +
-df_all['global_canopy_height_trees'].value_counts()
-
-# Global canopy height has an accuracy of 38% with a recall of 0% for 0's. So it's calling most everything a tree.
+# Global canopy height has an accuracy of 83% with a recall of 65% for 1's. So a little better than worldcover
 # -
 
-
+# Generated in megaregions.py
+filename_bioregions = "/g/data/xe2/cb8590/Nick_outlines/centroids_named.gpkg"
