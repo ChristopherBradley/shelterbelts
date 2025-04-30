@@ -108,6 +108,4 @@ full_names = {
 }
 gdf['Full Name'] = gdf['Name'].replace(full_names)
 
-gdf
-
-gdf.to_file("~/Desktop/centroids_named.gpkg")
+gdf.to_file("/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/centroids_named.gpkg")
