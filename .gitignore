@@ -9,6 +9,7 @@ data
 *.gif
 *.xlsx
 *.gpkg*
+*.kml
 
 # qsub logging files
 *.o*
