@@ -4,6 +4,7 @@
 
 import os
 import pandas as pd
+import geopandas as gpd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 import tensorflow as tf
@@ -16,27 +17,38 @@ from tensorflow.keras.callbacks import EarlyStopping
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
 
-# +
 # %%time
 outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
 filename = os.path.join(outlines_dir, f"tree_cover_preprocessed.csv")
 df = pd.read_csv(filename, index_col=False)
-df.shape
 
+# +
 # Drop the 174 rows where tree cover values = 2
 df = df[(df['tree_cover'] == 0) | (df['tree_cover'] == 1)]
-df.shape
 
 # Drop the two rows with NaN values
 df = df[df.notna().all(axis=1)]
 
 # +
-random_state = 0
-sample_size = 60000
-df_sample = df.sample(n=sample_size, random_state=random_state)
+# %%time
+# Read in the bioregions
+filename_centroids = os.path.join(outlines_dir, f"centroids_named.gpkg")
+gdf = gpd.read_file(filename_centroids)
 
+# Add the bioregion to the training/testing data
+gdf['tile_id'] = ["_".join(filename.split('/')[-1].split('_')[:2]) for filename in gdf['filename']]
+gdf = gdf.rename(columns={'Full Name':'koppen_class'})
+df = df.merge(gdf[['tile_id', 'koppen_class']])
+# -
+
+sample_size = 100000
+random_state = 0
+df_sample_full = df.sample(n=len(df), random_state=random_state)  # randomising everything so I can later use a larger random testing dataset while being sure I don't reuse training data
+df_sample = df_sample_full[:sample_size]
+
+# +
 # Normalise the input features (should probs do this before creating the .feather file)
-X = df_sample.drop(columns=['tree_cover', 'y', 'x']) # input variables
+X = df_sample.drop(columns=['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']) # input variables
 X = StandardScaler().fit_transform(X)
 
 y = df_sample['tree_cover']  # target variable
@@ -79,3 +91,77 @@ plt.show()
 
 # +
 # 89% accuracy and 1 min 21 secs
+# -
+
+y_pred_percent = model.predict(X_normalized)
+
+
+y_test
+
+[percent.argmax() for percent in y_pred_percent]
+
+# +
+# Evaluate the accuracy for each bioregion using unused data (a larger sample than the designated test data, but also not used in the training data)
+df_bioregion_test = df_sample_full[600000:700000]
+
+# Double check we aren't reusing any of the training data for testing each bioregion
+assert len(df_sample[df_sample.index.isin(df_bioregion_test.index)]) == 0
+
+# Predict all 100k of these bioregion testing datapoints
+X = df_bioregion_test.drop(columns=['tree_cover','y', 'x', 'tile_id', 'koppen_class']) 
+X_normalized = StandardScaler().fit_transform(X) # Is this scaling consistent across different datasets?
+
+y_test = df_bioregion_test[['tree_cover', 'koppen_class']]
+y_pred_percent = model.predict(X_normalized)
+ = model.predict(X_normalized)
+print(classification_report(y_test['tree_cover'], y_pred))
+
+# Join predictions with true values and koppen_class
+results = df_bioregion_test[['tree_cover', 'koppen_class']].copy()
+results['y_pred'] = y_pred
+
+# Collect rows for the summary table
+rf_rows = []
+
+for koppen_class in results['koppen_class'].unique():
+    subset = results[results['koppen_class'] == koppen_class]
+    report = classification_report(subset['tree_cover'], subset['y_pred'], output_dict=True, zero_division=0)
+    accuracy = accuracy_score(subset['tree_cover'], subset['y_pred'])
+
+    for tree_class in [0.0, 1.0]:
+        if str(tree_class) in report:
+            rf_rows.append({
+                'koppen_class': koppen_class,
+                'tree_class': tree_class,
+                'precision': report[str(tree_class)]['precision'],
+                'recall': report[str(tree_class)]['recall'],
+                'f1-score': report[str(tree_class)]['f1-score'],
+                'accuracy': accuracy,
+                'support': report[str(tree_class)]['support'],
+            })
+
+# Create the summary table
+rf_metrics_table = pd.DataFrame(rf_rows)
+
+# Compute overall metrics (across all koppen_class values)
+overall_report = classification_report(results['tree_cover'], results['y_pred'], output_dict=True, zero_division=0)
+overall_accuracy = accuracy_score(results['tree_cover'], results['y_pred'])
+
+for tree_class in [0.0, 1.0]:
+    if str(tree_class) in overall_report:
+        rf_metrics_table.loc[len(rf_metrics_table)] = {
+            'koppen_class': 'overall',
+            'tree_class': tree_class,
+            'precision': overall_report[str(tree_class)]['precision'],
+            'recall': overall_report[str(tree_class)]['recall'],
+            'f1-score': overall_report[str(tree_class)]['f1-score'],
+            'accuracy': overall_accuracy,
+            'support': overall_report[str(tree_class)]['support'],
+        }
+
+rf_metrics_table
+# -
+
+
+
+

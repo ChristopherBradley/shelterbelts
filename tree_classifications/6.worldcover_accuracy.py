@@ -120,6 +120,10 @@ df_all = pd.concat(dfs)
 filename = "/g/data/xe2/cb8590/Nick_outlines/nick_vs_gch.csv"
 df_all.to_csv(filename, index="False")
 
+# Load these comparisons we've just saved
+filename = "/g/data/xe2/cb8590/Nick_outlines/nick_vs_gch.csv"
+df_all = pd.read_csv(filename)
+
 df_all['global_canopy_height_trees'].value_counts()
 
 # +
@@ -181,6 +185,23 @@ for bioregion in df['koppen_class'].unique():
                 'accuracy': accuracy_wc,
                 'support': report_wc[str(tree_class)]['support'],
             })
+        worldcover_table = pd.DataFrame(worldcover_rows)
+            
+        # Overall worldcover metrics 
+        overall_report = classification_report(df['nick_trees'], df['worldcover_trees'], output_dict=True, zero_division=0)
+        overall_accuracy = accuracy_score(df['nick_trees'], df['worldcover_trees'])
+
+        for tree_class in [0.0, 1.0]:
+            if str(tree_class) in overall_report:
+                worldcover_table.loc[len(worldcover_table)] = {
+                    'koppen_class': 'overall',
+                    'tree_class': tree_class,
+                    'precision': overall_report[str(tree_class)]['precision'],
+                    'recall': overall_report[str(tree_class)]['recall'],
+                    'f1-score': overall_report[str(tree_class)]['f1-score'],
+                    'accuracy': overall_accuracy,
+                    'support': overall_report[str(tree_class)]['support'],
+                }
 
         # Global Canopy Height metrics
         report_gch = classification_report(
@@ -201,13 +222,27 @@ for bioregion in df['koppen_class'].unique():
                 'accuracy': accuracy_gch,
                 'support': report_gch[str(tree_class)]['support'],
             })
+        canopy_height_table = pd.DataFrame(canopy_rows)
+        
+        # Overall global canopy height metrics
+        overall_report = classification_report(df['nick_trees'], df['global_canopy_height_trees'], output_dict=True, zero_division=0)
+        overall_accuracy = accuracy_score(df['nick_trees'], df['global_canopy_height_trees'])
 
-# Convert to DataFrames
-worldcover_table = pd.DataFrame(worldcover_rows)
-canopy_height_table = pd.DataFrame(canopy_rows)
-
+        for tree_class in [0.0, 1.0]:
+            if str(tree_class) in overall_report:
+                canopy_height_table.loc[len(canopy_height_table)] = {
+                    'koppen_class': 'overall',
+                    'tree_class': tree_class,
+                    'precision': overall_report[str(tree_class)]['precision'],
+                    'recall': overall_report[str(tree_class)]['recall'],
+                    'f1-score': overall_report[str(tree_class)]['f1-score'],
+                    'accuracy': overall_accuracy,
+                    'support': overall_report[str(tree_class)]['support'],
+                }
 # -
 
 worldcover_table
 
 canopy_height_table
+
+
