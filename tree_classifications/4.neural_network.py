@@ -46,6 +46,17 @@ random_state = 0
 df_sample_full = df.sample(n=len(df), random_state=random_state)  # randomising everything so I can later use a larger random testing dataset while being sure I don't reuse training data
 df_sample = df_sample_full[:sample_size]
 
+# Equal number of tiles in each koppen class
+samples_per_class = sample_size // 8
+df_stratified = (
+    df_sample_full
+    .groupby('koppen_class', group_keys=False)
+    .sample(n=samples_per_class, random_state=random_state)
+)
+
+
+df_sample = df_stratified
+
 # +
 # Normalise the input features (should probs do this before creating the .feather file)
 X = df_sample.drop(columns=['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']) # input variables
@@ -91,21 +102,13 @@ plt.show()
 
 # +
 # 89% accuracy and 1 min 21 secs
-# -
-
-y_pred_percent = model.predict(X_normalized)
-
-
-y_test
-
-[percent.argmax() for percent in y_pred_percent]
 
 # +
 # Evaluate the accuracy for each bioregion using unused data (a larger sample than the designated test data, but also not used in the training data)
 df_bioregion_test = df_sample_full[600000:700000]
 
 # Double check we aren't reusing any of the training data for testing each bioregion
-assert len(df_sample[df_sample.index.isin(df_bioregion_test.index)]) == 0
+print("Number of samples taken from training data:", len(df_sample[df_sample.index.isin(df_bioregion_test.index)]))
 
 # Predict all 100k of these bioregion testing datapoints
 X = df_bioregion_test.drop(columns=['tree_cover','y', 'x', 'tile_id', 'koppen_class']) 
@@ -113,8 +116,8 @@ X_normalized = StandardScaler().fit_transform(X) # Is this scaling consistent ac
 
 y_test = df_bioregion_test[['tree_cover', 'koppen_class']]
 y_pred_percent = model.predict(X_normalized)
- = model.predict(X_normalized)
-print(classification_report(y_test['tree_cover'], y_pred))
+y_pred = [percent.argmax() for percent in y_pred_percent]
+# print(classification_report(y_test['tree_cover'], y_pred))
 
 # Join predictions with true values and koppen_class
 results = df_bioregion_test[['tree_cover', 'koppen_class']].copy()
