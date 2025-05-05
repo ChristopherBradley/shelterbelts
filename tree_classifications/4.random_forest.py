@@ -41,13 +41,11 @@ df = df.merge(gdf[['tile_id', 'koppen_class']])
 # -
 
 # Start out by training on just 60k samples like in Stewart et al. 2025
-sample_size = 60000
-random_state = 1
+sample_size = 100000
+random_state = 3
 # df_sample = df.sample(n=sample_size, random_state=random_state)
 df_sample_full = df.sample(n=len(df), random_state=random_state)  # randomising everything so I can later use a larger random testing dataset while being sure I don't reuse training data
 df_sample = df_sample_full[:sample_size]
-
-df_sample['koppen_class'].value_counts()
 
 # +
 # %%time
@@ -66,13 +64,13 @@ rf_classifier = RandomForestClassifier(n_estimators=100, min_samples_split=10, r
 # Train the model
 rf_classifier.fit(X_train, y_train)
 
-# Make predictions on the test set
-y_pred = rf_classifier.predict(X_test)
+# # Make predictions on the test set
+# y_pred = rf_classifier.predict(X_test)
 
-# Evaluate the model
-accuracy = accuracy_score(y_test, y_pred)
-print(f'Accuracy: {accuracy * 100:.2f}%' )
-print(classification_report(y_test, y_pred))
+# # Evaluate the model
+# accuracy = accuracy_score(y_test, y_pred)
+# print(f'Accuracy: {accuracy * 100:.2f}%' )
+# print(classification_report(y_test, y_pred))
 
 # +
 # 86% accuracy with 1000 pixels (4 secs)
@@ -92,7 +90,7 @@ X = df_bioregion_test.drop(columns=['tree_cover','y', 'x', 'tile_id', 'koppen_cl
 X_normalized = (X - X.min()) / (X.max() - X.min()) 
 y_test = df_bioregion_test[['tree_cover', 'koppen_class']]
 y_pred = rf_classifier.predict(X_normalized)
-print(classification_report(y_test['tree_cover'], y_pred))
+# print(classification_report(y_test['tree_cover'], y_pred))
 
 # Join predictions with true values and koppen_class
 results = df_bioregion_test[['tree_cover', 'koppen_class']].copy()

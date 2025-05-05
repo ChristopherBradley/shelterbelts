@@ -41,21 +41,31 @@ gdf = gdf.rename(columns={'Full Name':'koppen_class'})
 df = df.merge(gdf[['tile_id', 'koppen_class']])
 # -
 
-sample_size = 100000
+# sample_size = 100000
 random_state = 0
 df_sample_full = df.sample(n=len(df), random_state=random_state)  # randomising everything so I can later use a larger random testing dataset while being sure I don't reuse training data
-df_sample = df_sample_full[:sample_size]
+# df_sample = df_sample_full[:sample_size]
 
-# Equal number of tiles in each koppen class
-samples_per_class = sample_size // 8
+# Make the training dataset have an equal number of tree vs no tree classes, so it doesn't over predict no trees. 
+samples_per_class = len(df_sample_full[df_sample_full['tree_cover'] == 1])
 df_stratified = (
     df_sample_full
-    .groupby('koppen_class', group_keys=False)
+    .groupby('tree_cover', group_keys=False)
     .sample(n=samples_per_class, random_state=random_state)
 )
+df_stratified = df_stratified.sample(len(df_stratified), random_state=random_state)
 
+df_stratified = df_stratified[df_stratified['koppen_class'] == 'Tropical savanna QLD']
 
-df_sample = df_stratified
+# sample_size = int(len(df_single_class) * 0.7)
+sample_size = int(len(df_stratified) * 0.7)
+
+df_sample = df_stratified[:sample_size]
+
+print(len(df_sample))
+df_sample['koppen_class'].value_counts()
+
+df_sample.shape
 
 # +
 # Normalise the input features (should probs do this before creating the .feather file)
@@ -66,7 +76,21 @@ y = df_sample['tree_cover']  # target variable
 y_categorical = keras.utils.to_categorical(y, 2)
 
 # Split the data into training and testing sets (70% train, 30% test)
-X_train, X_test, y_train, y_test = train_test_split(X, y_categorical, test_size=0.3, random_state=random_state)
+# X_train, X_test, y_train, y_test = train_test_split(X, y_categorical, test_size=0.3, random_state=random_state)
+
+# Doing the train test split earlier on so I can play around with stratification
+X_train = X
+y_train = y_categorical
+
+# +
+# Should clean up this train test split
+df_test = df_stratified[sample_size:]
+X = df_test.drop(columns=['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']) # input variables
+X_test = StandardScaler().fit_transform(X)
+
+y = df_test['tree_cover']  # target variable
+y_test = keras.utils.to_categorical(y, 2)
+
 # -
 
 # Define EarlyStopping callback
@@ -105,7 +129,8 @@ plt.show()
 
 # +
 # Evaluate the accuracy for each bioregion using unused data (a larger sample than the designated test data, but also not used in the training data)
-df_bioregion_test = df_sample_full[600000:700000]
+# df_bioregion_test = df_sample_full[600000:700000]
+df_bioregion_test = df_test
 
 # Double check we aren't reusing any of the training data for testing each bioregion
 print("Number of samples taken from training data:", len(df_sample[df_sample.index.isin(df_bioregion_test.index)]))

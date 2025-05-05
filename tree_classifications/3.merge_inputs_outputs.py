@@ -95,7 +95,6 @@ def jittered_grid(ds):
     return df
 
 
-
 def tile_csv_verbose(sentinel_tile):
     """Run tile_csv and report more info on errors that occur"""
     tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
@@ -151,6 +150,7 @@ def tile_csv(sentinel_tile):
 
     # Select pixels to use for training/testing
     df = jittered_grid(ds)
+    df["tile_id"] = tile_id
 
     # Leaving normalisation for later to help with debugging if I want to visually inspect the raw values
     # df_normalized = (df - df.min()) / (df.max() - df.min())
@@ -230,15 +230,15 @@ print(len(sentinel_tiles))
 
 csv_tiles = glob.glob(f'{outdir}/*')
 print(len(csv_tiles))
+# -
 
-# +
-# Remove csv_tiles if they've already been downloaded (only need to do this if it doesn't all work first go)
-
-# +
 # Randomise the tiles so I can have a random sample before they all complete
 sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
 
-rows = sentinel_randomised
+
+len(sentinel_randomised)
+
+rows = sentinel_randomised[6500:]
 batch_size = 50
 batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
 
@@ -289,3 +289,5 @@ print("Saved", filename)
 # -
 
 df_all
+
+

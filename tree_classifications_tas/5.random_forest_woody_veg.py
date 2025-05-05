@@ -14,10 +14,7 @@ from sklearn.preprocessing import StandardScaler
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
 
-# %%time
-# From my testing, feather seems like the fastest and smallest filetype for a panda dataframe (better than parquet or csv, although csv more readable)
-# filename = "/g/data/xe2/cb8590/shelterbelts/woody_veg_preprocessed.feather"
-filename = "../data/woody_veg_preprocessed.feather"
+filename = "/g/data/xe2/cb8590/shelterbelts/woody_veg_preprocessed.feather"
 df = pd.read_feather(filename) 
 df.shape
 
@@ -102,3 +99,6 @@ X_pca = pca.fit_transform(X_scaled)
 # Convert back to DataFrame
 df_pca = pd.DataFrame(X_pca, columns=[f'PC{i+1}' for i in range(X_pca.shape[1])])
 df_pca.shape
+# -
+
+

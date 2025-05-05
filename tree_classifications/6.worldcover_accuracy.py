@@ -103,22 +103,27 @@ print("Number of worldcover tiles:", len(worldcover_tiles))
 # Random sample of 1000 tiles so it doesn't take so long to read them all in
 sampled_tiles = random.sample(gch_tiles, 1000)
 
+
 # +
 # %%time
 # Find the tree status from worldcover, global canopy height and Nick's tiff files for lots of jittered gridded points across lots of files
-dfs = []
-for tile in sampled_tiles:
-    df = tile_csv(tile)
-    dfs.append(df)
+def nick_vs_gch():
+    """Run the tile_csv function on all the tiles"""
+    dfs = []
+    for tile in sampled_tiles:
+        df = tile_csv(tile)
+        dfs.append(df)
+
+    df_all = pd.concat(dfs)
     
-df_all = pd.concat(dfs)
+    # Save these tree comparisons
+    filename = "/g/data/xe2/cb8590/Nick_outlines/nick_vs_gch.csv"
+    df_all.to_csv(filename, index="False")
 
 # Took 30 secs for 100, 3 mins for 700, 6 mins for 1000
-# -
 
-# Save these tree comparisons
-filename = "/g/data/xe2/cb8590/Nick_outlines/nick_vs_gch.csv"
-df_all.to_csv(filename, index="False")
+
+# -
 
 # Load these comparisons we've just saved
 filename = "/g/data/xe2/cb8590/Nick_outlines/nick_vs_gch.csv"

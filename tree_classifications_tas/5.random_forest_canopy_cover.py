@@ -15,8 +15,9 @@ pd.set_option('display.max_columns', 100)
 
 random_state = 0
 
-filename = "../data/canopycover_preprocessed.csv"
+filename = "/g/data/xe2/cb8590/shelterbelts/canopycover_preprocessed.csv"
 df = pd.read_csv(filename) 
+df = df[df.notna().all(axis=1)]
 
 # +
 # %%time
@@ -50,6 +51,8 @@ mae = mean_absolute_error(y_test, y_pred)
 bias = np.mean(y_pred - y_test)
 overall_mean = np.mean(y_test)
 
+
+# +
 # Absolute metrics
 threshold = 0.1
 y_test_bool = (y_test >= threshold).astype(int)
@@ -57,13 +60,15 @@ y_pred_bool = (y_pred >= threshold).astype(int)
 accuracy = accuracy_score(y_test_bool, y_pred_bool)
 
 # Print results
-print(f"R²: {r2:.4f}")
-print(f"Accuracy: {accuracy:.4f}")
-print(f"RMSE: {rmse:.4f}")
-print(f"MAE: {mae:.4f}")
-print(f"Bias: {bias:.4f}")
-print(f"Overall Mean: {overall_mean:.4f}")
+# print(f"R²: {r2:.4f}")
+# print(f"Accuracy: {accuracy:.4f}")
+# print(f"RMSE: {rmse:.4f}")
+# print(f"MAE: {mae:.4f}")
+# print(f"Bias: {bias:.4f}")
+# print(f"Overall Mean: {overall_mean:.4f}")
 
+# Using 10% tree cover over predicts trees, but 30% has roughly equal precision and recall (93%)
+print(classification_report(y_test_bool, y_pred_bool))
 
 # +
 # 60k samples, 100 estimators, 10 min_samples_split: r2 = 0.885, accuracy = 0.894, MAE=0.07, training time: 4 mins 43 secs

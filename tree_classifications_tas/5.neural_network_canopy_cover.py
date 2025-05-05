@@ -24,9 +24,19 @@ filename = "/g/data/xe2/cb8590/shelterbelts/canopycover_preprocessed.csv"
 df = pd.read_csv(filename) 
 df = df[df.notna().all(axis=1)]
 
+# +
+# Create a random sample with an equal proportion of rows above and below 10% canopy cover
 random_state = 0
-sample_size = 60000
-df_sample = df.sample(n=sample_size, random_state=random_state)
+sample_size = 100000
+
+low_canopy = df[df['canopycover'] < 0.1]
+high_canopy = df[df['canopycover'] >= 0.1]
+
+low_sample = low_canopy.sample(n=sample_size//2, random_state=random_state)
+high_sample = high_canopy.sample(n=sample_size//2, random_state=random_state)
+
+df_sample = pd.concat([low_sample, high_sample]).sample(frac=1, random_state=random_state).reset_index(drop=True)
+# -
 
 X = df_sample.drop(columns=['canopycover', 'y', 'x', 'Unnamed: 0']) # input variables
 X = StandardScaler().fit_transform(X)
@@ -71,12 +81,18 @@ plt.show()
 # Make predictions on the test set
 y_pred = model.predict(X_test)[:,0]
 r2 = r2_score(y_test, y_pred)
+
+
+# +
+# First training w/ 60k samples (2 mins): 17 epochs, 0.08 MAE, 91.9% accuracy
+# -
+
 threshold = 0.1
 y_test_bool = (y_test >= threshold).astype(int)
 y_pred_bool = (y_pred >= threshold).astype(int)
 accuracy = accuracy_score(y_test_bool, y_pred_bool)
 print(f"R²: {r2:.4f}")
 print(f"Accuracy: {accuracy:.4f}")
+print(classification_report(y_test_bool, y_pred_bool))
 
-# +
-# First training w/ 60k samples (2 mins): 17 epochs, 0.08 MAE, 91.9% accuracy
+
