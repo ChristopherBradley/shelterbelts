@@ -2,7 +2,7 @@
 # Group trees together and calculate statistics including: 
 # Number of shelterbelts w/ length, width, area, perimeter, height (min, mean, max) for each (and then mean and sd)
 # Area of sheltered and unsheltered crop & pasture by region and different thresholds
-# -
+# +
 import os
 import glob
 import pickle
@@ -12,8 +12,12 @@ import xarray as xr
 import rioxarray as rxr
 import pyproj
 from scipy.ndimage import label
+from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import gaussian_filter
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+# -
 
 
 # Change directory to this repo
@@ -209,11 +213,103 @@ print(f"Maximum speed {max_speed}km/hr, Direction: {max_direction}")
 df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
 direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
 print(f"Highest percentage of days with winds > 20km/hr: {round(df_20km_plus.max(), 2)}%, Direction: {direction_20km_plus}")
+# -
+
+ds['shelter'] = ds['large_shelterbelts'].astype(bool)
+
+# Use the canopy height to make the distances be based on tree height rather than metres
+ds['shelter']
+
+# +
+# Find the nearest canopy height for every tree pixel in the large shelterbelts
+valid_mask = ~np.isnan(ds['canopy_height'])
+inds = np.array(np.nonzero(valid_mask))
+dist, nearest_inds = distance_transform_edt(
+    ~valid_mask,
+    return_distances=True,
+    return_indices=True
+)
+canopy_height_filled = ds['canopy_height'].values[
+    tuple(nearest_inds)
+]
+canopy_height2 = np.full(ds['shelter'].shape, np.nan)
+canopy_height2[ds['shelter'].values] = canopy_height_filled[ds['shelter'].values]
+
+# Adjust the values because the canopy height underestimates heights in Australia
+canopy_height2 = np.clip(canopy_height2 * 1.5, 5, 20)
+ds['canopy_height2'] = xr.DataArray(
+    canopy_height2,
+    coords=ds['shelter'].coords,
+    dims=ds['shelter'].dims,
+    name='canopy_height2'
+)
+plt.imshow(canopy_height2)
+# -
+
+# Smooth the canopy heights
+valid_mask = ~np.isnan(ds['canopy_height2'])
+filled = np.nan_to_num(ds['canopy_height2'].values, nan=0.0)
+smoothed = gaussian_filter(filled, sigma=5)
+smoothed_mask = gaussian_filter(valid_mask.astype(float), sigma=1)
+smoothed_normalized = smoothed / np.where(smoothed_mask == 0, np.nan, smoothed_mask)
+smoothed_canopy = np.where(ds['shelter'].values, smoothed_normalized, np.nan)
+smoothed_canopy = np.clip(smoothed_canopy, 5, 10)
+ds['canopy_height3'] = xr.DataArray(
+    smoothed_canopy,
+    coords=ds['shelter'].coords,
+    dims=ds['shelter'].dims,
+    name='canopy_height3'
+)
+ds['canopy_height3'].plot()
+
+# +
+# Calculate the distance from nearest shelterbelt for each pixel in terms of tree heights
+shelter = ds['shelter']
+canopy_height = ds['canopy_height3']
+wind_dir = 'W'
+
+direction_map = {
+    'N': (-1, 0),
+    'S': (1, 0),
+    'E': (0, -1),
+    'W': (0, 1),
+    'NE': (-1, -1),
+    'NW': (-1, 1),
+    'SE': (1, -1),
+    'SW': (1, 1),
+}
+dy, dx = direction_map[wind_dir]
+tree_height_distance = xr.full_like(shelter, np.nan, dtype=float)
+mask = ~shelter  # only compute distances for non-tree pixels
+found = shelter.copy()
+
+max_pixel_distance = 100  # arbitrarily large — we stop based on tree height limits
+max_TH_distance = 15 # This one matters
+for d in range(1, max_pixel_distance + 1):
+    
+    # Shift trees and canopy height
+    shifted_tree = found.shift(x=dx * d, y=dy * d, fill_value=False)
+    shifted_height = canopy_height.shift(x=dx * d, y=dy * d)
+
+    # Calculate height-distance
+    height_distance = d / shifted_height
+    new_hits = (shifted_tree & mask) & (height_distance <= max_TH_distance)
+    tree_height_distance = tree_height_distance.where(~new_hits, height_distance)
+
+    # Update found and mask
+    found = found | shifted_tree
+    mask = mask & ~new_hits
+    if not mask.any():
+        break
+
+# Set tree pixels themselves to NaN
+tree_height_distance = tree_height_distance.where(~shelter)
+ds['distance_in_tree_heights'] = tree_height_distance
 
 
 # +
-# Create a layer of distance to tree in the direction of the prevailing wind
-def compute_distance_to_tree(da, wind_dir, max_distance=20):
+# Calculate the distance from nearest shelterbelt for each pixel based on a set distance in metres
+def compute_distance_to_tree(da, wind_dir, max_distance):
     shelter = da
     direction_map = {
         'N': (-1, 0),
@@ -239,27 +335,25 @@ def compute_distance_to_tree(da, wind_dir, max_distance=20):
         if not mask.any():
             break
 
-    return distance.where(~shelter)
+    distances = distance.where(~shelter)
+    return distances
 
 ds['distance_to_shelterbelt'] = compute_distance_to_tree(ds['large_shelterbelts'].astype(bool), direction_20km_plus, 10)
 ds['distance_to_shelterbelt'].plot()
-
 # -
-
-# Use the canopy height to make the distances be based on tree height rather than metres
-
+ds['distance_in_tree_heights'].plot()
 
 # Create some layers for sheltered and unsheltered crop and grassland
 ds['Grassland'] = (ds['worldcover'] == 30) & (~ds['all_combined'])  # Grassland and not a tree
 ds['Cropland'] = (ds['worldcover'] == 40) & (~ds['all_combined'])  # Cropland and not a tree
-ds['sheltered'] = ds['distance_to_shelterbelt'].notnull() # Within 100m of a shelterbelt in the windward direction
+ds['sheltered'] = ds['distance_in_tree_heights'].notnull() # Within 100m of a shelterbelt in the windward direction
 ds['production'] = ds['Grassland'] | ds['Cropland']
 ds['unsheltered'] = ds['production'] & ~ds['sheltered']
 
 # +
 # Calculate the number and percentage of crop and pasture pixels that are sheltered
 num_sheltered_pixels = int(ds['sheltered'].sum())
-num_unsheltered_pixels = int(ds['sheltered'].sum())
+num_unsheltered_pixels = int(ds['unsheltered'].sum())
 percent_sheltered = num_sheltered_pixels / (num_sheltered_pixels + num_unsheltered_pixels)
 
 num_sheltered_grassland = int((ds['sheltered'] & ds['Grassland']).sum())
@@ -278,3 +372,5 @@ df_shelter_stats = pd.DataFrame([
     {'sheltered': num_sheltered_cropland, 'unsheltered': num_unsheltered_cropland, 'percent': percent_sheltered_cropland},
 ], index=['Total', 'Grassland', 'Cropland'])
 df_shelter_stats
+
+
