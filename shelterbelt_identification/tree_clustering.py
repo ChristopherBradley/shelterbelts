@@ -13,30 +13,105 @@ import rioxarray as rxr
 import pyproj
 from scipy.ndimage import label
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
+
+# Change directory to this repo
+import os, sys
+repo_name = "shelterbelts"
+if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+elif os.path.basename(os.getcwd()) != repo_name:
+    repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
+else:  # Already running locally from repo root
+    repo_dir = os.getcwd()
+os.chdir(repo_dir)
+sys.path.append(repo_dir)
+print(f"Running from {repo_dir}")
+
+from shelterbelt_identification.wind_barra import barra_daily, wind_rose, wind_dataframe
 
 # Make the panda displays more informative
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
 
 # Load the woody veg or canopy cover tiff file
-outdir = "../data/"
-filename = os.path.join(outdir, "Tas_WoodyVeg_201903_v2.2.tif")  # Binary classifications
-sub_stub = "woodyveg"
-ds_original = rxr.open_rasterio(filename)
+# outdir = "../data/"
+# filename = os.path.join(outdir, "Tas_WoodyVeg_201903_v2.2.tif")  # Binary classifications
+filename = '/Users/christopherbradley/Documents/PHD/Data/Annual_woody_vegetation_and_canopy_cover_grids_for_Tasmania-z_BE-P62-/data/WoodyVeg/Tas_WoodyVeg_202403_v2.2.tif'
+da_original = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
 
-# Create a 5km x 5km bounding box
-lon, lat = 147.4793, -42.3906
+# +
+# Select a 5km x 5km region in the tasmania tree classifications
+lat, lon = -42.888223, 147.760650
 buffer_m = 2500
 project = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True).transform
 x, y = project(lon, lat)
 bbox = x - buffer_m, y + buffer_m, x + buffer_m, y - buffer_m  # Not sure why the miny requires addition instead of subtraction, but this gives the 5km x 5km region
 minx, miny, maxx, maxy = bbox
-bbox
 
-# Select the 5km x 5km region
-da = ds_original.sel(band=1, x=slice(minx, maxx), y=slice(miny, maxy))
-bool_array = np.array(da.values - 1, dtype = bool)
+da = da_original.sel(x=slice(minx, maxx), y=slice(miny, maxy))
+da = da.where(da != 255, np.nan)  # Ocean pixels were represented by 255
+da = (da - 1)                     # Tree pixels were represented by 2, and non-tree 1
+# -
+
+ds = xr.Dataset({
+    "woodyveg_2024":da,
+})
+ds = ds.rio.write_crs(da.rio.crs)
+
+# Fill woodyveg nan with 0's (we could have done this earlier when converting from 255, but I think this way is clearer)
+ds["woodyveg_2024"] = ds["woodyveg_2024"].fillna(0).astype(bool)
+
+# Load worldcover and reproject match
+filename = "data/Fulham_worldcover.tif"
+da_worldcover = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+da_worldcover_matched = da_worldcover.rio.reproject_match(da_original)
+ds["worldcover"] = da_worldcover_matched
+ds["worldcover_veg"] = (ds["worldcover"] == 10)
+
+# %%time
+# Load canopy_height and reproject match
+filename = "data/Fulham_canopy_height.tif"
+da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+da_matched = da.rio.reproject_match(ds)
+da_matched = da_matched.where(da_matched != 255, np.nan)
+ds["canopy_height"] = da_matched
+ds['canopy_height_veg'] = (ds["canopy_height"] >= 1)
+
+# %%time
+# Load all 5 years of woody veg to see what's changed
+# Based on visual inspection, I think the 2021 raster overpredicts vegetation, so leaving it out
+years = ["2019", "2020", "2022", "2023", "2024"]
+for year in years:
+    filename = f'/Users/christopherbradley/Documents/PHD/Data/Annual_woody_vegetation_and_canopy_cover_grids_for_Tasmania-z_BE-P62-/data/WoodyVeg/Tas_WoodyVeg_{year}03_v2.2.tif'
+    da_original = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+    da = da_original.sel(x=slice(minx, maxx), y=slice(miny, maxy))
+    da = (da.where(da != 255, 1) - 1).astype(bool)  # Convert NaN and no tree to False, and tree to True
+    ds[f"woodyveg_{year}"] = da
+
+# Merge all the vegetation layers into 1 (since they usually underpredict vegetation rather than overpredict)
+ds["woodyveg_combined"] = ds["woodyveg_2019"] 
+for year in years:
+    ds["woodyveg_combined"] = ds["woodyveg_combined"] | ds[f"woodyveg_{year}"]
+ds["all_combined"] = ds['worldcover_veg'] | ds['canopy_height_veg'] | ds["woodyveg_combined"] 
+ds["all_combined"].plot()
+
+# Save all the layers as rasters for inspecting in QGIS
+layers = list(ds.data_vars)
+for layer in layers:
+    filename = f"{layer}.tif"
+    ds[layer].astype('uint8').rio.to_raster(filename)
+    print(filename)
+
+# Need to be careful with how nan gets treated in these array transformations
+int_nan = (np.array([np.nan])).astype(int)[0]
+print(int_nan)
+print(int_nan >= 1)
+print(bool(int_nan))
+
+# Convert NaN pixels to 0 (no tree) for the purposes of evaluating shelter effects. Will mask out non crop or pasture pixels later.
+woody_veg = ds["all_combined"].values
 
 # Assign a label to each group of pixels
 structure = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]) 
@@ -65,9 +140,9 @@ for i, coords in coord_lists.items():
     group_stats.append(stats)
 
 df_shelterbelts = pd.DataFrame(group_stats, index=coord_lists.keys())
-# -
 
 
+# +
 # Filter out any shelterbelts less than a certain length, e.g. 100m
 length_threshold = 10   # 100m 
 df_large_shelterbelts = df_shelterbelts[df_shelterbelts['max_length'] > length_threshold]
@@ -75,9 +150,12 @@ large_shelterbelts = shelterbelts.copy()
 mask = ~np.isin(shelterbelts, df_large_shelterbelts.index)
 large_shelterbelts[mask] = 0
 
-# Add these groups to the original xarray
-da_reset = da.reset_coords("band", drop=True)
-ds = da_reset.to_dataset(name="woody_veg")
+# Label the large shelterbelts consecutively
+unique_vals = np.unique(large_shelterbelts)
+large_shelterbelts = np.searchsorted(unique_vals, large_shelterbelts)
+# -
+
+# Create DataArrays from the numpy arrays for adding to the xarray DataSet
 da_shelterbelts = xr.DataArray(
     shelterbelts,
     dims=["y", "x"],
@@ -90,9 +168,90 @@ da_large_shelterbelts = xr.DataArray(
     coords={"x": ds.x, "y": ds.y},
     name="large_shelterbelts"
 )
+
+# Add these groups to the original xarray
 ds["shelterbelts"] = da_shelterbelts
 ds["large_shelterbelts"] = da_large_shelterbelts
 
-ds['large_shelterbelts'].rio.to_raster("../data/test_large_shelterbelts.tif")
+ds['large_shelterbelts'].astype('uint8').rio.to_raster("large_shelterbelts.tif")
+ds['shelterbelts'].astype('uint8').rio.to_raster("shelterbelts.tif")
 
-ds['large_shelterbelts'].plot()
+# +
+# Plot the large shelterbelts
+data = ds['large_shelterbelts']
+masked_data = data.where(data > 0)  # Mask zeros and negatives
+
+# Make non-tree pixels transparent
+cmap = plt.cm.Set1
+cmap.set_bad(color=(0, 0, 0, 0))  
+masked_data.plot(cmap=cmap, vmin=1)
+plt.show()
+
+# +
+# %%time
+# Assume that the wind data has already been downloaded for this location
+# buffer_degrees = 0.025
+# ds_wind = barra_daily(lat=lat, lon=lon, buffer=buffer_degrees, start_year="2017", end_year="2025", outdir="../data", stub="Fulham")
+
+filename = "data/Fulham_barra_daily.nc"
+ds_wind = xr.load_dataset(filename)
+
+# +
+# Find pixels in the direction of the wind for a given distance from each shelterbelt
+wind_rose(ds_wind, outdir="data", stub="Fulham")
+
+# Some different ways to decide on the dominant wind direction
+df, max_speed, max_direction = wind_dataframe(ds_wind)
+print(df)
+print(f"Maximum speed {max_speed}km/hr, Direction: {max_direction}")
+
+# Calculating the direction with the most days with winds over 20km/hr
+df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
+direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
+print(f"Highest percentage of days with winds > 20km/hr: {round(df_20km_plus.max(), 2)}%, Direction: {direction_20km_plus}")
+# -
+
+
+
+# +
+# Create a layer of distance to tree in the direction of the prevailing wind
+def compute_distance_to_tree(da, wind_dir, max_distance=20):
+    shelter = da
+    direction_map = {
+        'N': (-1, 0),
+        'S': (1, 0),
+        'E': (0, -1),
+        'W': (0, 1),
+        'NE': (-1, -1),
+        'NW': (-1, 1),
+        'SE': (1, -1),
+        'SW': (1, 1),
+    }
+
+    dy, dx = direction_map[wind_dir]
+
+    distance = xr.full_like(shelter, np.nan, dtype=float)
+    mask = ~shelter
+
+    found = shelter.copy()
+    for d in range(1, max_distance + 1):
+        shifted = found.shift(x=dx * d, y=dy * d, fill_value=False)
+        new_hits = shifted & mask
+        distance = distance.where(~new_hits, d)
+        found = found | shifted
+        mask = mask & ~new_hits
+        if not mask.any():
+            break
+
+    return distance.where(~shelter)
+
+# Example usage:
+ds['distance_to_shelterbelt'] = compute_distance_to_tree(ds['large_shelterbelts'].astype(bool), direction_20km_plus, 10)
+# -
+
+ds['distance_to_shelterbelt'].plot()
+
+# Calculate the number and percentage of crop and pasture pixels that are sheltered
+
+
+
