@@ -209,8 +209,6 @@ print(f"Maximum speed {max_speed}km/hr, Direction: {max_direction}")
 df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
 direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
 print(f"Highest percentage of days with winds > 20km/hr: {round(df_20km_plus.max(), 2)}%, Direction: {direction_20km_plus}")
-# -
-
 
 
 # +
@@ -227,9 +225,7 @@ def compute_distance_to_tree(da, wind_dir, max_distance=20):
         'SE': (1, -1),
         'SW': (1, 1),
     }
-
     dy, dx = direction_map[wind_dir]
-
     distance = xr.full_like(shelter, np.nan, dtype=float)
     mask = ~shelter
 
@@ -245,13 +241,40 @@ def compute_distance_to_tree(da, wind_dir, max_distance=20):
 
     return distance.where(~shelter)
 
-# Example usage:
 ds['distance_to_shelterbelt'] = compute_distance_to_tree(ds['large_shelterbelts'].astype(bool), direction_20km_plus, 10)
-# -
-
 ds['distance_to_shelterbelt'].plot()
 
+# -
+
+# Use the canopy height to make the distances be based on tree height rather than metres
+
+
+# Create some layers for sheltered and unsheltered crop and grassland
+ds['Grassland'] = (ds['worldcover'] == 30) & (~ds['all_combined'])  # Grassland and not a tree
+ds['Cropland'] = (ds['worldcover'] == 40) & (~ds['all_combined'])  # Cropland and not a tree
+ds['sheltered'] = ds['distance_to_shelterbelt'].notnull() # Within 100m of a shelterbelt in the windward direction
+ds['production'] = ds['Grassland'] | ds['Cropland']
+ds['unsheltered'] = ds['production'] & ~ds['sheltered']
+
+# +
 # Calculate the number and percentage of crop and pasture pixels that are sheltered
+num_sheltered_pixels = int(ds['sheltered'].sum())
+num_unsheltered_pixels = int(ds['sheltered'].sum())
+percent_sheltered = num_sheltered_pixels / (num_sheltered_pixels + num_unsheltered_pixels)
 
+num_sheltered_grassland = int((ds['sheltered'] & ds['Grassland']).sum())
+num_unsheltered_grassland = int((ds['unsheltered'] & ds['Grassland']).sum())
+percent_sheltered_grassland = num_sheltered_grassland / (num_sheltered_grassland + num_unsheltered_grassland)
 
+num_sheltered_cropland = int((ds['sheltered'] & ds['Cropland']).sum())
+num_unsheltered_cropland = int((ds['unsheltered'] & ds['Cropland']).sum())
+percent_sheltered_cropland = num_sheltered_cropland / (num_sheltered_cropland + num_unsheltered_cropland)
+# -
 
+# Create a dataframe summarising these shelter statistics
+df_shelter_stats = pd.DataFrame([
+    {'sheltered': num_sheltered_pixels, 'unsheltered': num_unsheltered_pixels, 'percent': percent_sheltered},
+    {'sheltered': num_sheltered_grassland, 'unsheltered': num_unsheltered_grassland, 'percent': percent_sheltered_grassland},
+    {'sheltered': num_sheltered_cropland, 'unsheltered': num_unsheltered_cropland, 'percent': percent_sheltered_cropland},
+], index=['Total', 'Grassland', 'Cropland'])
+df_shelter_stats
