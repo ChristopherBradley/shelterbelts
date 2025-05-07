@@ -99,13 +99,6 @@ for year in years:
 ds["all_combined"] = ds['worldcover_veg'] | ds['canopy_height_veg'] | ds["woodyveg_combined"] 
 ds["all_combined"].plot()
 
-# Save all the layers as rasters for inspecting in QGIS
-layers = list(ds.data_vars)
-for layer in layers:
-    filename = f"{layer}.tif"
-    ds[layer].astype('uint8').rio.to_raster(filename)
-    print(filename)
-
 # Need to be careful with how nan gets treated in these array transformations
 int_nan = (np.array([np.nan])).astype(int)[0]
 print(int_nan)
@@ -174,9 +167,6 @@ da_large_shelterbelts = xr.DataArray(
 # Add these groups to the original xarray
 ds["shelterbelts"] = da_shelterbelts
 ds["large_shelterbelts"] = da_large_shelterbelts
-
-ds['large_shelterbelts'].astype('uint8').rio.to_raster("large_shelterbelts.tif")
-ds['shelterbelts'].astype('uint8').rio.to_raster("shelterbelts.tif")
 
 # +
 # Plot the large shelterbelts
@@ -337,8 +327,6 @@ def compute_distance_to_tree(da, wind_dir, max_distance):
 ds['distance_to_shelterbelt'] = compute_distance_to_tree(ds['large_shelterbelts'].astype(bool), direction_20km_plus, 20)
 ds['distance_to_shelterbelt'].plot()
 # -
-
-
 # Create some layers for sheltered and unsheltered crop and grassland
 ds['Grassland'] = (ds['worldcover'] == 30) & (~ds['all_combined'])  # Grassland and not a tree
 ds['Cropland'] = (ds['worldcover'] == 40) & (~ds['all_combined'])  # Cropland and not a tree
@@ -351,9 +339,7 @@ ds['sheltered_grassland'] = (ds['sheltered'] & ds['Grassland'])
 ds['sheltered_cropland'] = (ds['sheltered'] & ds['Cropland'])
 ds['unsheltered_grassland'] = (ds['unsheltered'] & ds['Grassland'])
 ds['unsheltered_cropland'] = (ds['unsheltered'] & ds['Cropland'])
-ds['scattered_trees'] = (ds['shelterbelts'] & ~ds['shelter'])
-
-ds['sheltered'].plot()
+ds['scattered_trees'] = (ds['shelterbelts'].astype(bool) & ~ds['shelter'])
 
 # +
 # Calculate the number and percentage of crop and pasture pixels that are sheltered
@@ -416,9 +402,9 @@ for buffer in buffers:
 
 # +
 # Create a layer with the index of each category for visualisation
-layers_vis = ['all_combined', 'shelter_pruned10', 'shelter_pruned3', 'shelter_pruned1', 'scattered_trees', 
- 'sheltered_cropland', 'unsheltered_cropland', 'sheltered_grassland', 'unsheltered_grassland', 'Water', 'Other']
-hex_codes = ['#19670c', '#269b11', '#33cf17', '#3cf61c', '#ed980f','#eca3e6', '#92688f', '#efe80d', '#ccdb73', '#3f55d2', '#8e908f']
+layers_vis = ['all_combined', 'shelter_pruned3', 'scattered_trees', 'sheltered_cropland', 'unsheltered_cropland', 'sheltered_grassland', 'unsheltered_grassland', 'Water', 'Other']
+layers_legend = ['Forest', 'Shelterbelt', 'Scattered Trees', 'Sheltered Cropland', 'Unsheltered Cropland', 'Sheltered Grassland', 'Unsheltered Grassland', 'Water', 'Other']
+hex_codes = ['#19670c', '#33e317', '#9b5d11', '#eca3e6', '#92688f', '#efe80d', '#ccdb73', '#3f55d2', '#8e908f']
 
 for layer in layers_vis:
     ds[layer] = ds[layer].astype(bool)
@@ -427,9 +413,55 @@ categories = xr.zeros_like(ds[layers[0]], dtype=np.uint8)
 for i, layer in enumerate(layers_vis, start=1):
     categories = categories.where(~ds[layer], other=i)  # overwrite with new category where layer is True
 ds['categories'] = categories
-ds['categories'].plot(cmap="Set1")
+ds['categories'].plot(cmap = 'Set1')
 # -
 
 ds['distance_in_tree_heights'].rio.to_raster('distance_in_tree_heights.tif')
 ds['distance_to_shelterbelt'].rio.to_raster('distance_to_shelterbelt.tif')
 ds['categories'].rio.to_raster('categories.tif')
+
+import rasterio
+from rasterio.enums import ColorInterp
+from rasterio.io import MemoryFile
+from rasterio.io import DatasetWriter
+from matplotlib.colors import to_rgba
+
+# +
+# Apply predefined colours to the raster
+with rasterio.open("categories.tif") as src:
+    profile = src.profile
+    data = src.read(1)
+
+def hex_to_rgb255(hex_color):
+    rgba = to_rgba(hex_color)  # values from 0-1
+    return tuple(int(255 * c) for c in rgba[:3]) # values from 0-255
+
+colormap = {
+    i+1: hex_to_rgb255(hex_codes[i])
+    for i in range(len(hex_codes))
+}
+colormap[0] = (0, 0, 0)  # optional: background color for value 0
+category_metadata = {
+    f"category_{i+1}": layers_legend[i]
+    for i in range(len(layers_legend))
+}
+profile.update(
+    dtype=rasterio.uint8,
+    count=1,
+    compress='lzw'
+)
+with rasterio.open("categories_colored.tif", "w", **profile) as dst:
+    dst.write(data, 1)
+    dst.write_colormap(1, colormap)
+    dst.set_band_description(1, "Vegetation Categories")
+    dst.update_tags(1, **category_metadata)
+    dst.colorinterp = [ColorInterp.palette]
+
+# -
+
+# Save all the layers as rasters for inspecting in QGIS
+layers = list(ds.data_vars)
+for layer in layers:
+    filename = f"{layer}.tif"
+    ds[layer].astype('uint8').rio.to_raster(filename)
+    print(filename)
