@@ -340,49 +340,7 @@ ds['sheltered_cropland'] = (ds['sheltered'] & ds['Cropland'])
 ds['unsheltered_grassland'] = (ds['unsheltered'] & ds['Grassland'])
 ds['unsheltered_cropland'] = (ds['unsheltered'] & ds['Cropland'])
 ds['scattered_trees'] = (ds['shelterbelts'].astype(bool) & ~ds['shelter'])
-
-# +
-# Calculate the number and percentage of crop and pasture pixels that are sheltered
-num_sheltered_pixels = int(ds['sheltered'].sum())
-num_unsheltered_pixels = int(ds['unsheltered'].sum())
-percent_sheltered = num_sheltered_pixels / (num_sheltered_pixels + num_unsheltered_pixels)
-
-num_sheltered_grassland = int((ds['sheltered'] & ds['Grassland']).sum())
-num_unsheltered_grassland = int((ds['unsheltered'] & ds['Grassland']).sum())
-percent_sheltered_grassland = num_sheltered_grassland / (num_sheltered_grassland + num_unsheltered_grassland)
-
-num_sheltered_cropland = int((ds['sheltered'] & ds['Cropland']).sum())
-num_unsheltered_cropland = int((ds['unsheltered'] & ds['Cropland']).sum())
-percent_sheltered_cropland = num_sheltered_cropland / (num_sheltered_cropland + num_unsheltered_cropland)
-# -
-
-# Create a dataframe summarising these shelter statistics
-df_shelter_stats = pd.DataFrame([
-    {'sheltered': num_sheltered_pixels, 'unsheltered': num_unsheltered_pixels, 'percent': percent_sheltered},
-    {'sheltered': num_sheltered_grassland, 'unsheltered': num_unsheltered_grassland, 'percent': percent_sheltered_grassland},
-    {'sheltered': num_sheltered_cropland, 'unsheltered': num_unsheltered_cropland, 'percent': percent_sheltered_cropland},
-], index=['Total', 'Grassland', 'Cropland'])
-df_shelter_stats
-
-# +
-num_tree_pixels = int(ds['all_combined'].sum())
-num_production_pixels = int(ds['production'].sum())
-num_shelterbelt_pixels = int(ds['shelter'].sum())
-num_scattered_pixels = int(ds['scattered_trees'].sum())
-
-percent_trees = num_tree_pixels / (num_tree_pixels + num_production_pixels)
-percent_clusters = num_shelterbelt_pixels / num_tree_pixels
-percent_shelterbelts = num_shelterbelt_pixels / (num_tree_pixels + num_production_pixels)
-percent_scattered = num_scattered_pixels / num_tree_pixels
-
-df_tree_stats = pd.DataFrame([
-    {'count': num_tree_pixels, 'percent': percent_trees},
-    {'count': num_shelterbelt_pixels, 'percent': percent_shelterbelts},
-    {'count': num_scattered_pixels, 'percent': percent_scattered}
-], index=['Trees', 'Shelterbelts', 'Scattered Trees'])
-
-df_tree_stats
-# -
+ds['forest'] = ds['all_combined'] & ~ds['scattered_trees'] & ~ds['shelter_pruned3']
 
 # Finding the inner perimeter of each group of trees that's adjacent to crop or pasture
 buffers = [1,3,10]
@@ -459,9 +417,60 @@ with rasterio.open("categories_colored.tif", "w", **profile) as dst:
 
 # -
 
-# Save all the layers as rasters for inspecting in QGIS
+# # Save all the layers as rasters for inspecting in QGIS
 layers = list(ds.data_vars)
 for layer in layers:
     filename = f"{layer}.tif"
     ds[layer].astype('uint8').rio.to_raster(filename)
     print(filename)
+
+ds
+
+# +
+# Calculate some stats about the region
+total_pixels = int(xr.ones_like(ds['woodyveg_2024'], dtype=np.uint8).sum())
+percent_trees = float(ds['all_combined'].sum() / total_pixels) * 100
+percent_grass = float(ds['Grassland'].sum() / total_pixels) * 100
+percent_crop = float(ds['Cropland'].sum() / total_pixels) * 100
+percent_water = float(ds['Water'].sum() / total_pixels) * 100
+percent_other = float(ds['Other'].sum() / total_pixels) * 100
+
+# Stats about shelterbelts
+total_trees = int(ds['all_combined'].sum())
+percent_forest = float(ds['forest'].sum() / total_trees) * 100
+percent_shelterbelt = float(ds['shelter_pruned3'].sum() / total_trees) * 100
+percent_scattered = float(ds['scattered_trees'].sum() / total_trees) * 100
+
+# Stats about sheltered farmland
+total_grass = int(ds['Grassland'].sum())
+total_crop = int(ds['Cropland'].sum())
+percent_sheltered_grass = float(ds['sheltered_grassland'].sum() / total_grass) * 100
+percent_unsheltered_grass = float(ds['unsheltered_grassland'].sum() / total_grass) * 100
+percent_sheltered_crop = float(ds['sheltered_cropland'].sum() / total_crop) * 100
+percent_unsheltered_crop = float(ds['unsheltered_cropland'].sum() / total_crop) * 100
+
+# -
+
+# Put the stats into tables
+index = 'Percent landcover (%)'
+df_total_stats = pd.DataFrame([
+    {'trees': percent_trees, 'grassland': percent_grass, 'cropland': percent_crop, 'water':percent_water, 'other':percent_other}
+], index=[index])
+df_total_stats = df_total_stats.sort_values(by=index, axis=1, ascending=False)
+df_total_stats = df_total_stats.round(2)
+df_total_stats
+
+index = 'Percent tree types (%)'
+df_tree_stats = pd.DataFrame([
+    {'forest': percent_forest, 'shelterbelt': percent_shelterbelt, 'scattered trees': percent_scattered}
+], index=[index])
+df_tree_stats = df_tree_stats.sort_values(by=index, axis=1, ascending=False)
+df_tree_stats = df_tree_stats.round(2)
+df_tree_stats
+
+df_tree_stats = pd.DataFrame([
+    {'grassland': percent_sheltered_grass, 'cropland': percent_sheltered_crop},
+    {'grassland': percent_unsheltered_grass, 'cropland': percent_unsheltered_crop}
+], index=['sheltered %', 'unsheltered %'])
+df_tree_stats = df_tree_stats.round(2)
+df_tree_stats
