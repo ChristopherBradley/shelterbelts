@@ -337,15 +337,14 @@ def compute_distance_to_tree(da, wind_dir, max_distance):
 ds['distance_to_shelterbelt'] = compute_distance_to_tree(ds['large_shelterbelts'].astype(bool), direction_20km_plus, 20)
 ds['distance_to_shelterbelt'].plot()
 # -
-ds['distance_in_tree_heights'].rio.to_raster('distance_in_tree_heights.tif')
-ds['distance_to_shelterbelt'].rio.to_raster('distance_to_shelterbelt.tif')
+
 
 # Create some layers for sheltered and unsheltered crop and grassland
 ds['Grassland'] = (ds['worldcover'] == 30) & (~ds['all_combined'])  # Grassland and not a tree
 ds['Cropland'] = (ds['worldcover'] == 40) & (~ds['all_combined'])  # Cropland and not a tree
 ds['Water'] = (ds['worldcover'] == 80) & (~ds['all_combined'])  
 ds['Other'] = (ds['worldcover'] != 30) & (ds['worldcover'] != 40) & (ds['worldcover'] != 80) & (~ds['all_combined'])  
-ds['sheltered'] = ds['distance_in_tree_heights'].notnull() # Within 100m of a shelterbelt in the windward direction
+ds['sheltered'] = ds['distance_to_shelterbelt'].notnull() # Within 100m of a shelterbelt in the windward direction
 ds['production'] = ds['Grassland'] | ds['Cropland']
 ds['unsheltered'] = ds['production'] & ~ds['sheltered']
 ds['sheltered_grassland'] = (ds['sheltered'] & ds['Grassland'])
@@ -353,6 +352,8 @@ ds['sheltered_cropland'] = (ds['sheltered'] & ds['Cropland'])
 ds['unsheltered_grassland'] = (ds['unsheltered'] & ds['Grassland'])
 ds['unsheltered_cropland'] = (ds['unsheltered'] & ds['Cropland'])
 ds['scattered_trees'] = (ds['shelterbelts'] & ~ds['shelter'])
+
+ds['sheltered'].plot()
 
 # +
 # Calculate the number and percentage of crop and pasture pixels that are sheltered
@@ -397,8 +398,6 @@ df_tree_stats = pd.DataFrame([
 df_tree_stats
 # -
 
-(ds['shelterbelts'] & ~ds['shelter']).plot()
-
 # Finding the inner perimeter of each group of trees that's adjacent to crop or pasture
 buffers = [1,3,10]
 for buffer in buffers:
@@ -415,4 +414,22 @@ for buffer in buffers:
         name=layer
     )
 
-ds
+# +
+# Create a layer with the index of each category for visualisation
+layers_vis = ['all_combined', 'shelter_pruned10', 'shelter_pruned3', 'shelter_pruned1', 'scattered_trees', 
+ 'sheltered_cropland', 'unsheltered_cropland', 'sheltered_grassland', 'unsheltered_grassland', 'Water', 'Other']
+hex_codes = ['#19670c', '#269b11', '#33cf17', '#3cf61c', '#ed980f','#eca3e6', '#92688f', '#efe80d', '#ccdb73', '#3f55d2', '#8e908f']
+
+for layer in layers_vis:
+    ds[layer] = ds[layer].astype(bool)
+
+categories = xr.zeros_like(ds[layers[0]], dtype=np.uint8)
+for i, layer in enumerate(layers_vis, start=1):
+    categories = categories.where(~ds[layer], other=i)  # overwrite with new category where layer is True
+ds['categories'] = categories
+ds['categories'].plot(cmap="Set1")
+# -
+
+ds['distance_in_tree_heights'].rio.to_raster('distance_in_tree_heights.tif')
+ds['distance_to_shelterbelt'].rio.to_raster('distance_to_shelterbelt.tif')
+ds['categories'].rio.to_raster('categories.tif')
