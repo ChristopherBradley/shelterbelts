@@ -11,9 +11,7 @@ import pandas as pd
 import xarray as xr
 import rioxarray as rxr
 import pyproj
-from scipy.ndimage import label
-from scipy.ndimage import distance_transform_edt
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import label, distance_transform_edt, gaussian_filter, binary_erosion, binary_dilation
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -349,6 +347,7 @@ ds['Cropland'] = (ds['worldcover'] == 40) & (~ds['all_combined'])  # Cropland an
 ds['sheltered'] = ds['distance_in_tree_heights'].notnull() # Within 100m of a shelterbelt in the windward direction
 ds['production'] = ds['Grassland'] | ds['Cropland']
 ds['unsheltered'] = ds['production'] & ~ds['sheltered']
+ds['scattered_trees'] = (ds['shelterbelts'] & ~ds['shelter'])
 
 # +
 # Calculate the number and percentage of crop and pasture pixels that are sheltered
@@ -377,48 +376,34 @@ df_shelter_stats
 num_tree_pixels = int(ds['all_combined'].sum())
 num_production_pixels = int(ds['production'].sum())
 num_shelterbelt_pixels = int(ds['shelter'].sum())
+num_scattered_pixels = int(ds['scattered_trees'].sum())
 
 percent_trees = num_tree_pixels / (num_tree_pixels + num_production_pixels)
 percent_clusters = num_shelterbelt_pixels / num_tree_pixels
 percent_shelterbelts = num_shelterbelt_pixels / (num_tree_pixels + num_production_pixels)
+percent_scattered = num_scattered_pixels / num_tree_pixels
 
 df_tree_stats = pd.DataFrame([
     {'count': num_tree_pixels, 'percent': percent_trees},
     {'count': num_shelterbelt_pixels, 'percent': percent_shelterbelts},
-], index=['Trees', 'Shelterbelts'])
+    {'count': num_scattered_pixels, 'percent': percent_scattered}
+], index=['Trees', 'Shelterbelts', 'Scattered Trees'])
 
 df_tree_stats
-
-# +
-# Remove trees counted in shelterbelts if they are further than 30m away from any crop or pasture pixel (in the direction of wind)
-shelter = ds['shelter']
-production = ds['production']
-
-direction_map = {
-    'N': (-1, 0),
-    'S': (1, 0),
-    'E': (0, -1),
-    'W': (0, 1),
-    'NE': (-1, -1),
-    'NW': (-1, 1),
-    'SE': (1, -1),
-    'SW': (1, 1),
-}
-dy, dx = direction_map[wind_dir]
-
-# Accumulate tree positions within 3 pixels upwind of any production pixel
-relevant_trees = xr.zeros_like(shelter, dtype=bool)
-
-max_shelterbelt_width = 1  # 100m
-for d in range(1, 1 + max_shelterbelt_width):
-    # Shift production BACKWARD to match tree positions that affect it
-    shifted = production.shift(x=-dx * d, y=-dy * d, fill_value=False)
-    relevant_trees = relevant_trees | shifted
-
-# Keep only trees that are within 3 pixels upwind of production
-pruned_shelter = shelter & relevant_trees
-ds['shelter_pruned'] = pruned_shelter
-ds['shelter_pruned'].plot()
 # -
 
+(ds['shelterbelts'] & ~ds['shelter']).plot()
 
+# Finding the inner perimeter of each group of trees
+buffer = 10   # 50m from the edge of the shelterbelt
+diameter = buffer * 2 + 1
+shelter = ds['shelter'].values
+eroded = binary_erosion(shelter, structure=np.ones((diameter, diameter)))  # 5-pixel erosion
+inner_perimeter = shelter & ~eroded
+plt.imshow(inner_perimeter)
+
+# Finding the inner perimeter of each group of trees that's adjacent to crop or pasture
+production = ds['production'].values
+dilated_production = binary_dilation(production, structure=np.ones((2*buffer + 1, 2*buffer + 1)))
+shelter_near_production = shelter & dilated_production
+plt.imshow(shelter_near_production)
