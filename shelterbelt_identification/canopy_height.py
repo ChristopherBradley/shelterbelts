@@ -225,10 +225,10 @@ if __name__ == '__main__':
     # canopy_height_dir ='/scratch/xe2/cb8590/Global_Canopy_Height'
     # outdir = '/scratch/xe2/cb8590/tmp'
     tmp_dir = outdir
-    stub = 'ESDALE_3km'
-    lat=-35.097535
-    lon=148.928673
-    buffer=0.03
+    stub = 'Fulham'
+    lat=-42.887122
+    lon=147.760717
+    buffer=0.04
     
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
 

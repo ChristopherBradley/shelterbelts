@@ -12,7 +12,7 @@ import pandas as pd
 
 conn = snowflake.connector.connect(
     user='ANU_CHRISTOPHER',
-    password='',
+    password='in8*Securevisa',
     account='pawhkoa-mp20061',
     warehouse='FORAGECASTER_WH',
     database='FORAGECASTER_PROD',
@@ -38,8 +38,8 @@ gdf = gpd.GeoDataFrame(
 filename = "paddocks.geojson"
 gdf.to_file(filename, driver="GeoJSON")
 print("Saved", filename)
+# -
 
-# +
 # Selecting all the columns from beta_paddocks
 cursor.execute("""
 SELECT *, ST_ASWKT(GEOMETRY) AS WKT
@@ -47,9 +47,6 @@ FROM FORAGECASTER_PROD.PADDOCK_10_24_2024.BETA_PADDOCKS
 """)
 columns = [col[0] for col in cursor.description]
 rows = cursor.fetchall()
-
-
-# -
 
 # Create a DataFrame and convert WKT to geometry
 df = pd.DataFrame(rows, columns=columns)
@@ -149,12 +146,12 @@ beta_columns = ('FARM_ID',
 'LAST_MODIFIED_DATE')
 cursor.execute(f"""
 SELECT {", ".join(beta_columns)}
-FROM FORAGECASTER_PROD.PADDOCK_10_24_2024.BETA_PADDOCKS;
+FROM FORAGECASTER_PROD.PADDOCK_4_28_2025.BETA_PADDOCKS;
 """)
 rows = cursor.fetchall()
 
 df = pd.DataFrame(rows, columns=beta_columns)
-filename = "BETA_PADDOCKS_10_24_2024.csv"
+filename = "BETA_PADDOCKS_4_28_2025.csv"
 df.to_csv(filename, index=False)
 print("Saved", filename)
 # -

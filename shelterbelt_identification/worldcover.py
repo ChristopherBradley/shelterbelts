@@ -59,7 +59,7 @@ def worldcover_centerpoint(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=
     """Download worldcover data for the region of interest"""
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
     crs="EPSG:4326"
-    ds_map = worldcover_bbox(bbox, crs, outdir, stub)
+    ds_map, bbox = worldcover_bbox(bbox, crs, outdir, stub)
     return ds_map, bbox
 
 
@@ -137,7 +137,9 @@ if __name__ == '__main__':
     # Coords for Fulham: -42.887122, 147.760717
     lat=-42.887122
     lon=147.760717
-    buffer=0.025
+    buffer=0.04
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
     ds, bbox = worldcover_centerpoint(lat=lat, lon=lon, buffer=buffer, outdir="data", stub="Fulham")
     visualise_worldcover(ds, bbox)
+
+

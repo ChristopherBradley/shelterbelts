@@ -251,7 +251,7 @@ smoothed = gaussian_filter(filled, sigma=5)
 smoothed_mask = gaussian_filter(valid_mask.astype(float), sigma=1)
 smoothed_normalized = smoothed / np.where(smoothed_mask == 0, np.nan, smoothed_mask)
 smoothed_canopy = np.where(ds['shelter'].values, smoothed_normalized, np.nan)
-smoothed_canopy = np.clip(smoothed_canopy, 5, 10)
+smoothed_canopy = np.clip(smoothed_canopy, 5, 20)
 ds['canopy_height3'] = xr.DataArray(
     smoothed_canopy,
     coords=ds['shelter'].coords,
@@ -281,20 +281,16 @@ tree_height_distance = xr.full_like(shelter, np.nan, dtype=float)
 mask = ~shelter  # only compute distances for non-tree pixels
 found = shelter.copy()
 
-max_pixel_distance = 100  # arbitrarily large — we stop based on tree height limits
-max_TH_distance = 15 # This one matters
+pixel_size = 10  # 10m pixels
+max_TH_distance = 20  # 150m for a 10m tall tree
+max_pixel_distance = max_TH_distance * 2  # Assume the maximum tree height is 20m
 for d in range(1, max_pixel_distance + 1):
     
-    # Shift trees and canopy height
     shifted_tree = found.shift(x=dx * d, y=dy * d, fill_value=False)
     shifted_height = canopy_height.shift(x=dx * d, y=dy * d)
-
-    # Calculate height-distance
-    height_distance = d / shifted_height
+    height_distance = (d * pixel_size) / shifted_height
     new_hits = (shifted_tree & mask) & (height_distance <= max_TH_distance)
     tree_height_distance = tree_height_distance.where(~new_hits, height_distance)
-
-    # Update found and mask
     found = found | shifted_tree
     mask = mask & ~new_hits
     if not mask.any():
@@ -303,6 +299,7 @@ for d in range(1, max_pixel_distance + 1):
 # Set tree pixels themselves to NaN
 tree_height_distance = tree_height_distance.where(~shelter)
 ds['distance_in_tree_heights'] = tree_height_distance
+ds['distance_in_tree_heights'].plot()
 
 
 # +
@@ -324,10 +321,11 @@ def compute_distance_to_tree(da, wind_dir, max_distance):
     mask = ~shelter
 
     found = shelter.copy()
+    pixel_size = 10  # 10m pixels
     for d in range(1, max_distance + 1):
-        shifted = found.shift(x=dx * d, y=dy * d, fill_value=False)
+        shifted = found.shift(x=dx, y=dy, fill_value=False)
         new_hits = shifted & mask
-        distance = distance.where(~new_hits, d)
+        distance = distance.where(~new_hits, d * pixel_size)
         found = found | shifted
         mask = mask & ~new_hits
         if not mask.any():
@@ -336,17 +334,24 @@ def compute_distance_to_tree(da, wind_dir, max_distance):
     distances = distance.where(~shelter)
     return distances
 
-ds['distance_to_shelterbelt'] = compute_distance_to_tree(ds['large_shelterbelts'].astype(bool), direction_20km_plus, 10)
+ds['distance_to_shelterbelt'] = compute_distance_to_tree(ds['large_shelterbelts'].astype(bool), direction_20km_plus, 20)
 ds['distance_to_shelterbelt'].plot()
 # -
-ds['distance_in_tree_heights'].plot()
+ds['distance_in_tree_heights'].rio.to_raster('distance_in_tree_heights.tif')
+ds['distance_to_shelterbelt'].rio.to_raster('distance_to_shelterbelt.tif')
 
 # Create some layers for sheltered and unsheltered crop and grassland
 ds['Grassland'] = (ds['worldcover'] == 30) & (~ds['all_combined'])  # Grassland and not a tree
 ds['Cropland'] = (ds['worldcover'] == 40) & (~ds['all_combined'])  # Cropland and not a tree
+ds['Water'] = (ds['worldcover'] == 80) & (~ds['all_combined'])  
+ds['Other'] = (ds['worldcover'] != 30) & (ds['worldcover'] != 40) & (ds['worldcover'] != 80) & (~ds['all_combined'])  
 ds['sheltered'] = ds['distance_in_tree_heights'].notnull() # Within 100m of a shelterbelt in the windward direction
 ds['production'] = ds['Grassland'] | ds['Cropland']
 ds['unsheltered'] = ds['production'] & ~ds['sheltered']
+ds['sheltered_grassland'] = (ds['sheltered'] & ds['Grassland'])
+ds['sheltered_cropland'] = (ds['sheltered'] & ds['Cropland'])
+ds['unsheltered_grassland'] = (ds['unsheltered'] & ds['Grassland'])
+ds['unsheltered_cropland'] = (ds['unsheltered'] & ds['Cropland'])
 ds['scattered_trees'] = (ds['shelterbelts'] & ~ds['shelter'])
 
 # +
@@ -394,16 +399,20 @@ df_tree_stats
 
 (ds['shelterbelts'] & ~ds['shelter']).plot()
 
-# Finding the inner perimeter of each group of trees
-buffer = 10   # 50m from the edge of the shelterbelt
-diameter = buffer * 2 + 1
-shelter = ds['shelter'].values
-eroded = binary_erosion(shelter, structure=np.ones((diameter, diameter)))  # 5-pixel erosion
-inner_perimeter = shelter & ~eroded
-plt.imshow(inner_perimeter)
-
 # Finding the inner perimeter of each group of trees that's adjacent to crop or pasture
-production = ds['production'].values
-dilated_production = binary_dilation(production, structure=np.ones((2*buffer + 1, 2*buffer + 1)))
-shelter_near_production = shelter & dilated_production
-plt.imshow(shelter_near_production)
+buffers = [1,3,10]
+for buffer in buffers:
+# buffer = 3   # in pixels with each pixel being 10m
+    diameter = buffer * 2 + 1
+    production = ds['production'].values
+    dilated_production = binary_dilation(production, structure=np.ones((2*buffer + 1, 2*buffer + 1)))
+    shelter_near_production = shelter & dilated_production
+    layer = f'shelter_pruned{buffer}'
+    ds[layer] = xr.DataArray(
+        shelter_near_production,
+        coords=ds['shelter'].coords,
+        dims=ds['shelter'].dims,
+        name=layer
+    )
+
+ds
