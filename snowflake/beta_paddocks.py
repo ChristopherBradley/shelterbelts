@@ -10,19 +10,21 @@ import geopandas as gpd
 from shapely import wkt
 import pandas as pd
 
+password = 'in8*Securevisa'
+
 conn = snowflake.connector.connect(
     user='ANU_CHRISTOPHER',
-    password='in8*Securevisa',
+    password=password,
     account='pawhkoa-mp20061',
     warehouse='FORAGECASTER_WH',
     database='FORAGECASTER_PROD',
     schema='PADDOCK_10_24_2024',
 )
+cursor = conn.cursor()
 
 
 # +
 # Export the beta paddock boundaries
-cursor = conn.cursor()
 cursor.execute("""
 SELECT DISTINCT PADDOCK_ID, ST_ASWKT(GEOMETRY) AS WKT
 FROM FORAGECASTER_PROD.PADDOCK_10_24_2024.BETA_PADDOCKS;
@@ -61,7 +63,18 @@ gdf.to_file(filename, driver="GPKG", layer="PADDOCK_ID")
 print("Saved", filename)
 
 # +
-# Query all tables and columns
+# Connect to the database
+conn = snowflake.connector.connect(
+    user='ANU_CHRISTOPHER',
+    password=password,
+    account='pawhkoa-mp20061',
+    warehouse='FORAGECASTER_WH',
+    database='FORAGECASTER_PROD',
+    schema='PADDOCK_10_24_2024',
+)
+cursor = conn.cursor()
+
+# Get all the colummn names in FORAGECASTER_PROD
 cursor.execute("""
 SELECT 
     table_schema,
@@ -75,12 +88,20 @@ ORDER BY
 """)
 rows = cursor.fetchall()
 
-# Convert to DataFrame
+# See if any of them are sowing or harvest records
 df = pd.DataFrame(rows, columns=["Schema", "Table", "Column", "Data Type"])
+keywords = "sowing|harvest|seed|yield|death"
+matches = df[df["Column"].str.contains(keywords, case=False, na=False)]
+print(f"Number of sowing or harvest columns: {len(matches)}")
+# -
+
+keywords = "sowing|harvest|seed|yield|death"
+matches = df[df["Schema"].str.contains(keywords, case=False, na=False)]
+matches
+
 filename = "Agriwebb_Schema.csv"
 df.to_csv(filename)
 print("Saved", filename)
-# -
 
 df_original = df
 

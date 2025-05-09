@@ -471,6 +471,8 @@ df_tree_stats
 df_tree_stats = pd.DataFrame([
     {'grassland': percent_sheltered_grass, 'cropland': percent_sheltered_crop},
     {'grassland': percent_unsheltered_grass, 'cropland': percent_unsheltered_crop}
-], index=['sheltered %', 'unsheltered %'])
+], index=['Percent sheltered (%)', 'Percent unsheltered (%)'])
 df_tree_stats = df_tree_stats.round(2)
 df_tree_stats
+
+
