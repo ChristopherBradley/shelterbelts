@@ -54,7 +54,7 @@ da.rio.to_raster(filename_tas_output, compress='lzw', tiled=True,
 
 
 # Getting the compression details of worldcover
-filename_tas_input = "../data/Saving_Tiffs/Tas_WoodyVeg_202403_v2.2.tif"
+filename_worldcover_input = "../data/Saving_Tiffs/ESA_WorldCover_10m_2021_v200_S33E147_Map.tif"
 with rasterio.open(filename_tas_input) as src:
     print("Driver:", src.driver)
     print("Dtype:", src.dtypes[0])
@@ -67,20 +67,49 @@ with rasterio.open(filename_tas_input) as src:
     overviews = src.overviews(1)  # Check for band 1
     print("Overviews:", overviews)
 
+with rasterio.open(filename_worldcover_input) as src:
+    colormap = src.colormap(1)
+
+da_worldcover = rxr.open_rasterio(filename_worldcover_input).isel(band=0).drop_vars('band')
+filename_worldcover_output = f'../data/Saving_Tiffs/worldcover_toraster_{compress}_{blocksize}.tif'
+
+# %%time
+blocksize = 2**11
+compress = 'lzw'
+da_worldcover.rio.to_raster(filename_worldcover_output, compress=compress, tiled=True, 
+                 blockxsize=blocksize, blockysize=blocksize)
+# !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
+# 16 secs and 68MB for worldcover with lzw, 2**11 blocksize
+
+filename_worldcover_output
+
 # +
-# # %%time
-# This code makes a file that's 1MB but no colour
-# filename_merged = '/scratch/xe2/cb8590/tmp/merged_tree_cover.tif'
-# subset.rio.to_raster(
-#     filename_merged,
-#     tiled=True,
-#     blockxsize=256,
-#     blockysize=256,
-#     compress='deflate'
-# )
-# print("Saved filename_merged")
-# # 300km: 7 mins with dtype float, but only 1 min with dtype uint8 
-# # 500km: 5 mins
+# %%time
+# Save the tiff with the same colours as worldcover had initially 
+blocksize = 2**11
+with rasterio.open(
+    filename_worldcover_output,
+    "w",
+    driver="GTiff",
+    height=da_worldcover.shape[0],
+    width=da_worldcover.shape[1],
+    count=1,
+    dtype="uint8",
+    crs=da_worldcover.rio.crs,
+    transform=da_worldcover.rio.transform(),
+    tiled=True,
+    compress="LZW",
+    blockxsize=blocksize,
+    blockysize=blocksize,
+    photometric="palette",
+) as dst:
+    dst.write(da_worldcover.values, 1)
+    dst.write_colormap(1, colormap)
+    
+# !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
+# -
+
+
 
 # +
 # %%time
