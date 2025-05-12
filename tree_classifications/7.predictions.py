@@ -108,21 +108,11 @@ target_crs = 'EPSG:4326'
 df['geometry_obj'] = df.apply(
     lambda row: convert_and_reproject(row['geometry'], row['crs'], target_crs=target_crs), axis=1
 )
+# Took 23 mins, so best not to do that again
 
-len(df)
-
-df = df[df['geometry_obj'].notnull()]
-len(df)
-
-# +
-# target_crs = 'EPSG:4326'
-# -
-
+# These tiles do indeed match up with the sentinel boundaries. 
 unique_geometries = df.drop_duplicates(subset='geometry_obj')['geometry_obj']
 gdf = gpd.GeoDataFrame(geometry=unique_geometries)
 gdf.set_crs(target_crs, inplace=True)
-
-
 filename_ka08 = '/g/data/xe2/cb8590/models/ka08_catalog_00000.gpkg'
 gdf.to_file(filename_ka08, layer='geometries', driver="GPKG")
-
