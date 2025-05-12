@@ -48,12 +48,38 @@ filename_tas_output = f'../data/Saving_Tiffs/woodyveg_toraster_lzw_{blocksize}.t
 da.rio.to_raster(filename_tas_output, compress='lzw', tiled=True, 
                  blockxsize=blocksize, blockysize=blocksize)
 # !gdaladdo {filename_tas_output} 2 4 8 16 32 64 128
+# +
+# %%time
+# Save the woodyveg with colours
+filename = f'../data/Saving_Tiffs/woodyveg_toraster_coloured.tif'
+cmap = {
+    1: (240, 240, 240), # Non-trees are white
+    2: (0, 100, 0),   # Trees are green
+    255: (0, 100, 200)  # Nodata is blue
+}
+with rasterio.open(
+    filename,
+    "w",
+    driver="GTiff",
+    height=da.shape[0],
+    width=da.shape[1],
+    count=1,
+    dtype="uint8",
+    crs=da.rio.crs,
+    transform=da.rio.transform(),
+    tiled=True,
+    compress="LZW",
+    blockxsize=2**10,
+    blockysize=2**10,
+    photometric="palette",
+) as dst:
+    dst.write(da.values, 1)
+    dst.write_colormap(1, cmap)
+    
+# !gdaladdo {filename} 2 4 8 16 32 64
+
+# 25 secs
 # -
-
-
-
-
-
 
 # %%time
 # The simple way without attaching colours
@@ -62,11 +88,12 @@ da.rio.to_raster(filename_tas_output, compress='lzw', tiled=True,
 # # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
 
 # +
+filename_worldcover_input = f'../data/Saving_Tiffs/ESA_WorldCover_10m_2021_v200_S33E147_Map.tif'
 da_worldcover = rxr.open_rasterio(filename_worldcover_input).isel(band=0).drop_vars('band')
 
 blocksize = 2**11
 compress = 'lzw'
-filename_worldcover_output = f'../data/Saving_Tiffs/worldcover_toraster_{compress}_{blocksize}.tif'
+filename_worldcover_output = f'../data/Saving_Tiffs/worldcover_toraster_coloured.tif'
 filename_worldcover_output
 
 # +
@@ -101,7 +128,7 @@ with rasterio.open(
     photometric="palette",
 ) as dst:
     dst.write(da_worldcover.values, 1)
-    dst.write_colormap(1, colormap)
+    dst.write_colormap(1, worldcover_cmap)
     
 # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
 # -
