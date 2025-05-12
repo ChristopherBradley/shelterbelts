@@ -107,7 +107,7 @@ def run_download(batch):
             print(f"Downloading: {tif}_{year}", flush=True)
             sentinel_download(tif, year, outdir, bbox, crs)
         except Exception as e:
-            print(f"Error in worker {tif}:", flush=True)
+            print(f"Error in downloading: {tif}_{year}:", flush=True)
             traceback.print_exc(file=sys.stdout)
 
     # try:
@@ -245,3 +245,5 @@ with ProcessPoolExecutor(max_workers=workers) as executor:
             future.result()
         except Exception as e:
             print(f"Worker failed with: {e}", flush=True)
+
+
