@@ -6,6 +6,7 @@ import pickle
 import ast
 import traceback
 
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import shape
@@ -15,8 +16,11 @@ import pyproj
 from pyproj import Transformer
 
 import rasterio
+import xarray as xr
 import rioxarray as rxr
+
 from tensorflow import keras
+import joblib
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 # -
@@ -52,20 +56,38 @@ scaler = joblib.load(filename_scaler)
 
 tile = tiles[0]
 
+tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
+tile_id
+
 # +
 # Load the sentinel imagery
 with open(tile, 'rb') as file:
     ds = pickle.load(file)
-    
+
+# I should make the vegetation indices, aggregated metrics & normalisation a function that I can reuse for training and applying the neural network
+
+# -
+
+# Calculate vegetation indices
+B8 = ds['nbart_nir_1']
+B4 = ds['nbart_red']
+B3 = ds['nbart_green']
+B2 = ds['nbart_blue']
+ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
+ds['NDVI'] = (B8 - B4) / (B8 + B4)
+ds['GRNDVI'] = (B8 - B3 + B4) / (B8 + B3 + B4)
+
 # Preprocess the temporally and spatially aggregated metrics
 ds_agg = aggregated_metrics(ds)
 variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
 ds_selected = ds[variables] 
-# -
+
+ds_selected.data_vars
+
+ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
+ds_stacked.shape
 
 # Normalise the inputs using the same standard scaler during training
-# feature_vars = ['var1', 'var2', ..., 'var40'] 
-ds_stacked = ds.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
 X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
 X_all_scaled = scaler.transform(X_all)
 
@@ -77,42 +99,45 @@ pred_map = xr.DataArray(predicted_class.reshape(ds.dims['y'], ds.dims['x']),
                         dims=['y', 'x'])
 ds['predictions'] = pred_map
 
+ds['predictions'].astype('uint8')
+
+da = ds['predictions'].astype('uint8') + 1
+
+da
+
+# +
+# Save the predictions
+filename = f'/scratch/xe2/cb8590/Nick_predicted/{tile_id}_predicted.tif'
+da = ds['predictions'].astype('uint8')
+cmap = {
+    0: (240, 240, 240), # Non-trees are white
+    1: (0, 100, 0),   # Trees are green
+}
+with rasterio.open(
+    filename,
+    "w",
+    driver="GTiff",
+    height=da.shape[0],
+    width=da.shape[1],
+    count=1,
+    dtype="uint8",
+    crs=da.rio.crs,
+    transform=da.rio.transform(),
+    compress="LZW",
+    # tiled=True,       # Can't be tiled if you want to be able to visualise it in preview
+    # blockxsize=2**10,
+    # blockysize=2**10,
+    photometric="palette",
+) as dst:
+    dst.write(da.values, 1)
+    dst.write_colormap(1, cmap)
+    
+print(filename)
+# -
+
+# !du -sh /scratch/xe2/cb8590/Nick_predicted/g1_05079_predicted.tif
 
 
-filename = '/g/data/ka08/ga/ga_s2bm_ard_3/51/JYG/2021/06/11/20210611T041036/ga_s2bm_nbart_3-2-1_51JYG_2021-06-11_final_band04.tif'
-
-filename = '/g/data/ka08/catalog/v2/data/part-00000-69927f0b-a852-4def-b0ea-beb5139840f0-c000.snappy.parquet'
-
-df = pd.read_parquet(filename)
-
-df.shape
-
-df['file_uri'].iloc[50000]
-
-df.iloc[50000]['geometry']
-
-
-# Function to convert GeoJSON dict to a Shapely geometry and reproject to a target CRS
-def convert_and_reproject(geom_dict, source_crs, target_crs='EPSG:7844'):
-    if not geom_dict:  # handle missing geometries
-        return None
-    geom = shape(geom_dict)
-    if source_crs != target_crs:
-        transformer = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True).transform
-        geom = transform(transformer, geom)
-    return geom
-
-
-# %%time
-target_crs = 'EPSG:4326'
-df['geometry_obj'] = df.apply(
-    lambda row: convert_and_reproject(row['geometry'], row['crs'], target_crs=target_crs), axis=1
-)
-# Took 23 mins, so best not to do that again
-
-# These tiles do indeed match up with the sentinel boundaries. 
-unique_geometries = df.drop_duplicates(subset='geometry_obj')['geometry_obj']
-gdf = gpd.GeoDataFrame(geometry=unique_geometries)
-gdf.set_crs(target_crs, inplace=True)
-filename_ka08 = '/g/data/xe2/cb8590/models/ka08_catalog_00000.gpkg'
-gdf.to_file(filename_ka08, layer='geometries', driver="GPKG")
+# +
+# No point in using gdaladdo on a file that's only 100x100 pixels
+# # !gdaladdo {filename} 2 4 8 16 32 64

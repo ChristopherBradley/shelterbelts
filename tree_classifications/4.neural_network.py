@@ -246,3 +246,5 @@ model.save(filename)
 # Save the StandardScaler
 filename_scaler = '/g/data/xe2/cb8590/models/scaler_89a_92s_85r_86p.pkl'
 joblib.dump(scaler, filename_scaler)  
+
+X.columns
