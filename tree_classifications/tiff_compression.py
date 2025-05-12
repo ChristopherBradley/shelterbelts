@@ -50,43 +50,40 @@ da.rio.to_raster(filename_tas_output, compress='lzw', tiled=True,
 # !gdaladdo {filename_tas_output} 2 4 8 16 32 64 128
 # -
 
-# Write the raster with colours predefined
 
 
-# Getting the compression details of worldcover
-filename_worldcover_input = "../data/Saving_Tiffs/ESA_WorldCover_10m_2021_v200_S33E147_Map.tif"
-with rasterio.open(filename_tas_input) as src:
-    print("Driver:", src.driver)
-    print("Dtype:", src.dtypes[0])
-    print("Compression:", src.profile.get('compress'))
-    print("Tiled:", src.profile.get('tiled'))
-    print("Block size:", (src.profile.get('blockxsize'), src.profile.get('blockysize')))
-    print("Width x Height:", src.width, "x", src.height)
-    print("Count (bands):", src.count)
-    print("CRS:", src.crs)
-    overviews = src.overviews(1)  # Check for band 1
-    print("Overviews:", overviews)
 
-with rasterio.open(filename_worldcover_input) as src:
-    colormap = src.colormap(1)
 
-da_worldcover = rxr.open_rasterio(filename_worldcover_input).isel(band=0).drop_vars('band')
-filename_worldcover_output = f'../data/Saving_Tiffs/worldcover_toraster_{compress}_{blocksize}.tif'
 
 # %%time
+# The simple way without attaching colours
+# da_worldcover.rio.to_raster(filename_worldcover_output, compress=compress, tiled=True, 
+#                  blockxsize=blocksize, blockysize=blocksize)
+# # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
+
+# +
+da_worldcover = rxr.open_rasterio(filename_worldcover_input).isel(band=0).drop_vars('band')
+
 blocksize = 2**11
 compress = 'lzw'
-da_worldcover.rio.to_raster(filename_worldcover_output, compress=compress, tiled=True, 
-                 blockxsize=blocksize, blockysize=blocksize)
-# !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
-# 16 secs and 68MB for worldcover with lzw, 2**11 blocksize
-
+filename_worldcover_output = f'../data/Saving_Tiffs/worldcover_toraster_{compress}_{blocksize}.tif'
 filename_worldcover_output
 
 # +
 # %%time
-# Save the tiff with the same colours as worldcover had initially 
-blocksize = 2**11
+# The better way with colours
+worldcover_cmap = {
+    10: (0, 100, 0),
+    20: (255, 187, 34),
+    30: (255, 255, 76),
+    40: (240, 150, 255),
+    50: (250, 0, 0),
+    60: (180, 180, 180),
+    70: (240, 240, 240),
+    80: (0, 100, 200),
+    90: (0, 150, 160),
+    100: (250, 230, 160)
+}
 with rasterio.open(
     filename_worldcover_output,
     "w",
@@ -111,32 +108,5 @@ with rasterio.open(
 
 
 
-# +
-# %%time
-# Save the raster with colour encodings embedded
-# This code makes a file that's 1GB but with colour
-filename_rasterio = '/scratch/xe2/cb8590/tmp/merged_tree_cover_rasterio.tif'
-with rasterio.open(filename_rasterio, "w",
-    driver="GTiff",
-    height=subset.shape[0],
-    width=subset.shape[1],
-    count=1,
-    dtype="uint8",
-    crs=subset.rio.crs,
-    transform=subset.rio.transform(),
-    photometric='palette') as dst:
-
-    dst.write(subset.values, 1)
-
-    # Define a simple colormap (value: (R, G, B))
-    colormap = {
-        0: (255, 255, 255),  # white for background
-        1: (0, 128, 0),      # green for trees
-    }
-    dst.write_colormap(1, colormap)
-print(filename_rasterio)
-
-# 20 secs to use rasterio when it only took 1 second with 
-# -
 
 
