@@ -1,12 +1,14 @@
 # +
 # Train a neural network to compare with random forest predictions
-# -
 
+# +
 # %%time
 import os
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+import joblib
+
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 from tensorflow import keras
@@ -14,6 +16,7 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tensorflow.keras.callbacks import EarlyStopping
+# -
 
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
@@ -53,14 +56,17 @@ df = df.merge(gdf[['tile_id', 'koppen_class']])
 random_state = 1
 df_sample_full = df.sample(n=len(df), random_state=random_state)  # randomising everything so I can later use a larger random testing dataset while being sure I don't reuse training data
 
+# +
 # Take an equal number of samples from each koppen and tree cover class
-samples_per_class = min(df_sample_full[['koppen_class', 'tree_cover']].value_counts())
-df_stratified = (
-    df_sample_full
-    .groupby(['koppen_class', 'tree_cover'], group_keys=False)
-    .sample(n=samples_per_class, random_state=random_state)
-)
-df_stratified[['koppen_class', 'tree_cover']].value_counts()
+# samples_per_class = min(df_sample_full[['koppen_class', 'tree_cover']].value_counts())
+# df_stratified = (
+#     df_sample_full
+#     .groupby(['koppen_class', 'tree_cover'], group_keys=False)
+#     .sample(n=samples_per_class, random_state=random_state)
+# )
+# df_stratified[['koppen_class', 'tree_cover']].value_counts()
+
+df_stratified = df_sample_full
 
 # +
 # Create training and testing data with equally distributed classes
@@ -90,10 +96,13 @@ sample_size = int(len(df_stratified) * 0.7)
 df_train = df_stratified[:sample_size]
 df_test = df_stratified[sample_size:]
 
+# Make sure to save the scaler weights after fitting so I can make predictions in the same way
+scaler = StandardScaler()
+
 # +
 # Normalise the input features (should probs do this before creating the .feather file)
 X = df_train.drop(columns=['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']) # input variables
-X = StandardScaler().fit_transform(X)
+X = scaler.fit_transform(X)
 
 y = df_train['tree_cover']  # target variable
 y_categorical = keras.utils.to_categorical(y, 2)
@@ -105,7 +114,7 @@ y_train = y_categorical
 # +
 # Should clean up this train test split
 X = df_test.drop(columns=['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']) # input variables
-X_test = StandardScaler().fit_transform(X)
+X_test = scaler.transform(X)
 
 y = df_test['tree_cover']  # target variable
 y_test = keras.utils.to_categorical(y, 2)
@@ -228,5 +237,12 @@ df_combined['test_samples'] = df_combined['test_samples'].astype(int)
 
 df_combined
 # -
+# %%time
+# Save the neural network 
+filename = '/g/data/xe2/cb8590/models/nn_89a_92s_85r_86p.keras'
+model.save(filename)
 
 
+# Save the StandardScaler
+filename_scaler = '/g/data/xe2/cb8590/models/scaler_89a_92s_85r_86p.pkl'
+joblib.dump(scaler, filename_scaler)  

@@ -215,85 +215,76 @@ def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079
         dst.write(tree_cover_array, 1)
     print("Saved", filename)
     
-# visualise_sample_coords(sentinel_tiles[0])
+    
+if __name__ == '__main__':
+    
+    # Load a list of all the downloaded sentinel tiles and training csv's
+    tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+    sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+    outdir = "/scratch/xe2/cb8590/Nick_csv2"
+
+    sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+    print("num sentinel tiles:", len(sentinel_tiles))
+
+    csv_tiles = glob.glob(f'{outdir}/*')
+    print("num csv tiles:", len(csv_tiles))
+
+    # +
+    # Remove sentinel tiles we've already downloaded
+    sentinel_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_tiles]
+    csv_ids = ["_".join(csv_tile.split('/')[-1].split('_')[:2]) for csv_tile in csv_tiles]
+
+    is_news = [(sentinel_id not in csv_ids) for sentinel_id in sentinel_ids]
+    sentinel_tiles = [sentinel_tile for sentinel_tile, is_new in zip(sentinel_tiles, is_news) if is_new]
+    print("num sentinel tiles not yet downloaded: ", len(sentinel_tiles))
+    # -
+
+    # Randomise the tiles so I can have a random sample before they all complete
+    sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
 
 
-# +
-# Load a list of all the downloaded sentinel tiles and training csv's
-tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-outdir = "/scratch/xe2/cb8590/Nick_csv2"
+    rows = sentinel_randomised
+    workers = 50
+    batch_size = math.ceil(len(rows) / workers)
+    batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+    print("num_batches: ", len(batches))
+    print("num tiles in first batch", len(batches[0]))
 
-sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
-print("num sentinel tiles:", len(sentinel_tiles))
+    # +
+    # %%time
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        print(f"Starting {workers} workers, with {batch_size} rows each")
+        futures = [executor.submit(tile_csv_verbose, batch) for batch in batches]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Worker failed with: {e}", flush=True)
 
-csv_tiles = glob.glob(f'{outdir}/*')
-print("num csv tiles:", len(csv_tiles))
+    # 60 secs for 16 tiles x 2 batches on Large compute (7 cores)
+    # Took 1 hour 33 mins to do all 7791 tiles with XLarge computer, with batches of 50 tiles (14 cores)
 
-# +
-# Remove sentinel tiles we've already downloaded
-sentinel_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_tiles]
-csv_ids = ["_".join(csv_tile.split('/')[-1].split('_')[:2]) for csv_tile in csv_tiles]
+    # +
+    # Create a dataframe of imagery and tree cover classifications for each tile
+    tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+    sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+    outdir = "/scratch/xe2/cb8590/Nick_csv2"
+    outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
 
-is_news = [(sentinel_id not in csv_ids) for sentinel_id in sentinel_ids]
-sentinel_tiles = [sentinel_tile for sentinel_tile, is_new in zip(sentinel_tiles, is_news) if is_new]
-print("num sentinel tiles not yet downloaded: ", len(sentinel_tiles))
-# -
+    csv_tiles = glob.glob(f'{outdir}/*')
+    print("num csv tiles now:", len(csv_tiles))  # Why did 11 of the pickle files not get converted to csv files?
+    # -
 
-# Randomise the tiles so I can have a random sample before they all complete
-sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
+    dfs = []
+    for csv_tile in csv_tiles:
+        df = pd.read_csv(csv_tile, index_col=False)
+        dfs.append(df)
 
+    # Combine all the dataframes
+    df_all = pd.concat(dfs)
 
-rows = sentinel_randomised
-workers = 50
-batch_size = math.ceil(len(rows) / workers)
-batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
-print("num_batches: ", len(batches))
-print("num tiles in first batch", len(batches[0]))
-
-# +
-# %%time
-with ProcessPoolExecutor(max_workers=workers) as executor:
-    print(f"Starting {workers} workers, with {batch_size} rows each")
-    futures = [executor.submit(tile_csv_verbose, batch) for batch in batches]
-    for future in as_completed(futures):
-        try:
-            future.result()
-        except Exception as e:
-            print(f"Worker failed with: {e}", flush=True)
-                
-# 60 secs for 16 tiles x 2 batches on Large compute (7 cores)
-# Took 1 hour 33 mins to do all 7791 tiles with XLarge computer, with batches of 50 tiles (14 cores)
-
-# +
-# Create a dataframe of imagery and tree cover classifications for each tile
-tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-outdir = "/scratch/xe2/cb8590/Nick_csv2"
-outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
-
-csv_tiles = glob.glob(f'{outdir}/*')
-print("num csv tiles now:", len(csv_tiles))  # Why did 11 of the pickle files not get converted to csv files?
-# -
-
-dfs = []
-for csv_tile in csv_tiles:
-    df = pd.read_csv(csv_tile, index_col=False)
-    dfs.append(df)
-
-# Combine all the dataframes
-df_all = pd.concat(dfs)
-
-# %%time
-# Feather file is more efficient, but csv is more readable. Anything over 100MB I should probs use a feather file.
-filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
-df_all.to_csv(filename, index=False)
-print("Saved", filename)
-
-# +
-# Why is 'tree_cover' sometimes the value 2?
-# -
-
-df_all
-
-
+    # %%time
+    # Feather file is more efficient, but csv is more readable. Anything over 100MB I should probs use a feather file.
+    filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
+    df_all.to_csv(filename, index=False)
+    print("Saved", filename)
