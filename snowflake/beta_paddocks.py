@@ -10,7 +10,7 @@ import geopandas as gpd
 from shapely import wkt
 import pandas as pd
 
-password = 'in8*Securevisa'
+password = ''
 
 conn = snowflake.connector.connect(
     user='ANU_CHRISTOPHER',
