@@ -41,21 +41,12 @@ for i, batch in enumerate(batches):
 # %%time
 procs = []
 for batch_file in batch_files:
-    # p = subprocess.Popen(["python", "tree_classifications/predictions_batch.py", "--input", batch_file])
-    p = subprocess.Popen(["python", "tree_classifications/predictions_batch.py"])
+    p = subprocess.Popen(["python", "tree_classifications/predictions_batch.py", "--csv", batch_file])
     procs.append(p)
 
 # Wait for all to finish
 for p in procs:
     p.wait()
-    
-# Excellent, this actually happened in parallel
 # -
-
-# This happens in series so no point
-# %%time
-for batch_file in batch_files:
-    subprocess.run(["python", "tree_classifications/predictions_batch.py"])
-        # subprocess.run(["python", "predictions_batch.py", "--input", batch_file])
 
 
