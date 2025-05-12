@@ -20,89 +20,19 @@ import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import traceback, sys
 
-np.random.seed(0)
-random.seed(0)
+# sentinel_tile = '/scratch/xe2/cb8590/Nick_sentinel/g1_7149_ds2_2017.pkl' # Location that looks very wet with no tree
+sentinel_tile = '/scratch/xe2/cb8590/Nick_sentinel/g1_7130_ds2_2017.pkl'
 
-def aggregated_metrics(ds):
-    """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
-    # Make a list of the variables with a time dimension
-    time_vars = [var for var in ds.data_vars if 'time' in ds[var].dims]
-
-    # Calculate aggregated metrics per pixel
-    for variable in time_vars:
-
-        # Temporal metrics
-        ds_median_temporal = ds[variable].median(dim="time", skipna=True)  # Not sure if I should be doing some kind of outlier removal before this
-        ds_std_temporal = ds[variable].std(dim="time", skipna=True)
-
-        # Focal metrics
-        radius = 3
-        kernel_size = 2 * radius + 1  # 7 pixel diameter because I'm guessing the radius doesn't include the center pixel
-        ds_mean_focal_7p = xr.apply_ufunc(
-            ndimage.uniform_filter, 
-            ds_median_temporal, 
-            kwargs={'size': kernel_size, 'mode': 'nearest'}
-        )
-        ds_std_focal_7p = xr.apply_ufunc(
-            ndimage.generic_filter, 
-            ds_median_temporal, 
-            kwargs={'function': lambda x: x.std(), 'size': kernel_size, 'mode': 'nearest'}
-        )
-        ds[f"{variable}_temporal_median"] = ds_median_temporal
-        ds[f"{variable}_temporal_std"] = ds_std_temporal
-        ds[f"{variable}_focal_mean"] = ds_mean_focal_7p
-        ds[f"{variable}_focal_std"] = ds_std_focal_7p
-
-    return ds
-
-def jittered_grid(ds):
-    """Create an equally spaced 10x10 coordinate grid with a random 2 pixel jitter"""
-
-    # Calculate grid
-    spacing_x = 10
-    spacing_y = 10
-    half_spacing_x = spacing_x // 2
-    half_spacing_y = spacing_y // 2
-    jitter_range = [-2, -1, 0, 1, 2]
-
-    # Regular grid
-    y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
-    x_inds = np.arange(half_spacing_x, ds.sizes['x'] - half_spacing_x, spacing_x)
-
-    # Create full grid
-    yy, xx = np.meshgrid(y_inds, x_inds, indexing='ij')
-
-    # Apply random jitter to each (row, col) separately
-    yy_jittered = yy + np.random.choice(jitter_range, size=yy.shape)
-    xx_jittered = xx + np.random.choice(jitter_range, size=xx.shape)
-
-    # Get actual coordinates. Note that these coords are in the EPSG of the original raster.
-    yy_jittered_coords = ds['y'].values[yy_jittered]
-    xx_jittered_coords = ds['x'].values[xx_jittered]
-
-    # Get non-time-dependent variables
-    aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
-
-    data_list = []
-    for y_coord, x_coord in zip(yy_jittered_coords.ravel(), xx_jittered_coords.ravel()):
-        values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
-        values.update({'y': y_coord, 'x': x_coord})
-        data_list.append(values)
-
-    # Create DataFrame
-    df = pd.DataFrame(data_list)
-    return df
+# Load the sentinel imagery and tree cover into an xarray
+with open(sentinel_tile, 'rb') as file:
+    ds = pickle.load(file)
 
 
-def tile_csv_verbose(sentinel_tiles):
-    """Run tile_csv and report more info on errors that occur"""
-    for sentinel_tile in sentinel_tiles:
-        tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
-        try:
-            tile_csv(sentinel_tile)
-        except Exception as e:
-            print(f"Error in worker {tile_id}:", flush=True)
-            traceback.print_exc(file=sys.stdout)
+# 0 timepoints for this tile initially, then 26 timepoints after I redownloaded it. So something went wrong with the download. 
+# Looks like I have about 400 tiles where that happened. They take about 30 secs each to download. So that would take 200 minutes, or a little over 3 hours to do in sequence. That might be best instead of trying to parallelise now?
+ds
+
+ds2
 
 
 def tile_csv(sentinel_tile):

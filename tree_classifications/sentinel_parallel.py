@@ -8,6 +8,7 @@ import psutil
 import ast
 import glob
 
+import math
 import csv
 import pickle
 import numpy as np
@@ -97,17 +98,27 @@ def sentinel_download(tif, year, outdir, bounds, src_crs):
         pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print(f"Saved {filename}", flush=True)
 
-# It might make sense to get each worker to do a bunch of rows, insead of just one row and spawning new workers each time.
-def run_download(row):
-    try:
+def run_download(batch):
+    # Get each worker to download a bunch of sentinel tiles
+    for row in batch:
         tif, year, bounds, crs = row
-        bbox = ast.literal_eval(bounds) # The bbox is saved as a string initially because I stored it in a csv file with pandas
-        print(f"Worker running: {tif}_{year}", flush=True)
-        sentinel_download(tif, year, outdir, bbox, crs)
-    except Exception as e:
-        print(f"Error in worker {tif}_{year}:", flush=True)
-        traceback.print_exc(file=sys.stdout)
-        raise
+        try:
+            bbox = ast.literal_eval(bounds) # The bbox is saved as a string initially because I stored it in a csv file with pandas
+            print(f"Downloading: {tif}_{year}", flush=True)
+            sentinel_download(tif, year, outdir, bbox, crs)
+        except Exception as e:
+            print(f"Error in worker {tif}:", flush=True)
+            traceback.print_exc(file=sys.stdout)
+
+    # try:
+    #     tif, year, bounds, crs = row
+    #     bbox = ast.literal_eval(bounds) # The bbox is saved as a string initially because I stored it in a csv file with pandas
+    #     print(f"Worker running: {tif}_{year}", flush=True)
+    #     sentinel_download(tif, year, outdir, bbox, crs)
+    # except Exception as e:
+    #     print(f"Error in worker {tif}_{year}:", flush=True)
+    #     traceback.print_exc(file=sys.stdout)
+    #     raise
 
 # +
 # # %%time
@@ -194,23 +205,43 @@ df_new = df_2017_2022[~df_2017_2022['tif'].isin(downloaded)]
 print("Number of new tiles to download:", len(df_new))
 # -
 
+# Find tiles smaller than 1kmx1km
+too_smalls = []
+for i, row in df_2017_2022.iterrows():
+    bbox = ast.literal_eval(row['bbox']) 
+    left, bottom, right, top = bbox
+    width_m = right - left
+    height_m = top - bottom
+    too_small = width_m < 900 or height_m < 900
+    too_smalls.append(too_small)
+df_2017_2022['too_small'] = too_smalls
+
+# Find tiles that downloaded fine
+outdir = "/scratch/xe2/cb8590/Nick_csv2"
+csv_tiles = glob.glob(f'{outdir}/*')
+csv_ids = ["_".join(csv_tile.split('/')[-1].split('_')[:2]) for csv_tile in csv_tiles]
+csv_tree_ids = [f'{csv_id}_binary_tree_cover_10m.tiff' for csv_id in csv_ids]
+print("Number of merged_input_output csv files:", len(csv_tiles))
+
+# Find tiles that didn't download properly
+not_too_small = df_2017_2022[~df_2017_2022['too_small']]
+missing_tifs = not_too_small[~not_too_small['tif'].isin(csv_tree_ids)]
+df_new = missing_tifs
+
 rows = df_new[['tif', 'year', 'bbox', 'crs']].values.tolist()
-batch_size = 50
+
+workers = 1
+batch_size = math.ceil(len(rows) / workers)
 batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+print("num_batches: ", len(batches))
+print("num tiles in first batch", len(batches[0]))
 
-# +
 # %%time
-for i, batch in enumerate(batches):
-    rows = batch
-    with ProcessPoolExecutor(max_workers=len(rows)) as executor:
-        print(f"Starting {len(rows)} workers for batch {i}")
-        futures = [executor.submit(run_download, row) for row in rows]
-        for future in as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                print(f"Worker failed with: {e}", flush=True)
-                
-# 38 mins for 50 workers x 10 batches
-# -
-
+with ProcessPoolExecutor(max_workers=workers) as executor:
+    print(f"Starting {workers} workers, with {batch_size} rows each")
+    futures = [executor.submit(run_download, batch) for batch in batches]
+    for future in as_completed(futures):
+        try:
+            future.result()
+        except Exception as e:
+            print(f"Worker failed with: {e}", flush=True)
