@@ -7,6 +7,7 @@ import glob
 import pickle
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
@@ -19,6 +20,7 @@ import scipy.ndimage as ndimage
 outdir = "/g/data/xe2/cb8590/shelterbelts/"
 
 tiles = glob.glob("/g/data/xe2/cb8590/shelterbelts/*_ds2.pkl")
+sub_stub = 'canopycover'
 
 def aggregated_metrics(ds):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
@@ -53,36 +55,75 @@ def aggregated_metrics(ds):
     return ds
 
 def jittered_grid(ds):
-    """Create a grid of coordinates spaced 100m apart, with a random 2 pixel jitter"""
-    spacing = 10
-    jitter_range = np.arange(-2, 3)  # [-2, -1, 0, 1, 2]
+    """Create an equally spaced 10x10 coordinate grid with a random 2 pixel jitter"""
 
-    # Create a coordinate grid (starting 5 pixels from the edge)
-    y_coords = np.arange(5, ds.sizes['y'] - 5, spacing)
-    x_coords = np.arange(5, ds.sizes['x'] - 5, spacing)
+    # Calculate grid
+    spacing_x = 10
+    spacing_y = 10
+    half_spacing_x = spacing_x // 2
+    half_spacing_y = spacing_y // 2
+    jitter_range = [-2, -1, 0, 1, 2]
 
-    # Apply jitter to each coordinate
-    y_jittered = y_coords + np.random.choice(jitter_range, size=len(y_coords))
-    x_jittered = x_coords + np.random.choice(jitter_range, size=len(x_coords))
+    # Regular grid
+    y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
+    x_inds = np.arange(half_spacing_x, ds.sizes['x'] - half_spacing_x, spacing_x)
 
-    # Extract values at jittered coordinates
+    # Create full grid
+    yy, xx = np.meshgrid(y_inds, x_inds, indexing='ij')
+
+    # Apply random jitter to each (row, col) separately
+    yy_jittered = yy + np.random.choice(jitter_range, size=yy.shape)
+    xx_jittered = xx + np.random.choice(jitter_range, size=xx.shape)
+
+    # Get actual coordinates. Note that these coords are in the EPSG of the original raster.
+    yy_jittered_coords = ds['y'].values[yy_jittered]
+    xx_jittered_coords = ds['x'].values[xx_jittered]
+
+    # Get non-time-dependent variables
+    aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
+
     data_list = []
-    for y in y_jittered:
-        for x in x_jittered:
-            values = {var: ds[var].isel(y=y, x=x).item() for var in variables}
-            values.update({'y': y, 'x': x})  # Should probs make these actual x and y coordinates in EPSG:4326 to help with debuggging
-            data_list.append(values)
+    for y_coord, x_coord in zip(yy_jittered_coords.ravel(), xx_jittered_coords.ravel()):
+        values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
+        values.update({'y': y_coord, 'x': x_coord})
+        data_list.append(values)
 
     # Create DataFrame
     df = pd.DataFrame(data_list)
     return df
 
 
+# %%time
+# Used this code to visualise the jittered coordinates in QGIS
+def visualise_jittered_gdf():
+    gdfs = []
+    for tile in tiles:
+        # tile = tiles[2]
+        print(tile)
+        stub = tile.replace(outdir,"").replace("_ds2.pkl","")
+        filename = os.path.join(outdir, f"{stub}_{sub_stub}_2019.tif")
+        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+        ds = xr.Dataset({
+                "canopy_cover": da
+            })
+        df = jittered_grid(ds)
+        gdf = gpd.GeoDataFrame(
+            df,
+            geometry=gpd.points_from_xy(df['x'], df['y']),
+            crs=ds.rio.crs
+        )
+        gdfs.append(gdf)
+
+    gdf_all = pd.concat(gdfs)
+    filename = f'/scratch/xe2/cb8590/tmp/all_tasmania_jitter.gpkg'
+    gdf_all.to_file(filename) # Save as geopackage
+    print(filename)
+
+
 # +
 # %%time
 # Create a dataframe of imagery and woody veg or canopy cover classifications for each tile
 # sub_stub = 'woodyveg'
-sub_stub = 'canopycover'
 dfs = []
 for tile in tiles:
     stub = tile.replace(outdir,"").replace("_ds2.pkl","")

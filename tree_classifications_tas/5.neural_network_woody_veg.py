@@ -1,7 +1,7 @@
 # +
 # Train a neural network to compare with random forest predictions
+# -
 
-# +
 import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -12,9 +12,6 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tensorflow.keras.callbacks import EarlyStopping
-
-
-# -
 
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
@@ -79,23 +76,9 @@ sns.lineplot(data=history_df[['categorical_accuracy', 'val_categorical_accuracy'
 plt.show()
 # -
 
-# Using default paramaters and 60k samples, Validation accuracy = 93.5% (same as the random forest). Takes 50 secs to train. 
-# Adding 2x batch normalization & dropout: Didn't finish training after 20 epochs
-# Adding a single dropout after 2nd layer: 93.7% 
-# Normalisation & Single dropout after 2nd layer: 93.1% otherwise kinda similar
-# 2x dropouts 0.3 (no batch normalization): 93.6% and didn't finish training
-# Single dropout of 50% right before last layer: 93.5% and did finish training
-# Single layer of 128 neurons: 93.7% and didn't finish training
-# Just 58 neurons: 93.1%
-# 256 neurons: 93% accuracy and definitely started overfitting.
-# 256 neurons + dropout: 93.5% accuracy and didn't overfit (12k params)
-# 256 neurons + dropout + early stopping: 35 epochs, and 93.7% accuracy 
-# 128 neurons + early stopping: 25 epochs, 93.26% accuracy
-# 128 neurons + dropout + early stopping: 36 epochs, 93.8% accuracy
-# 128 + dropout + 64 + dropout + 32: 40 epochs, 93.9% accuracy
-# 32 + dropout + 64 + dropout + 128: 18 epochs, 92.8% accuracy
-# 128 (d) + 64 (d) + 32: 27 epochs: 94% accuracy (not sure why it stopped)
-# 128 (d) + 128 (d) + 64: 25 epochs: 93.7% accuracy 
-# 256 (d) + 128 (d) + 64 (d) + 32: 25 epochs: 93.7% accuracy but started overfitting
-# 200k samples: 40 epochs, 94.6% accuracy
+y_pred = model.predict(X_test)
+y_pred_categorical = [pred.argmax() for pred in y_pred]
 
+y_test_categorical = [categories.argmax() for categories in y_test]
+
+print(classification_report(y_test_categorical, y_pred_categorical))

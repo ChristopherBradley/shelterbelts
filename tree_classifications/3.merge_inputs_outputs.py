@@ -5,6 +5,7 @@
 import os
 import glob
 import pickle
+import math
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -58,17 +59,15 @@ def jittered_grid(ds):
     """Create an equally spaced 10x10 coordinate grid with a random 2 pixel jitter"""
 
     # Calculate grid
-    spacing_x = ds.sizes['x'] // 10
-    spacing_y = ds.sizes['y'] // 10
+    spacing_x = 10
+    spacing_y = 10
     half_spacing_x = spacing_x // 2
     half_spacing_y = spacing_y // 2
-    jitter_range = np.arange(-2, 3)  # [-2, -1, 0, 1, 2]
+    jitter_range = [-2, -1, 0, 1, 2]
 
     # Regular grid
-    # y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
-    # x_inds = np.arange(half_spacing_x, ds.sizes['x'] - half_spacing_x, spacing_x)
-    y_inds = np.arange(half_spacing_y, ds.sizes['y'], spacing_y)
-    x_inds = np.arange(half_spacing_x, ds.sizes['x'], spacing_x)
+    y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
+    x_inds = np.arange(half_spacing_x, ds.sizes['x'] - half_spacing_x, spacing_x)
 
     # Create full grid
     yy, xx = np.meshgrid(y_inds, x_inds, indexing='ij')
@@ -95,16 +94,15 @@ def jittered_grid(ds):
     return df
 
 
-
-def tile_csv_verbose(sentinel_tile):
+def tile_csv_verbose(sentinel_tiles):
     """Run tile_csv and report more info on errors that occur"""
-    tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
-    try:
-        return tile_csv(sentinel_tile)
-    except Exception as e:
-        print(f"Error in worker {tile_id}:", flush=True)
-        traceback.print_exc(file=sys.stdout)
-        raise
+    for sentinel_tile in sentinel_tiles:
+        tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
+        try:
+            tile_csv(sentinel_tile)
+        except Exception as e:
+            print(f"Error in worker {tile_id}:", flush=True)
+            traceback.print_exc(file=sys.stdout)
 
 
 def tile_csv(sentinel_tile):
@@ -151,6 +149,7 @@ def tile_csv(sentinel_tile):
 
     # Select pixels to use for training/testing
     df = jittered_grid(ds)
+    df["tile_id"] = tile_id
 
     # Leaving normalisation for later to help with debugging if I want to visually inspect the raw values
     # df_normalized = (df - df.min()) / (df.max() - df.min())
@@ -223,38 +222,45 @@ def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079
 # Load a list of all the downloaded sentinel tiles and training csv's
 tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
 sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-outdir = "/scratch/xe2/cb8590/Nick_csv"
+outdir = "/scratch/xe2/cb8590/Nick_csv2"
 
 sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
-print(len(sentinel_tiles))
+print("num sentinel tiles:", len(sentinel_tiles))
 
 csv_tiles = glob.glob(f'{outdir}/*')
-print(len(csv_tiles))
+print("num csv tiles:", len(csv_tiles))
 
 # +
-# Remove csv_tiles if they've already been downloaded (only need to do this if it doesn't all work first go)
+# Remove sentinel tiles we've already downloaded
+sentinel_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_tiles]
+csv_ids = ["_".join(csv_tile.split('/')[-1].split('_')[:2]) for csv_tile in csv_tiles]
 
-# +
+is_news = [(sentinel_id not in csv_ids) for sentinel_id in sentinel_ids]
+sentinel_tiles = [sentinel_tile for sentinel_tile, is_new in zip(sentinel_tiles, is_news) if is_new]
+print("num sentinel tiles not yet downloaded: ", len(sentinel_tiles))
+# -
+
 # Randomise the tiles so I can have a random sample before they all complete
 sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
 
+
 rows = sentinel_randomised
-batch_size = 50
+workers = 50
+batch_size = math.ceil(len(rows) / workers)
 batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+print("num_batches: ", len(batches))
+print("num tiles in first batch", len(batches[0]))
 
 # +
 # %%time
-# Preprocess the tiles in parallel (otherwise takes about 30 secs each)
-for i, batch in enumerate(batches):
-    rows = batch
-    with ProcessPoolExecutor(max_workers=len(rows)) as executor:
-        print(f"Starting {len(rows)} workers for batch {i}")
-        futures = [executor.submit(tile_csv_verbose, row) for row in rows]
-        for future in as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                print(f"Worker failed with: {e}", flush=True)
+with ProcessPoolExecutor(max_workers=workers) as executor:
+    print(f"Starting {workers} workers, with {batch_size} rows each")
+    futures = [executor.submit(tile_csv_verbose, batch) for batch in batches]
+    for future in as_completed(futures):
+        try:
+            future.result()
+        except Exception as e:
+            print(f"Worker failed with: {e}", flush=True)
                 
 # 60 secs for 16 tiles x 2 batches on Large compute (7 cores)
 # Took 1 hour 33 mins to do all 7791 tiles with XLarge computer, with batches of 50 tiles (14 cores)
@@ -263,11 +269,11 @@ for i, batch in enumerate(batches):
 # Create a dataframe of imagery and tree cover classifications for each tile
 tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
 sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-outdir = "/scratch/xe2/cb8590/Nick_csv"
+outdir = "/scratch/xe2/cb8590/Nick_csv2"
 outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
 
 csv_tiles = glob.glob(f'{outdir}/*')
-print(len(csv_tiles))  # Why did 11 of the pickle files not get converted to csv files?
+print("num csv tiles now:", len(csv_tiles))  # Why did 11 of the pickle files not get converted to csv files?
 # -
 
 dfs = []
@@ -280,7 +286,7 @@ df_all = pd.concat(dfs)
 
 # %%time
 # Feather file is more efficient, but csv is more readable. Anything over 100MB I should probs use a feather file.
-filename = os.path.join(outlines_dir, f"tree_cover_preprocessed.csv")
+filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
 df_all.to_csv(filename, index=False)
 print("Saved", filename)
 
@@ -289,3 +295,5 @@ print("Saved", filename)
 # -
 
 df_all
+
+
