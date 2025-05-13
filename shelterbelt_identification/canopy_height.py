@@ -220,18 +220,15 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height
 # %%time
 if __name__ == '__main__':
 
-    # canopy_height_dir ='../data'
-    # outdir = '../data'
-    
-    # canopy_height_dir ='/g/data/xe2/datasets/Global_Canopy_Height'
-    canopy_height_dir ='/scratch/xe2/cb8590/Global_Canopy_Height'
-    outdir = '/scratch/xe2/cb8590/tmp'
+    canopy_height_dir ='../data'
+    outdir = '../data'
+    # canopy_height_dir ='/scratch/xe2/cb8590/Global_Canopy_Height'
+    # outdir = '/scratch/xe2/cb8590/tmp'
     tmp_dir = outdir
     stub = 'Fulham'
     lat=-42.887122
     lon=147.760717
-    # lat, lon = -35.267127, 149.071377 # Arboretum
-    buffer=0.025
+    buffer=0.04
     
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
 

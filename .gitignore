@@ -1,6 +1,6 @@
 data
 .DS_Store
-*.tif
+*.tif*
 *.png
 *.geojson
 *.tiff*
@@ -9,6 +9,9 @@ data
 *.gif
 *.xlsx
 *.gpkg*
+*.kml
+*.pkl
+*.ipynb
 
 # qsub logging files
 *.o*

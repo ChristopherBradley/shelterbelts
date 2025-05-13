@@ -27,6 +27,7 @@ barra_abbreviations = {
 
 
 # +
+# %%time
 def barra_singlemonth_thredds(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", month="01"):
     
     url = f"https://thredds.nci.org.au/thredds/dodsC/ob53/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
@@ -187,7 +188,7 @@ if __name__ == '__main__':
     stub = 'Fulham'
     lat=-42.887122
     lon=147.760717
-    ds = barra_daily(lat=lat, lon=lon, start_year="2017", end_year="2024", outdir=outdir, stub=stub)
+    ds = barra_daily(lat=lat, lon=lon, start_year="2017", end_year="2017", outdir=outdir, stub=stub)
     wind_rose(ds, outdir=outdir, stub=stub)
 
     # Some different ways to decide on the dominant wind direction
