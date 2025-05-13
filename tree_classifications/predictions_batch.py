@@ -125,27 +125,25 @@ def tif_prediction_ds(ds, stub, outdir, savetif):
     filename = f'{outdir}/{stub}_predicted.tif'
     
     # print("Importing rasterio")
-    if savetif:
-        
-        with rasterio.open(
-            filename,
-            "w",
-            driver="GTiff",
-            height=da.shape[0],
-            width=da.shape[1],
-            count=1,
-            dtype="uint8",
-            crs=da.rio.crs,
-            transform=da.rio.transform(),
-            compress="LZW",
-            # tiled=True,       # Can't be tiled if you want to be able to visualise it in preview. And no point in tiling such a small tif file
-            # blockxsize=2**10,
-            # blockysize=2**10,
-            photometric="palette",
-        ) as dst:
-            dst.write(da.values, 1)
-            dst.write_colormap(1, cmap)
-        print("Saved", filename)
+    with rasterio.open(
+        filename,
+        "w",
+        driver="GTiff",
+        height=da.shape[0],
+        width=da.shape[1],
+        count=1,
+        dtype="uint8",
+        crs=da.rio.crs,
+        transform=da.rio.transform(),
+        compress="LZW",
+        # tiled=True,       # Can't be tiled if you want to be able to visualise it in preview. And no point in tiling such a small tif file
+        # blockxsize=2**10,
+        # blockysize=2**10,
+        photometric="palette",
+    ) as dst:
+        dst.write(da.values, 1)
+        dst.write_colormap(1, cmap)
+    print("Saved", filename)
 
     return da
 
