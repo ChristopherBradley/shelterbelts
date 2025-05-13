@@ -19,14 +19,14 @@ print(f"Running from {repo_dir}")
 # Load the filenames for all the sentinel tiles I've downloaded
 sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
 tiles = glob.glob(f'{sentinel_dir}/*.pkl')
-print(len(tiles))
+print("Number of tiles", len(tiles))
 
-rows = tiles[:16]
-workers = 4
+rows = tiles
+workers = 50
 batch_size = math.ceil(len(rows) / workers)
 batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
-print("num_batches: ", len(batches))
-print("num tiles in first batch", len(batches[0]))
+print("Number of batches: ", len(batches))
+print("Number of tiles per batch", len(batches[0]))
 
 # Save the tiles in each batch in a csv file so I can launch a subprocess that works on each batch
 batch_files = []

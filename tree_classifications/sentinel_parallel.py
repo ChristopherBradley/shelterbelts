@@ -42,8 +42,6 @@ import io
 import traceback, sys
 warnings.filterwarnings('ignore')
 
-
-
 # -
 
 # Specific range so I can match Nick's tiff files
@@ -77,7 +75,7 @@ def load_and_process_data(dc, query):
     return ds
 
 # +
-def sentinel_download(stub, year, outdir, bounds, src_crs):
+def sentinel_download(stub, year, outdir, bounds, input_crs='epsg:4326', output_crs='epsg:6933'):
     
     # print(f"Starting sentinel_download: {tif_id}, {year}\n")
 
@@ -85,8 +83,6 @@ def sentinel_download(stub, year, outdir, bounds, src_crs):
     lat_range = (bounds[1], bounds[3])
     lon_range = (bounds[0], bounds[2])
     time_range = (f"{year}-01-01", f"{year}-12-31")
-    input_crs=src_crs 
-    output_crs=src_crs
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
     # Load the data
@@ -171,74 +167,20 @@ def prep_rows_Nick():
     return rows
 
 
-outdir = '/scratch/xe2/cb8590/ka08_trees'
-
-
-# Load the sentinel imagery tiles
-filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
-gdf = gpd.read_file(filename_sentinel_bboxs)
-
-test_tile_id = "55HFC"
-test_tile = gdf.loc[gdf['Name'] == test_tile_id, 'geometry'].values[0]
-
-polygon = test_tile
-
-test_tile_ids = "55HFC", "55HFD", "55HFE", "55HFB", "55HED", "55HDE", "55HCB"
-
-
-# Having a look at the size of some tiles
-for test_tile_id in test_tile_ids:
-    polygon = gdf.loc[gdf['Name'] == test_tile_id, 'geometry'].values[0]
-
-    # Get bounds of Sentinel polygon in degrees
-    minx, miny, maxx, maxy = polygon.bounds
-    width_deg = maxx - minx
-    height_deg = maxy - miny
-    print(f"Width in degrees: {width_deg}")
-    print(f"Height in degrees: {height_deg}")
-
-    # Determine UTM zone
-    centroid = polygon.centroid
-    lon, lat = centroid.x, centroid.y
-    zone_number = int((lon + 180) / 6) + 1
-    hemisphere = 'north' if lat >= 0 else 'south'
-    utm_crs = f"+proj=utm +zone={zone_number} +datum=WGS84 +units=m +no_defs"
-    if hemisphere == 'south':
-        utm_crs += " +south"
-
-    # Get bounds in metres
-    transformer = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
-    projected_polygon = transform(transformer.transform, polygon)
-    minx_m, miny_m, maxx_m, maxy_m = projected_polygon.bounds
-    width_m = maxx_m - minx_m
-    height_m = maxy_m - miny_m
-    print(f"Width in metres: {width_m:.2f}")
-    print(f"Height in metres: {height_m:.2f}")
-    print()
+if __name__ == '__main__':
+    rows = prep_rows_Nick()
+    workers = 1
+    batch_size = math.ceil(len(rows) / workers)
+    batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+    print("num_batches: ", len(batches))
+    print("num tiles in first batch", len(batches[0]))
     
-    # All the tiles are exactly 109.8km wide and 109.8km tall. 
-
-
-minx_m, miny_m, maxx_m, maxy_m
-
-
-
-
-
-workers = 1
-batch_size = math.ceil(len(rows) / workers)
-batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
-print("num_batches: ", len(batches))
-print("num tiles in first batch", len(batches[0]))
-
-# %%time
-with ProcessPoolExecutor(max_workers=workers) as executor:
-    print(f"Starting {workers} workers, with {batch_size} rows each")
-    futures = [executor.submit(run_download, batch) for batch in batches]
-    for future in as_completed(futures):
-        try:
-            future.result()
-        except Exception as e:
-            print(f"Worker failed with: {e}", flush=True)
-
-
+    # %%time
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        print(f"Starting {workers} workers, with {batch_size} rows each")
+        futures = [executor.submit(run_download, batch) for batch in batches]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Worker failed with: {e}", flush=True)

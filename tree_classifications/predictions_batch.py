@@ -36,7 +36,7 @@ else:  # Already running locally from repo root
     repo_dir = os.getcwd()
 os.chdir(repo_dir)
 sys.path.append(repo_dir)
-print(f"Running from {repo_dir}")
+# print(f"Running from {repo_dir}")
 
 from tree_classifications.merge_inputs_outputs import aggregated_metrics
 # -
@@ -73,11 +73,16 @@ cmap = {
 
 
 # +
-def tif_prediction(tile):
-    
+def tif_prediction(tile, outdir='/scratch/xe2/cb8590/Nick_predicted/'):
     # Load the sentinel imagery
     with open(tile, 'rb') as file:
         ds = pickle.load(file)
+        
+    tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
+    da = tif_prediction_ds(ds, tile_id, outdir)
+    return da
+
+def tif_prediction_ds(ds, stub, outdir):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -115,13 +120,13 @@ def tif_prediction(tile):
     pred_map = xr.DataArray(predicted_class.reshape(ds.dims['y'], ds.dims['x']),
                             coords={'y': ds.y, 'x': ds.x},
                             dims=['y', 'x'])
+    pred_map.rio.write_crs(ds.rio.crs, inplace=True)
 
     # print("About to save the tif")
     
     # Save the predictions as a tif file
     da = pred_map.astype('uint8')
-    tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
-    filename = f'/scratch/xe2/cb8590/Nick_predicted/{tile_id}_predicted.tif'
+    filename = f'{outdir}{stub}_predicted.tif'
     
     # print("Importing rasterio")
     
@@ -146,13 +151,14 @@ def tif_prediction(tile):
         dst.write_colormap(1, cmap)
     print("Saved", filename)
 
+    return da
 
 
 def worker_predictions(tiles):
     """Run tile_csv and report more info on errors that occur"""
     for tile in tiles:
         tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
-        print(f"Starting tile: {tile_id}", flush=True)
+        # print(f"Starting tile: {tile_id}", flush=True)
         try:
             tif_prediction(tile)
         except Exception as e:
