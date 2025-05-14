@@ -1,7 +1,7 @@
 # +
 # Merge Nick's tiffs into larger files for easier viewing in QGIS
-# -
 
+# +
 import os
 import glob
 import numpy as np
@@ -12,6 +12,13 @@ import rasterio
 from rasterio.enums import ColorInterp
 from tqdm import tqdm
 import dask
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.patches import Patch
+
+# -
 
 import psutil
 print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB")
@@ -135,6 +142,8 @@ with rasterio.open(
     
 # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
 # -
+da_worldcover_subset = da_worldcover.isel(y=slice(20000, 21000), x=slice(20000, 21000))
+
 # Testing compression for a tiff with floating points
 filename_tas_input = "../data/Saving_Tiffs/Tas_CanopyCover_202403_v2.2.tif"
 da_original = rxr.open_rasterio(filename_tas_input).isel(band=0).drop_vars('band')
@@ -202,5 +211,3 @@ print(np.float64(0.12345678901234567890123456789))
 # %%time
 # !gdaladdo {filename} 2 4 8 16 32 64
 # 15 secs
-
-
