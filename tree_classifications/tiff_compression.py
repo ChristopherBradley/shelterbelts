@@ -13,6 +13,9 @@ from rasterio.enums import ColorInterp
 from tqdm import tqdm
 import dask
 
+import psutil
+print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB")
+
 # %%time
 # Getting the compression details of tas vegetation
 filename_tas_input = "../data/Saving_Tiffs/Tas_WoodyVeg_202403_v2.2.tif"
@@ -132,8 +135,72 @@ with rasterio.open(
     
 # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
 # -
+# Testing compression for a tiff with floating points
+filename_tas_input = "../data/Saving_Tiffs/Tas_CanopyCover_202403_v2.2.tif"
+da_original = rxr.open_rasterio(filename_tas_input).isel(band=0).drop_vars('band')
 
+# %%time
+compress = "LZW"
+blocksize = 2**11
+filename = f'../data/Saving_Tiffs/canopy_cover_{da_original.dtype}_{compress}_{blocksize}.tif'
+da_original.rio.to_raster(filename, compress=compress, tiled=True, 
+                  blockxsize=blocksize, blockysize=blocksize, nodata=255)
+filename
 
+# +
+# %%time
+# Experimenting with a smaller area (just 100kmx100km around flinders island)
+da_sliced = da_original.isel(y=slice(10000,20000), x=slice(-10001,-1))
 
+da = da_sliced.where(da_sliced <= 1000, np.nan)
+da = da/10
+da = da.where(~np.isnan(da), 255)
+da = da.astype('uint8')
+da = da.rio.set_nodata(255)
+
+compress = "LZW"
+blocksize = 2**11
+filename = f'../data/Saving_Tiffs/canopy_cover_{da_sliced.shape[0]}_{da.dtype}_{compress}_{blocksize}.tif'
+da.rio.to_raster(filename, compress=compress, tiled=True, 
+                  blockxsize=blocksize, blockysize=blocksize, nodata=255)
+filename
+
+# 32MB for uint16
+# 43MB for float32 (LZW fast) or 32MB (deflate slow)
+# 13MB for uint8
+
+# +
+# %%time
+# Convert to uint8
+da = da_original.where(da_original != 65535, np.nan)
+da = da/10
+da = da.where(~np.isnan(da), 255)
+da = da.astype('uint8')
+da = da.rio.set_nodata(255)
+
+# 2 mins 23 secs. Takes a long time just to convert the datatype
+# -
+
+compress = "LZW"
+blocksize = 2**11
+filename = f'../data/Saving_Tiffs/canopy_cover_{da.dtype}_{compress}_{blocksize}.tif'
+filename
+
+# +
+# %%time
+da.rio.to_raster(filename, compress=compress, tiled=True, 
+                  blockxsize=blocksize, blockysize=blocksize, nodata=255)
+
+# 22 secs
+# -
+
+# Neat how you can see the precision just by printing
+print(np.float16(0.12345678901234567890123456789))
+print(np.float32(0.12345678901234567890123456789))
+print(np.float64(0.12345678901234567890123456789))
+
+# %%time
+# !gdaladdo {filename} 2 4 8 16 32 64
+# 15 secs
 
 
