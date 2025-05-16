@@ -65,7 +65,7 @@ if 'ds' in locals():
 # +
 # %%time
 # Create a small area in the center for testing
-half_deg = 0.02  # 0.01° / 2
+half_deg = 0.1  # 0.01° / 2
 bbox = box(lon - half_deg, lat - half_deg, lon + half_deg, lat + half_deg)
 
 stub = "test"
@@ -82,14 +82,9 @@ print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB")
 # sentinel_download with Large compute (7 cores, 32GB)
 # 1km x 1km x 1 year = 30, 10, 20, 10, 10, 20s 5GB, 26s 500MB
 # 2km x 2km x 1 year = 10, 10, 10, 23s 5GB 
-# 4kmx4km = 20s 1.5GB
-# 10kmx10km = 34, 25s 5GB, 15s 5GB, 16s 5GB 
+# 4kmx4km = 20s 1.5GB, 20s 1.5GB
+# 10kmx10km = 34, 25s 5GB, 15s 5GB, 16s 5GB, 28s 5GB
 # 20km x 20km x 1 year = 69 kernel died, 29s 12GB, 29s 20GB, 30s 20GB, 28s 20GB (but there seems to be 10GB not being used)
-
-# +
-# del ds
-# gc.collect()
-# print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB")
 
 # +
 # %%time
@@ -99,12 +94,17 @@ da = tif_prediction_ds(ds, "Test", outdir="/scratch/xe2/cb8590/tmp/", savetif=Fa
 print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB") 
 
 # +
-# Seems like the limiting factor is the sentinel download, not the other preprocessing or machine learning predictions
-# 1km x 1km = 3s
-# 2km x 2km = 49s, 50s
-# 4km x 4km = 60 secs
-# 10km x 10km = 
-# 20km x 20km = Got stuck > 10 mins
+# 4km: 20 secs
+# 10km: 1 min 17 secs
+# 20km: 5 mins as predicted.
+
+# If it takes 5 mins for 20kmx20km, that's 25*5 = 125 mins = 2 hours per Sentinel Tile. 
+# There are about 30x30 = 900 Sentinel tiles in Australia
+# Hopefully I can do tiles in parallel, so that will be about 20 hours on one Node, 
+# Or just 2 hours if it scales nicely up to 20 nodes (1000 CPUS)
+
+
+
 # -
 
 # Seeing which part of the classification is taking so much time
@@ -167,10 +167,7 @@ def make_circular_kernel(radius):
 
 # -
 
-# Using fft convolve greatly improves performance. I just need to double check the outputs look about the same
-# %%time
-kernel = make_circular_kernel(radius=3)  # Or any other kernel shape
-std_array = focal_std_fft(ds_median_temporal.values, kernel)
+
 
 
 
@@ -206,34 +203,42 @@ ds[f"{variable}_focal_std"] = ds_std_focal_7p
 ds_agg = aggregated_metrics(ds)
 
 
-# +
-
-
-
-print("Aggregating")
-# Preprocess the temporally and spatially aggregated metrics
 variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
 ds_selected = ds[variables] 
 ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
 
+# %%time
 print("Normalising")
 # Normalise the inputs using the same standard scaler during training
 X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
 df_X_all = pd.DataFrame(X_all, columns=ds_selected.data_vars) # Just doing this to silence the warning about not having feature names
 X_all_scaled = scaler.transform(df_X_all)
 
+X_all_scaled
+
+# %%time
 # Make predictions and add to the xarray    
 print("Predicting")
 preds = model.predict(X_all_scaled)
+
+# +
+
+import rasterio
+cmap = {
+    0: (240, 240, 240), # Non-trees are white
+    1: (0, 100, 0),   # Trees are green
+}
+
+
+# +
+# %%time
+# Save the predictions as a tif file
 predicted_class = np.argmax(preds, axis=1)
 pred_map = xr.DataArray(predicted_class.reshape(ds.dims['y'], ds.dims['x']),
                         coords={'y': ds.y, 'x': ds.x},
                         dims=['y', 'x'])
 pred_map.rio.write_crs(ds.rio.crs, inplace=True)
 
-# print("About to save the tif")
-
-# Save the predictions as a tif file
 da = pred_map.astype('uint8')
 filename = f'{outdir}/{stub}_predicted.tif'
 

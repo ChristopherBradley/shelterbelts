@@ -59,8 +59,9 @@ python3 predictions_batch.py --csv batch.csv""",
 
 # +
 # Load the trained model and standard scaler
-filename_model = '/g/data/xe2/cb8590/models/nn_89a_92s_85r_86p.keras'
-filename_scaler = '/g/data/xe2/cb8590/models/scaler_89a_92s_85r_86p.pkl'
+stub = 'fft_89a_92s_85r_86p'
+filename_model = f'/g/data/xe2/cb8590/models/nn_{stub}.keras'
+filename_scaler = f'/g/data/xe2/cb8590/models/scaler_{stub}.pkl'
 
 # model = keras.models.load_model(filename_model)
 # scaler = joblib.load(filename_scaler)
@@ -99,6 +100,7 @@ def tif_prediction_ds(ds, stub, outdir, savetif):
     print("Aggregating")
     # Preprocess the temporally and spatially aggregated metrics
     ds_agg = aggregated_metrics(ds)
+    ds = ds_agg # I don't think this is necessary since aggregated metrics changes the ds in place
     variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
     ds_selected = ds[variables] 
     ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))

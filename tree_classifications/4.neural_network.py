@@ -25,10 +25,17 @@ pd.set_option('display.max_columns', 100)
 # %%time
 # This is getting up towards 1GB so I should really save as a feather file now. Doesn't need to be readable because I can't open a csv of 1GB without things crashing anyway. 
 outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
-filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
-df = pd.read_csv(filename, index_col=False)
+# filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
+# df = pd.read_csv(filename, index_col=False)
+
+filename = os.path.join(outlines_dir, f"tree_cover_preprocessed3.feather")
+df = pd.read_feather(filename)
+
 
 # Takes 10 secs to load a csv with 1 million rows
+# -
+
+# !du -sh {filename}
 
 # +
 # Drop the 174 rows where tree cover values = 2
@@ -97,10 +104,11 @@ df_train = df_stratified[:sample_size]
 df_test = df_stratified[sample_size:]
 
 # Make sure to save the scaler weights after fitting so I can make predictions in the same way
+# I should remove outliers before scaling.
 scaler = StandardScaler()
 
 # +
-# Normalise the input features (should probs do this before creating the .feather file)
+# Normalise the input features
 X = df_train.drop(columns=['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']) # input variables
 X = scaler.fit_transform(X)
 
@@ -239,12 +247,13 @@ df_combined
 # -
 # %%time
 # Save the neural network 
-filename = '/g/data/xe2/cb8590/models/nn_89a_92s_85r_86p.keras'
+stub = 'fft_89a_92s_85r_86p'
+filename = f'/g/data/xe2/cb8590/models/nn_{stub}.keras'
 model.save(filename)
 
 
 # Save the StandardScaler
-filename_scaler = '/g/data/xe2/cb8590/models/scaler_89a_92s_85r_86p.pkl'
+filename_scaler = f'/g/data/xe2/cb8590/models/scaler_{stub}.pkl'
 joblib.dump(scaler, filename_scaler)  
 
 X.columns

@@ -20,4 +20,4 @@ cd $wd
 source /g/data/xe2/John/geospatenv/bin/activate
 
 # Run the script
-python3 3.merge_inputs_outputs.py
+python3 merge_inputs_outputs.py
