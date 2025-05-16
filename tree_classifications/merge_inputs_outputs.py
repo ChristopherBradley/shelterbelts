@@ -12,6 +12,7 @@ import geopandas as gpd
 import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
+from scipy.signal import fftconvolve
 import rasterio
 from rasterio.transform import from_origin
 from rasterio.crs import CRS
@@ -22,6 +23,30 @@ import traceback, sys
 
 np.random.seed(0)
 random.seed(0)
+
+# +
+# Much faster method to calculate spatial variation than scipy.ndimage
+def focal_std_fft(array, kernel):
+    radius = kernel.shape[0] // 2
+    array = np.pad(array, 
+                          pad_width=radius, 
+                          mode='reflect')
+    
+    kernel = kernel / kernel.sum()
+    mean = fftconvolve(array, kernel, mode='same')
+    mean_sq = fftconvolve(array**2, kernel, mode='same')
+    std = np.sqrt(mean_sq - mean**2)
+    
+    std_unpadded = std[radius:-radius or None, radius:-radius or None]
+    return std_unpadded
+
+def make_circular_kernel(radius):
+    y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
+    mask = x**2 + y**2 <= radius**2
+    return mask.astype(float)
+
+
+# -
 
 def aggregated_metrics(ds):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
@@ -37,7 +62,7 @@ def aggregated_metrics(ds):
 
         # Focal metrics
         radius = 3
-        kernel_size = 2 * radius + 1  # 7 pixel diameter because I'm guessing the radius doesn't include the center pixel
+        kernel_size = 2 * radius + 1  # 7 pixel diameter because the radius doesn't include the center pixel
         ds_mean_focal_7p = xr.apply_ufunc(
             ndimage.uniform_filter, 
             ds_median_temporal, 
@@ -48,10 +73,14 @@ def aggregated_metrics(ds):
             ds_median_temporal, 
             kwargs={'function': lambda x: x.std(), 'size': kernel_size, 'mode': 'nearest'}
         )
+        kernel = make_circular_kernel(radius=radius)
+        ds_std_focal_7p_fft = focal_std_fft(ds_median_temporal.values, kernel)
+
         ds[f"{variable}_temporal_median"] = ds_median_temporal
         ds[f"{variable}_temporal_std"] = ds_std_temporal
         ds[f"{variable}_focal_mean"] = ds_mean_focal_7p
         ds[f"{variable}_focal_std"] = ds_std_focal_7p
+        ds[f"{variable}_focal_std_fft"] = ds_std_focal_7p_fft
 
     return ds
 
@@ -162,7 +191,6 @@ def tile_csv(sentinel_tile):
     return df
 
 
-# +
 def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079_df_tree_cover.csv"):
     """I used this function to visualise the jittered coordinates chosen in QGIS"""
     tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
@@ -214,8 +242,8 @@ def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079
     ) as dst:
         dst.write(tree_cover_array, 1)
     print("Saved", filename)
-    
-    
+
+
 if __name__ == '__main__':
     
     # Load a list of all the downloaded sentinel tiles and training csv's
@@ -288,3 +316,72 @@ if __name__ == '__main__':
     filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
     df_all.to_csv(filename, index=False)
     print("Saved", filename)
+
+
+
+
+
+# +
+# Load a list of all the downloaded sentinel tiles and training csv's
+tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+outdir = "/scratch/xe2/cb8590/Nick_csv3"
+
+sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+print("num sentinel tiles:", len(sentinel_tiles))
+
+# Randomise the tiles so I can have a random sample before they all complete
+sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
+
+# -
+
+with open(sentinel_tiles[0], 'rb') as file:
+    ds = pickle.load(file)
+
+time_vars = [var for var in ds.data_vars if 'time' in ds[var].dims]
+
+
+variable = time_vars[2]
+
+# +
+
+# Temporal metrics
+ds_median_temporal = ds[variable].median(dim="time", skipna=True)  # Not sure if I should be doing some kind of outlier removal before this
+ds_std_temporal = ds[variable].std(dim="time", skipna=True)
+
+# Focal metrics
+radius = 3
+kernel_size = 2 * radius + 1  # 7 pixel diameter because the radius doesn't include the center pixel
+ds_mean_focal_7p = xr.apply_ufunc(
+    ndimage.uniform_filter, 
+    ds_median_temporal, 
+    kwargs={'size': kernel_size, 'mode': 'nearest'}
+)
+# -
+
+# %%time
+ds_std_focal_7p = xr.apply_ufunc(
+    ndimage.generic_filter, 
+    ds_median_temporal, 
+    kwargs={'function': lambda x: x.std(), 'size': kernel_size, 'mode': 'nearest'}
+)
+
+# %%time
+kernel = make_circular_kernel(radius=radius)
+std_focal_7p_fft = focal_std_fft(ds_median_temporal.values, kernel)
+ds_std_focal_7p_fft = xr.DataArray(
+    std_focal_7p_fft,
+    dims=("y", "x"),
+)
+
+ds[f"{variable}_temporal_median"] = ds_median_temporal
+ds[f"{variable}_temporal_std"] = ds_std_temporal
+ds[f"{variable}_focal_mean"] = ds_mean_focal_7p
+ds[f"{variable}_focal_std"] = ds_std_focal_7p
+ds[f"{variable}_focal_std_fft"] = ds_std_focal_7p_fft
+
+ds[f"{variable}_focal_std"].plot()
+
+ds[f"{variable}_focal_std_fft"].plot()
+
+
