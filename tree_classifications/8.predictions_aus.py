@@ -1,16 +1,19 @@
+# +
 import glob
 import math
+import numpy as np
 import pandas as pd
-import geopandas as gpd
-import subprocess
-from shapely.geometry import box
-from tensorflow import keras
-import joblib
 import xarray as xr
-import scipy.ndimage as ndimage
 
+import geopandas as gpd
+import geopandas as gpd
+from shapely.geometry import box
+from shapely.affinity import rotate
 
-
+from tensorflow import keras
+import subprocess
+import joblib
+# -
 
 import psutil
 import gc
@@ -38,15 +41,32 @@ from tree_classifications.merge_inputs_outputs import aggregated_metrics
 
 # 1min 38 secs to import predictions_batch... I wonder if I have unnecessary imports I can remove to reduce this?
 # -
-
-
-
 outdir = '/scratch/xe2/cb8590/ka08_trees'
 
+# %%time
 # Load the sentinel imagery tiles
 filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
 gdf = gpd.read_file(filename_sentinel_bboxs)
 
+gdf.crs
+
+# +
+# (Testing parallelisation issues)
+# Choose 4 test tiles directly adjacent
+# label them top left, top right, bottom left, bottom right
+# Choose the 20km region at the adjacent boundary of each tile
+# Run the 4 tiles in parallel to see if I get any errors
+
+# +
+# Testing tiles that should not give any parallelisation errors
+# Choose 4 tiles not touching each other
+# Split each one into 20kmx20km sections
+# Start 4 workers, each one with 25 subtiles
+# -
+
+
+
+test_tiles_unconnected = "55HFC", "55HDC", "55HDA", "55HFA"
 test_tile_id = "55HFC"
 test_tile = gdf.loc[gdf['Name'] == test_tile_id, 'geometry'].values[0]
 
@@ -56,27 +76,83 @@ polygon = test_tile
 # Get centroid of the polygon (in degrees)
 centroid = polygon.centroid
 lon, lat = centroid.x, centroid.y
+half_deg = 0.1 
+bbox = box(lon - half_deg, lat - half_deg, lon + half_deg, lat + half_deg)
 
+# +
+# Create 25 equally spaced tiles within the larger tile
+gdf = gpd.GeoDataFrame(geometry=[polygon], crs="EPSG:4326")
 
+# 1. Automatically determine appropriate UTM zone
+utm_crs = gdf.estimate_utm_crs()
+gdf_utm = gdf.to_crs(utm_crs)
+polygon_utm = gdf_utm.geometry.iloc[0]
 
-if 'ds' in locals():
-    del ds
+# 2. Compute minimum rotated rectangle and its angle
+min_rect = polygon_utm.minimum_rotated_rectangle
+coords = list(min_rect.exterior.coords)
+dx = coords[1][0] - coords[0][0]
+dy = coords[1][1] - coords[0][1]
+angle = math.degrees(math.atan2(dy, dx))
+
+# 3. Rotate the polygon to axis-align it
+origin = polygon_utm.centroid
+rotated_polygon = rotate(polygon_utm, -angle, origin=origin)
+
+# 4. Create grid inside the bounds of rotated polygon
+minx, miny, maxx, maxy = rotated_polygon.bounds
+grid_size = 5
+dx = (maxx - minx) / grid_size
+dy = (maxy - miny) / grid_size
+
+tiles = []
+names = []
+
+for i in range(grid_size):
+    for j in range(grid_size):
+        x0 = minx + j * dx
+        y0 = miny + i * dy
+        x1 = x0 + dx
+        y1 = y0 + dy
+        tile = box(x0, y0, x1, y1)
+
+        # Rotate tile back to original orientation
+        tile_rotated = rotate(tile, angle, origin=origin)
+
+        tiles.append(tile_rotated)
+
+        # Create a name from centroid
+        lon, lat = gpd.GeoSeries([tile_rotated], crs=utm_crs).to_crs("EPSG:4326").centroid.iloc[0].xy
+        name = f"{test_tile_id}{np.round(lat[0], 2)}_{np.round(lon[0], 2)}".replace(".", "_")
+        names.append(name)
+
+# 5. Create GeoDataFrame and reproject back to EPSG:4326
+tiles_gdf = gpd.GeoDataFrame({'name': names, 'geometry': tiles}, crs=utm_crs)
+tiles_wgs84 = tiles_gdf.to_crs("EPSG:4326")
+
+# 6. Save to GeoPackage
+filename = "/scratch/xe2/cb8590/tmp/55HFC_grid_tiles.gpkg"
+tiles_wgs84.to_file(filename, layer="tiles", driver="GPKG")
+# -
+
+tiles_wgs84
 
 # +
 # %%time
 # Create a small area in the center for testing
-half_deg = 0.1  # 0.01° / 2
-bbox = box(lon - half_deg, lat - half_deg, lon + half_deg, lat + half_deg)
 
 stub = "test"
 outdir = "/scratch/xe2/cb8590/tmp"
 year="2020"
 bounds = bbox.bounds
 src_crs = "EPSG:4326"
-ds = sentinel_download(stub, year, outdir, bounds, src_crs)
 
-# Should get a start and finish memory to see how much additional it used
-print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB")  
+ds = sentinel_download(stub, year, outdir, bounds, src_crs)
+da = tif_prediction_ds(ds, "Test", outdir="/scratch/xe2/cb8590/tmp/", savetif=False)
+
+# -
+
+
 
 # +
 # sentinel_download with Large compute (7 cores, 32GB)
@@ -86,185 +162,14 @@ print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB")
 # 10kmx10km = 34, 25s 5GB, 15s 5GB, 16s 5GB, 28s 5GB
 # 20km x 20km x 1 year = 69 kernel died, 29s 12GB, 29s 20GB, 30s 20GB, 28s 20GB (but there seems to be 10GB not being used)
 
-# +
-# %%time
-# How much time & memory does the sentinel download use compared to the machine learning predictions?
-da = tif_prediction_ds(ds, "Test", outdir="/scratch/xe2/cb8590/tmp/", savetif=False)
-
-print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB") 
-
-# +
+# Preprocessing + neural network predictions 
+# (the predictions are the slowest part, presumably faster on GPU)
 # 4km: 20 secs
 # 10km: 1 min 17 secs
 # 20km: 5 mins as predicted.
 
+# Scaling up estimations
 # If it takes 5 mins for 20kmx20km, that's 25*5 = 125 mins = 2 hours per Sentinel Tile. 
 # There are about 30x30 = 900 Sentinel tiles in Australia
 # Hopefully I can do tiles in parallel, so that will be about 20 hours on one Node, 
 # Or just 2 hours if it scales nicely up to 20 nodes (1000 CPUS)
-
-
-
-# -
-
-# Seeing which part of the classification is taking so much time
-# Load the trained model and standard scaler
-filename_model = '/g/data/xe2/cb8590/models/nn_89a_92s_85r_86p.keras'
-filename_scaler = '/g/data/xe2/cb8590/models/scaler_89a_92s_85r_86p.pkl'
-model = keras.models.load_model(filename_model)
-scaler = joblib.load(filename_scaler)
-
-# Calculate vegetation indices
-B8 = ds['nbart_nir_1']
-B4 = ds['nbart_red']
-B3 = ds['nbart_green']
-B2 = ds['nbart_blue']
-ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
-ds['NDVI'] = (B8 - B4) / (B8 + B4)
-ds['GRNDVI'] = (B8 - B3 + B4) / (B8 + B3 + B4)
-
-time_vars = [var for var in ds.data_vars if 'time' in ds[var].dims]
-
-
-variable = time_vars[0]
-variable
-
-time_vars
-
-# Temporal metrics
-ds_median_temporal = ds[variable].median(dim="time", skipna=True)  # Not sure if I should be doing some kind of outlier removal before this
-ds_std_temporal = ds[variable].std(dim="time", skipna=True)
-
-
-# %%time
-radius = 3
-kernel_size = 2 * radius + 1  # 7 pixel diameter because I'm guessing the radius doesn't include the center pixel
-ds_mean_focal_7p = xr.apply_ufunc(
-    ndimage.uniform_filter, 
-    ds_median_temporal, 
-    kwargs={'size': kernel_size, 'mode': 'nearest'}
-)
-
-
-import numpy as np
-from scipy.signal import fftconvolve
-
-
-# +
-def focal_std_fft(array, kernel):
-    kernel = kernel / kernel.sum()  # Normalize to get mean
-    mean = fftconvolve(array, kernel, mode='same')
-    mean_sq = fftconvolve(array**2, kernel, mode='same')
-    std = np.sqrt(mean_sq - mean**2)
-    return std
-
-def make_circular_kernel(radius):
-    y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
-    mask = x**2 + y**2 <= radius**2
-    return mask.astype(float)
-
-
-
-# -
-
-
-
-
-
-
-ds_std_focal_7p = xr.apply_ufunc(
-    ndimage.generic_filter, 
-    ds_median_temporal, 
-    kwargs={'function': lambda x: x.std(), 'size': kernel_size, 'mode': 'nearest'}
-)
-
-# +
-
-# Focal metrics
-radius = 3
-kernel_size = 2 * radius + 1  # 7 pixel diameter because I'm guessing the radius doesn't include the center pixel
-ds_mean_focal_7p = xr.apply_ufunc(
-    ndimage.uniform_filter, 
-    ds_median_temporal, 
-    kwargs={'size': kernel_size, 'mode': 'nearest'}
-)
-ds_std_focal_7p = xr.apply_ufunc(
-    ndimage.generic_filter, 
-    ds_median_temporal, 
-    kwargs={'function': lambda x: x.std(), 'size': kernel_size, 'mode': 'nearest'}
-)
-ds[f"{variable}_temporal_median"] = ds_median_temporal
-ds[f"{variable}_temporal_std"] = ds_std_temporal
-ds[f"{variable}_focal_mean"] = ds_mean_focal_7p
-ds[f"{variable}_focal_std"] = ds_std_focal_7p
-# -
-
-# %%time
-ds_agg = aggregated_metrics(ds)
-
-
-variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
-ds_selected = ds[variables] 
-ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
-
-# %%time
-print("Normalising")
-# Normalise the inputs using the same standard scaler during training
-X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
-df_X_all = pd.DataFrame(X_all, columns=ds_selected.data_vars) # Just doing this to silence the warning about not having feature names
-X_all_scaled = scaler.transform(df_X_all)
-
-X_all_scaled
-
-# %%time
-# Make predictions and add to the xarray    
-print("Predicting")
-preds = model.predict(X_all_scaled)
-
-# +
-
-import rasterio
-cmap = {
-    0: (240, 240, 240), # Non-trees are white
-    1: (0, 100, 0),   # Trees are green
-}
-
-
-# +
-# %%time
-# Save the predictions as a tif file
-predicted_class = np.argmax(preds, axis=1)
-pred_map = xr.DataArray(predicted_class.reshape(ds.dims['y'], ds.dims['x']),
-                        coords={'y': ds.y, 'x': ds.x},
-                        dims=['y', 'x'])
-pred_map.rio.write_crs(ds.rio.crs, inplace=True)
-
-da = pred_map.astype('uint8')
-filename = f'{outdir}/{stub}_predicted.tif'
-
-# print("Importing rasterio")
-with rasterio.open(
-    filename,
-    "w",
-    driver="GTiff",
-    height=da.shape[0],
-    width=da.shape[1],
-    count=1,
-    dtype="uint8",
-    crs=da.rio.crs,
-    transform=da.rio.transform(),
-    compress="LZW",
-    # tiled=True,       # Can't be tiled if you want to be able to visualise it in preview. And no point in tiling such a small tif file
-    # blockxsize=2**10,
-    # blockysize=2**10,
-    photometric="palette",
-) as dst:
-    dst.write(da.values, 1)
-    dst.write_colormap(1, cmap)
-print("Saved", filename)
-
-# -
-
-
-
-
