@@ -92,14 +92,6 @@ def worldcover_centerpoint(lat=-34.3890427, lon=148.469499, buffer=0.05):
     return da
 
 
-def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
-    """Write full documentation here"""
-    da = worldcover_centerpoint(lat, lon, buffer)
-    filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
-    tif_categorical(da, filename, worldcover_cmap)
-
-
-
 def tif_categorical(da, filename= ".", colormap=None, tiled=False):
     """Save a tif file using a categorical colour scheme"""
     with rasterio.open(
@@ -146,47 +138,49 @@ def visualise_worldcover(da):
     plt.show()
 
 
+def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
+    """Write full documentation here"""
+    max_buffer = 0.5   # This had a bug with large portions of the downloaded area being black for the qld, vic & wa coords
+    if buffer > max_buffer:
+        buffer = max_buffer
+        print(f"Area too large, please download in smaller tiles. Reducing buffer to {max_buffer}.") 
+        print(f"Estimated filesize = 10MB, estimated download time = 2 mins")
+    da = worldcover_centerpoint(lat, lon, buffer)
+    filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
+    tif_categorical(da, filename, worldcover_cmap)
+
+
 # %%time
 if __name__ == '__main__':
-    lat=-42.887122
-    lon=147.760717
-    buffer=0.04
-    worldcover()
+    print("Starting worldcover download")
+    da = worldcover()
 
     # Took 5 secs, 17 secs, 3 secs (very inconsistent)
 
-tas= -42.887122, 147.760717
+tas = -42.887122, 147.760717
 anu = -35.275648, 149.100574
 vic = -38.300409, 143.633974
 nsw = -34.738827, 150.530493
 qld = -25.817790, 149.657655
 nt = -13.036965, 133.292977
 wa = -32.566546, 117.523713
+ocean = -35.420755, -139.774455   # Middle of nowhere in the ocean for error testing
+
+
+points = [tas, anu, vic, nsw, qld, nt, wa]
+stubs = ['tas', 'anu', 'vic', 'nsw', 'qld', 'nt', 'wa']
 
 # +
-# %%time
-buffer = 0.4
-center = anu
-da = worldcover_centerpoint(center[0], center[1], buffer)
+# # %%time
+# for point, stub in zip(points, stubs):
+#     print(stub)
+#     da = worldcover(point[0], point[1], 1, stub=stub)
 
-# Filesize is consistent, but download speed is very inconsistent
-# buffer = 0.2 -- 30 secs, 42 secs 23 MB 1.2MB, 15 secs, 28 secs, 50 secs
-# buffer = 0.3 -- 65 secs 51MB 3.5MB, 
-# buffer = 0.4 -- 3 mins
-# -
-
-print(f"In-memory size: {da.nbytes / 1e6:.2f} MB")
-# 1.2MB
-
-stub = "anu"
-filename = os.path.join(outdir, f"{stub}_worldcover_{buffer}.tif")    
-tif_categorical(da, filename, worldcover_cmap)
-
-import psutil
-print(f"Memory usage: {psutil.Process().memory_info().rss / 1024**2:.2f} MB")
-
+# # Filesize is consistent, but download speed is very inconsistent
+# # buffer = 0.2 -- 30 secs, 42 secs 23 MB 1.2MB, 15 secs, 28 secs, 50 secs
+# # buffer = 0.3 -- 65 secs 51MB 3.5MB, 
+# # buffer = 0.4 -- 180 secs
+# # buffer = 0.5 -- 90 secs
 
 # +
-# Expected filesize and download time
-
 # If the buffer is too small than it should just get a single pixel
