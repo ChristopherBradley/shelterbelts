@@ -21,8 +21,10 @@ sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
 tiles = glob.glob(f'{sentinel_dir}/*.pkl')
 print("Number of tiles", len(tiles))
 
-rows = tiles
-workers = 50
+rows = tiles[:16]
+workers = 4
+# rows = tiles
+# workers = 50
 batch_size = math.ceil(len(rows) / workers)
 batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
 print("Number of batches: ", len(batches))
