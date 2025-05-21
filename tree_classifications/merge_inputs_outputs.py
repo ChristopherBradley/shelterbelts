@@ -46,7 +46,7 @@ def make_circular_kernel(radius):
 
 # -
 
-def aggregated_metrics(ds):
+def aggregated_metrics(ds, radius=5):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
     # Make a list of the variables with a time dimension
     time_vars = [var for var in ds.data_vars if 'time' in ds[var].dims]
@@ -59,7 +59,6 @@ def aggregated_metrics(ds):
         ds_std_temporal = ds[variable].std(dim="time", skipna=True)
 
         # Focal metrics
-        radius = 3
         kernel_size = 2 * radius + 1  # 7 pixel diameter because the radius doesn't include the center pixel
         ds_mean_focal_7p = xr.apply_ufunc(
             ndimage.uniform_filter, 
@@ -81,15 +80,14 @@ def aggregated_metrics(ds):
 
     return ds
 
-def jittered_grid(ds):
-    """Create an equally spaced 10x10 coordinate grid with a random 2 pixel jitter"""
+def jittered_grid(ds, spacing_x=10, spacing_y=10):
+    """Create an equally spaced 10x10 coordinate grid with a random jitter"""
 
     # Calculate grid
-    spacing_x = 10
-    spacing_y = 10
     half_spacing_x = spacing_x // 2
     half_spacing_y = spacing_y // 2
-    jitter_range = [-2, -1, 0, 1, 2]
+    # jitter_range = [-2, -1, 0, 1, 2]
+    jitter_range = [-1, 0, 1]
 
     # Regular grid
     y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
@@ -141,7 +139,7 @@ def tile_csv(sentinel_tile):
     # Load the sentinel imagery and tree cover into an xarray
     with open(sentinel_tile, 'rb') as file:
         ds = pickle.load(file)
-
+        
     # Load the woody veg and add to the main xarray
     ds1 = rxr.open_rasterio(tree_cover_filename)
     
@@ -174,7 +172,8 @@ def tile_csv(sentinel_tile):
     ds_selected = ds[variables] 
 
     # Select pixels to use for training/testing
-    df = jittered_grid(ds)
+    spacing = 10
+    df = jittered_grid(ds, spacing_x=spacing, spacing_y=spacing)
     df["tile_id"] = tile_id
 
     # Leaving normalisation for later to help with debugging if I want to visually inspect the raw values
@@ -241,30 +240,19 @@ def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079
     print("Saved", filename)
 
 
-# +
 if __name__ == '__main__':
     
     # Load a list of all the downloaded sentinel tiles and training csv's
     tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
     sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-    outdir = "/scratch/xe2/cb8590/Nick_csv3"
     outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
+    
+    # outdir = "/scratch/xe2/cb8590/Nick_csv3"
+    hyperparam = "kernel5"
+    outdir = f"/scratch/xe2/cb8590/Nick_csv_{hyperparam}"
 
     sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
     print("num sentinel tiles:", len(sentinel_tiles))
-
-    # csv_tiles = glob.glob(f'{outdir}/*')
-    # print("num csv tiles:", len(csv_tiles))
-
-    # +
-    # Remove sentinel tiles we've already downloaded
-#     sentinel_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_tiles]
-#     csv_ids = ["_".join(csv_tile.split('/')[-1].split('_')[:2]) for csv_tile in csv_tiles]
-
-#     is_news = [(sentinel_id not in csv_ids) for sentinel_id in sentinel_ids]
-#     sentinel_tiles = [sentinel_tile for sentinel_tile, is_new in zip(sentinel_tiles, is_news) if is_new]
-#     print("num sentinel tiles not yet downloaded: ", len(sentinel_tiles))
-#     # -
 
     # Randomise the tiles so I can have a random sample before they all complete
     sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
@@ -308,6 +296,6 @@ if __name__ == '__main__':
 
     # %%time
     # Feather file is more efficient, but csv is more readable. Anything over 100MB I should probs use a feather file.
-    filename = os.path.join(outlines_dir, f"tree_cover_preprocessed3.feather")
+    filename = os.path.join(outlines_dir, f"tree_cover_preprocessed_{hyperparam}.feather")
     df_all.to_feather(filename)
     print("Saved", filename)

@@ -25,6 +25,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 from tensorflow import keras
 import joblib
 
+import gc
+import psutil
+process = psutil.Process(os.getpid())
+
+
 # +
 # Change directory to this repo
 repo_name = "shelterbelts"
@@ -39,6 +44,8 @@ sys.path.append(repo_dir)
 # print(f"Running from {repo_dir}")
 
 from tree_classifications.merge_inputs_outputs import aggregated_metrics
+from tree_classifications.sentinel_parallel import sentinel_download
+
 # -
 
 # Allow this file to be run with arguments from the command line
@@ -75,10 +82,7 @@ cmap = {
 
 # +
 
-def tif_prediction_ds(ds, stub, outdir, savetif):
-    
-    model = keras.models.load_model(filename_model)
-    scaler = joblib.load(filename_scaler)
+def tif_prediction_ds(ds, stub, outdir,  model, scaler, savetif):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -150,17 +154,31 @@ def tif_prediction(tile, outdir='/scratch/xe2/cb8590/Nick_predicted'):
     da = tif_prediction_ds(ds, tile_id, outdir, savetif=True)
     return da
 
-def tif_prediction_bbox(stub, year, outdir, bounds, src_crs):
+def tif_prediction_bbox(stub, year, outdir, bounds, src_crs,  model, scaler):
     # Run the sentinel download and tree classification for a given location
     ds = sentinel_download(stub, year, outdir, bounds, src_crs)
-    da = tif_prediction_ds(ds, "Test", outdir="/scratch/xe2/cb8590/tmp/", savetif=False)
-    return da
+    da = tif_prediction_ds(ds, stub, outdir, model, scaler, savetif=True)
+
+    # # Trying to avoid memory accumulating with new tiles
+    del ds, da
+    gc.collect()
+    return None
 
 def run_worker(func, rows):
     """Abstracting the for loop & try except for each worker"""
+    # Should load this once per worker
+    model = keras.models.load_model(filename_model)
+    scaler = joblib.load(filename_scaler)
+
     for row in rows:
         try:
-            func(row)
+            # mem_before = process.memory_info().rss / 1e9
+            func(*row, model, scaler)
+            # mem_after = process.memory_info().rss / 1e9
+            mem_info = process.memory_full_info()
+            print(f"{row[0]}: RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
+
+            # print(f"{row[0]}: Memory used before {mem_before:.2f} GB, after {mem_after:.2f} GB", flush=True)
         except Exception as e:
             print(f"Error in row {row}:", flush=True)
             traceback.print_exc(file=sys.stdout)
@@ -171,26 +189,30 @@ def run_worker(func, rows):
 if __name__ == '__main__':
 
     # Load the list of tiles we want to download
-    args = argparse.Namespace(
-        # csv='/g/data/xe2/cb8590/models/batches/batch_0.csv'
-        csv='/g/data/xe2/cb8590/models/batches_aus/55HFC.gpkg'
-    )
-    # args = parse_arguments()
+    # args = argparse.Namespace(
+    #     # csv='/g/data/xe2/cb8590/models/batches/batch_0.csv'
+    #     csv='/g/data/xe2/cb8590/models/batches_aus/55HFC.gpkg'
+    # )
+    args = parse_arguments()
     
     # Download Nick's tiles in serial
     # df = pd.read_csv(args.csv)
     # rows = df['0'].to_list()
-    # worker_predictions_tiles(rows)    
+    # rows = [[row] for row in rows]
+    # run_worker(func, rows)
 
     # Download the aus ka08 subtiles in serial
     gdf = gpd.read_file(args.csv)
     rows = []
     outdir = '/scratch/xe2/cb8590/ka08_trees'
-    for i, tile in tiles_wgs84.iterrows():
+    for i, tile in gdf.iterrows():
         stub = tile['stub']
         year = "2020"
         bounds = tile['geometry'].bounds
-        crs = tiles_wgs84.crs
+        crs = gdf.crs
         rows.append([stub, year, outdir, bounds, crs])
     func = tif_prediction_bbox
+
+    # rows = rows[:10]
+
     run_worker(func, rows)

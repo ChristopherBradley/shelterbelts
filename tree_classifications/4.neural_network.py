@@ -28,7 +28,9 @@ outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
 # filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
 # df = pd.read_csv(filename, index_col=False)
 
-filename = os.path.join(outlines_dir, f"tree_cover_preprocessed3.feather")
+hyperparam = 'spacing3'
+stub = hyperparam
+filename = os.path.join(outlines_dir, f"tree_cover_preprocessed_{hyperparam}.feather")
 df = pd.read_feather(filename)
 
 
@@ -108,6 +110,9 @@ df_test = df_stratified[sample_size:]
 scaler = StandardScaler()
 
 # +
+# Use the y, x, tile_id to get a coord in the Australia EPSG:7844
+
+# +
 # Normalise the input features
 X = df_train.drop(columns=['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']) # input variables
 X = scaler.fit_transform(X)
@@ -153,7 +158,7 @@ model = keras.Sequential([
 optimizer = keras.optimizers.Adam(learning_rate=0.001)
 model.compile(optimizer=optimizer, loss = 'CategoricalCrossentropy', metrics = 'CategoricalAccuracy')        
 history = model.fit(X_train, y_train, epochs=50, batch_size=32, 
-                    callbacks=[early_stopping], validation_data=(X_test, y_test))
+                    callbacks=[early_stopping], validation_data=(X_test, y_test), verbose=2)
 
 history_df = pd.DataFrame.from_dict(history.history)
 sns.lineplot(data=history_df[['categorical_accuracy', 'val_categorical_accuracy']])
@@ -221,7 +226,9 @@ for tree_class in [0.0, 1.0]:
             'support': overall_report[str(tree_class)]['support'],
         }
 
-rf_metrics_table
+filename = f'/g/data/xe2/cb8590/models/metrics_{stub}.csv'
+rf_metrics_table.to_csv(filename)
+print("Saved", filename)
 
 
 # +
@@ -243,17 +250,22 @@ for metric in metrics:
     df_combined[metric] = (df_combined[metric] * 100).round().astype(int)
 df_combined['test_samples'] = df_combined['test_samples'].astype(int)
 
-df_combined
+filename = f'/g/data/xe2/cb8590/models/accuracy_{stub}.csv'
+df_combined = df_combined.sort_values(by='koppen_class')
+df_combined.to_csv(filename, index=False)
+print("Saved", filename)
+
+
 # -
 # %%time
 # Save the neural network 
-stub = 'fft_89a_92s_85r_86p'
 filename = f'/g/data/xe2/cb8590/models/nn_{stub}.keras'
 model.save(filename)
-
+print("Saved", filename)
 
 # Save the StandardScaler
 filename_scaler = f'/g/data/xe2/cb8590/models/scaler_{stub}.pkl'
 joblib.dump(scaler, filename_scaler)  
+print("Saved", filename_scaler)
 
-X.columns
+print("hyperparam:", hyperparam)

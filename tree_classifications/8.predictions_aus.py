@@ -33,8 +33,10 @@ print(f"Running from {repo_dir}")
 from tree_classifications.sentinel_parallel import sentinel_download
 from tree_classifications.predictions_batch import tif_prediction_ds
 from tree_classifications.merge_inputs_outputs import aggregated_metrics
+
 outdir = '/scratch/xe2/cb8590/ka08_trees'
 outdir_batches = "/g/data/xe2/cb8590/models/batches_aus"
+# outdir_batches = "/g/data/xe2/cb8590/models/batches_aus_10km"
 
 # %%time
 # Load the sentinel imagery tiles
@@ -65,6 +67,7 @@ def sub_tiles(gdf_sentinel, tile_id, grid_size=5):
     # 3. Rotate the polygon to axis-align it
     origin = polygon_utm.centroid
     rotated_polygon = rotate(polygon_utm, -angle, origin=origin)
+    minx, miny, maxx, maxy = rotated_polygon.bounds
 
     # 4. Create grid inside the bounds of rotated polygon
     dx = (maxx - minx) / grid_size
@@ -103,26 +106,33 @@ def sub_tiles(gdf_sentinel, tile_id, grid_size=5):
     
     return tiles_wgs84
     
-gdf = sub_tiles(gdf_sentinel, "55HFC")
-len(gdf)
+# gdf = sub_tiles(gdf_sentinel, "55HFC")
+# len(gdf)
 # -
 
 test_tiles_unconnected = "55HFC", "55HDC", "55HDA", "55HFA"
+test_tiles_connected = ["55HFC", "55HEC", "55HEB", "55HFB",
+                        # "55HGC", "56HKH", "55HGB", "56HKG",
+                        # "55HEV", "55HFV", "55HEU", "55HFU",
+                        # "55HGV", "56HKE", "55HGU", "56HKD"
+]
+test_tiles = test_tiles_connected
 
-for tile_id in test_tiles_unconnected:
-    sub_tiles(gdf_sentinel, tile_id)
 
-batch_files = [os.path.join(outdir_batches, f"{tile_id}.gpkg") for tile_id in test_tiles_unconnected]
+outdir_batches = "/g/data/xe2/cb8590/models/batches_aus_100km"
+for tile_id in test_tiles:
+    sub_tiles(gdf_sentinel, tile_id, grid_size=1)
 
+batch_files = [os.path.join(outdir_batches, f"{tile_id}.gpkg") for tile_id in test_tiles]
+
+# +
 procs = []
 for batch_file in batch_files:
     p = subprocess.Popen(["python", "tree_classifications/predictions_batch.py", "--csv", batch_file])
     procs.append(p)
-
-
-
-
-
+    
+for p in procs:
+    p.wait()
 
 # +
 # sentinel_download with Large compute (7 cores, 32GB)
