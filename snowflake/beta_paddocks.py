@@ -10,7 +10,7 @@ import geopandas as gpd
 from shapely import wkt
 import pandas as pd
 
-password = ''
+password=""
 
 conn = snowflake.connector.connect(
     user='ANU_CHRISTOPHER',
@@ -42,13 +42,97 @@ gdf.to_file(filename, driver="GeoJSON")
 print("Saved", filename)
 # -
 
+# %%time
 # Selecting all the columns from beta_paddocks
 cursor.execute("""
-SELECT *, ST_ASWKT(GEOMETRY) AS WKT
-FROM FORAGECASTER_PROD.PADDOCK_10_24_2024.BETA_PADDOCKS
+SELECT FARM_ID, ENCRYPTED_FARM_ID, PADDOCK_ID, ENCRYPTED_PADDOCK_ID, TITLE, CROP_TYPE, PASTURE_STATE, LATITUDE, LONGITUDE, ST_ASWKT(GEOMETRY) AS WKT
+FROM FORAGECASTER_PROD.PADDOCK_SOURCE.BETA_PADDOCKS
 """)
 columns = [col[0] for col in cursor.description]
 rows = cursor.fetchall()
+df_beta = pd.DataFrame(rows, columns=columns)
+filename = "beta_records_2025-05-21.csv"
+df_beta.to_csv(filename, index=False)
+
+# %%time
+# Selecting all the columns from the seed and harvest records
+cursor.execute("""
+SELECT FARM_ID, PADDOCK_ID, RECORD_ID, CROP_TYPE, APPLICATION_DATE, YIELD_KG_PER_HA
+FROM FORAGECASTER_PROD.PADDOCK_SOURCE.HARVEST_RECORD
+""")
+columns = [col[0] for col in cursor.description]
+rows = cursor.fetchall()
+df_harvest = pd.DataFrame(rows, columns=columns)
+filename = "harvest_records_2025-05-21.csv"
+df_harvest.to_csv(filename, index=False)
+
+# %%time
+# Selecting all the useful columns from the seed records
+cursor.execute("""
+SELECT FARM_ID, PADDOCK_ID, RECORD_ID, GRASS_TYPE, APPLICATION_DATE
+FROM FORAGECASTER_PROD.PADDOCK_SOURCE.SEED_RECORD
+""")
+columns = [col[0] for col in cursor.description]
+rows = cursor.fetchall()
+df_seed = pd.DataFrame(rows, columns=columns)
+filename = "seed_records_2025-05-21.csv"
+df_seed.to_csv(filename, index=False)
+
+# Making the beta columns match the seeding and harvesting column names
+beta_columns = {
+    "FARM_ID": "unencryped_farm_id",
+    "ENCRYPTED_FARM_ID": "FARM_ID",
+    "PADDOCK_ID": "unencryped_paddock_id",
+    "ENCRYPTED_PADDOCK_ID": "PADDOCK_ID"
+}
+df_beta = df_beta.rename(columns = beta_columns)
+
+seed_columns = {
+    'APPLICATION_DATE':'SOWING_DATE',
+    'GRASS_TYPE':'SOWING_CROP_TYPE'
+}
+df_seed = df_seed.rename(columns = seed_columns)
+
+harvest_columns = {
+    'APPLICATION_DATE':'HARVEST_DATE',
+    'CROP_TYPE':'HARVEST_CROP_TYPE'
+}
+df_harvest = df_harvest.rename(columns = harvest_columns)
+
+# Convert from bytes to hex so I can merge them
+df_seed['PADDOCK_ID'] = df_seed['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
+df_harvest['PADDOCK_ID'] = df_harvest['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
+df_beta['PADDOCK_ID'] = df_beta['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
+
+
+
+# +
+# Merge the beta paddocks with these sowing and harvest dates
+df_beta_harvest = pd.merge(df_beta, df_harvest, on='PADDOCK_ID')
+df_beta_seed = pd.merge(df_beta, df_seed, on='PADDOCK_ID')
+df_beta_seed_harvest = pd.merge(df_beta_seed, df_beta_harvest, on='PADDOCK_ID', how='outer')
+
+beta_seed_harvest_columns = ['PADDOCK_ID', 'TITLE_x', 'CROP_TYPE_x', 'PASTURE_STATE_x', 'SOWING_CROP_TYPE',  'SOWING_DATE', 'HARVEST_CROP_TYPE', 'HARVEST_DATE', 'YIELD_KG_PER_HA', 'WKT_x', 'WKT_y']
+beta_seed_harvest_columns_clean = {
+    'TITLE_x': 'TITLE',
+    'CROP_TYPE_x': 'CROP_TYPE', 
+    'PASTURE_STATE_x': 'PASTURE_STATE',
+}
+df_beta_combined = df_beta_seed_harvest[beta_seed_harvest_columns].rename(columns=beta_seed_harvest_columns_clean)
+df_beta_combined['WKT'] = df_beta_combined['WKT_x'].combine_first(df_beta_combined['WKT_y'])
+df_beta_combined = df_beta_combined.drop(columns=['WKT_x', 'WKT_y'])
+# -
+
+print("Total number of paddocks harvest dates:", len(df_harvest))
+print("Total number of paddocks sowing dates:", len(df_seed))
+print("Number of beta paddock harvest dates:", len(df_beta_harvest))
+print("Number of beta paddock sowing dates:", len(df_beta_seed))
+
+df_beta_harvest
+
+
+
+
 
 # Create a DataFrame and convert WKT to geometry
 df = pd.DataFrame(rows, columns=columns)
@@ -90,10 +174,14 @@ rows = cursor.fetchall()
 
 # See if any of them are sowing or harvest records
 df = pd.DataFrame(rows, columns=["Schema", "Table", "Column", "Data Type"])
-keywords = "sowing|harvest|seed|yield|death"
+
+# -
+
+keywords = "sowing|harvest|seed|yield|death|cultivation"
 matches = df[df["Column"].str.contains(keywords, case=False, na=False)]
 print(f"Number of sowing or harvest columns: {len(matches)}")
-# -
+
+matches
 
 keywords = "sowing|harvest|seed|yield|death"
 matches = df[df["Schema"].str.contains(keywords, case=False, na=False)]
