@@ -10,7 +10,7 @@ import geopandas as gpd
 from shapely import wkt
 import pandas as pd
 
-password=""
+from credentials import password
 
 conn = snowflake.connector.connect(
     user='ANU_CHRISTOPHER',
@@ -21,6 +21,103 @@ conn = snowflake.connector.connect(
     schema='PADDOCK_10_24_2024',
 )
 cursor = conn.cursor()
+
+
+# %%time
+# Selecting all the columns from beta_paddocks
+cursor.execute("""
+SELECT FARM_ID, ENCRYPTED_FARM_ID, PADDOCK_ID, ENCRYPTED_PADDOCK_ID, TITLE, CROP_TYPE, PASTURE_STATE, LATITUDE, LONGITUDE, CREATION_DATE, LAST_MODIFIED_DATE, ST_ASWKT(GEOMETRY) AS WKT
+FROM FORAGECASTER_PROD.PADDOCK_SOURCE.BETA_PADDOCKS
+""")
+columns = [col[0] for col in cursor.description]
+rows = cursor.fetchall()
+df_beta = pd.DataFrame(rows, columns=columns)
+filename = "beta_records_2025-05-21.csv"
+df_beta.to_csv(filename, index=False)
+df_beta_original = df_beta
+
+# %%time
+# Selecting all the columns from the seed and harvest records
+cursor.execute("""
+SELECT FARM_ID, PADDOCK_ID, RECORD_ID, CROP_TYPE, APPLICATION_DATE, YIELD_KG_PER_HA
+FROM FORAGECASTER_PROD.PADDOCK_SOURCE.HARVEST_RECORD
+""")
+columns = [col[0] for col in cursor.description]
+rows = cursor.fetchall()
+df_harvest = pd.DataFrame(rows, columns=columns)
+filename = "harvest_records_2025-05-21.csv"
+df_harvest.to_csv(filename, index=False)
+df_harvest_original = df_harvest
+
+# %%time
+# Selecting all the useful columns from the seed records
+cursor.execute("""
+SELECT FARM_ID, PADDOCK_ID, RECORD_ID, GRASS_TYPE, APPLICATION_DATE
+FROM FORAGECASTER_PROD.PADDOCK_SOURCE.SEED_RECORD
+""")
+columns = [col[0] for col in cursor.description]
+rows = cursor.fetchall()
+df_seed = pd.DataFrame(rows, columns=columns)
+filename = "seed_records_2025-05-21.csv"
+df_seed.to_csv(filename, index=False)
+df_seed_original = df_seed
+
+# Making the beta columns match the seeding and harvesting column names
+beta_columns_mapping = {
+    "FARM_ID": "unencryped_farm_id",
+    "ENCRYPTED_FARM_ID": "FARM_ID",
+    "PADDOCK_ID": "unencryped_paddock_id",
+    "ENCRYPTED_PADDOCK_ID": "PADDOCK_ID",
+}
+beta_columns_filtered = ['PADDOCK_ID', 'CREATION_DATE', 'LAST_MODIFIED_DATE', 'TITLE', 'CROP_TYPE', 'PASTURE_STATE', 'LATITUDE', 'LONGITUDE', 'WKT']
+df_beta = df_beta_original.rename(columns = beta_columns_mapping)[beta_columns_filtered]
+
+seed_columns_mapping = {
+    'APPLICATION_DATE':'SOWING_DATE',
+    'GRASS_TYPE':'SOWING_CROP_TYPE'
+}
+seed_columns_filtered = ["PADDOCK_ID", 'SOWING_CROP_TYPE',  'SOWING_DATE']
+df_seed = df_seed.rename(columns = seed_columns_mapping)[seed_columns_filtered]
+
+harvest_columns = {
+    'APPLICATION_DATE':'HARVEST_DATE',
+    'CROP_TYPE':'HARVEST_CROP_TYPE'
+}
+harvest_columns_filtered = ["PADDOCK_ID", 'HARVEST_CROP_TYPE', 'HARVEST_DATE', 'YIELD_KG_PER_HA']
+df_harvest = df_harvest.rename(columns = harvest_columns)[harvest_columns_filtered]
+
+# Convert from bytes to hex so I can merge them
+df_seed['PADDOCK_ID'] = df_seed['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
+df_harvest['PADDOCK_ID'] = df_harvest['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
+df_beta['PADDOCK_ID'] = df_beta['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
+
+# Inner join on Paddock_ID to find just the beta paddocks with sowing and harvest dates
+df_beta_seed = df_beta.merge(df_seed)
+df_beta_harvest = df_beta.merge(df_harvest)
+
+# Concat the sowing and harvest dataframes
+df_beta_combined = pd.concat([df_beta_seed, df_beta_harvest]).drop_duplicates()
+df_beta_combined.to_csv("beta_sowing_harvest_2025-05-22.csv", index=False)
+
+print("Total number of paddock harvest dates:", len(df_harvest.drop_duplicates()))
+print("Total number of paddock yield:", len(df_harvest.drop_duplicates()['YIELD_KG_PER_HA'][df_harvest.drop_duplicates()['YIELD_KG_PER_HA'] > 0]))
+print("Total number of paddock sowing dates:", len(df_seed.drop_duplicates()))
+print("Number of beta paddocks:", len(df_beta.drop_duplicates()))
+print("Number of beta paddock harvest dates:", len(df_beta_harvest.drop_duplicates()))
+print("Number of beta paddock yields:", len(df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'][df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'] > 0]))
+print("Number of beta paddock sowing dates:", len(df_beta_seed.drop_duplicates()))
+
+
+
+# Save as a geopackage for viewing in QGIS
+gdf = gpd.GeoDataFrame(df_beta_combined, geometry=df_beta_combined['WKT'].apply(wkt.loads), crs='EPSG:4326').drop(columns=["WKT"])
+gdf['YIELD_KG_PER_HA'] = gdf['YIELD_KG_PER_HA'].astype(float)
+gdf.to_file("beta_sowing_harvest_2025-05-22.gpkg")
+
+df_harvest['YIELD_KG_PER_HA'][df_harvest['YIELD_KG_PER_HA'].notna()] > 0
+
+len(df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'][df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'] > 0])
+
 
 
 # +
@@ -42,104 +139,10 @@ gdf.to_file(filename, driver="GeoJSON")
 print("Saved", filename)
 # -
 
-# %%time
-# Selecting all the columns from beta_paddocks
-cursor.execute("""
-SELECT FARM_ID, ENCRYPTED_FARM_ID, PADDOCK_ID, ENCRYPTED_PADDOCK_ID, TITLE, CROP_TYPE, PASTURE_STATE, LATITUDE, LONGITUDE, ST_ASWKT(GEOMETRY) AS WKT
-FROM FORAGECASTER_PROD.PADDOCK_SOURCE.BETA_PADDOCKS
-""")
-columns = [col[0] for col in cursor.description]
-rows = cursor.fetchall()
-df_beta = pd.DataFrame(rows, columns=columns)
-filename = "beta_records_2025-05-21.csv"
-df_beta.to_csv(filename, index=False)
-
-# %%time
-# Selecting all the columns from the seed and harvest records
-cursor.execute("""
-SELECT FARM_ID, PADDOCK_ID, RECORD_ID, CROP_TYPE, APPLICATION_DATE, YIELD_KG_PER_HA
-FROM FORAGECASTER_PROD.PADDOCK_SOURCE.HARVEST_RECORD
-""")
-columns = [col[0] for col in cursor.description]
-rows = cursor.fetchall()
-df_harvest = pd.DataFrame(rows, columns=columns)
-filename = "harvest_records_2025-05-21.csv"
-df_harvest.to_csv(filename, index=False)
-
-# %%time
-# Selecting all the useful columns from the seed records
-cursor.execute("""
-SELECT FARM_ID, PADDOCK_ID, RECORD_ID, GRASS_TYPE, APPLICATION_DATE
-FROM FORAGECASTER_PROD.PADDOCK_SOURCE.SEED_RECORD
-""")
-columns = [col[0] for col in cursor.description]
-rows = cursor.fetchall()
-df_seed = pd.DataFrame(rows, columns=columns)
-filename = "seed_records_2025-05-21.csv"
-df_seed.to_csv(filename, index=False)
-
-# Making the beta columns match the seeding and harvesting column names
-beta_columns = {
-    "FARM_ID": "unencryped_farm_id",
-    "ENCRYPTED_FARM_ID": "FARM_ID",
-    "PADDOCK_ID": "unencryped_paddock_id",
-    "ENCRYPTED_PADDOCK_ID": "PADDOCK_ID"
-}
-df_beta = df_beta.rename(columns = beta_columns)
-
-seed_columns = {
-    'APPLICATION_DATE':'SOWING_DATE',
-    'GRASS_TYPE':'SOWING_CROP_TYPE'
-}
-df_seed = df_seed.rename(columns = seed_columns)
-
-harvest_columns = {
-    'APPLICATION_DATE':'HARVEST_DATE',
-    'CROP_TYPE':'HARVEST_CROP_TYPE'
-}
-df_harvest = df_harvest.rename(columns = harvest_columns)
-
-# Convert from bytes to hex so I can merge them
-df_seed['PADDOCK_ID'] = df_seed['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
-df_harvest['PADDOCK_ID'] = df_harvest['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
-df_beta['PADDOCK_ID'] = df_beta['PADDOCK_ID'].apply(lambda x: x.hex() if isinstance(x, (bytes, bytearray)) else x)
-
-
-
-# +
-# Merge the beta paddocks with these sowing and harvest dates
-df_beta_harvest = pd.merge(df_beta, df_harvest, on='PADDOCK_ID')
-df_beta_seed = pd.merge(df_beta, df_seed, on='PADDOCK_ID')
-df_beta_seed_harvest = pd.merge(df_beta_seed, df_beta_harvest, on='PADDOCK_ID', how='outer')
-
-beta_seed_harvest_columns = ['PADDOCK_ID', 'TITLE_x', 'CROP_TYPE_x', 'PASTURE_STATE_x', 'SOWING_CROP_TYPE',  'SOWING_DATE', 'HARVEST_CROP_TYPE', 'HARVEST_DATE', 'YIELD_KG_PER_HA', 'WKT_x', 'WKT_y']
-beta_seed_harvest_columns_clean = {
-    'TITLE_x': 'TITLE',
-    'CROP_TYPE_x': 'CROP_TYPE', 
-    'PASTURE_STATE_x': 'PASTURE_STATE',
-}
-df_beta_combined = df_beta_seed_harvest[beta_seed_harvest_columns].rename(columns=beta_seed_harvest_columns_clean)
-df_beta_combined['WKT'] = df_beta_combined['WKT_x'].combine_first(df_beta_combined['WKT_y'])
-df_beta_combined = df_beta_combined.drop(columns=['WKT_x', 'WKT_y'])
-# -
-
-print("Total number of paddocks harvest dates:", len(df_harvest))
-print("Total number of paddocks sowing dates:", len(df_seed))
-print("Number of beta paddock harvest dates:", len(df_beta_harvest))
-print("Number of beta paddock sowing dates:", len(df_beta_seed))
-
-df_beta_harvest
-
-
-
-
-
 # Create a DataFrame and convert WKT to geometry
 df = pd.DataFrame(rows, columns=columns)
 df_clean = df.drop(columns=['GEOMETRY', 'WKT', 'ENCRYPTED_FARM_ID', 'ENCRYPTED_PADDOCK_ID'])
 gdf = gpd.GeoDataFrame(df_clean, geometry=df['WKT'].apply(wkt.loads), crs='EPSG:4326')
-
-gdf.dtypes
 
 # Save as GeoPackage
 filename = "paddocks.gpkg"

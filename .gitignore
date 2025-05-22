@@ -12,6 +12,7 @@ data
 *.kml
 *.pkl
 *.ipynb
+credentials.py
 
 # qsub logging files
 *.o*
