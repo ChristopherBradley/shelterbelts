@@ -12,6 +12,7 @@ import geopandas as gpd
 import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
+from scipy.signal import fftconvolve
 import rasterio
 from rasterio.transform import from_origin
 from rasterio.crs import CRS
@@ -23,7 +24,29 @@ import traceback, sys
 np.random.seed(0)
 random.seed(0)
 
-def aggregated_metrics(ds):
+# +
+# Much faster method to calculate spatial variation than scipy.ndimage
+def focal_std_fft(array, kernel):
+    radius = kernel.shape[0] // 2
+    array = np.pad(array, pad_width=radius, mode='reflect')
+    
+    kernel = kernel / kernel.sum()
+    mean = fftconvolve(array, kernel, mode='same')
+    mean_sq = fftconvolve(array**2, kernel, mode='same')
+    std = np.sqrt(mean_sq - mean**2)
+    
+    std_unpadded = std[radius:-radius or None, radius:-radius or None]
+    return std_unpadded
+
+def make_circular_kernel(radius):
+    y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
+    mask = x**2 + y**2 <= radius**2
+    return mask.astype(float)
+
+
+# -
+
+def aggregated_metrics(ds, radius=4):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
     # Make a list of the variables with a time dimension
     time_vars = [var for var in ds.data_vars if 'time' in ds[var].dims]
@@ -32,38 +55,39 @@ def aggregated_metrics(ds):
     for variable in time_vars:
 
         # Temporal metrics
-        ds_median_temporal = ds[variable].median(dim="time", skipna=True)  # Not sure if I should be doing some kind of outlier removal before this
+        ds_median_temporal = ds[variable].median(dim="time", skipna=True)  # Not sure if I should be doing some kind of outlier removal before this. I should try out the geometric median like Dale Roberts demonstrated.
         ds_std_temporal = ds[variable].std(dim="time", skipna=True)
 
         # Focal metrics
-        radius = 3
-        kernel_size = 2 * radius + 1  # 7 pixel diameter because I'm guessing the radius doesn't include the center pixel
+        kernel_size = 2 * radius + 1  # 7 pixel diameter because the radius doesn't include the center pixel
         ds_mean_focal_7p = xr.apply_ufunc(
             ndimage.uniform_filter, 
             ds_median_temporal, 
             kwargs={'size': kernel_size, 'mode': 'nearest'}
         )
-        ds_std_focal_7p = xr.apply_ufunc(
-            ndimage.generic_filter, 
-            ds_median_temporal, 
-            kwargs={'function': lambda x: x.std(), 'size': kernel_size, 'mode': 'nearest'}
+
+        kernel = make_circular_kernel(radius=radius)
+        std_focal_7p_fft = focal_std_fft(ds_median_temporal.values, kernel)
+        ds_std_focal_7p_fft = xr.DataArray(
+            std_focal_7p_fft,
+            dims=("y", "x")
         )
+
         ds[f"{variable}_temporal_median"] = ds_median_temporal
         ds[f"{variable}_temporal_std"] = ds_std_temporal
         ds[f"{variable}_focal_mean"] = ds_mean_focal_7p
-        ds[f"{variable}_focal_std"] = ds_std_focal_7p
+        ds[f"{variable}_focal_std"] = ds_std_focal_7p_fft
 
     return ds
 
-def jittered_grid(ds):
-    """Create an equally spaced 10x10 coordinate grid with a random 2 pixel jitter"""
+def jittered_grid(ds, spacing_x=10, spacing_y=10):
+    """Create an equally spaced 10x10 coordinate grid with a random jitter"""
 
     # Calculate grid
-    spacing_x = 10
-    spacing_y = 10
     half_spacing_x = spacing_x // 2
     half_spacing_y = spacing_y // 2
-    jitter_range = [-2, -1, 0, 1, 2]
+    # jitter_range = [-2, -1, 0, 1, 2]
+    jitter_range = [-1, 0, 1]
 
     # Regular grid
     y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
@@ -115,7 +139,7 @@ def tile_csv(sentinel_tile):
     # Load the sentinel imagery and tree cover into an xarray
     with open(sentinel_tile, 'rb') as file:
         ds = pickle.load(file)
-
+        
     # Load the woody veg and add to the main xarray
     ds1 = rxr.open_rasterio(tree_cover_filename)
     
@@ -148,7 +172,8 @@ def tile_csv(sentinel_tile):
     ds_selected = ds[variables] 
 
     # Select pixels to use for training/testing
-    df = jittered_grid(ds)
+    spacing = 3
+    df = jittered_grid(ds, spacing_x=spacing, spacing_y=spacing)
     df["tile_id"] = tile_id
 
     # Leaving normalisation for later to help with debugging if I want to visually inspect the raw values
@@ -162,7 +187,6 @@ def tile_csv(sentinel_tile):
     return df
 
 
-# +
 def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079_df_tree_cover.csv"):
     """I used this function to visualise the jittered coordinates chosen in QGIS"""
     tile_id = "_".join(sentinel_tile.split('/')[-1].split('_')[:2])
@@ -214,35 +238,27 @@ def visualise_sample_coords(sentinel_tile="/scratch/xe2/cb8590/Nick_csv/g1_05079
     ) as dst:
         dst.write(tree_cover_array, 1)
     print("Saved", filename)
-    
-    
+
+
 if __name__ == '__main__':
     
     # Load a list of all the downloaded sentinel tiles and training csv's
     tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
     sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-    outdir = "/scratch/xe2/cb8590/Nick_csv2"
+    outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
+    
+    # outdir = "/scratch/xe2/cb8590/Nick_csv3"
+    hyperparam = "k4_s3"
+    outdir = f"/scratch/xe2/cb8590/Nick_csv_{hyperparam}"
 
     sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
     print("num sentinel tiles:", len(sentinel_tiles))
 
-    csv_tiles = glob.glob(f'{outdir}/*')
-    print("num csv tiles:", len(csv_tiles))
-
-    # +
-    # Remove sentinel tiles we've already downloaded
-    sentinel_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_tiles]
-    csv_ids = ["_".join(csv_tile.split('/')[-1].split('_')[:2]) for csv_tile in csv_tiles]
-
-    is_news = [(sentinel_id not in csv_ids) for sentinel_id in sentinel_ids]
-    sentinel_tiles = [sentinel_tile for sentinel_tile, is_new in zip(sentinel_tiles, is_news) if is_new]
-    print("num sentinel tiles not yet downloaded: ", len(sentinel_tiles))
-    # -
-
     # Randomise the tiles so I can have a random sample before they all complete
     sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
 
-
+    # rows = sentinel_randomised[:16]
+    # workers = 4
     rows = sentinel_randomised
     workers = 50
     batch_size = math.ceil(len(rows) / workers)
@@ -266,11 +282,6 @@ if __name__ == '__main__':
 
     # +
     # Create a dataframe of imagery and tree cover classifications for each tile
-    tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-    sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
-    outdir = "/scratch/xe2/cb8590/Nick_csv2"
-    outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
-
     csv_tiles = glob.glob(f'{outdir}/*')
     print("num csv tiles now:", len(csv_tiles))  # Why did 11 of the pickle files not get converted to csv files?
     # -
@@ -285,6 +296,6 @@ if __name__ == '__main__':
 
     # %%time
     # Feather file is more efficient, but csv is more readable. Anything over 100MB I should probs use a feather file.
-    filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
-    df_all.to_csv(filename, index=False)
+    filename = os.path.join(outlines_dir, f"tree_cover_preprocessed_{hyperparam}.feather")
+    df_all.to_feather(filename)
     print("Saved", filename)

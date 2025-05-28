@@ -1,10 +1,10 @@
 #!/bin/bash
-#PBS -N merge_inputs_outputs
+#PBS -N merge_inputs_outputs_k4_s3
 #PBS -l mem=190GB
 #PBS -l ncpus=48
 #PBS -l jobfs=0GB
 #PBS -P xe2
-#PBS -l walltime=01:00:00
+#PBS -l walltime=04:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
 
@@ -20,4 +20,4 @@ cd $wd
 source /g/data/xe2/John/geospatenv/bin/activate
 
 # Run the script
-python3 3.merge_inputs_outputs.py
+python3 merge_inputs_outputs.py
