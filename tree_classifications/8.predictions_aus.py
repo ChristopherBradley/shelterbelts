@@ -110,13 +110,13 @@ def sub_tiles(gdf_sentinel, tile_id, grid_size=5):
 # len(gdf)
 # -
 
-test_tiles_unconnected = "55HFC", "55HDC", "55HDA", "55HFA"
-test_tiles_connected = ["55HFC", "55HEC", "55HEB", "55HFB",
-                        # "55HGC", "56HKH", "55HGB", "56HKG",
+test_tiles_unconnected = "55HDA", "55HFA" # "55HFC", "55HDC" # 
+# test_tiles_connected = ["55HFC", "55HEC", "55HEB", "55HFB",
+#                         "55HGC", "56HKH", "55HGB", "56HKG",
                         # "55HEV", "55HFV", "55HEU", "55HFU",
-                        # "55HGV", "56HKE", "55HGU", "56HKD"
-]
-test_tiles = test_tiles_connected
+                        # "55HGV", "56HKE", "55HGU", "56HKD"]
+
+test_tiles = test_tiles_unconnected
 
 
 outdir_batches = "/g/data/xe2/cb8590/models/batches_aus_100km"

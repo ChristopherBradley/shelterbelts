@@ -46,7 +46,7 @@ def make_circular_kernel(radius):
 
 # -
 
-def aggregated_metrics(ds, radius=5):
+def aggregated_metrics(ds, radius=4):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
     # Make a list of the variables with a time dimension
     time_vars = [var for var in ds.data_vars if 'time' in ds[var].dims]
@@ -172,7 +172,7 @@ def tile_csv(sentinel_tile):
     ds_selected = ds[variables] 
 
     # Select pixels to use for training/testing
-    spacing = 10
+    spacing = 3
     df = jittered_grid(ds, spacing_x=spacing, spacing_y=spacing)
     df["tile_id"] = tile_id
 
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
     
     # outdir = "/scratch/xe2/cb8590/Nick_csv3"
-    hyperparam = "kernel5"
+    hyperparam = "k4_s3"
     outdir = f"/scratch/xe2/cb8590/Nick_csv_{hyperparam}"
 
     sentinel_tiles = glob.glob(f'{sentinel_dir}/*')

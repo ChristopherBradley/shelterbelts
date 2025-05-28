@@ -28,7 +28,7 @@ outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
 # filename = os.path.join(outlines_dir, f"tree_cover_preprocessed2.csv")
 # df = pd.read_csv(filename, index_col=False)
 
-hyperparam = 'spacing3'
+hyperparam = 'k4_s3'
 stub = hyperparam
 filename = os.path.join(outlines_dir, f"tree_cover_preprocessed_{hyperparam}.feather")
 df = pd.read_feather(filename)

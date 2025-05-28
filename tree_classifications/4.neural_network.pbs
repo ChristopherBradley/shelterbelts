@@ -1,10 +1,10 @@
 #!/bin/bash
-#PBS -N neural_network_s3
-#PBS -l mem=48GB
-#PBS -l ncpus=4
+#PBS -N neural_network_k3_s10
+#PBS -l mem=128GB
+#PBS -l ncpus=16
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=02:00:00
+#PBS -l walltime=12:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 

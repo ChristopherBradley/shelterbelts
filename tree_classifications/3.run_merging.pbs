@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N merge_inputs_outputs_k5_s10
+#PBS -N merge_inputs_outputs_k4_s3
 #PBS -l mem=190GB
 #PBS -l ncpus=48
 #PBS -l jobfs=0GB
