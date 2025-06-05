@@ -112,29 +112,40 @@ def sub_tiles(gdf_sentinel, tile_id, grid_size=5):
 # len(gdf)
 # -
 
-test_tiles_unconnected = "55HDA", "55HFA" # "55HFC", "55HDC" # 
+# I want to try relaunching the subprocess for each for full tile to see if that solves memory accumulation issues.
+
+outdir_batches = "/g/data/xe2/cb8590/models/batches_aus_100km"
+test_tiles_unconnected = [["55HDA"], # Number of tiles per row is the number of subprocesses we launch each time
+                          ["55HFA"],
+                          ["55HFC"],
+                          ['55HDC']  # Number of rows is the number of times we relaunch the subprocesses
+                        ]   
+ # 
 # test_tiles_connected = ["55HFC", "55HEC", "55HEB", "55HFB",
 #                         "55HGC", "56HKH", "55HGB", "56HKG",
                         # "55HEV", "55HFV", "55HEU", "55HFU",
                         # "55HGV", "56HKE", "55HGU", "56HKD"]
 
-test_tiles = test_tiles_unconnected
+all_tiles = test_tiles_unconnected
 
+for tile_batch in all_tiles:
 
-outdir_batches = "/g/data/xe2/cb8590/models/batches_aus_100km"
-for tile_id in test_tiles:
-    sub_tiles(gdf_sentinel, tile_id, grid_size=1)
+    for tile_id in tile_batch:
+        # Create a geopackage with a list of stubs and bboxs for this subprocess to work on
+        sub_tiles(gdf_sentinel, tile_id, grid_size=1)
 
-batch_files = [os.path.join(outdir_batches, f"{tile_id}.gpkg") for tile_id in test_tiles]
+    # Recreate the filename for each of those geopackages we just saved
+    batch_files = [os.path.join(outdir_batches, f"{tile_id}.gpkg") for tile_id in tile_batch]
 
-# +
-procs = []
-for batch_file in batch_files:
-    p = subprocess.Popen(["python", "tree_classifications/predictions_batch.py", "--csv", batch_file])
-    procs.append(p)
-    
-for p in procs:
-    p.wait()
+    # Launch a bunch of subprocesses in parallel
+    procs = []
+    for batch_file in batch_files:
+        p = subprocess.Popen(["python", "tree_classifications/predictions_batch.py", "--csv", batch_file])
+        procs.append(p)
+        
+    # Wait before relaunching more subprocesses
+    for p in procs:
+        p.wait()
 
 # +
 # sentinel_download with Large compute (7 cores, 32GB)

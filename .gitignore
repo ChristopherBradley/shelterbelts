@@ -12,6 +12,8 @@ data
 *.kml
 *.pkl
 *.ipynb
+credentials.py
+snowflake/cache
 
 # qsub logging files
 *.o*
