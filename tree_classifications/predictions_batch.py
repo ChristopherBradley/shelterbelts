@@ -66,9 +66,9 @@ python3 predictions_batch.py --csv batch.csv""",
 
 # +
 # Load the trained model and standard scaler
-stub = 'fft_89a_92s_85r_86p'
-filename_model = f'/g/data/xe2/cb8590/models/nn_{stub}.keras'
-filename_scaler = f'/g/data/xe2/cb8590/models/scaler_{stub}.pkl'
+nearal_network_stub = 'fft_89a_92s_85r_86p'
+filename_model = f'/g/data/xe2/cb8590/models/nn_{nearal_network_stub}.keras'
+filename_scaler = f'/g/data/xe2/cb8590/models/scaler_{nearal_network_stub}.pkl'
 
 # model = keras.models.load_model(filename_model)
 # scaler = joblib.load(filename_scaler)
