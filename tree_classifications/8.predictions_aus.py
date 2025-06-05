@@ -101,6 +101,8 @@ def sub_tiles(gdf_sentinel, tile_id, grid_size=5):
     # 6. Save to GeoPackage
     # filename = "/scratch/xe2/cb8590/tmp/55HFC_grid_tiles.gpkg"
     filename = os.path.join(outdir_batches, f"{tile_id}.gpkg")
+    if os.path.exists(filename):
+        os.remove(filename)
     tiles_wgs84.to_file(filename, layer="tiles", driver="GPKG")
     print("Saved", filename)
     
