@@ -3,15 +3,41 @@
 
 # +
 # # !pip install snowflake-connector-python openpyxl
+
+# +
+# Can browse the snowflake database here: 
+# https://ft76388.ap-southeast-2.snowflakecomputing.com/oauth/authorize?response_type=code&client_id=KEaAv5tJAYc1%2BBqySu5DRtAL1DQ%2Frw%3D%3D&scope=refresh_token&state=%7B%22isSecondaryUser%22%3Afalse%2C%22csrf%22%3A%224b3cccb4%22%2C%22url%22%3A%22https%3A%2F%2Fft76388.ap-southeast-2.snowflakecomputing.com%22%2C%22windowId%22%3A%220024ce81-ff51-4550-807d-363c668eb3db%22%2C%22classicUIUrl%22%3A%22https%3A%2F%2Fft76388.ap-southeast-2.snowflakecomputing.com%22%2C%22browserUrl%22%3A%22https%3A%2F%2Fapp.snowflake.com%2Fpawhkoa%2Fmp20061%22%2C%22originator%22%3A%22started-by-cb100-2025-04-18T00%3A16%3A47.349158261Z%22%2C%22oauthNonce%22%3A%22eXbXdrx95bRq6Eod%22%7D&redirect_uri=https%3A%2F%2Fapps-api.c1.ap-southeast-2.aws.app.snowflake.com%2Fcomplete-oauth%2Fsnowflake&code_challenge=vnflT2KKhidHSfSgmW-ukp03c1xPJ_fG5wCBdyEeNCk&code_challenge_method=S256
 # -
+
+import time
+start_time = time.time()
 
 import snowflake.connector
 import geopandas as gpd
 from shapely import wkt
 import pandas as pd
 
+# +
+# Credentials
 from credentials import password
 
+# Directory structure
+indir = '../data/'
+outdir = '../outdir/'
+# -
+
+# Trying a new method. Doesn't work because it redirects to Single Sign On, when I need the snowflake instead. 
+conn = snowflake.connector.connect(
+    user='ANU_CHRISTOPHER',
+    password=password,
+    authenticator='externalbrowser',
+    account='pawhkoa-mp20061',
+    warehouse='FORAGECASTER_WH',
+    database='FORAGECASTER_PROD',
+    schema='PADDOCK_10_24_2024',
+)
+
+# This old method used to work, but doesn't work now that MFA is enforced as of 23 June 2025
 conn = snowflake.connector.connect(
     user='ANU_CHRISTOPHER',
     password=password,
@@ -50,7 +76,6 @@ df_harvest.to_csv(filename, index=False)
 df_harvest_original = df_harvest
 
 # %%time
-# Selecting all the useful columns from the seed records
 cursor.execute("""
 SELECT FARM_ID, PADDOCK_ID, RECORD_ID, GRASS_TYPE, APPLICATION_DATE
 FROM FORAGECASTER_PROD.PADDOCK_SOURCE.SEED_RECORD
@@ -97,8 +122,9 @@ df_beta_harvest = df_beta.merge(df_harvest)
 
 # Concat the sowing and harvest dataframes
 df_beta_combined = pd.concat([df_beta_seed, df_beta_harvest]).drop_duplicates()
-df_beta_combined.to_csv("beta_sowing_harvest_2025-05-22.csv", index=False)
+df_beta_combined.to_csv("beta_sowing_harvest.csv", index=False)
 
+# Some stats about the data we have
 print("Total number of paddock harvest dates:", len(df_harvest.drop_duplicates()))
 print("Total number of paddock yield:", len(df_harvest.drop_duplicates()['YIELD_KG_PER_HA'][df_harvest.drop_duplicates()['YIELD_KG_PER_HA'] > 0]))
 print("Total number of paddock sowing dates:", len(df_seed.drop_duplicates()))
@@ -107,37 +133,17 @@ print("Number of beta paddock harvest dates:", len(df_beta_harvest.drop_duplicat
 print("Number of beta paddock yields:", len(df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'][df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'] > 0]))
 print("Number of beta paddock sowing dates:", len(df_beta_seed.drop_duplicates()))
 
-
-
 # Save as a geopackage for viewing in QGIS
 gdf = gpd.GeoDataFrame(df_beta_combined, geometry=df_beta_combined['WKT'].apply(wkt.loads), crs='EPSG:4326').drop(columns=["WKT"])
 gdf['YIELD_KG_PER_HA'] = gdf['YIELD_KG_PER_HA'].astype(float)
-gdf.to_file("beta_sowing_harvest_2025-05-22.gpkg")
+gdf.to_file(f"{outdir}beta_sowing_harvest.gpkg")
 
-df_harvest['YIELD_KG_PER_HA'][df_harvest['YIELD_KG_PER_HA'].notna()] > 0
-
-len(df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'][df_beta_harvest.drop_duplicates()['YIELD_KG_PER_HA'] > 0])
-
-
-
-# +
 # Export the beta paddock boundaries
 cursor.execute("""
 SELECT DISTINCT PADDOCK_ID, ST_ASWKT(GEOMETRY) AS WKT
 FROM FORAGECASTER_PROD.PADDOCK_10_24_2024.BETA_PADDOCKS;
 """)
-
 rows = cursor.fetchall()
-
-gdf = gpd.GeoDataFrame(
-    [{'PADDOCK_ID': row[0], 'geometry': wkt.loads(row[1])} for row in rows],
-    crs='EPSG:4326'
-)
-
-filename = "paddocks.geojson"
-gdf.to_file(filename, driver="GeoJSON")
-print("Saved", filename)
-# -
 
 # Create a DataFrame and convert WKT to geometry
 df = pd.DataFrame(rows, columns=columns)
@@ -145,131 +151,9 @@ df_clean = df.drop(columns=['GEOMETRY', 'WKT', 'ENCRYPTED_FARM_ID', 'ENCRYPTED_P
 gdf = gpd.GeoDataFrame(df_clean, geometry=df['WKT'].apply(wkt.loads), crs='EPSG:4326')
 
 # Save as GeoPackage
-filename = "paddocks.gpkg"
+filename = f"{outdir}paddocks.gpkg"
 gdf.to_file(filename, driver="GPKG", layer="PADDOCK_ID")
 print("Saved", filename)
 
-# +
-# Connect to the database
-conn = snowflake.connector.connect(
-    user='ANU_CHRISTOPHER',
-    password=password,
-    account='pawhkoa-mp20061',
-    warehouse='FORAGECASTER_WH',
-    database='FORAGECASTER_PROD',
-    schema='PADDOCK_10_24_2024',
-)
-cursor = conn.cursor()
-
-# Get all the colummn names in FORAGECASTER_PROD
-cursor.execute("""
-SELECT 
-    table_schema,
-    table_name,
-    column_name,
-    data_type
-FROM 
-    FORAGECASTER_PROD.INFORMATION_SCHEMA.COLUMNS
-ORDER BY 
-    table_schema, table_name, ordinal_position
-""")
-rows = cursor.fetchall()
-
-# See if any of them are sowing or harvest records
-df = pd.DataFrame(rows, columns=["Schema", "Table", "Column", "Data Type"])
-
-# -
-
-keywords = "sowing|harvest|seed|yield|death|cultivation"
-matches = df[df["Column"].str.contains(keywords, case=False, na=False)]
-print(f"Number of sowing or harvest columns: {len(matches)}")
-
-matches
-
-keywords = "sowing|harvest|seed|yield|death"
-matches = df[df["Schema"].str.contains(keywords, case=False, na=False)]
-matches
-
-filename = "Agriwebb_Schema.csv"
-df.to_csv(filename)
-print("Saved", filename)
-
-df_original = df
-
-# +
-# Simplify to just two columns
-df["Table (with Schema)"] = df["Schema"] + "." + df["Table"]
-df["Column (with Type)"] = df["Column"] + " (" + df["Data Type"] + ")"
-
-# Optional: select just the new columns and reorder if you'd like
-df_cleaned = df[["Table (with Schema)", "Column (with Type)"]]
-
-# +
-# Create a list of columns in each table
-df["col_idx"] = df.groupby("Table (with Schema)").cumcount()
-
-# Pivot so each field name becomes a new column
-df_wide = df.pivot(index="Table (with Schema)", columns="col_idx", values="Column")
-
-# Optionally rename columns: 0 => Column 1, 1 => Column 2, etc.
-df_wide.columns = [f"Column {i+1}" for i in df_wide.columns]
-
-# Reset index so "Table" is a normal column again
-df_wide.reset_index(inplace=True)
-
-# Export to Excel
-df_wide.to_excel("snowflake_table_columns_wide.xlsx", index=False)
-
-print("Exported to snowflake_table_columns_wide.xlsx")
-
-# +
-# Create a binary presence matrix: 1 if table has column, else 0
-df_binary = (
-    df[["Table (with Schema)", "Column"]]
-    .assign(present=1)
-    .pivot_table(index="Table (with Schema)", columns="Column", values="present", fill_value=0)
-)
-
-# Optional: order columns by how many tables contain that column
-df_binary = df_binary.loc[:, df_binary.sum().sort_values(ascending=False).index]
-
-# Reset index so "Table" becomes a column again
-df_binary.reset_index(inplace=True)
-
-# Export to Excel
-df_binary.to_excel("snowflake_table_column_matrix.xlsx", index=False)
-
-print("Exported to snowflake_presence_matrix.xlsx")
-
-
-# +
-# Get all the data from the beta farms
-beta_columns = ('FARM_ID',
-'PADDOCK_ID',
-'TITLE',
-'CROP_TYPE',
-'ARABLELANDSIZE_HA',
-'LANDSIZE_HA',
-'PASTURE_STATE',
-'LATITUDE',
-'LONGITUDE',
-'AREA_DATE',
-'CREATION_DATE',
-'LAST_MODIFIED_DATE')
-cursor.execute(f"""
-SELECT {", ".join(beta_columns)}
-FROM FORAGECASTER_PROD.PADDOCK_4_28_2025.BETA_PADDOCKS;
-""")
-rows = cursor.fetchall()
-
-df = pd.DataFrame(rows, columns=beta_columns)
-filename = "BETA_PADDOCKS_4_28_2025.csv"
-df.to_csv(filename, index=False)
-print("Saved", filename)
-# -
-
-df_binary
-
-gpd.read_file('BETA_PADDOCKS_10_24_2024.gpkg')
-
-# !ls
+end_time = time.time()
+end_time - start_time
