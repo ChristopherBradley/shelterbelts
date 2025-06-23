@@ -1,4 +1,5 @@
 data
+outdir
 .DS_Store
 *.tif*
 *.png
