@@ -26,7 +26,8 @@ dependencies = [
     "netcdf4",
     "odc-stac",
     "pystac_client",
-    "planetary_computer"
+    "planetary_computer",
+    "geopandas"
 ]
 
 [project.optional-dependencies]

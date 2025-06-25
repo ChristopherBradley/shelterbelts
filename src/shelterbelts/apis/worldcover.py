@@ -143,7 +143,6 @@ def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="T
         buffer: Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so would give a ~2kmx2km area.
         outdir: The directory to save the final cleaned tiff file.
         stub: The name to be prepended to each file download.
-        tmpdir: The directory to save the raw uncleaned tiff file.
         save_tif: Boolean to determine whether to write the data to files.
         plot: Save a png file (not geolocated, but can be opened in Preview).
 
