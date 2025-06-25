@@ -16,4 +16,3 @@ assert set(ds.coords) == {'latitude', 'longitude'}
 assert set(ds.data_vars) == {'worldcover'}
 assert os.path.exists("outdir/TEST_worldcover.tif")
 assert os.path.exists("outdir/TEST_worldcover.png")
-
