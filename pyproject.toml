@@ -1,0 +1,42 @@
+[project]
+name = "shelterbelts"
+version = "0.0.1"
+authors = [
+  { name="Christopher Bradley", email="christopher.bradley@anu.edu.au" },
+]
+description = "Using satellite imagery to identify shelterbelts and measure their impacts on agricultural productivity"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+dependencies = [
+    "rioxarray",
+    "pandas",
+    "scipy",
+    "requests",
+    "pysheds",
+    "owslib",
+    "pyproj",
+    "matplotlib",
+    "netcdf4",
+    "odc-stac",
+    "pystac_client",
+    "planetary_computer"
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter",
+    "jupytext",
+    "pytest",
+    "twine",
+    "build"
+]
+
+[project.urls]
+Homepage = "https://github.com/ChristopherBradley/shelterbelts"

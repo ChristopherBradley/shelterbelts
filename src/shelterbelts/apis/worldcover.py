@@ -3,21 +3,10 @@
 # https://planetarycomputer.microsoft.com/dataset/esa-worldcover#Example-Notebook
 # -
 
-# Change directory to this repo - this should work on gadi or locally via python or jupyter.
-# Unfortunately, this needs to be in all files that can be run directly & use local imports.
-import os, sys
-repo_name = "shelterbelts"
-if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
-    repo_dir = os.path.dirname(os.getcwd())       
-else:                                             # Already running from root of this repo. 
-    repo_dir = os.getcwd()
-os.chdir(repo_dir)
-sys.path.append(repo_dir)
 
 # +
 # %%time
+import os
 import numpy as np
 import rasterio
 import rioxarray # Even though this variable isn't used directly, it's needed for the da.rio methods
@@ -157,18 +146,18 @@ if __name__ == '__main__':
 
     # Took 5 secs, 17 secs, 3 secs (very inconsistent)
 
-tas = -42.887122, 147.760717
-anu = -35.275648, 149.100574
-vic = -38.300409, 143.633974
-nsw = -34.738827, 150.530493
-qld = -25.817790, 149.657655
-nt = -13.036965, 133.292977
-wa = -32.566546, 117.523713
-ocean = -35.420755, -139.774455   # Middle of nowhere in the ocean for error testing
+# tas = -42.887122, 147.760717
+# anu = -35.275648, 149.100574
+# vic = -38.300409, 143.633974
+# nsw = -34.738827, 150.530493
+# qld = -25.817790, 149.657655
+# nt = -13.036965, 133.292977
+# wa = -32.566546, 117.523713
+# ocean = -35.420755, -139.774455   # Middle of nowhere in the ocean for error testing
 
 
-points = [tas, anu, vic, nsw, qld, nt, wa]
-stubs = ['tas', 'anu', 'vic', 'nsw', 'qld', 'nt', 'wa']
+# points = [tas, anu, vic, nsw, qld, nt, wa]
+# stubs = ['tas', 'anu', 'vic', 'nsw', 'qld', 'nt', 'wa']
 
 # +
 # # %%time
