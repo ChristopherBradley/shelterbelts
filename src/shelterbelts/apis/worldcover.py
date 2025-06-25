@@ -205,7 +205,3 @@ if __name__ == '__main__':
     plot = args.plot
     
     worldcover(lat, lon, buffer, outdir, stub, plot=plot)
-
-ds = worldcover()
-
-visualise_worldcover(ds['worldcover'])
