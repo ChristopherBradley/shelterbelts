@@ -27,7 +27,9 @@ dependencies = [
     "odc-stac",
     "pystac_client",
     "planetary_computer",
-    "geopandas"
+    "geopandas",
+    "windrose",
+    "seaborn"
 ]
 
 [project.optional-dependencies]

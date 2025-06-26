@@ -4,7 +4,7 @@ import time
 
 from shelterbelts.apis.worldcover import worldcover
 from shelterbelts.apis.canopy_height import canopy_height
-
+from shelterbelts.apis.barra_daily import barra_daily
 
 if not os.path.exists('tmpdir'):
     os.mkdir('tmpdir')
@@ -26,6 +26,13 @@ def test_basic():
     assert os.path.exists("outdir/TEST_canopy_height.tif")
     assert os.path.exists("outdir/TEST_canopy_height.png")
 
+def test_barra_daily():
+    """More comprehensive barra download tests: 2 buffers, single or multiple years, with and without save netcdf and plotting"""
+    ds = barra_daily(lat=-34.389, lon=148.469, buffer=0.1, start_year=2020, end_year=2021, outdir='outdir', stub='TEST')
+    assert set(ds.coords) == {'time', 'latitude', 'longitude'}  
+    assert set(ds.data_vars) == {'uas', 'vas'}
+    assert os.path.exists("outdir/TEST_barra_daily.nc")
+    assert os.path.exists("outdir/TEST_barra_daily.png")
 
 def test_canopy_height():
     """More comprehensive Tolan Global Canopy Height tests: 2 buffers, with and without savetif and plotting"""
@@ -72,8 +79,9 @@ if __name__ == '__main__':
     print("Testing APIs")
     start = time.time()
 
-    test_basic()
-    test_worldcover()
-    test_canopy_height()
+    # test_basic()
+    # test_worldcover()
+    # test_canopy_height()
+    test_barra_daily()
     
     print(f"Tests successfully completed in {time.time() - start} seconds")

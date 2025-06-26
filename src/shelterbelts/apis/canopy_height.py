@@ -246,6 +246,7 @@ def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stu
         outdir: The directory to save the final cleaned tiff file.
         stub: The name to be prepended to each file download.
         tmpdir: The directory to copy the original uncropped canopy height files.
+        savetif: Boolean to save the final result to file.
         plot: Save a png file (not geolocated, but can be opened in Preview).
 
     Returns
