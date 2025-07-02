@@ -25,9 +25,7 @@ filename = f'{indir}g2_26729_binary_tree_cover_10m.tiff'
 # Load the sample data
 da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
 ds = da.to_dataset(name='woody_veg').drop_vars('spatial_ref')
-woody_veg = ds['woody_veg'].values
-
-
+woody_veg = ds['woody_veg'].values.astype(bool)
 
 # +
 # Assign a group label to trees within a given distance of each other
@@ -90,15 +88,62 @@ corridor_area = woody_veg & ~(core_area | edge_area | scattered_area)
 
 plt.imshow(corridor_area)
 
+# Double checking we don't assign different categories to the same pixel
+combined = (
+    scattered_area.astype(int) +
+    core_area.astype(int) +
+    edge_area.astype(int) +
+    corridor_area.astype(int)
+)
+assert np.all(combined <= 1), "Category masks overlap — each pixel should belong to at most one category"
+assert np.array_equal(combined > 0, woody_veg), "Combined areas don't match the original woody_veg"
+
+# Create a single array with all the layers
+category_labels = {'scattered_area': 1, 'core_area':2, 'edge_area':3, 'corridor_area':4}
+tree_categories = np.zeros_like(woody_veg, dtype=np.uint8)
+tree_categories[scattered_area] = category_labels['scattered_area']
+tree_categories[core_area]      = category_labels['core_area']
+tree_categories[edge_area]      = category_labels['edge_area']
+tree_categories[corridor_area]  = category_labels['corridor_area']
+
+ds['tree_categories'] = (('y', 'x'), tree_categories)
+
+ds['tree_categories'].plot()
+
+# +
+
+# Start with all 0s: non-tree pixels
+categories = np.zeros_like(scattered_area, dtype=np.uint8)
+
+# Define conditions in order of increasing priority
+# (later conditions override earlier ones)
+conditions = [
+    scattered_area,
+    core_area,
+    edge_area,
+    corridor_area
+]
+
+# Corresponding category values
+values = [1, 2, 3, 4]
+
+# Assign values to matching conditions
+categories = np.select(conditions, values, default=0)
+
+# -
 
 
 
+# +
+# Create a visualisation in the python file
+
+# +
+# Create a tif output with colours embedded
+# -
 
 
 
-
-
-def tree_categories(woody_veg_tif, min_patch_size=20, edge_size=3, max_gap_size=2, ds=None, save_tif=True):
+def tree_categories(woody_veg_tif, min_patch_size=20, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True):
     """Categorise a boolean woody veg tif into scattered trees, edges, core areas, and corridors, based on the Fragstats landscape ecology approach
 
     Parameters
