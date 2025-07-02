@@ -11,106 +11,61 @@ import pandas as pd
 import xarray as xr
 import rioxarray as rxr
 import pyproj
-from scipy.ndimage import label, distance_transform_edt, gaussian_filter, binary_erosion, binary_dilation
+from scipy.ndimage import label, distance_transform_edt, gaussian_filter, binary_erosion, binary_dilation, generate_binary_structure
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 # -
 
 
-# Change directory to this repo
-import os, sys
-repo_name = "shelterbelts"
-if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-elif os.path.basename(os.getcwd()) != repo_name:
-    repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
-else:  # Already running locally from repo root
-    repo_dir = os.getcwd()
-os.chdir(repo_dir)
-sys.path.append(repo_dir)
-print(f"Running from {repo_dir}")
+# Sample file
+indir = "../../../data/"
+filename = f'{indir}g2_26729_binary_tree_cover_10m.tiff'
 
-from shelterbelt_identification.wind_barra import barra_daily, wind_rose, wind_dataframe
+# Load the sample data
+da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+ds = da.to_dataset(name='woody_veg').drop_vars('spatial_ref')
+woody_veg = ds['woody_veg'].values
 
-# Make the panda displays more informative
-pd.set_option('display.max_rows', 100)
-pd.set_option('display.max_columns', 100)
 
-# Load the woody veg or canopy cover tiff file
-# outdir = "../data/"
-# filename = os.path.join(outdir, "Tas_WoodyVeg_201903_v2.2.tif")  # Binary classifications
-filename = '/Users/christopherbradley/Documents/PHD/Data/Annual_woody_vegetation_and_canopy_cover_grids_for_Tasmania-z_BE-P62-/data/WoodyVeg/Tas_WoodyVeg_202403_v2.2.tif'
-da_original = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
 
 # +
-# Select a 5km x 5km region in the tasmania tree classifications
-lat, lon = -42.888223, 147.760650
-buffer_m = 2500
-project = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3577", always_xy=True).transform
-x, y = project(lon, lat)
-bbox = x - buffer_m, y + buffer_m, x + buffer_m, y - buffer_m  # Not sure why the miny requires addition instead of subtraction, but this gives the 5km x 5km region
-minx, miny, maxx, maxy = bbox
 
-da = da_original.sel(x=slice(minx, maxx), y=slice(miny, maxy))
-da = da.where(da != 255, np.nan)  # Ocean pixels were represented by 255
-da = (da - 1)                     # Tree pixels were represented by 2, and non-tree 1
+
+
+# Step 2: Dilate the tree pixels by gap_size
+dilated = binary_dilation(woody_veg, structure=kernel)
+
+# Step 3: Label the dilated blobs using default 3x3 connectivity
+labeled_dilated, num_features = label(dilated)
+
+# Step 4: Mask the labels back to the original woody veg pixels
+shelterbelts = labeled_dilated * woody_veg
+
 # -
 
-ds = xr.Dataset({
-    "woodyveg_2024":da,
-})
-ds = ds.rio.write_crs(da.rio.crs)
 
-# Fill woodyveg nan with 0's (we could have done this earlier when converting from 255, but I think this way is clearer)
-ds["woodyveg_2024"] = ds["woodyveg_2024"].fillna(0).astype(bool)
 
-# Load worldcover and reproject match
-filename = "data/Fulham_worldcover.tif"
-da_worldcover = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-da_worldcover_matched = da_worldcover.rio.reproject_match(da_original)
-ds["worldcover"] = da_worldcover_matched
-ds["worldcover_veg"] = (ds["worldcover"] == 10)
+# +
+# Assign a group label to trees within a given distance of each other
+# Using a gap_size of 0 means only direct adjacencies with the 4 neighbour rule
 
-# %%time
-# Load canopy_height and reproject match
-filename = "data/Fulham_canopy_height.tif"
-da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-da_matched = da.rio.reproject_match(ds)
-da_matched = da_matched.where(da_matched != 255, np.nan)
-ds["canopy_height"] = da_matched
-ds['canopy_height_veg'] = (ds["canopy_height"] >= 1)
+# Create a circular kernel (as circular as you can get in a grid) with diameter = 1 + gap_size x 2 
+gap_size = 2
+y, x = np.ogrid[-gap_size:gap_size+1, -gap_size:gap_size+1]
+kernel = (x**2 + y**2 <= gap_size**2)
 
-# %%time
-# Load all 5 years of woody veg to see what's changed
-# Based on visual inspection, I think the 2021 raster overpredicts vegetation, so leaving it out
-years = ["2019", "2020", "2022", "2023", "2024"]
-for year in years:
-    filename = f'/Users/christopherbradley/Documents/PHD/Data/Annual_woody_vegetation_and_canopy_cover_grids_for_Tasmania-z_BE-P62-/data/WoodyVeg/Tas_WoodyVeg_{year}03_v2.2.tif'
-    da_original = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-    da = da_original.sel(x=slice(minx, maxx), y=slice(miny, maxy))
-    da = (da.where(da != 255, 1) - 1).astype(bool)  # Convert NaN and no tree to False, and tree to True
-    ds[f"woodyveg_{year}"] = da
+# Dilate the woody veg based on this kernel, to connect tree clusters that are close together
+dilated = binary_dilation(woody_veg, structure=kernel)
 
-# Merge all the vegetation layers into 1 (since they usually underpredict vegetation rather than overpredict)
-ds["woodyveg_combined"] = ds["woodyveg_2019"] 
-for year in years:
-    ds["woodyveg_combined"] = ds["woodyveg_combined"] | ds[f"woodyveg_{year}"]
-ds["all_combined"] = ds['worldcover_veg'] | ds['canopy_height_veg'] | ds["woodyveg_combined"] 
-ds["all_combined"].plot()
+# Label the clusters
+labeled_dilated, num_features = label(dilated)
 
-# Need to be careful with how nan gets treated in these array transformations
-int_nan = (np.array([np.nan])).astype(int)[0]
-print(int_nan)
-print(int_nan >= 1)
-print(bool(int_nan))
+# Remove the dilations
+trees_labelled = labeled_dilated * woody_veg
+# -
 
-# Convert NaN pixels to 0 (no tree) for the purposes of evaluating shelter effects. Will mask out non crop or pasture pixels later.
-woody_veg = ds["all_combined"].values
-
-# Assign a label to each group of pixels
-structure = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]) 
-shelterbelts, num_features = label(woody_veg, structure)
+plt.imshow(trees_labelled)
 
 # List the coords in each group
 coord_lists = {i: list(zip(*np.where(shelterbelts == i))) for i in range(1, num_features)}
@@ -475,4 +430,28 @@ df_tree_stats = pd.DataFrame([
 df_tree_stats = df_tree_stats.round(2)
 df_tree_stats
 
+def tree_categories(woody_veg_tif, min_length=10, edge_size=3, gap_size=1, ds=None, save_tif=True):
+    """Categorise a boolean woody veg tif into scattered trees, edges, core areas, corridors, based on the Fragstats landscape ecology approach
 
+    Parameters
+    ----------
+        woody_veg_tif: A binary tif file containing tree/no tree information
+        min_length: The minimum length (in any direction) to be classified as a patch/corrider rather than just scattered trees.
+        edge_size: The buffer distance at the edge of a patch, with pixels inside this being the 'core area'. 
+            Non-scattered tree pixels outside the core area but within edge_size pixels of a core area get defined as 'edge' pixels. Otherwise they become 'corridor' pixels.
+        gap_size: The allowable gap between two tree clusters before considering them separate patches.
+        ds: a pre-loaded xarray.DataSet with a band 'woody_veg'. This gets used instead of the woody_veg_tif when provided.
+        save_tif: Boolean to determine whether to save the final result to file or not.
+
+    Returns
+    -------
+        ds: an xarray with a band 'tree_categories', where the integers represent the categories defined in 'tree_category_labels'.
+
+    Downloads
+    ---------
+        woody_veg_categorised.tif: A tif file of the 'tree_categories' band in ds, with colours embedded.
+    
+    """
+
+if __name__ == '__main__':
+    tree_categories("TEST.tif")

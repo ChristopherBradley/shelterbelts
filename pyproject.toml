@@ -29,7 +29,10 @@ dependencies = [
     "planetary_computer",
     "geopandas",
     "windrose",
-    "seaborn"
+    "seaborn",
+    "scikit-learn",
+    "fiona",
+    "openpyxl"
 ]
 
 [project.optional-dependencies]

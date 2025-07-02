@@ -22,7 +22,7 @@ os.chdir(paddockTS_dir)
 sys.path.append(paddockTS_dir)
 print(paddockTS_dir)
 
-from shelterbelt_identification.wind_barra import wind_dataframe
+from shelterbelts.apis.barra_daily import wind_dataframe
 
 outdir = "data"
 stub = "Fulham"
