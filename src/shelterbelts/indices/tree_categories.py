@@ -18,8 +18,11 @@ import matplotlib.colors as mcolors
 # -
 
 
+from shelterbelts.apis.worldcover import tif_categorical
+
 # Sample file
 indir = "../../../data/"
+outdir = "../../../outdir/"
 filename = f'{indir}g2_26729_binary_tree_cover_10m.tiff'
 
 # Load the sample data
@@ -75,11 +78,7 @@ core_area = np.isin(labeled_cores, large_cores)
 plt.imshow(core_area)
 
 # Find edges surrounding core areas
-edge_factor = 2   # Extra distance to expand from the core area
-double_edge_size = edge_size * edge_factor
-y, x = np.ogrid[-double_edge_size:double_edge_size+1, -double_edge_size:double_edge_size+1]
-edge_kernel = (x**2 + y**2 <= double_edge_size**2)
-edge_area = binary_dilation(core_area, structure=edge_kernel * 2) & ~core_area & woody_veg
+edge_area = binary_dilation(core_area, structure=core_kernel) & ~core_area & woody_veg
 
 plt.imshow(edge_area)
 
@@ -99,47 +98,33 @@ assert np.all(combined <= 1), "Category masks overlap — each pixel should belo
 assert np.array_equal(combined > 0, woody_veg), "Combined areas don't match the original woody_veg"
 
 # Create a single array with all the layers
-category_labels = {'scattered_area': 1, 'core_area':2, 'edge_area':3, 'corridor_area':4}
+tree_category_labels = {'scattered_area': 1, 'core_area':2, 'edge_area':3, 'corridor_area':4}
+tree_categories_cmap = {
+    0:(255, 255, 255),
+    1:(122, 82, 0),
+    2:(8, 79, 0),
+    3:(14, 138, 0),
+    4:(22, 212, 0)
+}
 tree_categories = np.zeros_like(woody_veg, dtype=np.uint8)
-tree_categories[scattered_area] = category_labels['scattered_area']
-tree_categories[core_area]      = category_labels['core_area']
-tree_categories[edge_area]      = category_labels['edge_area']
-tree_categories[corridor_area]  = category_labels['corridor_area']
-
+tree_categories[scattered_area] = tree_category_labels['scattered_area']
+tree_categories[core_area]      = tree_category_labels['core_area']
+tree_categories[edge_area]      = tree_category_labels['edge_area']
+tree_categories[corridor_area]  = tree_category_labels['corridor_area']
 ds['tree_categories'] = (('y', 'x'), tree_categories)
 
 ds['tree_categories'].plot()
 
-# +
-
-# Start with all 0s: non-tree pixels
-categories = np.zeros_like(scattered_area, dtype=np.uint8)
-
-# Define conditions in order of increasing priority
-# (later conditions override earlier ones)
-conditions = [
-    scattered_area,
-    core_area,
-    edge_area,
-    corridor_area
-]
-
-# Corresponding category values
-values = [1, 2, 3, 4]
-
-# Assign values to matching conditions
-categories = np.select(conditions, values, default=0)
-
-# -
-
-
-
-# +
-# Create a visualisation in the python file
-
-# +
 # Create a tif output with colours embedded
+stub = filename.split('/')[-1].split('.')[0]
+filename_categorical = f"{outdir}{stub}_categorised.tif"
+tif_categorical(ds['tree_categories'], filename_categorical, tree_categories_cmap)
+
+# +
+# Create a visualisation in python
 # -
+
+
 
 
 
