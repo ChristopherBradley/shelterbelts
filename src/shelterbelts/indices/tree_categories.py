@@ -18,7 +18,7 @@ import matplotlib.colors as mcolors
 # -
 
 
-from shelterbelts.apis.worldcover import tif_categorical
+from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 
 # Sample file
 indir = "../../../data/"
@@ -50,8 +50,6 @@ trees_labelled = labeled_dilated * woody_veg
 # -
 
 plt.imshow(trees_labelled)
-
-plt.imshow(corridor_area)
 
 # Create a raster of scattered_trees
 min_patch_size = 20
@@ -97,8 +95,9 @@ combined = (
 assert np.all(combined <= 1), "Category masks overlap — each pixel should belong to at most one category"
 assert np.array_equal(combined > 0, woody_veg), "Combined areas don't match the original woody_veg"
 
+# +
 # Create a single array with all the layers
-tree_category_labels = {'scattered_area': 1, 'core_area':2, 'edge_area':3, 'corridor_area':4}
+tree_category_labels = {'scattered_area': 1, 'core_area':2, 'edge_area':3, 'corridor_area':4} 
 tree_categories_cmap = {
     0:(255, 255, 255),
     1:(122, 82, 0),
@@ -106,12 +105,21 @@ tree_categories_cmap = {
     3:(14, 138, 0),
     4:(22, 212, 0)
 }
+tree_categories_labels = {
+    1:'Scattered Trees',
+    2:'Patch Core',
+    3:'Patch Edge',
+    4:'Corridor (other)',
+    0:'Not trees'
+}
+
 tree_categories = np.zeros_like(woody_veg, dtype=np.uint8)
 tree_categories[scattered_area] = tree_category_labels['scattered_area']
 tree_categories[core_area]      = tree_category_labels['core_area']
 tree_categories[edge_area]      = tree_category_labels['edge_area']
 tree_categories[corridor_area]  = tree_category_labels['corridor_area']
 ds['tree_categories'] = (('y', 'x'), tree_categories)
+# -
 
 ds['tree_categories'].plot()
 
@@ -120,9 +128,9 @@ stub = filename.split('/')[-1].split('.')[0]
 filename_categorical = f"{outdir}{stub}_categorised.tif"
 tif_categorical(ds['tree_categories'], filename_categorical, tree_categories_cmap)
 
-# +
 # Create a visualisation in python
-# -
+filename_categorical_png = f"{outdir}{stub}_categorised.png"
+visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
 
 
 
@@ -150,6 +158,8 @@ def tree_categories(woody_veg_tif, min_patch_size=20, edge_size=3, max_gap_size=
         woody_veg_categorised.tif: A tif file of the 'tree_categories' band in ds, with colours embedded.
     
     """
+    return None
 
-if __name__ == '__main__':
-    tree_categories("TEST.tif")
+# +
+# if __name__ == '__main__':
+#     tree_categories("TEST.tif")

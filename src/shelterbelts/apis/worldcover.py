@@ -108,20 +108,20 @@ def tif_categorical(da, filename= ".", colormap=None, tiled=False):
     # # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
 
 
-def visualise_worldcover(da, filename=None):
+def visualise_categories(da, filename=None, colormap=worldcover_cmap, labels=worldcover_labels, title="ESA WorldCover"):
     """Pretty visualisation using the worldcover colour scheme"""
-    worldcover_classes = sorted(worldcover_cmap.keys())
-    colors = [np.array(worldcover_cmap[k]) / 255.0 for k in worldcover_classes]
+    worldcover_classes = sorted(colormap.keys())
+    colors = [np.array(colormap[k]) / 255.0 for k in worldcover_classes]
     cmap = ListedColormap(colors)
     norm = BoundaryNorm(
         boundaries=[v - 0.5 for v in worldcover_classes] + [worldcover_classes[-1] + 0.5],
         ncolors=len(worldcover_classes)
     )
     plt.figure(figsize=(8, 6))
-    plt.title("ESA WorldCover")
+    plt.title(title)
     plt.imshow(da.values, cmap=cmap, norm=norm)
     legend_elements = [
-        Patch(facecolor=np.array(color), label=worldcover_labels[class_id])
+        Patch(facecolor=np.array(color), label=labels[class_id])
         for class_id, color in zip(worldcover_classes, colors)
     ]
     plt.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -173,7 +173,7 @@ def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="T
 
     if plot:
         filename = os.path.join(outdir, f"{stub}_worldcover.png")    
-        visualise_worldcover(da, filename)
+        visualise_categories(da, filename)
 
     return ds
 
