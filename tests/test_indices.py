@@ -8,9 +8,16 @@ if not os.path.exists('tmpdir'):
 if not os.path.exists('outdir'):
     os.mkdir('outdir')
 
+# Should add this to git so the tests can run after doing a git clone
+test_filename = 'data/g2_26729_binary_tree_cover_10m.tiff'
+
 def test_basic():
     """Basic tests for each of the files"""
-    ds = tree_categories('TEST.tif', min_length=10, edge_size=3, gap_size=1, ds=None, save_tif=True)
+    ds = tree_categories(test_filename, outdir='outdir', stub='TEST', min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude'}  
-    assert set(ds.data_vars) == {'tree_categories'}
+    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
     assert os.path.exists("outdir/TEST_categorised.tif")
+    assert os.path.exists("outdir/TEST_categorised.png")
+
+if __name__ == '__main__':
+    test_basic()

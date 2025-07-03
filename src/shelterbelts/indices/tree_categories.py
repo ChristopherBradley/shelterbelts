@@ -110,6 +110,7 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
     tree_categories[edge_area]      = inverted_labels['Patch Edge']
     tree_categories[corridor_area]  = inverted_labels['Corridor (other)']
     ds['tree_categories'] = (('y', 'x'), tree_categories)
+    ds = ds.rename({'y':'longitude', 'x': 'latitude'})
 
     if not stub:
         stub = filename.split('/')[-1].split('.')[0]
@@ -153,8 +154,4 @@ if __name__ == '__main__':
     plot = args.plot
     
     tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, plot=plot)
-
-    ## Example parameters
-    # filename = '../../../data/g2_26729_binary_tree_cover_10m.tiff'
-    # outdir = "../../../outdir/"
 
