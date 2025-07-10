@@ -11,16 +11,16 @@ from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 # Create a single array with all the layers
 tree_categories_cmap = {
     0:(255, 255, 255),
-    1:(122, 82, 0),
-    2:(8, 79, 0),
-    3:(14, 138, 0),
-    4:(22, 212, 0)
+    11:(122, 82, 0),
+    12:(8, 79, 0),
+    13:(14, 138, 0),
+    14:(22, 212, 0)
 }
 tree_categories_labels = {
-    1:'Scattered Trees',
-    2:'Patch Core',
-    3:'Patch Edge',
-    4:'Corridor (other)',
+    11:'Scattered Trees',
+    12:'Patch Core',
+    13:'Patch Edge',
+    14:'Corridor (other)',
     0:'Not trees'
 }
 inverted_labels = {v: k for k, v in tree_categories_labels.items()}

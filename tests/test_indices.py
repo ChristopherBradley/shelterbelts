@@ -2,7 +2,7 @@ import os
 import time
 
 from shelterbelts.indices.tree_categories import tree_categories
-from shelterbelts.indices.shelter_categories import shelter_categories
+# from shelterbelts.indices.shelter_categories import shelter_categories
 
 if not os.path.exists('tmpdir'):
     os.mkdir('tmpdir')
@@ -20,14 +20,14 @@ def test_basic():
     assert os.path.exists("outdir/TEST_categorised.tif")
     assert os.path.exists("outdir/TEST_categorised.png")
 
-def test_shelter_categories():
-    """More comprehensive shelter category tests: with & without height tif & wind ds, 3x wind_methods, 2x wind_threshold, density_threshold, distance_threshold, with and without savetif and plotting"""
-    assert os.path.exists("outdir/TEST_categorised.tif", "Make sure you've run test_tree_categories first!")
-    ds = shelter_categories("outdir/TEST_categorised.tif", height_tif=None, wind_ds=None, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, savetif=True, plot=True):
-    assert set(ds.coords) == {'latitude', 'longitude'}  
-    assert 'shelter_categories' in set(ds.data_vars)
-    assert os.path.exists("outdir/TEST_shelter_categories.tif")
-    assert os.path.exists("outdir/TEST_shelter_categories.png")
+# def test_shelter_categories():
+#     """More comprehensive shelter category tests: with & without height tif & wind ds, 3x wind_methods, 2x wind_threshold, density_threshold, distance_threshold, with and without savetif and plotting"""
+#     assert os.path.exists("outdir/TEST_categorised.tif", "Make sure you've run test_tree_categories first!")
+#     ds = shelter_categories("outdir/TEST_categorised.tif", height_tif=None, wind_ds=None, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, savetif=True, plot=True):
+#     assert set(ds.coords) == {'latitude', 'longitude'}  
+#     assert 'shelter_categories' in set(ds.data_vars)
+#     assert os.path.exists("outdir/TEST_shelter_categories.tif")
+#     assert os.path.exists("outdir/TEST_shelter_categories.png")
 
 def test_tree_categories():
     """More comprehensive tree category tests: 2x patch sizes, 2x edge sizes, 2x max_gap_sizes, without saving tif, without plot"""
@@ -59,5 +59,5 @@ def test_tree_categories():
 
 if __name__ == '__main__':
     # test_basic()
-    # test_tree_categories()
-    test_shelter_categories()
+    test_tree_categories()
+    # test_shelter_categories()

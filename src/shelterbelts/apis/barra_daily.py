@@ -113,6 +113,45 @@ def wind_rose(ds, filename=None):
         plt.show()
 
 
+def dominant_wind_direction(ds, threshold_kmh=15):
+    """Return the compass direction with the most days above a wind speed threshold"""
+    compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+
+    ds = ds.median(dim=['latitude', 'longitude'])
+    uas, vas = ds["uas"], ds["vas"]
+    
+    # Calculate wind speed in km/h
+    speed = np.sqrt(uas**2 + vas**2) * 3.6
+
+    # Calculate wind direction in degrees (meteorological convention)
+    direction = (270 - np.degrees(np.arctan2(vas, uas))) % 360
+
+    # Filter time steps with speed above the threshold
+    mask = speed > threshold_kmh
+    direction = direction.where(mask, drop=True)
+
+    # Bin direction into compass sectors
+    sector_width = 360 / len(compass_labels)
+    direction_binned = np.round(direction / sector_width) % len(compass_labels)
+    direction_binned = direction_binned.astype(int)
+
+    # Count occurrences per direction
+    counts = pd.Series(direction_binned.values).value_counts().sort_index()
+    direction_counts = pd.Series(0, index=np.arange(len(compass_labels)))
+    direction_counts.update(counts)
+
+    # Get the direction with the most days above threshold
+    most_frequent_index = direction_counts.idxmax()
+    most_frequent_direction = compass_labels[most_frequent_index]
+
+    df_direction_counts = df = pd.DataFrame({
+        "Direction": compass_labels,
+        "Count": direction_counts.values
+    })
+    
+    return most_frequent_direction, df_direction_counts
+
+
 def wind_dataframe(ds):
     """Create a dataframe of the frequency of each wind speed in each direction"""
     ds = ds.median(dim=['latitude', 'longitude'])
@@ -131,7 +170,7 @@ def wind_dataframe(ds):
         coords={"time": ds.time},
         name="speed_binned"
     )
-    
+
     # Convert the wind direction into a categorical variable
     compass_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
     sector_width = 360 / len(compass_labels)  # 45° per sector
@@ -163,6 +202,7 @@ def wind_dataframe(ds):
 # # Calculating the direction with the most days with winds over 20km/hr
 # df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
 # direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
+
 
 
 def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True):
