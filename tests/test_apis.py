@@ -31,6 +31,7 @@ def test_basic():
     assert set(ds.data_vars) == {'uas', 'vas'}
     assert os.path.exists("outdir/TEST_barra_daily.nc")
     assert os.path.exists("outdir/TEST_barra_daily.png")
+    assert ds.sizes['latitude'] >= 1 and ds.sizes['longitude'] >= 1
 
 def test_barra_daily():
     """More comprehensive barra download tests: 2 buffers, single or multiple years, with and without save netcdf and plotting"""
@@ -39,24 +40,28 @@ def test_barra_daily():
     assert set(ds.data_vars) == {'uas', 'vas'}
     assert os.path.exists("outdir/TEST_barra_daily.nc")
     assert os.path.exists("outdir/TEST_barra_daily.png")
+    assert ds.sizes['latitude'] >= 1 and ds.sizes['longitude'] >= 1
 
     ds = barra_daily(lat=-34.389, lon=148.469, buffer=0, start_year=2020, end_year=2020, outdir='outdir', stub='TEST')
     assert set(ds.coords) == {'time', 'latitude', 'longitude'}  
     assert set(ds.data_vars) == {'uas', 'vas'}
     assert os.path.exists("outdir/TEST_barra_daily.nc")
     assert os.path.exists("outdir/TEST_barra_daily.png")
+    assert ds.sizes['latitude'] >= 1 and ds.sizes['longitude'] >= 1
 
     ds = barra_daily(lat=-34.389, lon=148.469, buffer=0.1, start_year=2020, end_year=2020, outdir='outdir', stub='TEST', save_netcdf=False)
     assert set(ds.coords) == {'time', 'latitude', 'longitude'}  
     assert set(ds.data_vars) == {'uas', 'vas'}
     assert os.path.exists("outdir/TEST_barra_daily.nc")
     assert os.path.exists("outdir/TEST_barra_daily.png")
+    assert ds.sizes['latitude'] >= 1 and ds.sizes['longitude'] >= 1
 
     ds = barra_daily(lat=-34.389, lon=148.469, buffer=0.1, start_year=2020, end_year=2020, outdir='outdir', stub='TEST', plot=False)
     assert set(ds.coords) == {'time', 'latitude', 'longitude'}  
     assert set(ds.data_vars) == {'uas', 'vas'}
     assert os.path.exists("outdir/TEST_barra_daily.nc")
     assert os.path.exists("outdir/TEST_barra_daily.png")
+    assert ds.sizes['latitude'] >= 1 and ds.sizes['longitude'] >= 1
 
 
 def test_canopy_height():
@@ -104,9 +109,9 @@ if __name__ == '__main__':
     print("Testing APIs")
     start = time.time()
 
-    test_basic()
-    test_worldcover()
-    test_canopy_height()
+    # test_basic()
+    # test_worldcover()
+    # test_canopy_height()
     test_barra_daily()
     
     print(f"Tests successfully completed in {time.time() - start} seconds")

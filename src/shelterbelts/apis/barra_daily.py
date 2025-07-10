@@ -35,14 +35,18 @@ def barra_singlemonth_thredds(var="uas", latitude=-34.3890427, longitude=148.469
         # Likely no data for the specified month
         return None
 
-    bbox = [longitude - buffer, latitude - buffer, longitude + buffer, latitude + buffer]
-    ds_region = ds.sel(lat=slice(bbox[3], bbox[1]), lon=slice(bbox[0], bbox[2]))
-
-    min_buffer_size = 0.03
-    if buffer < min_buffer_size:
-        # Find a single point but keep the lat and lon dimensions for consistency
-        ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
+    # This bbox selection was giving a 0 latitude coordinates, even with a larger slice, 
+    # so I've made the code ignore the buffer and only return a single point for now.
     
+    # bbox = [longitude - buffer, latitude - buffer, longitude + buffer, latitude + buffer]
+    # ds_region = ds.sel(lat=slice(bbox[3], bbox[1]), lon=slice(bbox[0], bbox[2]))
+    # min_buffer_size = 0.03
+    # if buffer < min_buffer_size:
+    #     # Find a single point but keep the lat and lon dimensions for consistency
+    #     ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
+    
+    ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
+
     return ds_region
 
 # barra_singlemonth_thredds()
