@@ -1,23 +1,13 @@
 # +
 # Example code for using the planetary computer worldcover API is here: 
 # https://planetarycomputer.microsoft.com/dataset/esa-worldcover#Example-Notebook
-# -
 
-# Change directory to this repo - this should work on gadi or locally via python or jupyter.
-# Unfortunately, this needs to be in all files that can be run directly & use local imports.
-import os, sys
-repo_name = "shelterbelts"
-if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
-    repo_dir = os.path.dirname(os.getcwd())       
-else:                                             # Already running from root of this repo. 
-    repo_dir = os.getcwd()
-os.chdir(repo_dir)
-sys.path.append(repo_dir)
 
 # +
 # %%time
+import os
+import argparse
+
 import numpy as np
 import rasterio
 import rioxarray # Even though this variable isn't used directly, it's needed for the da.rio methods
@@ -118,69 +108,99 @@ def tif_categorical(da, filename= ".", colormap=None, tiled=False):
     # # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
 
 
-def visualise_worldcover(da):
+def visualise_categories(da, filename=None, colormap=worldcover_cmap, labels=worldcover_labels, title="ESA WorldCover"):
     """Pretty visualisation using the worldcover colour scheme"""
-    worldcover_classes = sorted(worldcover_cmap.keys())
-    colors = [np.array(worldcover_cmap[k]) / 255.0 for k in worldcover_classes]
+    worldcover_classes = sorted(colormap.keys())
+    colors = [np.array(colormap[k]) / 255.0 for k in worldcover_classes]
     cmap = ListedColormap(colors)
     norm = BoundaryNorm(
         boundaries=[v - 0.5 for v in worldcover_classes] + [worldcover_classes[-1] + 0.5],
         ncolors=len(worldcover_classes)
     )
     plt.figure(figsize=(8, 6))
-    plt.title("ESA WorldCover")
+    plt.title(title)
     plt.imshow(da.values, cmap=cmap, norm=norm)
     legend_elements = [
-        Patch(facecolor=np.array(color), label=worldcover_labels[class_id])
+        Patch(facecolor=np.array(color), label=labels[class_id])
         for class_id, color in zip(worldcover_classes, colors)
     ]
     plt.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.show()
+    plt.tight_layout()
+    if filename:
+        plt.savefig(filename, bbox_inches='tight')
+        plt.close()
+        print(f"Saved: {filename}")
+    else:
+        plt.show()
 
 
-def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="Test"):
-    """Write full documentation here"""
-    max_buffer = 0.5   # This had a bug with large portions of the downloaded area being black for the qld, vic & wa coords
+def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="TEST", save_tif=True, plot=True):
+    """Download WorldCover imagery from the microsoft planetary API
+
+    Parameters
+    ----------
+        lat, lon: Coordinates in WGS 84 (EPSG:4326).
+        buffer: Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so would give a ~2kmx2km area.
+        outdir: The directory to save the final cleaned tiff file.
+        stub: The name to be prepended to each file download.
+        save_tif: Boolean to determine whether to write the data to files.
+        plot: Save a png file (not geolocated, but can be opened in Preview).
+
+    Returns
+    -------
+        ds: xarray.DataSet with coords (latitude, longitude), and variable (worldcover) of type int. 
+            The meaning of each integer is specified in worldcover_labels at the top of this file.
+    
+    Downloads
+    ---------
+        A Tiff file of the worldcover xarray with colours embedded.
+        A png of the worldcover map including a legend.
+
+    """
+    print("Starting worldcover.py")
+
+    max_buffer = 0.2   # 0.5 had a bug with large portions of the returned tif being black
     if buffer > max_buffer:
         buffer = max_buffer
         print(f"Area too large, please download in smaller tiles. Reducing buffer to {max_buffer}.") 
         print(f"Estimated filesize = 10MB, estimated download time = 2 mins")
     da = worldcover_centerpoint(lat, lon, buffer)
-    filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
-    tif_categorical(da, filename, worldcover_cmap)
+    ds = da.to_dataset().drop_vars(['spatial_ref', 'time']).rename({'map': 'worldcover'})
+
+    if save_tif:
+        filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
+        tif_categorical(da, filename, worldcover_cmap)
+
+    if plot:
+        filename = os.path.join(outdir, f"{stub}_worldcover.png")    
+        visualise_categories(da, filename)
+
+    return ds
+
+
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--lat', default='-34.389', help='Latitude in EPSG:4326 (default: -34.389)')
+    parser.add_argument('--lon', default='148.469', help='Longitude in EPSG:4326 (default: 148.469)')
+    parser.add_argument('--buffer', default='0.1', help='Buffer in each direction in degrees (default is 0.1, or about 20kmx20km)')
+    parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
+    parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
+    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file that isn't geolocated, but can be opened in Preview. (Default: False)")
+
+    return parser.parse_args()
 
 
 # %%time
 if __name__ == '__main__':
-    print("Starting worldcover download")
-    da = worldcover()
-
-    # Took 5 secs, 17 secs, 3 secs (very inconsistent)
-
-tas = -42.887122, 147.760717
-anu = -35.275648, 149.100574
-vic = -38.300409, 143.633974
-nsw = -34.738827, 150.530493
-qld = -25.817790, 149.657655
-nt = -13.036965, 133.292977
-wa = -32.566546, 117.523713
-ocean = -35.420755, -139.774455   # Middle of nowhere in the ocean for error testing
-
-
-points = [tas, anu, vic, nsw, qld, nt, wa]
-stubs = ['tas', 'anu', 'vic', 'nsw', 'qld', 'nt', 'wa']
-
-# +
-# # %%time
-# for point, stub in zip(points, stubs):
-#     print(stub)
-#     da = worldcover(point[0], point[1], 1, stub=stub)
-
-# # Filesize is consistent, but download speed is very inconsistent
-# # buffer = 0.2 -- 30 secs, 42 secs 23 MB 1.2MB, 15 secs, 28 secs, 50 secs
-# # buffer = 0.3 -- 65 secs 51MB 3.5MB, 
-# # buffer = 0.4 -- 180 secs
-# # buffer = 0.5 -- 90 secs
-
-# +
-# If the buffer is too small than it should just get a single pixel
+    args = parse_arguments()
+    
+    lat = float(args.lat)
+    lon = float(args.lon)
+    buffer = float(args.buffer)
+    outdir = args.outdir
+    stub = args.stub
+    plot = args.plot
+    
+    worldcover(lat, lon, buffer, outdir, stub, plot=plot)

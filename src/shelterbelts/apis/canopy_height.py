@@ -3,12 +3,15 @@
 # +
 # Standard Libraries
 import os
+import argparse
 
 # Dependencies
 import shutil
 import numpy as np
 import requests
 import rasterio
+import xarray as xr
+import rioxarray as rxr
 import geopandas as gpd
 from pyproj import Transformer
 from rasterio.merge import merge
@@ -51,7 +54,7 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     return relevant_tiles
 
 
-def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir='.'):
+def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.'):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
 
     # Assumes the bbox starts as EPSG:4326
@@ -60,6 +63,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_d
     roi_coords_3857 = box(*bbox_3857)
     roi_polygon_3857 = Polygon(roi_coords_3857)
     
+    canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
     
     for tile in relevant_tiles:
@@ -79,7 +83,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_d
             out_meta = src.meta.copy()
     
         # Save cropped image
-        cropped_tiff_filename = os.path.join(tmp_dir, f"{stub}_{tile}_cropped.tif")
+        cropped_tiff_filename = os.path.join(tmpdir, f"{stub}_{tile}_cropped.tif")
         out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
     
         with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
@@ -88,34 +92,23 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_d
     # Merge the cropped tiffs
     src_files_to_mosaic = []
     for tile in relevant_tiles:
-        tiff_file = os.path.join(tmp_dir, f'{stub}_{tile}_cropped.tif')
+        tiff_file = os.path.join(tmpdir, f'{stub}_{tile}_cropped.tif')
         src = rasterio.open(tiff_file)
         src_files_to_mosaic.append(src)
     mosaic, out_trans = merge(src_files_to_mosaic)
     out_meta = src_files_to_mosaic[0].meta.copy()
+
+    for src in src_files_to_mosaic:
+        src.close()
 
     # From visual inspection, it looks like the canopy height map is offset by about 10m south. This corrects that.
     # My hypothesis is this is due to Australia being in the southern hemisphere so shadows point south at midday, whereas the model was trained in the United States where shadows point north at midday
     original_transform = out_meta['transform']
     new_transform = original_transform * Affine.translation(0, -10)
 
-    # Write the merged raster to a new tiff
-    out_meta.update({
-        "height": mosaic.shape[1],
-        "width": mosaic.shape[2],
-        "transform": out_trans
-    })
-    output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
-    with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
-        dest.write(mosaic)
-    for src in src_files_to_mosaic:
-        src.close()
-    print("Saved:", output_tiff_filename)
-    
-    return output_tiff_filename
+    return mosaic, out_meta, out_trans
 
 
-# +
 def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canopy_height_dir="."):
     """Find the tiles that overlap with the region of interest"""
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
@@ -154,17 +147,14 @@ def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputE
     x2,y2 = transformer.transform(bbox[3], bbox[2])
     return (x1, y1, x2, y2)
 
-def merge_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir='.'):
-    """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
-    merge_tiles_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
-
-def visualise_canopy_height(filename, outpath=".", stub="Test"):
+def visualise_canopy_height(ds, filename=None):
     """Pretty visualisation of the canopy height"""
 
-    with rasterio.open(filename) as src:
-        image = src.read(1)  
+    # with rasterio.open(filename) as src:
+    #     image = src.read(1)  
     
+    image = ds['canopy_height']
+
     # Bin the slope into categories
     bin_edges = np.arange(0, 16, 1) 
     categories = np.digitize(image, bin_edges, right=True)
@@ -193,47 +183,116 @@ def visualise_canopy_height(filename, outpath=".", stub="Test"):
     
     plt.title('Canopy Height (m)', size=14)
     plt.tight_layout()
-    filename = os.path.join(outpath, f"{stub}_canopy_height.png")
-    plt.savefig(filename)
-    print("Saved", filename)
-    plt.show()
 
-def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir="."):
-    """Create a merged canopy height raster, downloading new tiles if necessary"""
-    tiles = identify_relevant_tiles(lat, lon, buffer, canopy_height_dir)
-    download_new_tiles(tiles, canopy_height_dir)
-    merge_tiles(lat, lon, buffer, outdir, stub, tmp_dir, canopy_height_dir)
+    if filename:
+        plt.savefig(filename)
+        plt.close()
+        print("Saved:", filename)
+    else:
+        plt.show()
 
 
-# -
-
-def canopy_height_bbox(bbox, outdir=".", stub="Test", tmp_dir='.', canopy_height_dir="."):
+def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True):
     """Create a merged canopy height raster, downloading new tiles if necessary"""
     # Assumes the bbox is in EPSG:4326
+    canopy_height_dir = tmpdir
     tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
     download_new_tiles(tiles, canopy_height_dir)
-    filename = merge_tiles_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
-    return filename
+    mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, tmpdir)
+
+    # Create coordinates
+    transform = out_meta['transform']
+    height, width = mosaic.shape[1:]
+    x = np.arange(width) * transform.a + transform.c
+    y = np.arange(height) * transform.e + transform.f
+    if transform.e < 0:
+        y = y[::-1]
+    
+    # Create xarray
+    da = xr.DataArray(
+        mosaic,
+        dims=("band", "longitude", "latitude"),
+        coords={"band": ["band1"], "longitude": y, "latitude": x},
+        name="canopy_height"
+    ).rio.write_crs(out_meta['crs'])
+    ds = da.to_dataset().squeeze('band').drop_vars(['band', 'spatial_ref'])
+
+    if save_tif:
+        out_meta.update({
+            "height": mosaic.shape[1],
+            "width": mosaic.shape[2],
+            "transform": out_trans
+        })
+        output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
+        with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
+            dest.write(mosaic)
+        print("Saved:", output_tiff_filename)
+        
+    if plot:
+        filename = os.path.join(outdir, f"{stub}_canopy_height.png")    
+        visualise_canopy_height(ds, filename)
+            
+    return ds
 
 
-# +
+
+def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True):
+    """Downlaod and create a merged canopy height raster from the Meta/Tolan dataset
+    
+    Parameters
+    ----------
+        lat, lon: Coordinates in WGS 84 (EPSG:4326).
+        buffer: Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so would give a ~2kmx2km area.
+        outdir: The directory to save the final cleaned tiff file.
+        stub: The name to be prepended to each file download.
+        tmpdir: The directory to copy the original uncropped canopy height files.
+        savetif: Boolean to save the final result to file.
+        plot: Save a png file (not geolocated, but can be opened in Preview).
+
+    Returns
+    -------
+        ds: xarray.DataSet with coords (latitude, longitude), and variable (canopy_height) of type int in metres. 
+    
+    Downloads
+    ---------
+        A Tiff file of the canopy height xarray with colours embedded.
+        A png of the canopy height map including a legend.
+    
+    """
+    minimum_buffer = 0.0001
+    if buffer <= minimum_buffer:     # roughly 10m
+        buffer = minimum_buffer 
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
+    ds = canopy_height_bbox(bbox, outdir, stub, tmpdir, save_tif, plot)
+
+    return ds
+
+
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--lat', default='-34.389', help='Latitude in EPSG:4326 (default: -34.389)')
+    parser.add_argument('--lon', default='148.469', help='Longitude in EPSG:4326 (default: 148.469)')
+    parser.add_argument('--buffer', default='0.1', help='Buffer in each direction in degrees (default is 0.1, or about 20kmx20km)')
+    parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
+    parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
+    parser.add_argument('--tmpdir', default='.', help='The directory to copy the original uncropped canopy height files. (Default is the current directory)')
+    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file that isn't geolocated, but can be opened in Preview. (Default: False)")
+
+    return parser.parse_args()
+
+
 # %%time
 if __name__ == '__main__':
 
-    canopy_height_dir ='../data'
-    outdir = '../data'
-    # canopy_height_dir ='/scratch/xe2/cb8590/Global_Canopy_Height'
-    # outdir = '/scratch/xe2/cb8590/tmp'
-    tmp_dir = outdir
-    stub = 'Fulham'
-    lat=-42.887122
-    lon=147.760717
-    buffer=0.04
+    args = parse_arguments()
     
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
-
-    canopy_height_bbox(bbox, outdir, stub, tmp_dir, canopy_height_dir)
-    filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
-    visualise_canopy_height(filename, outdir, stub)
+    lat = float(args.lat)
+    lon = float(args.lon)
+    buffer = float(args.buffer)
+    outdir = args.outdir
+    stub = args.stub
+    plot = args.plot
     
-# Took 5 mins for the download, and 33 secs for the rest
+    canopy_height(lat, lon, buffer, outdir, stub, plot=plot)
