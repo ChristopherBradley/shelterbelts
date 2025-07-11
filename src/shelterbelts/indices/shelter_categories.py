@@ -1,11 +1,8 @@
 import os
 import numpy as np
-import pandas as pd
 import xarray as xr
 import rioxarray as rxr
-import rasterio as rio
 import scipy
-
 
 from shelterbelts.apis.barra_daily import wind_dataframe, dominant_wind_direction
 from shelterbelts.indices.tree_categories import tree_categories_labels, tree_categories_cmap
@@ -59,7 +56,7 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, 
         shifted = shifted.where(shifted > 0, np.nan)
         shifted_full = shifted_full.where(~shifted_full.isnull(), shifted)
     
-    new_hits = shifted_full.where(~shelter, np.nan) 
+    new_hits = xr.where(shelter_heights.isnull(), shifted_full, np.nan) 
     distances = (shifted_full_max - new_hits)
 
     # If multi_heights is False, than we assume only the edge trees can provide shelter.
@@ -82,7 +79,7 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, 
             shifted = shifted.where(shifted > 0, np.nan)
             shifted_full_centre = shifted_full.where(~shifted_full.isnull(), shifted)
         
-        new_hits = shifted_full_centre.where(~shelter, np.nan) 
+        new_hits = xr.where(shelter_heights.isnull(), shifted_full_centre, np.nan) 
         distances_centre = (shifted_full_max_centre - new_hits)
         
         distances = distances.where(~distances.isnull(), distances_centre)
@@ -90,7 +87,7 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, 
     return distances
 
 
-def computer_tree_densities(tree_percent, min_distance=0, max_distance=20):
+def computer_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_adjacencies=False):
     """Using a boolean tree mask, assign a percentage density to each pixel within the given distance"""
     tree_mask = tree_percent > 0
     
@@ -105,9 +102,14 @@ def computer_tree_densities(tree_percent, min_distance=0, max_distance=20):
     total_tree_cover = scipy.signal.fftconvolve(tree_percent, kernel, mode='same')
     percent_trees = (total_tree_cover / kernel.sum()) * 100
     
-    # Mask out trees and adjacent pixels
-    percent_trees[np.where(adjacent_mask)] = np.nan
+    # Mask out trees
+    percent_trees[np.where(tree_mask)] = np.nan
     percent_trees[percent_trees < 1] = 0
+
+    if mask_adjacencies:
+        # We probably don't want to mask adjacencies for the first paper estimating amount of sheltered farmland in Australia
+        # We probably do want to mask adjacencies for the second paper analysing the effects of tree cover on nearby productivity
+        percent_trees[np.where(adjacent_mask)] = np.nan
 
     da_percent_trees = xr.DataArray(
         percent_trees, 
@@ -154,7 +156,7 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
     da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
 
     # I'm assuming that scattered trees don't count towards shelter for the purposes of blocking the wind, but do contribute to percentage tree cover
-    tree_mask = da_categories >= 10 && da_categories < 20
+    tree_mask = (da_categories >= 10) & (da_categories < 20)
     shelter = da_categories >= 12
 
     # Since the input tif is categorized, we assume here that any 'tree pixel' is 100% tree cover.
@@ -189,17 +191,17 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
             for wind_direction in strong_wind_directions:
                 distances = compute_distance_to_tree_TH(shelter_heights, wind_direction, distance_threshold)
                 distance_rasters.append(distances)
-            masked_stack = xr.concat(masked_rasters, dim="stack")
+            masked_stack = xr.concat(distance_rasters, dim="stack")
             min_distances = masked_stack.min(dim="stack", skipna=True)
             sheltered = min_distances > 0
             
         elif wind_method == 'ANY':
             wind_directions = list(direction_map.keys())
             distance_rasters = []
-            for wind_direction in wind_method:
+            for wind_direction in wind_directions:
                 distances = compute_distance_to_tree_TH(shelter_heights, wind_direction, distance_threshold)
                 distance_rasters.append(distances)
-            masked_stack = xr.concat(masked_rasters, dim="stack")
+            masked_stack = xr.concat(distance_rasters, dim="stack")
             min_distances = masked_stack.min(dim="stack", skipna=True)
             sheltered = min_distances > 0
     else:
@@ -208,7 +210,7 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
 
     # Assigning sheltered pixels to the label "31"
     da_shelter_categories = da_categories.where(~sheltered, 31)
-    ds = da_shelter_categories.to_dataset(name='shelter_categories').drop_vars('spatial_ref')
+    ds = da_shelter_categories.to_dataset(name='shelter_categories')
 
     if not stub:
         # Use the same prefix as the original category_tif
@@ -222,7 +224,12 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
         filename_png = os.path.join(outdir, f"{stub}_shelter_categories.png")
         visualise_categories(ds['shelter_categories'], filename_png, shelter_categories_cmap, shelter_categories_labels, "Shelter Categories")
 
+    ds = ds.rename({'x':'longitude', 'y': 'latitude'})
+
     return ds
+
+
+
 
 
 if __name__ == '__main__':
@@ -237,36 +244,16 @@ if __name__ == '__main__':
     # distance_threshold = 20
     print()
 
-outdir = '../../../outdir/'
-stub = 'g2_26729'
-category_tif = f"{outdir}{stub}_categorised.tif"
-height_tif = f"{outdir}{stub}_canopy_height.tif"
-wind_ds = f"{outdir}{stub}_barra_daily.nc"
-wind_method = 'MOST_COMMON'
-wind_threshold = 25
-distance_threshold = 20
-minimum_height = 1
-wind_dir='E'
-max_distance=20
-density_threshold=10
-
-da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
-da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
-shelter = da_categories >= 12
-ds_wind = xr.load_dataset(wind_ds)
-
-da_heights_reprojected = da_heights.rio.reproject_match(da_categories) 
-da_heights_nan = xr.where(shelter, da_heights_reprojected, np.nan)  # I think xr.where() is more readable than da.where()
-shelter_heights = xr.where(da_heights_nan <= minimum_height, minimum_height, da_heights_nan)
-
-primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
-
-tree_mask = (da_categories >= 10) & (da_categories < 20)
-tree_percent = tree_mask.astype(float)
-
-da_percent_trees = computer_tree_densities(tree_percent)
-sheltered = da_percent_trees >= density_threshold
-
-sheltered.plot()
-
-list(direction_map.keys())
+# +
+# outdir = '../../../outdir/'
+# stub = 'g2_26729'
+# category_tif = f"{outdir}{stub}_categorised.tif"
+# height_tif = f"{outdir}{stub}_canopy_height.tif"
+# wind_ds = f"{outdir}{stub}_barra_daily.nc"
+# wind_method = 'MOST_COMMON'
+# wind_threshold = 25
+# distance_threshold = 20
+# minimum_height = 1
+# wind_dir='E'
+# max_distance=20
+# density_threshold=10
