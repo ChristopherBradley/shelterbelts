@@ -4,6 +4,7 @@ import pandas as pd
 import xarray as xr
 import rioxarray as rxr
 import rasterio as rio
+import scipy
 
 
 from shelterbelts.apis.barra_daily import wind_dataframe, dominant_wind_direction
@@ -89,6 +90,35 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, 
     return distances
 
 
+def computer_tree_densities(tree_percent, min_distance=0, max_distance=20):
+    """Using a boolean tree mask, assign a percentage density to each pixel within the given distance"""
+    tree_mask = tree_percent > 0
+    
+    structuring_element = np.ones((3, 3))  # This defines adjacency (including diagonals)
+    adjacent_mask = scipy.ndimage.binary_dilation(tree_mask, structure=structuring_element)
+        
+    # Calculate the number of trees in a donut between the inner and outer circle
+    y, x = np.ogrid[-max_distance:max_distance+1, -max_distance:max_distance+1]
+    kernel = (x**2 + y**2 <= max_distance**2) & (x**2 + y**2 >= min_distance**2)
+    kernel = kernel.astype(float)
+    
+    total_tree_cover = scipy.signal.fftconvolve(tree_percent, kernel, mode='same')
+    percent_trees = (total_tree_cover / kernel.sum()) * 100
+    
+    # Mask out trees and adjacent pixels
+    percent_trees[np.where(adjacent_mask)] = np.nan
+    percent_trees[percent_trees < 1] = 0
+
+    da_percent_trees = xr.DataArray(
+        percent_trees, 
+        dims=("y", "x"),  
+        coords={"y": tree_percent.coords["y"], "x": tree_percent.coords["x"]}, 
+        name="percent_trees" 
+    )
+    
+    return da_percent_trees
+
+
 def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', stub=None, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=True):
     """Define sheltered and unsheltered pixels
     
@@ -122,8 +152,12 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
     """
     da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
 
-    # Counting any tree that isn't a scattered_tree as shelter
+    # I'm assuming that scattered trees don't count towards shelter for the purposes of blocking the wind, but do contribute to percentage tree cover
+    tree_mask = da_categories >= 10 && da_categories < 20
     shelter = da_categories >= 12
+
+    # Since the input tif is categorized, we assume here that any 'tree pixel' is 100% tree cover.
+    tree_percent = tree_mask.astype(float)
 
     if height_tif:
         da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
@@ -158,9 +192,8 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
             min_distances = masked_stack.min(dim="stack", skipna=True)
             sheltered = min_distances > 0
     else:
-        # Use the density method
-        print("Not implemented yet")
-        
+        da_percent_trees = computer_tree_densities(tree_percent)
+        sheltered = da_percent_trees >= density_threshold
 
     # Assigning sheltered pixels to the label "31"
     da_shelter_categories = da_categories.where(~sheltered, 31)
@@ -179,6 +212,7 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
         visualise_categories(ds['shelter_categories'], filename_png, shelter_categories_cmap, shelter_categories_labels, "Shelter Categories")
 
     return ds
+
 
 if __name__ == '__main__':
 
@@ -203,6 +237,7 @@ distance_threshold = 20
 minimum_height = 1
 wind_dir='E'
 max_distance=20
+density_threshold=10
 
 da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
 da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
@@ -215,6 +250,10 @@ shelter_heights = xr.where(da_heights_nan <= minimum_height, minimum_height, da_
 
 primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
 
+tree_mask = (da_categories >= 10) & (da_categories < 20)
+tree_percent = tree_mask.astype(float)
 
+da_percent_trees = computer_tree_densities(tree_percent)
+sheltered = da_percent_trees >= density_threshold
 
-
+sheltered.plot()
