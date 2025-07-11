@@ -113,10 +113,9 @@ def visualise_categories(da, filename=None, colormap=worldcover_cmap, labels=wor
     worldcover_classes = sorted(colormap.keys())
     
     present_classes = np.unique(da.values[~np.isnan(da.values)]).astype(int)
-    visible_classes = [cls for cls in worldcover_classes if cls in present_classes]
-    colors = [np.array(colormap[k]) / 255.0 for k in visible_classes]
+    worldcover_classes = [cls for cls in worldcover_classes if cls in present_classes]
     
-    # colors = [np.array(colormap[k]) / 255.0 for k in worldcover_classes]
+    colors = [np.array(colormap[k]) / 255.0 for k in worldcover_classes]
     cmap = ListedColormap(colors)
     norm = BoundaryNorm(
         boundaries=[v - 0.5 for v in worldcover_classes] + [worldcover_classes[-1] + 0.5],
