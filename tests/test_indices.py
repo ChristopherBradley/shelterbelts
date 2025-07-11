@@ -3,7 +3,7 @@ import time
 
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
-# from shelterbelts.indices.cover_categories import cover_categories
+from shelterbelts.indices.cover_categories import cover_categories
 
 if not os.path.exists('tmpdir'):
     os.mkdir('tmpdir')
@@ -29,13 +29,13 @@ def test_basic():
     assert os.path.exists(f"outdir/{stub}_shelter_categories.tif")
     assert os.path.exists(f"outdir/{stub}_shelter_categories.png")
 
-# def test_cover_categories():
-#     """More comprehensive cover category tests: with and without saving an plotting"""
-#     ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", savetif=True, plot=True)
-#     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
-#     assert 'cover_categories' in set(ds.data_vars)
-#     assert os.path.exists(f"outdir/{stub}_cover_categories.tif")
-#     assert os.path.exists(f"outdir/{stub}_cover_categories.png")
+def test_cover_categories():
+    """More comprehensive cover category tests: with and without saving an plotting"""
+    ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", outdir='outdir', stub=stub, savetif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'cover_categories' in set(ds.data_vars)
+    assert os.path.exists(f"outdir/{stub}_cover_categories.tif")
+    assert os.path.exists(f"outdir/{stub}_cover_categories.png")
 
 
 def test_shelter_categories():
@@ -165,9 +165,9 @@ if __name__ == '__main__':
     print("testing indices")
     start = time.time()
 
-    test_basic()
+    # test_basic()
     # test_tree_categories()
     # test_shelter_categories()
-    # test_cover_categories()
+    test_cover_categories()
 
     print(f"tests successfully completed in {time.time() - start} seconds")
