@@ -51,21 +51,32 @@ def cover_categories(shelter_tif, worldcover_tif, outdir='.', stub='TEST', savet
     da_shelter = rxr.open_rasterio(shelter_tif).squeeze('band').drop_vars('band')
     da_worldcover = rxr.open_rasterio(worldcover_tif).squeeze('band').drop_vars('band')
 
-    da_worldcover2 = da_worldcover.rio.reproject_match(da_shelter) 
+    da_worldcover2 = da_worldcover.rio.reproject_match(da_shelter)
+
+    # Unfortunately this removes the crs
     da_override_trees = xr.where((da_shelter >= 10) & (da_shelter < 20), da_shelter, da_worldcover2)
+    # I could do it like this, but I think this is less readable
+    # da_override_trees = da_shelter.where((da_shelter >= 10) & (da_shelter < 20), da_shelter, da_worldcover2)
 
-    sheltered_grass = (da_override_trees == 30) & (da_shelter == 2)
-    unsheltered_grass = (da_override_trees == 30) & (da_shelter == 0)
-    sheltered_crop = (da_override_trees == 40) & (da_shelter == 2)
-    unsheltered_crop = (da_override_trees == 40) & (da_shelter == 0)
+    # Reassign pixels labelled by worldcover as tree, but the shelter_tif as not tree, into grassland
+    # I'm assuming that the shelter_tif is more accurate than the worldcover_tif in terms of classifying tree vs no tree
+    da_override_grass = xr.where((da_override_trees == 10), 30, da_override_trees)
 
-    da = da_override_trees
+    sheltered_grass = (da_override_grass == 30) & (da_shelter == 2)
+    unsheltered_grass = (da_override_grass == 30) & (da_shelter == 0)
+    sheltered_crop = (da_override_grass == 40) & (da_shelter == 2)
+    unsheltered_crop = (da_override_grass == 40) & (da_shelter == 0)
+
+    da = da_override_grass
     da = xr.where(sheltered_grass, inverted_labels["Sheltered Grassland"], da)
     da = xr.where(unsheltered_grass, inverted_labels["Unsheltered Grassland"], da)
     da = xr.where(sheltered_crop, inverted_labels["Sheltered Cropland"], da)
     da = xr.where(unsheltered_crop, inverted_labels["Unsheltered Cropland"], da)
 
     ds = da.to_dataset(name='cover_categories')
+
+    # Reassign the crs 
+    ds.rio.write_crs(da_shelter.rio.crs, inplace=True)
 
     if savetif:
         filename = os.path.join(outdir,f"{stub}_cover_categories.tif")
