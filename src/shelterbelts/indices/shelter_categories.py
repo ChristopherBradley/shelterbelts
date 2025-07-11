@@ -32,30 +32,8 @@ direction_map = {
     'SE': (1, -1),
     'SW': (1, 1),
 }
-def compute_distance_to_tree(da, wind_dir, max_distance):
-    """Calculate the distance from nearest shelterbelt for each pixel based on a set distance"""
-    shelter = da
-    dy, dx = direction_map[wind_dir]
-    distance = xr.full_like(shelter, np.nan, dtype=float)
-    mask = ~shelter
-
-    found = shelter.copy()
-    pixel_size = 10  # 10m pixels
-    for d in range(1, max_distance + 1):
-        shifted = found.shift(x=dx, y=dy, fill_value=False)
-        new_hits = shifted & mask
-        distance = distance.where(~new_hits, d * pixel_size)
-        found = found | shifted
-        mask = mask & ~new_hits
-        if not mask.any():
-            break
-
-    distances = distance.where(~shelter)
-    return distances
-
-
-def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
-    """Compute the distance from each pixel in terms of tree heights.
+def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, multi_heights=True):
+    """Compute the distance from each pixel.
        shelter_heights is an array of tree heights, with non-trees being np.nan.
     """
     distance_threshold = max_distance
@@ -83,21 +61,20 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
     new_hits = shifted_full.where(~shelter, np.nan) 
     distances = (shifted_full_max - new_hits)
 
-    more_complex_method = False
-    if more_complex_method:
+    # If multi_heights is False, than we assume only the edge trees can provide shelter.
+    # Otherwise, we also incorporate trees inside the edge if they're tall enough to provide shelter when the edge trees are not.
+    if multi_heights:
         # Finding the height of the centre tree sheltering each pixel
-        shifted = xr.full_like(shelter, distance_threshold + 1, dtype=float) 
-        shifted = shifted.where(shelter, np.nan)
-        shifted_full = shifted.copy()
+        shifted = shelter_heights.copy()
+        shifted_full = shelter_heights.copy()
         for d in range(1, distance_threshold + 1):
             shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
             shifted = shifted.where(shifted > 0, np.nan)
             shifted_full_max_centre = shifted_full.where(~shifted_full.isnull(), shifted)
         
         # Finding the distance from the centre tree sheltering each pixel
-        shifted = xr.full_like(shelter, distance_threshold + 1, dtype=float) 
-        shifted = shifted.where(shelter, np.nan)
-        shifted_full = shifted.copy()
+        shifted = shelter_heights.copy()
+        shifted_full = shelter_heights.copy()
         for d in range(1, distance_threshold + 1):
             shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
             shifted = shifted - 1
@@ -107,10 +84,7 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
         new_hits = shifted_full_centre.where(~shelter, np.nan) 
         distances_centre = (shifted_full_max_centre - new_hits)
         
-        # Use the distance from the edge if the edge is sheltering the pixel, 
-        # Otherwise use the distance from whatever centre pixel is tall enough to be doing the sheltering
-        # I wonder if there's a less convoluted way to do this...
-        distances = distances.where(~distances.isnull, distances_centre)
+        distances = distances.where(~distances.isnull(), distances_centre)
     
     return distances
 
@@ -221,7 +195,7 @@ wind_ds = f"{outdir}{stub}_barra_daily.nc"
 wind_method = 'MOST_COMMON'
 wind_threshold = 15
 distance_threshold = 20
-minimum_height = 10
+minimum_height = 1
 wind_dir='E'
 max_distance=20
 
@@ -230,9 +204,9 @@ da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
 shelter = da_categories >= 12
 ds_wind = xr.load_dataset(wind_ds)
 primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
-shelter_heights = xr.where(shelter, minimum_height, np.nan)  
 
+da_heights_reprojected = da_heights.rio.reproject_match(da_categories) 
+da_heights_nan = xr.where(shelter, da_heights_reprojected, np.nan)  # I think xr.where() is more readable than da.where()
+shelter_heights = xr.where(da_heights_nan <= minimum_height, minimum_height, da_heights_nan)
 
-distances = compute_distance_to_tree_TH(shelter_heights, primary_wind_direction, distance_threshold)
-
-distances.plot()
+shelter_heights.plot()
