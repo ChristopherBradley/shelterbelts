@@ -95,7 +95,8 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
     
     """
     da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-    ds = da.to_dataset(name='woody_veg').drop_vars('spatial_ref')
+    # ds = da.to_dataset(name='woody_veg').drop_vars('spatial_ref')
+    ds = da.to_dataset(name='woody_veg')
     woody_veg = ds['woody_veg'].values.astype(bool)
 
     trees_labelled = tree_clusters(woody_veg, max_gap_size)
@@ -113,6 +114,7 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
     ds = ds.rename({'y':'longitude', 'x': 'latitude'})
 
     if not stub:
+        # Use the same prefix as the original woody_veg filename
         stub = filename.split('/')[-1].split('.')[0]
 
     if save_tif:

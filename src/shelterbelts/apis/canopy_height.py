@@ -292,7 +292,8 @@ if __name__ == '__main__':
     lon = float(args.lon)
     buffer = float(args.buffer)
     outdir = args.outdir
+    tmpdir = args.tmpdir
     stub = args.stub
     plot = args.plot
     
-    canopy_height(lat, lon, buffer, outdir, stub, plot=plot)
+    canopy_height(lat, lon, buffer, outdir, stub, tmpdir, plot=plot)

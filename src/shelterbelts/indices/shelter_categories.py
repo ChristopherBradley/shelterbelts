@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import rioxarray as rxr
+import rasterio
 
 
 from shelterbelts.apis.barra_daily import wind_dataframe, dominant_wind_direction
@@ -44,6 +45,38 @@ def compute_distance_to_tree(da, wind_dir, max_distance):
     mask = ~shelter
 
     found = shelter.copy()
+    # pixel_size = 10  # 10m pixels
+    for d in range(1, max_distance + 1):
+        shifted = found.shift(x=dx, y=dy, fill_value=False)
+        new_hits = shifted & mask
+        distance = distance.where(~new_hits, d)
+        found = found | shifted
+        mask = mask & ~new_hits
+        if not mask.any():
+            break
+
+    distances = distance.where(~shelter)
+    return distances
+
+
+direction_map = {
+    'N': (-1, 0),
+    'S': (1, 0),
+    'E': (0, -1),
+    'W': (0, 1),
+    'NE': (-1, -1),
+    'NW': (-1, 1),
+    'SE': (1, -1),
+    'SW': (1, 1),
+}
+def compute_distance_to_tree(da, wind_dir, max_distance):
+    """Calculate the distance from nearest shelterbelt for each pixel based on a set distance"""
+    shelter = da
+    dy, dx = direction_map[wind_dir]
+    distance = xr.full_like(shelter, np.nan, dtype=float)
+    mask = ~shelter
+
+    found = shelter.copy()
     pixel_size = 10  # 10m pixels
     for d in range(1, max_distance + 1):
         shifted = found.shift(x=dx, y=dy, fill_value=False)
@@ -58,95 +91,83 @@ def compute_distance_to_tree(da, wind_dir, max_distance):
     return distances
 
 
-# Calculate the distance from nearest shelterbelt for each pixel in terms of tree heights
-def bla():
-    shelter = ds['shelter']
-    canopy_height = ds['canopy_height3']
-    wind_dir = 'W'
-    
-    direction_map = {
-        'N': (-1, 0),
-        'S': (1, 0),
-        'E': (0, -1),
-        'W': (0, 1),
-        'NE': (-1, -1),
-        'NW': (-1, 1),
-        'SE': (1, -1),
-        'SW': (1, 1),
-    }
+def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
+    """Compute the distance from each pixel in terms of tree heights.
+       shelter_heights is an array of tree heights.
+    """
+    distance_threshold = max_distance
     dy, dx = direction_map[wind_dir]
-    tree_height_distance = xr.full_like(shelter, np.nan, dtype=float)
-    mask = ~shelter  # only compute distances for non-tree pixels
-    found = shelter.copy()
+
+    # Unfinished.
     
-    pixel_size = 10  # 10m pixels
-    max_TH_distance = 20  # 150m for a 10m tall tree
-    max_pixel_distance = max_TH_distance * 2  # Assume the maximum tree height is 20m
-    for d in range(1, max_pixel_distance + 1):
-        
-        shifted_tree = found.shift(x=dx * d, y=dy * d, fill_value=False)
-        shifted_height = canopy_height.shift(x=dx * d, y=dy * d)
-        height_distance = (d * pixel_size) / shifted_height
-        new_hits = (shifted_tree & mask) & (height_distance <= max_TH_distance)
-        tree_height_distance = tree_height_distance.where(~new_hits, height_distance)
-        found = found | shifted_tree
-        mask = mask & ~new_hits
-        if not mask.any():
-            break
+    # Finding the height of the edge sheltering each pixel
+    shifted = xr.full_like(shelter, distance_threshold + 1, dtype=float) 
+    shifted = shifted.where(shelter, np.nan)
+    shifted_full_max = shifted.copy()
+    for d in range(1, distance_threshold + 1):
+        shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
+        shifted = shifted.where(shifted_full_max.isnull(), np.nan)
+        shifted = shifted.where(shifted > 0, np.nan)
+        shifted_full_max = shifted_full_max.where(~shifted_full_max.isnull(), shifted)
     
-    # Set tree pixels themselves to NaN
-    tree_height_distance = tree_height_distance.where(~shelter)
-    ds['distance_in_tree_heights'] = tree_height_distance
-    ds['distance_in_tree_heights'].plot()
-
-
-outdir = '../../../outdir/'
-stub = 'TEST'
-
-category_tif = "../../../outdir/TEST_categorised.tif"
-height_tif = "../../../outdir/TEST_canopy_height.tif"
-wind_ds = "../../../outdir/TEST_barra_daily.nc"
-
-da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
-
-da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
-
-ds_wind = xr.load_dataset("../../../outdir/TEST_barra_daily.nc")
-
-wind_method = 'MOST_COMMON'
-wind_threshold = 15
-distance_threshold = 20
-
-if wind_method == 'MAX':
-    df, max_speed, direction_max_speed
-    primary_wind_direction = direction_max_speed
-
-if wind_method == 'MOST_COMMON':
-    primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
-
-primary_wind_direction
-
-# Counting any tree pixel that isn't a scattered tree as shelter
-shelter = da_categories >= 12
-
-distances = compute_distance_to_tree(shelter, primary_wind_direction, distance_threshold)
-
-sheltered = distances > 0
-
-# Assigning sheltered pixels to the label "31"
-da_shelter_categories = da_categories.where(~sheltered, 31)
-
-ds = da_shelter_categories.to_dataset(name='shelter_categories').drop_vars('spatial_ref')
-
-# filename_png = os.path.join(outdir, f"{stub}_shelter_categories.png")
-visualise_categories(ds['shelter_categories'], None, shelter_categories_cmap, shelter_categories_labels, "Shelter Categories")
+    # Finding the distance from the edge sheltering each pixel
+    shifted = xr.full_like(shelter, distance_threshold + 1, dtype=float) 
+    shifted = shifted.where(shelter, np.nan)
+    shifted_full = shifted.copy()
+    for d in range(1, distance_threshold + 1):
+        shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
+        shifted = shifted.where(shifted_full.isnull(), np.nan)
+        shifted = shifted - 1
+        shifted = shifted.where(shifted > 0, np.nan)
+        shifted_full = shifted_full.where(~shifted_full.isnull(), shifted)
+    
+    new_hits = shifted_full.where(~shelter, np.nan) 
+    distances = (shifted_full_max - new_hits)
+    
+    if more_complex_method:
+        # Finding the height of the centre tree sheltering each pixel
+        shifted = xr.full_like(shelter, distance_threshold + 1, dtype=float) 
+        shifted = shifted.where(shelter, np.nan)
+        shifted_full = shifted.copy()
+        for d in range(1, distance_threshold + 1):
+            shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
+            shifted = shifted.where(shifted > 0, np.nan)
+            shifted_full_max_centre = shifted_full.where(~shifted_full.isnull(), shifted)
         
+        # Finding the distance from the centre tree sheltering each pixel
+        shifted = xr.full_like(shelter, distance_threshold + 1, dtype=float) 
+        shifted = shifted.where(shelter, np.nan)
+        shifted_full = shifted.copy()
+        for d in range(1, distance_threshold + 1):
+            shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
+            shifted = shifted - 1
+            shifted = shifted.where(shifted > 0, np.nan)
+            shifted_full_centre = shifted_full.where(~shifted_full.isnull(), shifted)
+        
+        new_hits = shifted_full_centre.where(~shelter, np.nan) 
+        distances_centre = (shifted_full_max_centre - new_hits)
+        
+        # Use the distance from the edge if the edge is sheltering the pixel, 
+        # Otherwise use the distance from whatever centre pixel is tall enough to be doing the sheltering
+        # I wonder if there's a less convoluted way to do this...
+        distances = distances.where(~distances.isnull, distances_centre)
+    
+    return distances
 
-filename = os.path.join(outdir,f"{stub}_shelter_categories.tif")
-tif_categorical(ds['shelter_categories'], filename, shelter_categories_cmap)
 
 
-def shelter_categories(category_tif, height_tif=None, wind_ds=None, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, savetif=True, plot=True):
+
+
+
+
+
+
+
+
+
+
+
+def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', stub=None, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, savetif=True, plot=True):
     """Define sheltered and unsheltered pixels
     
     Parameters
@@ -176,3 +197,107 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, wind_method=
         shelter_categories.png: A png file like the tif file, but with a legend as well.
     
     """
+    da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
+    shelter = da_categories >= 12
+
+    if height_tif:
+        da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
+        # Assign every tree pixel in shelter the height of the nearest tree in da_heights.
+        shelter_heights = None
+        # Multiply all heights by a fixed amount because the global_canopy_height underestimates tree heights.
+        shelter_heights = shelter_heights * 2
+    else:
+        # Make all the trees exactly 10m
+        da_heights = None  
+
+    if wind_ds:
+        ds_wind = xr.load_dataset(wind_ds)
+    
+        if wind_method == 'MAX':
+            df, max_speed, direction_max_speed
+            primary_wind_direction = direction_max_speed
+            distances = compute_distance_to_tree(shelter, primary_wind_direction, distance_threshold)
+            sheltered = distances > 0
+        
+        elif wind_method == 'MOST_COMMON':
+            primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
+            distances = compute_distance_to_tree(shelter, primary_wind_direction, distance_threshold)
+            sheltered = distances > 0
+    
+        elif wind_method == 'ALL':
+            primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
+            # Use the df_wind to find all wind directions that exceed the wind threshold, and run the distance function on all of them, and take the minimum when combining them.
+            print("Not implemented yet")
+            sheltered = None
+    else:
+        # Use the density method
+        print("Not implemented yet")
+        
+
+    # Assigning sheltered pixels to the label "31"
+    da_shelter_categories = da_categories.where(~sheltered, 31)
+    ds = da_shelter_categories.to_dataset(name='shelter_categories').drop_vars('spatial_ref')
+
+    if not stub:
+        # Use the same prefix as the original category_tif
+        stub = category_tif.split('/')[-1].split('.')[0]
+
+    if savetif:
+        filename = os.path.join(outdir,f"{stub}_shelter_categories.tif")
+        tif_categorical(ds['shelter_categories'], filename, shelter_categories_cmap)
+    
+    if plot:
+        filename_png = os.path.join(outdir, f"{stub}_shelter_categories.png")
+        visualise_categories(ds['shelter_categories'], filename_png, shelter_categories_cmap, shelter_categories_labels, "Shelter Categories")
+
+    return ds
+
+if __name__ == '__main__':
+
+    # outdir = '../../../outdir/'
+    # stub = 'TEST'
+    # category_tif = "../../../outdir/TEST_categorised.tif"
+    # height_tif = "../../../outdir/TEST_canopy_height.tif"
+    # wind_ds = "../../../outdir/TEST_barra_daily.nc"
+    # wind_method = 'MOST_COMMON'
+    # wind_threshold = 15
+    # distance_threshold = 20
+
+outdir = '../../../outdir/'
+stub = 'g2_26729'
+category_tif = f"{outdir}{stub}_categorised.tif"
+height_tif = f"{outdir}{stub}_canopy_height.tif"
+wind_ds = f"{outdir}{stub}_barra_daily.nc"
+wind_method = 'MOST_COMMON'
+wind_threshold = 15
+distance_threshold = 20
+
+da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
+shelter = da_categories >= 12
+
+set(shelter.coords)
+
+da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
+
+da_heights.plot()
+
+shelter.plot()
+
+da_heights.coords
+
+shelter.rio.crs
+
+# +
+# da_heights.rio.reproject_match(shelter, resampling=rasterio.enums.Resampling.nearest)
+# -
+
+filename = f"../../../data/g2_26729_binary_tree_cover_10m.tiff"
+da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+
+da.rio.crs
+
+ds = da.to_dataset(name='woody_veg')
+
+ds = ds.drop_vars('spatial_ref')
+
+ds.rio.crs
