@@ -137,21 +137,26 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
         ds_wind = xr.load_dataset(wind_ds)
     
         if wind_method == 'MAX':
-            df, max_speed, direction_max_speed
+            df, max_speed, direction_max_speed = wind_dataframe(ds_wind)
             primary_wind_direction = direction_max_speed
             distances = compute_distance_to_tree_TH(shelter_heights, primary_wind_direction, distance_threshold)
             sheltered = distances > 0
         
         elif wind_method == 'MOST_COMMON':
-            primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
+            primary_wind_direction, _ = dominant_wind_direction(ds_wind, wind_threshold)
             distances = compute_distance_to_tree_TH(shelter_heights, primary_wind_direction, distance_threshold)
             sheltered = distances > 0
     
         elif wind_method == 'ALL':
-            primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
-            # Use the df_wind to find all wind directions that exceed the wind threshold, and run the distance function on all of them, and take the minimum when combining them.
-            print("Not implemented yet")
-            sheltered = None
+            _, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
+            strong_wind_directions = list(df_wind.loc[df_wind['Count'] > 0, 'Direction'])
+            distance_rasters = []
+            for wind_direction in strong_wind_directions:
+                distances = compute_distance_to_tree_TH(shelter_heights, wind_direction, distance_threshold)
+                distance_rasters.append(distances)
+            masked_stack = xr.concat(masked_rasters, dim="stack")
+            min_distances = masked_stack.min(dim="stack", skipna=True)
+            sheltered = min_distances > 0
     else:
         # Use the density method
         print("Not implemented yet")
@@ -193,7 +198,7 @@ category_tif = f"{outdir}{stub}_categorised.tif"
 height_tif = f"{outdir}{stub}_canopy_height.tif"
 wind_ds = f"{outdir}{stub}_barra_daily.nc"
 wind_method = 'MOST_COMMON'
-wind_threshold = 15
+wind_threshold = 25
 distance_threshold = 20
 minimum_height = 1
 wind_dir='E'
@@ -203,10 +208,13 @@ da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band'
 da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
 shelter = da_categories >= 12
 ds_wind = xr.load_dataset(wind_ds)
-primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
 
 da_heights_reprojected = da_heights.rio.reproject_match(da_categories) 
 da_heights_nan = xr.where(shelter, da_heights_reprojected, np.nan)  # I think xr.where() is more readable than da.where()
 shelter_heights = xr.where(da_heights_nan <= minimum_height, minimum_height, da_heights_nan)
 
-shelter_heights.plot()
+primary_wind_direction, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
+
+
+
+
