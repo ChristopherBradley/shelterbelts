@@ -104,6 +104,26 @@ def test_shelter_categories():
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert 'shelter_categories' in set(ds.data_vars)
 
+    # Changing the density threshold
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=None, height_tif=None, outdir='outdir', stub=f'{stub}_density5', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=5, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=None, height_tif=None, outdir='outdir', stub=f'{stub}_density20', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=20, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    if os.path.exists(f"outdir/{stub}_shelter_categories.png"):
+        os.remove(f"outdir/{stub}_shelter_categories.png")
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=None, height_tif=None, outdir='outdir', stub=stub, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert not os.path.exists(f"outdir/{stub}_shelter_categories.png")
+
+    if os.path.exists(f"outdir/{stub}_shelter_categories.tif"):
+        os.remove(f"outdir/{stub}_shelter_categories.tif")
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=None, height_tif=None, outdir='outdir', stub=stub, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=False, plot=True)
+    assert not os.path.exists(f"outdir/{stub}_shelter_categories.tif")
+
+
 def test_tree_categories():
     """More comprehensive tree category tests: 2x patch sizes, 2x edge sizes, 2x max_gap_sizes, without saving tif, without plot"""
     ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_patch50', min_patch_size=50, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
@@ -133,6 +153,11 @@ def test_tree_categories():
     assert not os.path.exists(f"outdir/{stub}_categorised.png")
 
 if __name__ == '__main__':
-    # test_basic()
-    # test_tree_categories()
+    print("testing indices")
+    start = time.time()
+
+    test_basic()
+    test_tree_categories()
     test_shelter_categories()
+
+    print(f"tests successfully completed in {time.time() - start} seconds")
