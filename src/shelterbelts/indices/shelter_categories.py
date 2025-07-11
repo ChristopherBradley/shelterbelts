@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import rioxarray as rxr
-import rasterio
+import rasterio as rio
 
 
 from shelterbelts.apis.barra_daily import wind_dataframe, dominant_wind_direction
@@ -21,10 +21,6 @@ shelter_categories_labels = {
 }
 shelter_categories_labels = tree_categories_labels | shelter_categories_labels
 shelter_categories_cmap = tree_categories_cmap | shelter_categories_cmap
-
-shelter_categories_cmap
-
-shelter_categories_labels
 
 
 def compute_distance_to_tree(da, wind_dir, max_distance):
@@ -155,19 +151,7 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
     return distances
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', stub=None, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, savetif=True, plot=True):
+def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', stub=None, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=True):
     """Define sheltered and unsheltered pixels
     
     Parameters
@@ -186,6 +170,7 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
             - Units are either 'tree heights' or 'number of pixels', depending on if a height_tif is provided
         density_threshold: The percentage tree cover within the distance_threshold that counts as sheltered
             - Only applies if the wind_ds is not provided.
+        minimum_height: Assume that all tree pixels are at least this tall. If a height_tif is not provided, then all trees get assigned this height.
             
     Returns
     -------
@@ -198,17 +183,17 @@ def shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='.', 
     
     """
     da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
+
+    # Counting any tree that isn't a scattered_tree as shelter
     shelter = da_categories >= 12
 
     if height_tif:
         da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
-        # Assign every tree pixel in shelter the height of the nearest tree in da_heights.
-        shelter_heights = None
-        # Multiply all heights by a fixed amount because the global_canopy_height underestimates tree heights.
-        shelter_heights = shelter_heights * 2
+        da_heights_reprojected = da_heights.rio.reproject_match(da_categories) 
+        da_heights_nan = xr.where(shelter, da_heights_reprojected, np.nan)  # I think xr.where() is more readable than da.where()
+        shelter_heights = xr.where(da_heights_nan <= minimum_height, minimum_height, da_heights_nan)
     else:
-        # Make all the trees exactly 10m
-        da_heights = None  
+        shelter_heights = xr.where(shelter, minimum_height, np.nan)  
 
     if wind_ds:
         ds_wind = xr.load_dataset(wind_ds)
@@ -262,6 +247,7 @@ if __name__ == '__main__':
     # wind_method = 'MOST_COMMON'
     # wind_threshold = 15
     # distance_threshold = 20
+    print()
 
 outdir = '../../../outdir/'
 stub = 'g2_26729'
@@ -273,31 +259,6 @@ wind_threshold = 15
 distance_threshold = 20
 
 da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
+da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
 shelter = da_categories >= 12
 
-set(shelter.coords)
-
-da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
-
-da_heights.plot()
-
-shelter.plot()
-
-da_heights.coords
-
-shelter.rio.crs
-
-# +
-# da_heights.rio.reproject_match(shelter, resampling=rasterio.enums.Resampling.nearest)
-# -
-
-filename = f"../../../data/g2_26729_binary_tree_cover_10m.tiff"
-da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-
-da.rio.crs
-
-ds = da.to_dataset(name='woody_veg')
-
-ds = ds.drop_vars('spatial_ref')
-
-ds.rio.crs

@@ -215,7 +215,7 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
         coords={"band": ["band1"], "longitude": y, "latitude": x},
         name="canopy_height"
     ).rio.write_crs(out_meta['crs'])
-    ds = da.to_dataset().squeeze('band').drop_vars(['band', 'spatial_ref'])
+    ds = da.to_dataset().squeeze('band').drop_vars(['band'])
 
     if save_tif:
         out_meta.update({

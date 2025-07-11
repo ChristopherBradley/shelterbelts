@@ -165,7 +165,7 @@ def worldcover(lat=-34.3890427, lon=148.469499, buffer=0.05, outdir=".", stub="T
         print(f"Area too large, please download in smaller tiles. Reducing buffer to {max_buffer}.") 
         print(f"Estimated filesize = 10MB, estimated download time = 2 mins")
     da = worldcover_centerpoint(lat, lon, buffer)
-    ds = da.to_dataset().drop_vars(['spatial_ref', 'time']).rename({'map': 'worldcover'})
+    ds = da.to_dataset().drop_vars(['time']).rename({'map': 'worldcover'})
 
     if save_tif:
         filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
