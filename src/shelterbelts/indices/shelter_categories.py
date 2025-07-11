@@ -12,15 +12,18 @@ from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 
 
 shelter_categories_cmap = {
-    0:(255, 255, 255),
-    31:(250, 242, 12),
+    0:(0, 0, 0),
+    2:(150,150,150)
 }
 shelter_categories_labels = {
     0:'Unsheltered',
-    31:'Sheltered'
+    2:'Sheltered'
 }
 shelter_categories_labels = tree_categories_labels | shelter_categories_labels
 shelter_categories_cmap = tree_categories_cmap | shelter_categories_cmap
+
+inverted_labels = {v: k for k, v in shelter_categories_labels.items()}
+
 
 direction_map = {
     'N': (-1, 0),
@@ -219,8 +222,8 @@ def shelter_categories(category_tif, wind_ds=None, height_tif=None, outdir='.', 
         da_percent_trees = computer_tree_densities(tree_percent)
         sheltered = da_percent_trees >= density_threshold
 
-    # Assigning sheltered pixels to the label "31"
-    da_shelter_categories = da_categories.where(~sheltered, 31)
+    # Assigning sheltered pixels a new label
+    da_shelter_categories = da_categories.where(~sheltered, inverted_labels['Sheltered'])
     ds = da_shelter_categories.to_dataset(name='shelter_categories')
 
     if not stub:
