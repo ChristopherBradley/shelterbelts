@@ -10,57 +10,127 @@ if not os.path.exists('outdir'):
     os.mkdir('outdir')
 
 # Should add this to git so the tests can run after doing a git clone
-test_filename = 'data/g2_26729_binary_tree_cover_10m.tiff'
+stub = 'g2_26729'
+test_filename = f'data/{stub}_binary_tree_cover_10m.tiff'
 
 
 def test_basic():
     """Basic tests for each of the files"""
-    ds = tree_categories(test_filename, outdir='outdir', stub='TEST', min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
+    ds = tree_categories(test_filename, outdir='outdir', stub=stub, min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert os.path.exists("outdir/TEST_categorised.tif")
-    assert os.path.exists("outdir/TEST_categorised.png")
+    assert os.path.exists(f"outdir/{stub}_categorised.tif")
+    assert os.path.exists(f"outdir/{stub}_categorised.png")
 
-
-def test_shelter_categories():
-    """More comprehensive shelter category tests: with & without height tif & wind ds, 3x wind_methods, 2x wind_threshold, density_threshold, distance_threshold, with and without savetif and plotting"""
-    stub = 'g2_26729'
-    category_tif = f"outdir/{stub}_categorised.tif"
-    assert os.path.exists(category_tif), "Make sure you've run test_tree_categories first!"
-    ds = shelter_categories(category_tif, height_tif=None, wind_ds=None, outdir='outdir', stub=stub, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=True)
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=None, height_tif=None, outdir='outdir', stub=stub, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert 'shelter_categories' in set(ds.data_vars)
     assert os.path.exists(f"outdir/{stub}_shelter_categories.tif")
     assert os.path.exists(f"outdir/{stub}_shelter_categories.png")
 
 
+def test_shelter_categories():
+    """More comprehensive shelter category tests: with & without height tif & wind ds, 3x wind_methods, 2x wind_threshold, density_threshold, distance_threshold, minimum_height, with and without savetif and plotting"""
+    # Changing the minimum height
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=f"outdir/{stub}_canopy_height.tif", outdir='outdir', stub=f'{stub}_minCH1', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=1, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=f"outdir/{stub}_canopy_height.tif", outdir='outdir', stub=f'{stub}_minCH5', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=5, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=f"outdir/{stub}_canopy_height.tif", outdir='outdir', stub=f'{stub}_minCH10', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    # Changing the wind method
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_methodMAX', wind_method='MAX', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_methodANY', wind_method='ANY', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_methodCOMMON', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_methodHAPPENED', wind_method='HAPPENED', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    # Changing the wind speed threshold
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_w10', wind_method='HAPPENED', wind_threshold=10, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_w20', wind_method='HAPPENED', wind_threshold=20, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_w25', wind_method='HAPPENED', wind_threshold=25, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_w30', wind_method='HAPPENED', wind_threshold=30, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    # Changing the distance threshold
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_d30', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=30, density_threshold=10, minimum_height=1, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_d15', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=15, density_threshold=10, minimum_height=1, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=None, outdir='outdir', stub=f'{stub}_d10', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=10, density_threshold=10, minimum_height=1, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    # Changing the distance threshold, with a corresponding height tif
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=f"outdir/{stub}_canopy_height.tif", outdir='outdir', stub=f'{stub}_dCH30', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=30, density_threshold=10, minimum_height=1, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=f"outdir/{stub}_canopy_height.tif", outdir='outdir', stub=f'{stub}_dCH15', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=15, density_threshold=10, minimum_height=1, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
+    ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=f"outdir/{stub}_barra_daily.nc", height_tif=f"outdir/{stub}_canopy_height.tif", outdir='outdir', stub=f'{stub}_dCH10', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=10, density_threshold=10, minimum_height=1, savetif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'shelter_categories' in set(ds.data_vars)
+
 def test_tree_categories():
     """More comprehensive tree category tests: 2x patch sizes, 2x edge sizes, 2x max_gap_sizes, without saving tif, without plot"""
-    ds = tree_categories(test_filename, outdir='outdir', stub='TEST_patch50', min_patch_size=50, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
+    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_patch50', min_patch_size=50, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
 
-    ds = tree_categories(test_filename, outdir='outdir', stub='TEST_edge10', min_patch_size=10, edge_size=10, max_gap_size=2, ds=None, save_tif=True, plot=True)
+    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_edge10', min_patch_size=10, edge_size=10, max_gap_size=2, ds=None, save_tif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
 
-    ds = tree_categories(test_filename, outdir='outdir', stub='TEST_gap0', min_patch_size=10, edge_size=3, max_gap_size=0, ds=None, save_tif=True, plot=True)
+    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_gap0', min_patch_size=10, edge_size=3, max_gap_size=0, ds=None, save_tif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
 
-    if os.path.exists("outdir/TEST_categorised.tif"):
-        os.remove("outdir/TEST_categorised.tif")
-    ds = tree_categories(test_filename, outdir='outdir', stub='TEST', min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=False, plot=True)
+    if os.path.exists(f"outdir/{stub}_categorised.tif"):
+        os.remove(f"outdir/{stub}_categorised.tif")
+    ds = tree_categories(test_filename, outdir='outdir', stub=stub, min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=False, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert not os.path.exists("outdir/TEST_categorised.tif")
+    assert not os.path.exists(f"outdir/{stub}_categorised.tif")
 
-    if os.path.exists("outdir/TEST_categorised.png"):
-        os.remove("outdir/TEST_categorised.png")
-    ds = tree_categories(test_filename, outdir='outdir', stub='TEST', min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=False)
+    if os.path.exists(f"outdir/{stub}_categorised.png"):
+        os.remove(f"outdir/{stub}_categorised.png")
+    ds = tree_categories(test_filename, outdir='outdir', stub=stub, min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=False)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert not os.path.exists("outdir/TEST_categorised.png")
+    assert not os.path.exists(f"outdir/{stub}_categorised.png")
 
 if __name__ == '__main__':
     # test_basic()
