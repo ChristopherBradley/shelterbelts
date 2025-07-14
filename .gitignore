@@ -1,6 +1,7 @@
 data
 outdir
 .DS_Store
+*.nc
 *.tif*
 *.png
 *.geojson

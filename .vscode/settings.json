@@ -1,0 +1,5 @@
+{
+    "remote.SSH.connectTimeout": 60,
+    "remote.SSH.remoteServerListenTimeout": 60,
+    "remote.SSH.showLoginTerminal": true
+}
