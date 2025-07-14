@@ -23,16 +23,8 @@ print(src_dir)
 from shelterbelts.apis.canopy_height import download_new_tiles
 
 
-def filter_canopy_height():
+def filter_canopy_height(tiles_geojson, boundary_shp, out_gpkg):
     """Used this code to generate the canopy_height_tiles_aus.gpkg"""
-    # Downloaded from here: https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson
-    canopy_height_tiles = '/Users/christopherbradley/repos/PHD/shelterbelts/tiles_global.geojson' 
-    
-    # Downloaded from here: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026/access-and-downloads/digital-boundary-files
-    aus_boundary = '/Users/christopherbradley/Documents/PHD/Data/AUS_2021_AUST_SHP_GDA2020/AUS_2021_AUST_GDA2020.shp'
-    
-    outpath = '/Users/christopherbradley/Documents/PHD/Data/Global_Canopy_Height/canopy_height_tiles_aus.gpkg'
-
     # Load the canopy height and australia boundary
     df_canopy_height = gpd.read_file(canopy_height_tiles)
     df_aus_boundary = gpd.read_file(aus_boundary)
@@ -43,8 +35,29 @@ def filter_canopy_height():
     df_canopy_height_filtered = df_canopy_height[df_canopy_height.intersects(aus_geom)]
     df_canopy_height_filtered.to_file(outpath)
 
-    # Then copied this canopy_height_tiles_aus.gpkg to gadi with scp
 
+def run_rows(tiles_gpkg, outdir, column='tile', limit=None):
+    """Download all the tiles"""
+    df_canopy_height = gpd.read_file(canopy_height_tiles)
+    tiles = list(df_canopy_height[column])
+    print("Number of tiles in gpkg: ", len(tiles))
+    
+    # Create a list of tiles we haven't downloaded yet
+    to_download = []
+    for tile in tiles:
+        tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
+        if not os.path.isfile(tile_path):
+            to_download.append(tile)
+    print("Number of tiles to download: ", len(to_download))
+
+    if limit:
+        limit = int(args.limit)
+        to_download = to_download[:limit]
+        print("Limiting tiles to just: ", len(to_download))
+        
+    download_new_tiles(to_download, canopy_height_dir)
+
+    
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
@@ -52,28 +65,26 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# Load the list of all tiles in Australia
-canopy_height_tiles = '/g/data/xe2/cb8590/Nick_outlines/canopy_height_tiles_aus.gpkg'
-df_canopy_height = gpd.read_file(canopy_height_tiles)
-tiles = list(df_canopy_height['tile'])
-print("Tiles in Australia: ", len(tiles))
+if __name__ == '__main__'
 
-# +
-# Create a list of tiles we haven't downloaded yet
-canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height/'
+    # Local filepaths
+    # tiles_global = '/Users/christopherbradley/repos/PHD/shelterbelts/tiles_global.geojson' 
+    # aus_boundary = '/Users/christopherbradley/Documents/PHD/Data/AUS_2021_AUST_SHP_GDA2020/AUS_2021_AUST_GDA2020.shp'
 
-to_download = []
-for tile in tiles:
-    tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
-    if not os.path.isfile(tile_path):
-        to_download.append(tile)
-print("Tiles to download: ", len(to_download))
-# -
+    # Downloaded from here: https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson
+    tiles_global = '/g/data/xe2/cb8590/Outlines/tiles_global.geojson'
+    
+    # # Downloaded from here: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026/access-and-downloads/digital-boundary-files
+    aus_boundary = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
 
-args = parse_arguments()
-if args.limit:
-    limit = int(args.limit)
-    to_download = to_download[:limit]
-    print("Limiting tiles to just: ", len(to_download))
+    tiles_aus = '/g/data/xe2/cb8590/Outlines/canopy_height_tiles_aus.gpkg'
+    canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height/'
+    
+    args = parse_arguments()
 
-download_new_tiles(to_download, canopy_height_dir)
+    # Create a geopackage of just the tiles in Australia
+    filter_canopy_height(tiles_global, aus_boundary, tiles_aus)
+
+    # Download all the tiles in Australia
+    run_rows(tiles_aus, canopy_height_dir, limit=args.limit)
+
