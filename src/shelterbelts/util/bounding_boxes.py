@@ -75,8 +75,8 @@ if __name__ == '__main__':
     # outdir = "../../../outdir"
     # bounding_boxes(filepath, outdir, stub)
 
-    filepath = "/scratch/xe2/cb8590/Global_Canopy_Height"
-    stub = "global_canopy_height"
+    filepath = "/scratch/xe2/cb8590/Worldcover_Australia"
+    stub = "Worldcover_Australia"
     outdir = "/g/data/xe2/cb8590/Outlines"
     bounding_boxes(filepath, outdir, stub)
 
