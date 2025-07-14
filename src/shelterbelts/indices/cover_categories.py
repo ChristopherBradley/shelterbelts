@@ -58,10 +58,11 @@ def cover_categories(shelter_tif, worldcover_tif, outdir='.', stub='TEST', savet
     # I could do it like this, but I think this is less readable
     # da_override_trees = da_shelter.where((da_shelter >= 10) & (da_shelter < 20), da_shelter, da_worldcover2)
 
-    # Reassign pixels labelled by worldcover as tree, but the shelter_tif as not tree, into grassland
+    # Reassign pixels labelled by worldcover as tree but the shelter_tif as not tree, into grassland
     # I'm assuming that the shelter_tif is more accurate than the worldcover_tif in terms of classifying tree vs no tree
     da_override_grass = xr.where((da_override_trees == 10), 30, da_override_trees)
 
+    # I should probably be using the inverted_labels with strings instead of numbers for all of these
     sheltered_grass = (da_override_grass == 30) & (da_shelter == 2)
     unsheltered_grass = (da_override_grass == 30) & (da_shelter == 0)
     sheltered_crop = (da_override_grass == 40) & (da_shelter == 2)
