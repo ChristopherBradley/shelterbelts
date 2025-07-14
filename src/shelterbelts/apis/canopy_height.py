@@ -39,7 +39,7 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
         with requests.get(url, stream=True) as stream:
             with open(filename, "wb") as file:
                 shutil.copyfileobj(stream.raw, file)
-        print(f"Downloaded {filename}")
+        print(f"Downloaded {filename}", flush=True)
 
     # Load the canopy height tiles
     gdf = gpd.read_file(filename)
@@ -135,6 +135,7 @@ def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
         url = canopy_baseurl + f'{tile}.tif'
         filename = os.path.join(canopy_height_dir, f'{tile}.tif')
         response = requests.head(url)
+        # print(f"tile: {tile}, status_code: {response.status_code}")
         if response.status_code == 200:
             with requests.get(url, stream=True) as stream:
                 with open(filename, "wb") as file:
