@@ -6,7 +6,9 @@
 import os
 import numpy as np
 from scipy import ndimage
+import rioxarray as rxr
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
+from shelterbelts.apis.worldcover import tif_categorical
 
 
 import matplotlib.pyplot as plt
@@ -169,11 +171,25 @@ filename_dem = os.path.join(outdir, f"{stub}_terrain.tif")
 # filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
 # -
 
-# %%time
+# Load the dem
+da = rxr.open_rasterio(filename_dem).isel(band=0).drop_vars('band')
+ds = da.to_dataset(name='terrain')
+ds.rio.write_crs("EPSG:3857", inplace=True)
+
+# I might want to smooth the terrain tif like in topography.py if downloading from terrain_tiles before running the hydrology functions
+from scipy.ndimage import gaussian_filter
+terrain_tif = os.path.join(outdir, f"{stub}_terrain_smoothed.tif")
+sigma = 5
+dem = ds['terrain'].values
+dem_smooth = gaussian_filter(dem.astype(float), sigma=sigma)
+ds['dem_smooth'] = (["y", "x"], dem_smooth)
+ds["dem_smooth"].rio.to_raster(terrain_tif)
+
+
 # Generate the ridges and gullies 
 # We actually already have the gullies from the hydrolines, so the ridges are all we care about
 # Might want to adjust the full_branches input for catchment ridges to be based on the hydrolines instead of catchment_gullies?
-grid, dem, fdir, acc = pysheds_accumulation(filename_dem)
+grid, dem, fdir, acc = pysheds_accumulation(terrain_tif)
 
 
 gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments=10)
@@ -183,35 +199,22 @@ ridges = catchment_ridges(grid, fdir, acc, full_branches)
 
 plt.imshow(ridges)
 
-num_catchments=10
-mask = acc > np.max(acc)/(num_catchments*10)
+# Save the gullies and ridges as tifs for viewing in QGIS
+ds['gullies'] = (["y", "x"], gullies)
+ds['ridges'] = (["y", "x"], ridges)
 
-fdir.viewfinder.nodata 
+gullies_cmap = {
+    0: (255, 255, 255),
+    1: (0, 0, 255),
+}
+ridges_cmap = {
+    0: (255, 255, 255),
+    1: (255, 0, 0),
+}
 
-fdir.dtype
+filename_gullies = os.path.join(outdir, f"{stub}_gullies.tif")
+filename_ridges = os.path.join(outdir, f"{stub}_ridges.tif")
 
-mask.dtype
+tif_categorical(ds['gullies'], filename_gullies, colormap=gullies_cmap)
 
-mask.nodata
-
-fdir.nodata
-
-mask[~grid.viewfinder.mask] = False  # Ensure nodata where viewfinder says
-
-
-mask = grid.view(mask, nodata=np.bool_(False), dtype=np.bool_)
-
-
-fdir.viewfinder.nodata 
-
-mask.viewfinder.nodata
-
-fdir.viewfinder.nodata = np.int64(0)
-mask.viewfinder.nodata = np.bool_(False)
-
-print("fdir:", type(fdir), fdir.dtype, fdir.viewfinder.nodata, type(fdir.viewfinder.nodata))
-print("mask:", type(mask), mask.dtype, mask.viewfinder.nodata, type(mask.viewfinder.nodata))
-
-branches = grid.extract_river_network(fdir, mask)
-
-branches
+tif_categorical(ds['ridges'], filename_ridges, colormap=ridges_cmap)
