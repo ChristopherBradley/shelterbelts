@@ -6,6 +6,7 @@
 import os
 import numpy as np
 from scipy import ndimage
+from rasterio.features import rasterize
 import rioxarray as rxr
 import geopandas as gpd
 from shapely.geometry import LineString
@@ -219,19 +220,14 @@ hydro_branches
 
 grid.affine
 
-# +
-
-# Ensure geometries are in the same CRS and fit the grid's transform
+# Rasterize the hydrolines
 shapes = [(geom, 1) for geom in gdf_hydrolines_reprojected.geometry]
-
 hydro_gullies = rasterize(
     shapes,
     out_shape=acc.shape,
     transform=grid.affine, 
     fill=0
 )
-
-# -
 
 hydro_ridges = catchment_ridges(grid, fdir, acc, hydro_branches)
 
