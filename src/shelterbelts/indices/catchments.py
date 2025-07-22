@@ -1,5 +1,5 @@
 # +
-# Code taken from my honours in 2021, updated during my phd in 2024 and 2025: 
+# Some code taken from my honours in 2021 and updated during my phd in 2024 and 2025: 
 # https://gitlab.com/civilise-ai/tl-2024/-/blob/main/dem-server/Backend/ridge_and_gully/catchments.py
 
 # +
@@ -15,11 +15,19 @@ from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
 from shelterbelts.apis.worldcover import tif_categorical
 # -
 
-
 import matplotlib.pyplot as plt
 
+gullies_cmap = {
+    0: (255, 255, 255),
+    1: (0, 0, 255),
+}
+ridges_cmap = {
+    0: (255, 255, 255),
+    1: (255, 0, 0),
+}
+
 # +
-# Monkey patch - their function seems to be broken in later versions of numpy because of line 1417 should be np.false_ instead of the python type False
+# Monkey patch extract_river_network - their function seems to be broken in later versions of numpy because of line 1417 should be np.false_ instead of the python type False
 import geojson
 import pysheds._sgrid as _self
 from pysheds.sview import View
@@ -168,93 +176,120 @@ def catchment_ridges(grid, fdir, acc, full_branches):
     return ridges
 
 
-# +
+def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=10, savetif=True, plot=True):
+    """Generate gully and ridge tifs from a digital elevation model
+    
+    Parameters
+    ----------
+        terrain_tif: string filename of the DEM
+        outdir: The output directory to save the results
+        stub: Prefix for output files
+        num_catchments: The number of catchments to look for when assigning gullies and ridges
+        savetifs: Whether to download the ridges and gullies as tif files
+        plot: Whether to generate a png with ridges and gullies overlaid on the dem
+        
+    Returns
+    -------
+        ds: An xarray.DataSet with layers terrain, gullies, and ridges
+    
+    Downloads
+    ---------
+        gullies.tif
+        ridges.tif
+    
+    """
+    da = rxr.open_rasterio(terrain_tif).isel(band=0).drop_vars('band')
+    
+    # Make sure the input dtype is np.float64 for pysheds to work in the latest version of numpy
+    if da.dtype != 'float64':
+        da = da.astype(np.float64)
+        terrain_tif = os.path.join(tmpdir, f"{stub}_terrain.tif")
+        da.rio.to_raster(terrain_tif)
+        print("Saved as float64: ", terrain_tif)
+    
+    grid, dem, fdir, acc = pysheds_accumulation(terrain_tif)
+    gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments) # Don't worry about the warning here
+    ridges = catchment_ridges(grid, fdir, acc, full_branches)
+
+    ds = da.to_dataset(name='terrain')
+    ds['gullies'] = (["y", "x"], gullies)
+    ds['ridges'] = (["y", "x"], ridges)
+
+    if savetif:
+        filename_gullies = os.path.join(outdir, f"{stub}_gullies.tif")
+        filename_ridges = os.path.join(outdir, f"{stub}_ridges.tif")
+        tif_categorical(ds['gullies'], filename_gullies, colormap=gullies_cmap)
+        tif_categorical(ds['ridges'], filename_ridges, colormap=ridges_cmap)
+
+    return ds
+
+
 outdir = '../../../outdir/'
 stub = 'g2_26729'
+filename_terrain_tiles = os.path.join(outdir, f"{stub}_terrain.tif")
+filename_DEM_H = "/Users/christopherbradley/Downloads/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
+filename_1m = "/Users/christopherbradley/Downloads/NSW Government - Spatial Services/DEM/1 Metre/Young201709-LID1-AHD_6306194_55_0002_0002_1m.tif"
+filename_5m = "/Users/christopherbradley/Downloads/NSW Government - Spatial Services/DEM/5 Metre/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"
+filename_DEM_S = "/Users/christopherbradley/Downloads/1_Second_DEM_Smoothed_470806/1_Second_DEM_Smoothed.tif"
+filename_DEM_Normal = "/Users/christopherbradley/Downloads/1_Second_DEM_470805/1_Second_DEM.tif"
 
-filename_dem = os.path.join(outdir, f"{stub}_terrain.tif")
-filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
+
+# ds = catchments(filename_1m, outdir="../../../outdir", stub="g2_26729_1m")
+# ds = catchments(filename_5m, outdir="../../../outdir", stub="g2_26729_5m")
+ds = catchments(filename_DEM_Normal, outdir="../../../outdir", stub="g2_26729_DEM-Normal")
+
+
+def show_contour_overlays(dem, overlays, colours, title=""):
+    """Plot an image of the contours and the overlay layer"""
+    plt.imshow(dem, alpha=0)
+    plt.contour(dem, levels=50, alpha=0.5)
+    for overlay, colour in zip(overlays, colours):
+        y, x = np.where(overlay)
+        plt.scatter(x, y, marker='.', linewidths=0.01, c=colour)
+    plt.title(title)
+    plt.show()
+
+
+
+plt.imshow(ds['terrain'])
+y, x = np.where(ds['gullies'])
+plt.scatter(x, y, marker='.', linewidths=0.01, c="blue")
+y, x = np.where(ds['ridges'])
+plt.scatter(x, y, marker='.', linewidths=0.01, c="red")
+contour_levels = np.arange(np.floor(np.nanmin(dem)), np.ceil(np.nanmax(dem)), 10)
+contours = ax1.contour(dem, levels=contour_levels, colors='black',
+                       linewidths=0.5, alpha=0.5)
+ax1.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
+
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from matplotlib.font_manager import FontProperties
+
 
 # +
-# Load the dem downloaded with terrain tiles
-da_terrain_tiles = rxr.open_rasterio(filename_dem).isel(band=0).drop_vars('band')
-# ds = da.to_dataset(name='terrain')
-# ds.rio.write_crs("EPSG:3857", inplace=True)
+# Setup
+left, bottom, right, top = ds.rio.bounds()
+extent = (left, right, bottom, top)
+fig, ax1 = plt.subplots(1, 1, figsize=(16, 12))
 
-# Smoothing it still didn't look great
-# from scipy.ndimage import gaussian_filter
-# terrain_tif = os.path.join(outdir, f"{stub}_terrain_smoothed.tif")
-# sigma = 5
-# dem = ds['terrain'].values
-# dem_smooth = gaussian_filter(dem.astype(float), sigma=sigma)
-# ds['dem_smooth'] = (["y", "x"], dem_smooth)
-# ds["dem_smooth"].rio.to_raster(terrain_tif)
+# Background
+dem = ds['terrain']
+im = ax1.imshow(dem, cmap='terrain', interpolation='bilinear', extent=extent)
+ax1.set_title("Elevation")
+plt.colorbar(im, ax=ax1, label='height above sea level (m)')
 
-# +
-# Load the dem downloaded from ELVIS DEM-H
-filename_dem = "/Users/christopherbradley/Downloads/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
-da = rxr.open_rasterio(filename_dem).isel(band=0).drop_vars('band')
+# Contours
+interval = 10
+contour_levels = np.arange(np.floor(np.nanmin(dem)), np.ceil(np.nanmax(dem)), interval)
+contours = ax1.contour(dem, levels=contour_levels, colors='black',
+                       linewidths=0.5, alpha=0.5, extent=extent, origin='upper')
+ax1.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
 
-# Clip it to match the terrain tiles one
-da_reprojected = da.rio.reproject_match(da_terrain_tiles)
-bbox = da_terrain_tiles.rio.bounds()
-bbox_geom = box(*bbox)
-gdf_bbox = gpd.GeoDataFrame({'geometry': [bbox_geom]}, crs=da_terrain_tiles.rio.crs)
-da_clipped = da_reprojected.rio.clip(gdf_bbox.geometry, gdf_bbox.crs)
-da_clipped = da_clipped.astype(np.float64) # Need this datatype for pysheds to work
-
-# Convert to dataset
-terrain_tif = os.path.join(outdir, f"{stub}_DEM-H.tif")
-da_clipped.rio.to_raster(terrain_tif)
+# Scale bar
+scalebar = AnchoredSizeBar(ax1.transData, 0.01, '1km', loc='lower left', pad=0.1,
+                           color='black', frameon=False, size_vertical=0.0001,
+                           fontproperties=FontProperties(size=12))
+ax1.add_artist(scalebar)
+plt.show()
 # -
 
-# Generate the ridges and gullies 
-# We actually already have the gullies from the hydrolines, so the ridges are all we care about
-# Might want to adjust the full_branches input for catchment ridges to be based on the hydrolines instead of catchment_gullies?
-grid, dem, fdir, acc = pysheds_accumulation(terrain_tif)
 
-
-gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments=10) # Don't worry about the warning here
-
-
-ridges = catchment_ridges(grid, fdir, acc, full_branches)
-
-gdf_hydrolines = gpd.read_file(filename_hydrolines)
-gdf_hydrolines_reprojected = gdf_hydrolines.to_crs(grid.crs)
-
-# Rasterize the hydrolines
-shapes = [(geom, 1) for geom in gdf_hydrolines_reprojected.geometry]
-hydro_gullies = rasterize(
-    shapes,
-    out_shape=acc.shape,
-    transform=grid.affine, 
-    fill=0
-)
-
-# Save the gullies and ridges as tifs for viewing in QGIS
-ds['gullies'] = (["y", "x"], gullies)
-ds['ridges'] = (["y", "x"], ridges)
-
-ds['hydro_gullies'] = (["y", "x"], hydro_gullies)
-
-gullies_cmap = {
-    0: (255, 255, 255),
-    1: (0, 0, 255),
-}
-ridges_cmap = {
-    0: (255, 255, 255),
-    1: (255, 0, 0),
-}
-
-filename_gullies = os.path.join(outdir, f"{stub}_gullies.tif")
-filename_ridges = os.path.join(outdir, f"{stub}_ridges.tif")
-filename_hydrogullies = os.path.join(outdir, f"{stub}_hydrogullies.tif")
-filename_hydroridges = os.path.join(outdir, f"{stub}_hydroridges.tif")
-
-tif_categorical(ds['gullies'], filename_gullies, colormap=gullies_cmap)
-
-tif_categorical(ds['ridges'], filename_ridges, colormap=ridges_cmap)
-
-tif_categorical(ds['hydro_gullies'], filename_hydrogullies, colormap=gullies_cmap)
-
-tif_categorical(ds['hydro_ridges'], filename_hydroridges, colormap=ridges_cmap)

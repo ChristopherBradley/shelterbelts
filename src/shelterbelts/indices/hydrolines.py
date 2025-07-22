@@ -71,3 +71,15 @@ if __name__ == '__main__':
 # outdir = '../../../outdir/'
 # stub = 'g2_26729'
 # geotif = f"{outdir}{stub}_categorised.tif"
+
+## Code for rasterizing the hydrolines
+# filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
+# gdf_hydrolines = gpd.read_file(filename_hydrolines)
+# gdf_hydrolines_reprojected = gdf_hydrolines.to_crs(grid.crs)
+# shapes = [(geom, 1) for geom in gdf_hydrolines_reprojected.geometry]
+# hydro_gullies = rasterize(
+#     shapes,
+#     out_shape=acc.shape,
+#     transform=grid.affine, 
+#     fill=0
+# )
