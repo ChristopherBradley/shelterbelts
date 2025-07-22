@@ -1,14 +1,18 @@
 # +
 # Code taken from my honours in 2021, updated during my phd in 2024 and 2025: 
 # https://gitlab.com/civilise-ai/tl-2024/-/blob/main/dem-server/Backend/ridge_and_gully/catchments.py
-# -
 
+# +
 import os
 import numpy as np
 from scipy import ndimage
 import rioxarray as rxr
+import geopandas as gpd
+from shapely.geometry import LineString
+
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
 from shelterbelts.apis.worldcover import tif_categorical
+# -
 
 
 import matplotlib.pyplot as plt
@@ -168,7 +172,7 @@ outdir = '../../../outdir/'
 stub = 'g2_26729'
 
 filename_dem = os.path.join(outdir, f"{stub}_terrain.tif")
-# filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
+filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
 # -
 
 # Load the dem
@@ -195,13 +199,50 @@ grid, dem, fdir, acc = pysheds_accumulation(terrain_tif)
 gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments=10)
 
 
-ridges = catchment_ridges(grid, fdir, acc, full_branches)
+grid.crs
 
-plt.imshow(ridges)
+gdf_hydrolines = gpd.read_file(filename_hydrolines)
+gdf_hydrolines_reprojected = gdf_hydrolines.to_crs(grid.crs)
+
+# Rasterize the hydrolines
+hydro_branches = []
+for geom in gdf_hydrolines_reprojected.geometry:
+    coords = geom.coords 
+    branch = []
+    for x, y in coords:
+        col, row = ~grid.affine * (x, y)
+        row, col = int(round(row)), int(round(col))
+        branch.append([row, col])
+    hydro_branches.append(branch)
+
+hydro_branches
+
+grid.affine
+
+# +
+
+# Ensure geometries are in the same CRS and fit the grid's transform
+shapes = [(geom, 1) for geom in gdf_hydrolines_reprojected.geometry]
+
+hydro_gullies = rasterize(
+    shapes,
+    out_shape=acc.shape,
+    transform=grid.affine, 
+    fill=0
+)
+
+# -
+
+hydro_ridges = catchment_ridges(grid, fdir, acc, hydro_branches)
+
+plt.imshow(hydro_ridges)
 
 # Save the gullies and ridges as tifs for viewing in QGIS
 ds['gullies'] = (["y", "x"], gullies)
 ds['ridges'] = (["y", "x"], ridges)
+
+ds['hydro_gullies'] = (["y", "x"], hydro_gullies)
+ds['hydro_ridges'] = (["y", "x"], hydro_ridges)
 
 gullies_cmap = {
     0: (255, 255, 255),
@@ -214,7 +255,13 @@ ridges_cmap = {
 
 filename_gullies = os.path.join(outdir, f"{stub}_gullies.tif")
 filename_ridges = os.path.join(outdir, f"{stub}_ridges.tif")
+filename_hydrogullies = os.path.join(outdir, f"{stub}_hydrogullies.tif")
+filename_hydroridges = os.path.join(outdir, f"{stub}_hydroridges.tif")
 
 tif_categorical(ds['gullies'], filename_gullies, colormap=gullies_cmap)
 
 tif_categorical(ds['ridges'], filename_ridges, colormap=ridges_cmap)
+
+tif_categorical(ds['hydro_gullies'], filename_hydrogullies, colormap=gullies_cmap)
+
+tif_categorical(ds['hydro_ridges'], filename_hydroridges, colormap=ridges_cmap)
