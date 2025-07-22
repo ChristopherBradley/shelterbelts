@@ -9,7 +9,7 @@ from scipy import ndimage
 from rasterio.features import rasterize
 import rioxarray as rxr
 import geopandas as gpd
-from shapely.geometry import LineString
+from shapely.geometry import LineString, box
 
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
 from shelterbelts.apis.worldcover import tif_categorical
@@ -174,22 +174,39 @@ stub = 'g2_26729'
 
 filename_dem = os.path.join(outdir, f"{stub}_terrain.tif")
 filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
-# -
 
-# Load the dem
+# +
+# Load the dem downloaded with terrain tiles
+da_terrain_tiles = rxr.open_rasterio(filename_dem).isel(band=0).drop_vars('band')
+# ds = da.to_dataset(name='terrain')
+# ds.rio.write_crs("EPSG:3857", inplace=True)
+
+# Smoothing it still didn't look great
+# from scipy.ndimage import gaussian_filter
+# terrain_tif = os.path.join(outdir, f"{stub}_terrain_smoothed.tif")
+# sigma = 5
+# dem = ds['terrain'].values
+# dem_smooth = gaussian_filter(dem.astype(float), sigma=sigma)
+# ds['dem_smooth'] = (["y", "x"], dem_smooth)
+# ds["dem_smooth"].rio.to_raster(terrain_tif)
+
+# +
+# Load the dem downloaded from ELVIS DEM-H
+filename_dem = "/Users/christopherbradley/Downloads/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
 da = rxr.open_rasterio(filename_dem).isel(band=0).drop_vars('band')
-ds = da.to_dataset(name='terrain')
-ds.rio.write_crs("EPSG:3857", inplace=True)
 
-# I might want to smooth the terrain tif like in topography.py if downloading from terrain_tiles before running the hydrology functions
-from scipy.ndimage import gaussian_filter
-terrain_tif = os.path.join(outdir, f"{stub}_terrain_smoothed.tif")
-sigma = 5
-dem = ds['terrain'].values
-dem_smooth = gaussian_filter(dem.astype(float), sigma=sigma)
-ds['dem_smooth'] = (["y", "x"], dem_smooth)
-ds["dem_smooth"].rio.to_raster(terrain_tif)
+# Clip it to match the terrain tiles one
+da_reprojected = da.rio.reproject_match(da_terrain_tiles)
+bbox = da_terrain_tiles.rio.bounds()
+bbox_geom = box(*bbox)
+gdf_bbox = gpd.GeoDataFrame({'geometry': [bbox_geom]}, crs=da_terrain_tiles.rio.crs)
+da_clipped = da_reprojected.rio.clip(gdf_bbox.geometry, gdf_bbox.crs)
+da_clipped = da_clipped.astype(np.float64) # Need this datatype for pysheds to work
 
+# Convert to dataset
+terrain_tif = os.path.join(outdir, f"{stub}_DEM-H.tif")
+da_clipped.rio.to_raster(terrain_tif)
+# -
 
 # Generate the ridges and gullies 
 # We actually already have the gullies from the hydrolines, so the ridges are all we care about
@@ -197,28 +214,13 @@ ds["dem_smooth"].rio.to_raster(terrain_tif)
 grid, dem, fdir, acc = pysheds_accumulation(terrain_tif)
 
 
-gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments=10)
+gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments=10) # Don't worry about the warning here
 
 
-grid.crs
+ridges = catchment_ridges(grid, fdir, acc, full_branches)
 
 gdf_hydrolines = gpd.read_file(filename_hydrolines)
 gdf_hydrolines_reprojected = gdf_hydrolines.to_crs(grid.crs)
-
-# Rasterize the hydrolines
-hydro_branches = []
-for geom in gdf_hydrolines_reprojected.geometry:
-    coords = geom.coords 
-    branch = []
-    for x, y in coords:
-        col, row = ~grid.affine * (x, y)
-        row, col = int(round(row)), int(round(col))
-        branch.append([row, col])
-    hydro_branches.append(branch)
-
-hydro_branches
-
-grid.affine
 
 # Rasterize the hydrolines
 shapes = [(geom, 1) for geom in gdf_hydrolines_reprojected.geometry]
@@ -229,16 +231,11 @@ hydro_gullies = rasterize(
     fill=0
 )
 
-hydro_ridges = catchment_ridges(grid, fdir, acc, hydro_branches)
-
-plt.imshow(hydro_ridges)
-
 # Save the gullies and ridges as tifs for viewing in QGIS
 ds['gullies'] = (["y", "x"], gullies)
 ds['ridges'] = (["y", "x"], ridges)
 
 ds['hydro_gullies'] = (["y", "x"], hydro_gullies)
-ds['hydro_ridges'] = (["y", "x"], hydro_ridges)
 
 gullies_cmap = {
     0: (255, 255, 255),
