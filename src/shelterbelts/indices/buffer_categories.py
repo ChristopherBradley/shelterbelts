@@ -1,4 +1,4 @@
-
+import rioxarray as rxr
 
 
 
@@ -21,3 +21,10 @@ def buffer_categories(cover_tif, terrain_tif, savetif=True, plot=True):
         buffer_categories.png: A png file like the tif file, but with a legend as well.
     
     """
+
+
+cover_tif = "../../../outdir/g2_26729_cover_categories.tif"
+
+da_cover = rxr.open_rasterio(cover_tif)
+
+da_cover.close()

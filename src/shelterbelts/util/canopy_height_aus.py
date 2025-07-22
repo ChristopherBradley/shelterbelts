@@ -51,29 +51,29 @@ def parse_arguments():
     parser.add_argument('--limit', default=None)
     return parser.parse_args()
 
+if __name__ == '__main__':
+    # Load the list of all tiles in Australia
+    canopy_height_tiles = '/g/data/xe2/cb8590/Nick_outlines/canopy_height_tiles_aus.gpkg'
+    df_canopy_height = gpd.read_file(canopy_height_tiles)
+    tiles = list(df_canopy_height['tile'])
+    print("Tiles in Australia: ", len(tiles))
 
-# Load the list of all tiles in Australia
-canopy_height_tiles = '/g/data/xe2/cb8590/Nick_outlines/canopy_height_tiles_aus.gpkg'
-df_canopy_height = gpd.read_file(canopy_height_tiles)
-tiles = list(df_canopy_height['tile'])
-print("Tiles in Australia: ", len(tiles))
+    # +
+    # Create a list of tiles we haven't downloaded yet
+    canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height/'
 
-# +
-# Create a list of tiles we haven't downloaded yet
-canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height/'
+    to_download = []
+    for tile in tiles:
+        tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
+        if not os.path.isfile(tile_path):
+            to_download.append(tile)
+    print("Tiles to download: ", len(to_download))
+    # -
 
-to_download = []
-for tile in tiles:
-    tile_path = os.path.join(canopy_height_dir, f"{tile}.tif")
-    if not os.path.isfile(tile_path):
-        to_download.append(tile)
-print("Tiles to download: ", len(to_download))
-# -
+    args = parse_arguments()
+    if args.limit:
+        limit = int(args.limit)
+        to_download = to_download[:limit]
+        print("Limiting tiles to just: ", len(to_download))
 
-args = parse_arguments()
-if args.limit:
-    limit = int(args.limit)
-    to_download = to_download[:limit]
-    print("Limiting tiles to just: ", len(to_download))
-
-download_new_tiles(to_download, canopy_height_dir)
+    download_new_tiles(to_download, canopy_height_dir)

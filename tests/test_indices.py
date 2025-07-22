@@ -166,8 +166,8 @@ if __name__ == '__main__':
     start = time.time()
 
     # test_basic()
-    # test_tree_categories()
+    test_tree_categories()
     # test_shelter_categories()
-    test_cover_categories()
+    # test_cover_categories()
 
     print(f"tests successfully completed in {time.time() - start} seconds")
