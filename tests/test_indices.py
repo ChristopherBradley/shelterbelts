@@ -161,6 +161,8 @@ def test_tree_categories():
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
     assert not os.path.exists(f"outdir/{stub}_categorised.png")
 
+# Not creating a test for hydroline cropping because it takes so long to read in the file
+
 if __name__ == '__main__':
     print("testing indices")
     start = time.time()

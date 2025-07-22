@@ -9,16 +9,14 @@ from scipy import ndimage
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
 
 
+import matplotlib.pyplot as plt
+
+# +
+# Monkey patch - their function seems to be broken in later versions of numpy because of line 1417 should be np.false_ instead of the python type False
 import geojson
 import pysheds._sgrid as _self
 from pysheds.sview import View
 from pysheds.grid import Grid
-
-
-
-
-# +
-# # Their function seems to be broken in later versions of numpy because of line 1417 should be np.false_ instead of the python type False
 
 def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8, 16, 32),
                             routing='d8', algorithm='iterative', **kwargs):
@@ -27,15 +25,16 @@ def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8,
         fdir_overrides = {'dtype' : np.int64, 'nodata' : fdir.nodata}
     else:
         raise NotImplementedError('Only implemented for `d8` routing.')
+
+    # Literally just changed this line from False to np.bool_(False)
     mask_overrides = {'dtype' : np.bool_, 'nodata' : np.bool_(False)}
+    
     kwargs.update(fdir_overrides)
     fdir = self._input_handler(fdir, **kwargs)
     kwargs.update(mask_overrides)
     mask = self._input_handler(mask, **kwargs)
-    # Find nodata cells and invalid cells
     nodata_cells = self._get_nodata_cells(fdir)
     invalid_cells = ~np.in1d(fdir.ravel(), dirmap).reshape(fdir.shape)
-    # Set nodata cells to zero
     fdir[nodata_cells] = 0
     fdir[invalid_cells] = 0
     maskleft, maskright, masktop, maskbottom = self._pop_rim(mask, nodata=False)
@@ -53,7 +52,6 @@ def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8,
                                                         orig_indegree, startnodes)
     else:
         raise ValueError('Algorithm must be `iterative` or `recursive`.')
-    # Fill geojson dict with profiles
     featurelist = []
     for index, profile in enumerate(profiles):
         yi, xi = np.unravel_index(list(profile), fdir.shape)
@@ -62,12 +60,11 @@ def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8,
         featurelist.append(geojson.Feature(geometry=line, id=index))
     geo = geojson.FeatureCollection(featurelist)
     return geo
+    
+Grid.extract_river_network = patched_extract_river_network
 
 
 # -
-
-
-Grid.extract_river_network = patched_extract_river_network
 
 
 def find_segment_above(acc, coord, branches_np):
@@ -149,7 +146,7 @@ def catchment_ridges(grid, fdir, acc, full_branches):
 
         # Generate the catchment above that pixel
         catch = grid.catchment(x=x, y=y, fdir=fdir, dirmap=dirmap, 
-                            xytype='coordinate')
+                            xytype='coordinate', nodata_out=np.bool_(False))
 
         # Override relevant pixels in all_catchments with this new catchment_id
         all_catchments[catch] = catchment_id
@@ -177,8 +174,14 @@ filename_dem = os.path.join(outdir, f"{stub}_terrain.tif")
 # We actually already have the gullies from the hydrolines, so the ridges are all we care about
 # Might want to adjust the full_branches input for catchment ridges to be based on the hydrolines instead of catchment_gullies?
 grid, dem, fdir, acc = pysheds_accumulation(filename_dem)
-# gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments=10)
-# ridges = catchment_ridges(grid, fdir, acc, full_branches)
+
+
+gullies, full_branches = catchment_gullies(grid, fdir, acc, num_catchments=10)
+
+
+ridges = catchment_ridges(grid, fdir, acc, full_branches)
+
+plt.imshow(ridges)
 
 num_catchments=10
 mask = acc > np.max(acc)/(num_catchments*10)
