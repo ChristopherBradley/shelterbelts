@@ -6,10 +6,14 @@
 import os
 import numpy as np
 from scipy import ndimage
+from skimage.morphology import thin
 from rasterio.features import rasterize
+import rasterio
 import rioxarray as rxr
 import geopandas as gpd
 from shapely.geometry import LineString, box
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from matplotlib.font_manager import FontProperties
 
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
 from shelterbelts.apis.worldcover import tif_categorical
@@ -171,9 +175,47 @@ def catchment_ridges(grid, fdir, acc, full_branches):
     sobel_x = ndimage.sobel(all_catchments, axis=0)
     sobel_y = ndimage.sobel(all_catchments, axis=1)  
     edges = np.hypot(sobel_x, sobel_y) 
-    ridges = edges > 0
+    
+    # ridges = edges > 0 # This gives edges that are generally 3 pixels wide
+    ridges = thin(edges > 0) # This makes the edges 1 wide
+    # ridges = skeletonize(edges > 0) # This is another option that looks similar to thinning
 
     return ridges
+
+
+def plot_catchments(ds, filename=None):
+    """Pretty visualisation of the terrain and ridges and gullies
+    ds needs to have at least 3 bands: terrain (int or float), gullies (bool), ridges (bool)"""
+    left, bottom, right, top = ds.rio.bounds()
+    extent = (left, right, bottom, top)
+    
+    # Background
+    dem = ds['terrain']
+    plt.imshow(dem, cmap='terrain', interpolation='bilinear', extent=extent)
+    plt.colorbar(label='height above sea level (m)')
+    
+    # Contours
+    contour_levels = np.arange(np.floor(np.nanmin(dem)), np.ceil(np.nanmax(dem)), 10)
+    contours = plt.contour(dem, levels=contour_levels, colors='black',
+                           linewidths=0.5, alpha=0.5, extent=extent)
+    plt.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
+    
+    # Ridges & Gullies
+    transform = ds.rio.transform()
+    rows, cols = np.where(ds['gullies'])
+    xs, ys = rasterio.transform.xy(transform, rows, cols)
+    rows_r, cols_r = np.where(ds['ridges'])
+    xr, yr = rasterio.transform.xy(transform, rows_r, cols_r)
+    plt.scatter(xs, ys, marker='.', linewidths=0.01, c="blue", label='Gullies')
+    plt.scatter(xr, yr, marker='.', linewidths=0.01, c="red", label='Ridges')
+
+    if filename:
+        plt.savefig(filename, bbox_inches='tight')
+        plt.close()
+        print(f"Saved: {filename}")
+    else:
+        plt.show()
+
 
 
 def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=10, savetif=True, plot=True):
@@ -227,69 +269,16 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
 outdir = '../../../outdir/'
 stub = 'g2_26729'
 filename_terrain_tiles = os.path.join(outdir, f"{stub}_terrain.tif")
-filename_DEM_H = "/Users/christopherbradley/Downloads/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
-filename_1m = "/Users/christopherbradley/Downloads/NSW Government - Spatial Services/DEM/1 Metre/Young201709-LID1-AHD_6306194_55_0002_0002_1m.tif"
-filename_5m = "/Users/christopherbradley/Downloads/NSW Government - Spatial Services/DEM/5 Metre/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"
-filename_DEM_S = "/Users/christopherbradley/Downloads/1_Second_DEM_Smoothed_470806/1_Second_DEM_Smoothed.tif"
-filename_DEM_Normal = "/Users/christopherbradley/Downloads/1_Second_DEM_470805/1_Second_DEM.tif"
+filename_DEM_H = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
+filename_1m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/1 Metre/Young201709-LID1-AHD_6306194_55_0002_0002_1m.tif"
+filename_5m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/5 Metre/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"
+filename_DEM_S = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_Smoothed_470806/1_Second_DEM_Smoothed.tif"
+filename_DEM_Normal = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_470805/1_Second_DEM.tif"
 
 
 # ds = catchments(filename_1m, outdir="../../../outdir", stub="g2_26729_1m")
 # ds = catchments(filename_5m, outdir="../../../outdir", stub="g2_26729_5m")
 ds = catchments(filename_DEM_Normal, outdir="../../../outdir", stub="g2_26729_DEM-Normal")
 
-
-def show_contour_overlays(dem, overlays, colours, title=""):
-    """Plot an image of the contours and the overlay layer"""
-    plt.imshow(dem, alpha=0)
-    plt.contour(dem, levels=50, alpha=0.5)
-    for overlay, colour in zip(overlays, colours):
-        y, x = np.where(overlay)
-        plt.scatter(x, y, marker='.', linewidths=0.01, c=colour)
-    plt.title(title)
-    plt.show()
-
-
-
-plt.imshow(ds['terrain'])
-y, x = np.where(ds['gullies'])
-plt.scatter(x, y, marker='.', linewidths=0.01, c="blue")
-y, x = np.where(ds['ridges'])
-plt.scatter(x, y, marker='.', linewidths=0.01, c="red")
-contour_levels = np.arange(np.floor(np.nanmin(dem)), np.ceil(np.nanmax(dem)), 10)
-contours = ax1.contour(dem, levels=contour_levels, colors='black',
-                       linewidths=0.5, alpha=0.5)
-ax1.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
-
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-from matplotlib.font_manager import FontProperties
-
-
-# +
-# Setup
-left, bottom, right, top = ds.rio.bounds()
-extent = (left, right, bottom, top)
-fig, ax1 = plt.subplots(1, 1, figsize=(16, 12))
-
-# Background
-dem = ds['terrain']
-im = ax1.imshow(dem, cmap='terrain', interpolation='bilinear', extent=extent)
-ax1.set_title("Elevation")
-plt.colorbar(im, ax=ax1, label='height above sea level (m)')
-
-# Contours
-interval = 10
-contour_levels = np.arange(np.floor(np.nanmin(dem)), np.ceil(np.nanmax(dem)), interval)
-contours = ax1.contour(dem, levels=contour_levels, colors='black',
-                       linewidths=0.5, alpha=0.5, extent=extent, origin='upper')
-ax1.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
-
-# Scale bar
-scalebar = AnchoredSizeBar(ax1.transData, 0.01, '1km', loc='lower left', pad=0.1,
-                           color='black', frameon=False, size_vertical=0.0001,
-                           fontproperties=FontProperties(size=12))
-ax1.add_artist(scalebar)
-plt.show()
-# -
-
+plot_catchments(ds)
 
