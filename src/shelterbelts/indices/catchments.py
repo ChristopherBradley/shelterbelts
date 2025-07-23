@@ -4,16 +4,13 @@
 
 # +
 import os
+import argparse
+
 import numpy as np
 from scipy import ndimage
 from skimage.morphology import thin
-from rasterio.features import rasterize
 import rasterio
 import rioxarray as rxr
-import geopandas as gpd
-from shapely.geometry import LineString, box
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-from matplotlib.font_manager import FontProperties
 
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
 from shelterbelts.apis.worldcover import tif_categorical
@@ -238,6 +235,7 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
     ---------
         gullies.tif
         ridges.tif
+        gullies_and_ridges.png
     
     """
     da = rxr.open_rasterio(terrain_tif).isel(band=0).drop_vars('band')
@@ -263,22 +261,50 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
         tif_categorical(ds['gullies'], filename_gullies, colormap=gullies_cmap)
         tif_categorical(ds['ridges'], filename_ridges, colormap=ridges_cmap)
 
+    if plot:
+        filename_gullies_ridges_png = os.path.join(outdir, f"{stub}_gullies_and_ridges.png")
+        plot_catchments(ds, filename_gullies_ridges_png)
+        
     return ds
 
 
-outdir = '../../../outdir/'
-stub = 'g2_26729'
-filename_terrain_tiles = os.path.join(outdir, f"{stub}_terrain.tif")
-filename_DEM_H = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
-filename_1m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/1 Metre/Young201709-LID1-AHD_6306194_55_0002_0002_1m.tif"
-filename_5m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/5 Metre/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"
-filename_DEM_S = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_Smoothed_470806/1_Second_DEM_Smoothed.tif"
-filename_DEM_Normal = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_470805/1_Second_DEM.tif"
+
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--terrain_tif', help='String of filename to be used for the bounding box to crop the hydrolines')
+    parser.add_argument('--outdir', default='.', help='The output directory to save the results')
+    parser.add_argument('--stub', default=None, help='Prefix for output files.')
+    parser.add_argument('--num_catchments', default=10, help='The number of catchments to look for when assigning gullies and ridges')
+    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
+
+    return parser.parse_args()
 
 
-# ds = catchments(filename_1m, outdir="../../../outdir", stub="g2_26729_1m")
-# ds = catchments(filename_5m, outdir="../../../outdir", stub="g2_26729_5m")
-ds = catchments(filename_DEM_Normal, outdir="../../../outdir", stub="g2_26729_DEM-Normal")
+if __name__ == '__main__':
 
-plot_catchments(ds)
+    args = parse_arguments()
+    
+    terrain_tif = args.terrain_tif
+    outdir = args.outdir
+    stub = args.stub
+    num_catchments = int(args.num_catchments)
+    plot = args.plot
+    
+    catchments(terrain_tif, outdir, stub, num_catchments, savetif=True, plot=plot)
 
+
+# outdir = '../../../outdir/'
+# stub = 'g2_26729'
+# filename_terrain_tiles = os.path.join(outdir, f"{stub}_terrain.tif")
+# filename_DEM_H = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
+# filename_1m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/1 Metre/Young201709-LID1-AHD_6306194_55_0002_0002_1m.tif"
+# filename_5m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/5 Metre/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"
+# filename_DEM_S = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_Smoothed_470806/1_Second_DEM_Smoothed.tif"
+# filename_DEM_Normal = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_470805/1_Second_DEM.tif"
+
+# # ds = catchments(filename_1m, outdir="../../../outdir", stub="g2_26729_1m")
+# # ds = catchments(filename_5m, outdir="../../../outdir", stub="g2_26729_5m")
+# ds = catchments(filename_DEM_Normal, outdir="../../../outdir", stub="g2_26729_DEM-Normal")
+# plot_catchments(ds)
