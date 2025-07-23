@@ -1,8 +1,16 @@
+# +
+import os
 import argparse
 import geopandas as gpd
 import rioxarray as rxr
+from rasterio.features import rasterize
+
 from shapely.geometry import box
 
+from shelterbelts.apis.worldcover import tif_categorical
+from shelterbelts.indices.catchments import gullies_cmap
+
+# -
 
 def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     """Crop the hydrolines to the region of interest
@@ -11,14 +19,17 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     ----------
         geotif: String of filename to be used for the bounding box to crop the hydrolines
         hydrolines_gdb: String of filename downloaded from here https://researchdata.edu.au/surface-hydrology-lines-regional/3409155
+        rasterize: Whether to convert to a raster or not
 
     Returns
     -------
-        gdf: hydrolines cropped to the region of interest
+    ds: xarray.DataSet with 'terrain' and 'gullies' layers
 
     Downloads
     ---------
-        hydrolines_cropped.gpkg: A geopackage of the hydrolines for the region of interest
+    hydrolines_cropped.gpkg: Cropped hydrolines for the region of interest
+    hydrolines.tif: A georeferenced tif file of the gullies based on hydrolines
+
     """
     # Read raster to get bounding box and CRS
     da = rxr.open_rasterio(geotif, masked=True).isel(band=0)
@@ -35,11 +46,26 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     bbox_gdf = bbox_gdf.to_crs(hydrolines_crs)
 
     gdf_cropped = gpd.clip(gdf, bbox_gdf) # 7 secs for 2kmx2km test region with 30 hydrolines
-
-    cropped_path = f"{outdir}{stub}_hydrolines_cropped.gpkg"
+    cropped_path = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
     gdf_cropped.to_file(cropped_path)
+    print("Saved", cropped_path)
 
-    return gdf_cropped
+    gdf_cropped = gdf_cropped.to_crs(da.rio.crs)
+    shapes = [(geom, 1) for geom in gdf_cropped.geometry]
+    transform = da.rio.transform()
+    hydro_gullies = rasterize(
+        shapes,
+        out_shape=da.shape,
+        transform=transform,
+        fill=0
+    )
+    ds = da.to_dataset(name='terrain')
+    ds['gullies'] = (["y", "x"], hydro_gullies)
+
+    filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines.tif")
+    tif_categorical(ds['gullies'], filename_hydrolines, colormap=gullies_cmap)
+
+    return ds
 
 
 def parse_arguments():
@@ -70,16 +96,7 @@ if __name__ == '__main__':
 # hydrolines_gdb = "/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/SurfaceHydrologyLinesRegional.gdb"
 # outdir = '../../../outdir/'
 # stub = 'g2_26729'
+# rasterize = True
 # geotif = f"{outdir}{stub}_categorised.tif"
-
-## Code for rasterizing the hydrolines
-# filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
-# gdf_hydrolines = gpd.read_file(filename_hydrolines)
-# gdf_hydrolines_reprojected = gdf_hydrolines.to_crs(grid.crs)
-# shapes = [(geom, 1) for geom in gdf_hydrolines_reprojected.geometry]
-# hydro_gullies = rasterize(
-#     shapes,
-#     out_shape=acc.shape,
-#     transform=grid.affine, 
-#     fill=0
-# )
+# ds = hydrolines(geotif, hydrolines_gdb)
+# -
