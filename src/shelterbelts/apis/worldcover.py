@@ -82,7 +82,7 @@ def worldcover_centerpoint(lat=-34.3890427, lon=148.469499, buffer=0.05):
     return da
 
 
-def tif_categorical(da, filename= ".", colormap=None, tiled=False):
+def tif_categorical(da, filename= "TEST.tif", colormap=None, tiled=False):
     """Save a tif file using a categorical colour scheme"""
     with rasterio.open(
         filename,
