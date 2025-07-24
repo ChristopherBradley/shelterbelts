@@ -23,6 +23,7 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
 
     Returns
     -------
+    gdf: geodataframe of the features in the region of interest
     ds: xarray.DataSet with 'terrain' and 'gullies' layers
 
     Downloads
@@ -65,7 +66,7 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines.tif")
     tif_categorical(ds['gullies'], filename_hydrolines, colormap=gullies_cmap)
 
-    return ds
+    return gdf, ds
 
 
 def parse_arguments():
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     outdir = args.outdir
     stub = args.stub
 
-    gdf = hydrolines(geotif, hydrolines_gdb, outdir, stub)
+    gdf, ds = hydrolines(geotif, hydrolines_gdb, outdir, stub)
 
 
 # +
@@ -98,5 +99,5 @@ if __name__ == '__main__':
 # stub = 'g2_26729'
 # rasterize = True
 # geotif = f"{outdir}{stub}_categorised.tif"
-# ds = hydrolines(geotif, hydrolines_gdb)
+# gdf, ds = hydrolines(geotif, hydrolines_gdb)
 # -

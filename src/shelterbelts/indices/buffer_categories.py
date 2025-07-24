@@ -103,28 +103,28 @@ def parse_arguments():
 
     return parser.parse_args()
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
 
-#     args = parse_arguments()
+    args = parse_arguments()
 
-#     cover_tif = args.cover_tif
-#     gullies_tif = args.gullies_tif
-#     ridges_tif = args.ridges_tif
-#     outdir = args.outdir
-#     stub = args.stub
-#     buffer_width = int(args.buffer_width)
-#     plot = args.plot
+    cover_tif = args.cover_tif
+    gullies_tif = args.gullies_tif
+    ridges_tif = args.ridges_tif
+    outdir = args.outdir
+    stub = args.stub
+    buffer_width = int(args.buffer_width)
+    plot = args.plot
 
-#     buffer_categories(cover_tif, gullies_tif, ridges_tif, outdir, stub, buffer_width, save_tif=True, plot=plot)
+    buffer_categories(cover_tif, gullies_tif, ridges_tif, outdir, stub, buffer_width, save_tif=True, plot=plot)
 
 
 # +
-outdir = "../../../outdir/"
-stub = "g2_26729"
-buffer_width=3
+# outdir = "../../../outdir/"
+# stub = "g2_26729"
+# buffer_width=3
 
-cover_tif = os.path.join(outdir, f"{stub}_cover_categories.tif")
-gullies_tif = os.path.join(outdir, f"{stub}_5m_gullies.tif")
-ridges_tif = os.path.join(outdir, f"{stub}_5m_ridges.tif")
+# cover_tif = os.path.join(outdir, f"{stub}_cover_categories.tif")
+# gullies_tif = os.path.join(outdir, f"{stub}_5m_gullies.tif")
+# ridges_tif = os.path.join(outdir, f"{stub}_5m_ridges.tif")
 
-buffer_categories(cover_tif, gullies_tif, ridges_tif)
+# buffer_categories(cover_tif, gullies_tif, ridges_tif)
