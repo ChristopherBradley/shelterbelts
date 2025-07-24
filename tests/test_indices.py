@@ -4,6 +4,7 @@ import time
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
 from shelterbelts.indices.cover_categories import cover_categories
+from shelterbelts.indices.hydrolines import hydrolines
 
 if not os.path.exists('tmpdir'):
     os.mkdir('tmpdir')
@@ -161,6 +162,14 @@ def test_tree_categories():
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
     assert not os.path.exists(f"outdir/{stub}_categorised.png")
 
+def test_hydrolines():
+# Leaving these tests out of the pipeline because it takes so long to read in the hydrolines file
+    hydrolines_gdb = "/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/SurfaceHydrologyLinesRegional.gdb"
+    outdir = 'outdir/'
+    stub = 'g2_26729'
+    geotif = f"{outdir}{stub}_categorised.tif"
+    ds = hydrolines(geotif, hydrolines_gdb, outdir=outdir, stub=stub)
+
 if __name__ == '__main__':
     print("testing indices")
     start = time.time()
@@ -168,6 +177,7 @@ if __name__ == '__main__':
     # test_basic()
     # test_tree_categories()
     # test_shelter_categories()
-    test_cover_categories()
+    # test_cover_categories()
+    test_hydrolines()
 
     print(f"tests successfully completed in {time.time() - start} seconds")

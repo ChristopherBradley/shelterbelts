@@ -16,6 +16,9 @@ outdir
 *.ipynb
 credentials.py
 snowflake/cache
+*.xml
+*.txt
+*cache*
 
 # qsub logging files
 *.o*

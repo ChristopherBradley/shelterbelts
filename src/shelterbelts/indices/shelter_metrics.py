@@ -30,7 +30,7 @@ def patch_metrics(geometry, folder):
             
     Returns
     -------
-        df_individual: Indvidual attributes for each patch.
+        df_individual: Individual attributes for each patch.
         df_aggregates: Aggregated attributes for all patches.
 
     Downloads

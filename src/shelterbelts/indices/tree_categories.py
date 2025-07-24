@@ -101,7 +101,8 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
     trees_labelled = tree_clusters(woody_veg, max_gap_size)
     scattered_area = scattered_trees(trees_labelled, min_patch_size)
     core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size)
-    edge_area = binary_dilation(core_area, structure=core_kernel) & ~core_area & woody_veg
+    edge_kernel = np.ones(core_kernel.shape, dtype=bool)
+    edge_area = binary_dilation(core_area, structure=edge_kernel) & ~core_area & woody_veg
     corridor_area = woody_veg & ~(core_area | edge_area | scattered_area)
 
     tree_categories = np.zeros_like(woody_veg, dtype=np.uint8)

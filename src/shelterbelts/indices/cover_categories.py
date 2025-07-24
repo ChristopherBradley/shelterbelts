@@ -7,7 +7,6 @@ import rioxarray as rxr
 
 from shelterbelts.apis.worldcover import worldcover_cmap, worldcover_labels, tif_categorical, visualise_categories
 from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
-from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 
 # +
 

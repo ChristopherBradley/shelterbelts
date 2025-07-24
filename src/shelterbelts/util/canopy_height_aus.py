@@ -64,6 +64,12 @@ def parse_arguments():
     parser.add_argument('--limit', default=None)
     return parser.parse_args()
 
+if __name__ == '__main__':
+    # Load the list of all tiles in Australia
+    canopy_height_tiles = '/g/data/xe2/cb8590/Nick_outlines/canopy_height_tiles_aus.gpkg'
+    df_canopy_height = gpd.read_file(canopy_height_tiles)
+    tiles = list(df_canopy_height['tile'])
+    print("Tiles in Australia: ", len(tiles))
 
 if __name__ == '__main__'
 

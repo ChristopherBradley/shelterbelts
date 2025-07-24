@@ -1,7 +1,8 @@
 import rioxarray as rxr
 import matplotlib.pyplot as plt
 
-filename = '/Users/christopherbradley/Downloads/5-Bands-FPLAN101-and-104-orthophoto.tif'
+stub = 'milagadara'
+filename = '/Users/christopherbradley/Documents/PHD/Data/Drone/Milgadara_2025-07-16/Barwang-16-07-2025-all/odm_orthophoto/odm_orthophoto.tif'
 
 da = rxr.open_rasterio(filename)
 
@@ -16,22 +17,14 @@ B4 = ds[4]  # Red-edge
 B5 = ds[5]  # NIR
 
 ds['NDVI'] = (B5 - B3) / (B5 + B3)
-ds['EVI'] = 2.5 * ((B5 - B3) / (B5 + 6 * B3 - 7.5 * B1 + 1))
+
+ds['NDVI'].rio.to_raster(
+    f'/Users/christopherbradley/Downloads/{stub}_NDVI.tif',
+    compress="lzw"
+)
 
 ds['NDVI'].plot()
-
-ds['EVI'].plot()
 
 B5.plot()
 
 B3.plot()
-
-ds['NDVI'].rio.to_raster(
-    '/Users/christopherbradley/Downloads/Kowen_NDVI.tif',
-    compress="lzw"
-)
-
-ds['EVI'].rio.to_raster(
-    '/Users/christopherbradley/Downloads/Kowen_EVI.tif',
-    compress="lzw"
-)

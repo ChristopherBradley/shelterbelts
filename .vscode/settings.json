@@ -1,5 +1,8 @@
 {
     "remote.SSH.connectTimeout": 60,
     "remote.SSH.remoteServerListenTimeout": 60,
-    "remote.SSH.showLoginTerminal": true
+    "remote.SSH.showLoginTerminal": true,
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python-envs.pythonProjects": []
 }

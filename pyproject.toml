@@ -32,7 +32,9 @@ dependencies = [
     "seaborn",
     "scikit-learn",
     "fiona",
-    "openpyxl"
+    "openpyxl",
+    "DAESIM_preprocess",
+    "osmnx"
 ]
 
 [project.optional-dependencies]
