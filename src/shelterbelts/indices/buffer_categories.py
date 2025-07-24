@@ -5,6 +5,8 @@ import argparse
 import numpy as np
 import rioxarray as rxr
 from scipy.ndimage import binary_dilation
+from rasterio.enums import Resampling
+from skimage.morphology import skeletonize # I think skeletonize centers the result slightly better than thinning
 
 import matplotlib.pyplot as plt
 
@@ -23,7 +25,6 @@ buffer_labels = {
 buffer_categories_cmap = cover_categories_cmap | buffer_cmap
 buffer_categories_labels = cover_categories_labels | buffer_labels
 inverted_labels = {v: k for k, v in buffer_categories_labels.items()}
-
 
 
 def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, outdir=".", stub="TEST", buffer_width=3, savetif=True, plot=True):
@@ -48,13 +49,14 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, outdir=".", stub=
     """
     da_cover = rxr.open_rasterio(cover_tif).isel(band=0)
     da_gullies = rxr.open_rasterio(gullies_tif).isel(band=0)
-    da_gullies_reprojected = da_gullies.rio.reproject_match(da_cover)
-    
+    da_gullies_reprojected = da_gullies.rio.reproject_match(da_cover, resampling=Resampling.max) # This may downsample, changing the edge width 
+    gullies_thinned = skeletonize(da_gullies_reprojected.values) # This makes the edges 1 wide again
+
     y, x = np.ogrid[-buffer_width:buffer_width+1, -buffer_width:buffer_width+1]
     gap_kernel = (x**2 + y**2 <= buffer_width**2)
     buffered_gullies = binary_dilation(da_gullies_reprojected.values, structure=gap_kernel)
     
-    uncategorised_trees = (da_cover == 14)
+    uncategorised_trees = (da_cover == 14) # Currently unlabelled trees
     riparian_trees = uncategorised_trees & buffered_gullies
     da_buffered = da_cover.where(~riparian_trees, 15)  # Assigning gully trees label 15
     
@@ -63,10 +65,11 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, outdir=".", stub=
 
     if ridges_tif:
         da_ridges = rxr.open_rasterio(ridges_tif).isel(band=0)
-        da_ridges_reprojected = da_ridges.rio.reproject_match(da_cover)
-        da_ridges_reprojected = da_ridges_reprojected & ~buffered_gullies
-        buffered_ridges = binary_dilation(da_ridges_reprojected.values, structure=gap_kernel)
-        uncategorised_trees = (da_buffered == 14)
+        da_ridges_reprojected = da_ridges.rio.reproject_match(da_cover, resampling=Resampling.max)
+        ridges_thinned = skeletonize(da_ridges_reprojected.values)
+        ridges_thinned = ridges_thinned & ~buffered_gullies
+        buffered_ridges = binary_dilation(ridges_thinned, structure=gap_kernel)
+        uncategorised_trees = (da_buffered == 14)  # Currently unlabelled trees
         ridge_trees = uncategorised_trees & buffered_ridges
         da_buffered = da_buffered.where(~ridge_trees, 16)   # Assigning ridge trees label 16
         ds['ridges'] = (('y', 'x'), da_ridges_reprojected.values)
@@ -99,22 +102,20 @@ def parse_arguments():
     parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
 
     return parser.parse_args()
-    
 
+# if __name__ == '__main__':
 
-if __name__ == '__main__':
+#     args = parse_arguments()
 
-    args = parse_arguments()
-    
-    cover_tif = args.cover_tif
-    gullies_tif = args.gullies_tif
-    ridges_tif = args.ridges_tif
-    outdir = args.outdir
-    stub = args.stub
-    buffer_width = int(args.buffer_width)
-    plot = args.plot
-    
-    buffer_categories(cover_tif, gullies_tif, ridges_tif, outdir, stub, buffer_width, save_tif=True, plot=plot)
+#     cover_tif = args.cover_tif
+#     gullies_tif = args.gullies_tif
+#     ridges_tif = args.ridges_tif
+#     outdir = args.outdir
+#     stub = args.stub
+#     buffer_width = int(args.buffer_width)
+#     plot = args.plot
+
+#     buffer_categories(cover_tif, gullies_tif, ridges_tif, outdir, stub, buffer_width, save_tif=True, plot=plot)
 
 
 # +
@@ -127,6 +128,3 @@ gullies_tif = os.path.join(outdir, f"{stub}_5m_gullies.tif")
 ridges_tif = os.path.join(outdir, f"{stub}_5m_ridges.tif")
 
 buffer_categories(cover_tif, gullies_tif, ridges_tif)
-# -
-
-

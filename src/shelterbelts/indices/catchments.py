@@ -276,6 +276,7 @@ def parse_arguments():
     parser.add_argument('--terrain_tif', help='String of filename to be used for the bounding box to crop the hydrolines')
     parser.add_argument('--outdir', default='.', help='The output directory to save the results')
     parser.add_argument('--stub', default=None, help='Prefix for output files.')
+    parser.add_argument('--tmpdir', default='.', help='Temporary folder to save the terrain_tif as a float64 for pysheds')
     parser.add_argument('--num_catchments', default=10, help='The number of catchments to look for when assigning gullies and ridges')
     parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
 
@@ -289,10 +290,11 @@ if __name__ == '__main__':
     terrain_tif = args.terrain_tif
     outdir = args.outdir
     stub = args.stub
+    tmpdir = args.tmpdir
     num_catchments = int(args.num_catchments)
     plot = args.plot
     
-    catchments(terrain_tif, outdir, stub, num_catchments, savetif=True, plot=plot)
+    catchments(terrain_tif, outdir, stub, tmpdir, num_catchments, savetif=True, plot=plot)
 
 
 # outdir = '../../../outdir/'
