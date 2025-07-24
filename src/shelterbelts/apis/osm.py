@@ -66,8 +66,6 @@ def osm_roads(geotif, outdir=".", stub="TEST"):
         transform=transform,
         fill=0
     )
-    
-    # Save as a tif file
     ds = da.to_dataset(name='geotif')
     ds['roads'] = (["y", "x"], roads_raster)
     filename = os.path.join(outdir, f"{stub}_roads.tif")
