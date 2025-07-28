@@ -133,16 +133,16 @@ if __name__ == '__main__':
 
 
 # +
-outdir = "../../../outdir/"
-stub = "g2_26729"
-buffer_width=3
+# outdir = "../../../outdir/"
+# stub = "g2_26729"
+# buffer_width=3
 
-cover_tif = os.path.join(outdir, f"{stub}_cover_categories.tif")
-gullies_tif = os.path.join(outdir, f"{stub}_5m_gullies.tif")
-ridges_tif = os.path.join(outdir, f"{stub}_5m_ridges.tif")
-roads_tif = os.path.join(outdir, f"{stub}_roads.tif")
+# cover_tif = os.path.join(outdir, f"{stub}_cover_categories.tif")
+# gullies_tif = os.path.join(outdir, f"{stub}_5m_gullies.tif")
+# ridges_tif = os.path.join(outdir, f"{stub}_5m_ridges.tif")
+# roads_tif = os.path.join(outdir, f"{stub}_roads.tif")
 
-buffer_categories(cover_tif, gullies_tif, ridges_tif, roads_tif)
+# buffer_categories(cover_tif, gullies_tif, ridges_tif, roads_tif, outdir, stub)
 # -
 
 
