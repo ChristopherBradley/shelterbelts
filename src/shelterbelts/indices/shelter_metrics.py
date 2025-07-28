@@ -71,7 +71,7 @@ df_overall = pd.DataFrame({
     'percentage': (counts.values / total_pixels) * 100
 })
 df_overall = df_overall.set_index('label')
-df_overall = df_overall.sort_values(by='percentage', ascending=False)
+# df_overall = df_overall.sort_values(by='percentage', ascending=False)
 
 df_overall
 
@@ -107,6 +107,35 @@ df_trees = df_trees.drop(columns=['category_id', 'landcover_group'])
 df_trees = df_trees.sort_values(by='percentage', ascending=False)
 
 df_trees
+# -
+
+
+
+# +
+# Shelter class stats
+df_production = df_overall[df_overall.index.str.contains("sheltered", case=False)].copy()
+df_production['shelter_status'] = df_production.index.str.split().str[0] # First word is the shelter status
+df_production['production_category'] = df_production.index.str.split().str[1]  # Last word is Grassland or Cropland
+
+df_summary = df_sel.pivot_table(
+    index='production_category',
+    columns='shelter_status',
+    values='pixel_count',
+    aggfunc='sum',
+    fill_value=0
+)
+df_summary.loc['Total'] = df_summary.sum()
+df_percent = df_summary.div(df_summary.sum(axis=1), axis=0) * 100
+df_percent = df_percent.round(2)
+
+# -
+
+df_sel = df_production
+
+# +
+# Pivot to create summary of pixel counts
+
+df_percent
 # -
 
 
