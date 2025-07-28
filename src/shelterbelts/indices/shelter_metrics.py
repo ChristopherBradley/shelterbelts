@@ -1,3 +1,5 @@
+# !pip install xlsxwriter
+
 import os
 import numpy as np
 import pandas as pd
@@ -91,11 +93,11 @@ def group_label(cat_id):
 # Assign a group to each category
 df_overall['landcover_group'] = df_overall['category_id'].apply(group_label)
 
-df_grouped = df_overall.groupby('landcover_group')[['pixel_count', 'percentage']].sum()
-df_grouped = df_grouped.sort_values(by='percentage', ascending=False)
-df_grouped['percentage'] = df_grouped['percentage'].round(2)
+df_landcover = df_overall.groupby('landcover_group')[['pixel_count', 'percentage']].sum()
+df_landcover = df_landcover.sort_values(by='percentage', ascending=False)
+df_landcover['percentage'] = df_landcover['percentage'].round(2)
 
-df_grouped
+df_landcover
 
 # +
 # Tree groups
@@ -107,9 +109,6 @@ df_trees = df_trees.drop(columns=['category_id', 'landcover_group'])
 df_trees = df_trees.sort_values(by='percentage', ascending=False)
 
 df_trees
-# -
-
-
 
 # +
 # Shelter class stats
@@ -125,17 +124,47 @@ df_summary = df_sel.pivot_table(
     fill_value=0
 )
 df_summary.loc['Total'] = df_summary.sum()
-df_percent = df_summary.div(df_summary.sum(axis=1), axis=0) * 100
-df_percent = df_percent.round(2)
+df_shelter = df_summary.div(df_summary.sum(axis=1), axis=0) * 100
+df_shelter = df_shelter.round(2)
 
+df_shelter
 # -
 
-df_sel = df_production
+with pd.ExcelWriter("class_metrics.xlsx", engine="xlsxwriter") as writer:
+    df_overall.to_excel(writer, sheet_name="Overall")
+    df_grouped.to_excel(writer, sheet_name="Landcover")
+    df_trees.to_excel(writer, sheet_name="Trees")
+    df_shelter.to_excel(writer, sheet_name="Shelter")
+
 
 # +
-# Pivot to create summary of pixel counts
+dfs = {
+    "Overall": df_overall,
+    "Landcover": df_landcover,
+    "Trees": df_trees,
+    "Shelter": df_shelter,
+}
+filename = "class_metrics.xlsx"
 
-df_percent
+# Write each DataFrame to a different sheet
+with pd.ExcelWriter(filename, engine="xlsxwriter") as writer:
+
+    for sheet_name, df in dfs.items():
+        df.to_excel(writer, sheet_name=sheet_name)
+        worksheet = writer.sheets[sheet_name]
+
+        # Set the column widths to the longest item in that column
+        for i, col in enumerate(df.columns):
+            max_len = max(
+                df[col].astype(str).map(len).max(),
+                len(str(col))
+            )
+            worksheet.set_column(i + 1, i + 1, max_len)
+            
+        # Also set the index column width
+        max_idx_len = max(df.index.astype(str).map(len).max(), len(str(df.index.name or "")))
+        worksheet.set_column(0, 0, max_idx_len)
+
 # -
 
 
