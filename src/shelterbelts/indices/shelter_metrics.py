@@ -4,6 +4,8 @@ import os
 import numpy as np
 import pandas as pd
 import rioxarray as rxr
+import xarray as xr
+from scipy import ndimage
 
 from shelterbelts.indices.buffer_categories import buffer_categories_labels
 
@@ -93,7 +95,7 @@ def class_metrics(buffer_tif, outdir=".", stub="TEST", save_excel=True):
     df_production = df_overall[df_overall.index.str.contains("sheltered", case=False)].copy()
     df_production['shelter_status'] = df_production.index.str.split().str[0] # First word is the shelter status
     df_production['production_category'] = df_production.index.str.split().str[1]  # Last word is Grassland or Cropland
-    df_summary = df_sel.pivot_table(
+    df_summary = df_production.pivot_table(
         index='production_category',
         columns='shelter_status',
         values='pixel_count',
@@ -142,20 +144,88 @@ def patch_metrics(geometry, folder):
 
 # Inputs
 outdir = "../../../outdir/"
-stub = "g2_26729"
+stub = "shelter_indices"
 buffer_tif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
 
 # Class metrics
 dfs = class_metrics(buffer_tif, outdir, stub)
 
-# +
 # Patch metrics
+from shelterbelts.indices.buffer_categories import buffer_categories, buffer_categories_cmap, buffer_categories_labels
+from shelterbelts.apis.worldcover import visualise_categories
+
+da = rxr.open_rasterio(buffer_tif).isel(band=0)
+visualise_categories(da, None, buffer_categories_cmap, buffer_categories_labels, "Buffer Categories")
+
+
+def majority_filter_override(data, footprint, classes_that_override, classes_to_override):
+    """apply majority filter to override specific class values"""
+    data = data.copy()
+
+    override_set = set(classes_that_override)
+    target_set = set(classes_to_override)
+
+    def selective_majority(values, center_val):
+        # Count frequency of all values in the override set
+        override_vals = [v for v in values if v in override_set]
+        if not override_vals:
+            return center_val  # keep original
+
+        counts = np.bincount(override_vals)
+        most_common = counts.argmax()
+        max_count = counts[most_common]
+
+        # Majority if it appears more than half of override_vals
+        if max_count > len(override_vals) // 2:
+            return most_common
+        else:
+            return center_val  # keep original
+
+    # Pad the array so center pixel is accessible in each window
+    padded = np.pad(data, pad_width=footprint.shape[0] // 2, mode='edge')
+    result = data.copy()
+
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            if data[i, j] in target_set:
+                # Extract neighborhood
+                y0 = i
+                x0 = j
+                win = padded[y0:y0 + footprint.shape[0], x0:x0 + footprint.shape[1]]
+                values = win[footprint]
+                new_val = selective_majority(values, data[i, j])
+                result[i, j] = new_val
+
+    return result
+
+
 
 # +
-# Re-read masters thesis & R package
+# Buffer area for calculating the majority
+radius = 3
+y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
+# disk = (x**2 + y**2) <= radius**2  # circular footprint
+disk = np.ones((2*radius+1, 2*radius+1), dtype=bool) # Square footprint
 
-# +
-# Reuse the scipy label function, and do more with each patch. MVP is just to have at least some stats per patch.
+filtered_array = da.data 
+num_passes = 1
+for i in range(num_passes):
+    filtered_array = majority_filter_override(da.data, disk, [14, 15, 16, 17], [14, 15, 16, 17])  # Cleanup buffer classes
+    filtered_array = majority_filter_override(filtered_array, disk, [13], [14])  # Cleanup patch edges
+
+da_filtered = xr.DataArray(filtered_array, coords=da.coords, dims=da.dims, attrs=da.attrs)
+visualise_categories(da_filtered, None, buffer_categories_cmap, buffer_categories_labels, "Buffer Categories")
+# -
+
+
+
+
+
+
+
+
+
+
 
 # +
 # Create a map with labelled shelterbelts to go along with the excel file
