@@ -272,16 +272,73 @@ distance, (inds_y, inds_x) = ndimage.distance_transform_edt(
 nearest_labels = assigned_labels[inds_y, inds_x]
 assigned_labels[small_mask] = nearest_labels[small_mask]
 
+# da_labelled = xr.DataArray(assigned_labels, coords=da.coords, dims=da.dims, attrs=da.attrs)
+# da_labelled.rio.to_raster('TEST_labelled.tif')
 # -
 
 import matplotlib.pyplot as plt
 plt.imshow(assigned_labels)
 plt.colorbar()
 
-da_labelled = xr.DataArray(assigned_labels, coords=da.coords, dims=da.dims, attrs=da.attrs)
+from skimage.measure import regionprops
+from matplotlib.patches import Ellipse
+
+# Fit an ellipse around each category
+props = regionprops(assigned_labels)
+
+da_labelled = xr.DataArray(assigned_labels_relabelled, coords=da.coords, dims=da.dims, attrs=da.attrs)
+da_labelled.rio.to_raster('TEST_relabelled.tif')
+
+results = []
+for region in props:
+    label_id = assigned_labels[region.coords[0][0], region.coords[0][1]]
+    
+    # Major and minor axis lengths (from ellipse that matches 2nd moments)
+    length = region.major_axis_length
+    width = region.minor_axis_length
+    orientation = region.orientation  # in radians, CCW from horizontal axis
+    
+    results.append({
+        'label': label_id,
+        'length': length,
+        'width': width,
+        'orientation_radians': orientation,
+        'orientation_degrees': np.degrees(orientation)
+    })
+
+# +
 
 
-da_labelled.rio.to_raster('TEST_labelled.tif')
+# Plot the label map as a background
+fig, ax = plt.subplots(figsize=(10, 10))
+ax.imshow(assigned_labels, cmap='nipy_spectral', interpolation='nearest')
+
+# Loop through regionprops again to draw ellipses
+for region in props:
+    y0, x0 = region.centroid  # note: skimage gives (row, col) == (y, x)
+    orientation = region.orientation
+    length = region.major_axis_length
+    width = region.minor_axis_length
+
+    # Matplotlib expects angle in degrees, measured CW from x-axis
+    angle_deg = -np.degrees(orientation)
+
+    ellipse = Ellipse(
+        (x0, y0),                # center (col, row)
+        width=width,            # major axis (matplotlib uses width = x-axis)
+        height=length,            # minor axis
+        angle=angle_deg,         # rotation angle in degrees
+        edgecolor='red',
+        facecolor='none',
+        linewidth=1
+    )
+    ax.add_patch(ellipse)
+
+# Optional: turn off axes, add title
+ax.set_title("Fitted Ellipses over Assigned Labels")
+ax.axis('off')
+plt.show()
+
 
 # +
 # Create a map with labelled shelterbelts to go along with the excel file
