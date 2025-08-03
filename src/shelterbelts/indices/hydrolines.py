@@ -100,4 +100,3 @@ if __name__ == '__main__':
 # rasterize = True
 # geotif = f"{outdir}{stub}_categorised.tif"
 # gdf, ds = hydrolines(geotif, hydrolines_gdb)
-# -

@@ -118,7 +118,6 @@ def class_metrics(buffer_tif, outdir=".", stub="TEST", save_excel=True):
     return dfs
 
 
-# +
 def patch_metrics(geometry, folder):
     """Calculate the length, width, height, direction, area, perimeter for each patch.
         Also calculates an overall mean and standard deviation for each attribute across all patches.
@@ -140,8 +139,6 @@ def patch_metrics(geometry, folder):
 
     """
 
-    
-# -
 
 # Inputs
 outdir = "../../../outdir/"

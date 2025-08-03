@@ -81,7 +81,9 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, o
         da_roads = rxr.open_rasterio(roads_tif).isel(band=0)
         da_roads_reprojected = da_roads.rio.reproject_match(da_cover, resampling=Resampling.max)
         roads_thinned = skeletonize(da_roads_reprojected.values)
-        roads_thinned = roads_thinned & ~buffered_gullies & ~buffered_ridges
+        roads_thinned = roads_thinned & ~buffered_gullies
+        if ridges_tif: 
+            roads_thinned = roads_thinned & ~buffered_ridges
         buffered_roads = binary_dilation(roads_thinned, structure=gap_kernel)
         uncategorised_trees = (da_buffered == 14)  # Currently unlabelled trees
         road_trees = uncategorised_trees & buffered_roads

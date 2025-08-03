@@ -94,11 +94,11 @@ if __name__ == '__main__':
     outdir = args.outdir
     stub = args.stub
 
-    gdf, ds = osm_roads(geotif, hydrolines_gdb, outdir, stub)
+    gdf, ds = osm_roads(geotif, outdir, stub)
 
 # -
 
-outdir = '../../../outdir/'
-stub = 'g2_26729'
-geotif = f"{outdir}{stub}_categorised.tif"
-gdf, ds = osm_roads(geotif, outdir, stub)
+# outdir = '../../../outdir/'
+# stub = 'g2_26729'
+# geotif = f"{outdir}{stub}_categorised.tif"
+# gdf, ds = osm_roads(geotif, outdir, stub)
