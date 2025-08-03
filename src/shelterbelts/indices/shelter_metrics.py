@@ -8,6 +8,27 @@ import xarray as xr
 from scipy import ndimage
 
 from shelterbelts.indices.buffer_categories import buffer_categories_labels
+from shelterbelts.indices.tree_categories import tree_clusters
+
+# +
+# Full list of categories for reference:
+# 0:'Not trees'
+# 11:'Scattered Trees',
+# 12:'Patch Core',
+# 13:'Patch Edge',
+# 14:'Corridor (other)',
+# 15:'Trees in gullies',
+# 16:'Trees on ridges',
+# 17:'Trees next to roads' 
+# 31: "Unsheltered Grassland",
+# 32: "Sheltered Grassland",
+# 41: "Unsheltered Cropland",
+# 42: "Sheltered Cropland",
+# 50: 'Built-up',
+# 60: 'Bare / sparse vegetation',
+# 70: 'Snow and ice',
+# 80: 'Permanent water bodies',
+# -
 
 # Mapping for broader categories
 landcover_groups = {
@@ -201,7 +222,7 @@ def majority_filter_override(data, footprint, classes_that_override, classes_to_
 
 
 # +
-# Buffer area for calculating the majority
+# Majority filter to cleanup straggler pixels
 radius = 3
 y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
 # disk = (x**2 + y**2) <= radius**2  # circular footprint
@@ -209,23 +230,58 @@ disk = np.ones((2*radius+1, 2*radius+1), dtype=bool) # Square footprint
 
 filtered_array = da.data 
 num_passes = 1
-for i in range(num_passes):
-    filtered_array = majority_filter_override(da.data, disk, [14, 15, 16, 17], [14, 15, 16, 17])  # Cleanup buffer classes
-    filtered_array = majority_filter_override(filtered_array, disk, [13], [14])  # Cleanup patch edges
-
+filtered_array = majority_filter_override(da.data, disk, [14, 15, 16, 17], [14, 15, 16, 17])  # Cleanup buffer classes
+filtered_array = majority_filter_override(filtered_array, disk, [13], [14])  # Cleanup patch edges
 da_filtered = xr.DataArray(filtered_array, coords=da.coords, dims=da.dims, attrs=da.attrs)
+
 visualise_categories(da_filtered, None, buffer_categories_cmap, buffer_categories_labels, "Buffer Categories")
+
+# +
+# Assign cluster ids to the core areas and corresponding edges
+arr = da_filtered.data  # shape: (200, 200)
+core_mask = (arr == 12)
+core_labels, num_labels = ndimage.label(core_mask)
+distance, (inds_y, inds_x) = ndimage.distance_transform_edt(
+    ~core_mask, return_indices=True
+)
+nearest_core_labels = core_labels[inds_y, inds_x]
+assigned_labels = np.zeros_like(arr, dtype=np.int32)
+assigned_labels[arr == 13] = nearest_core_labels[arr == 13]
+assigned_labels[arr == 12] = core_labels[arr == 12]
+
+# Assign ids to the rest of the patch types
+buffer_category_ids = [14, 15, 16, 17]
+for category_id in buffer_category_ids:
+    da_category = (da_filtered == category_id)
+    labelled_category = tree_clusters(da_category, max_gap_size=1)
+    labelled_category = labelled_category + assigned_labels.max()
+    labelled_arr = labelled_category.data
+    mask = (arr == category_id)
+    assigned_labels[mask] = labelled_arr[mask]
+
+# Reassign categories that have too few pixels
+labels, counts = np.unique(assigned_labels, return_counts=True)
+min_patch_size = 20
+small_labels = labels[counts < min_patch_size]
+small_mask = np.isin(assigned_labels, small_labels)
+valid_mask = (~small_mask) & (assigned_labels != 0)
+distance, (inds_y, inds_x) = ndimage.distance_transform_edt(
+    ~valid_mask,
+    return_indices=True
+)
+nearest_labels = assigned_labels[inds_y, inds_x]
+assigned_labels[small_mask] = nearest_labels[small_mask]
+
 # -
 
+import matplotlib.pyplot as plt
+plt.imshow(assigned_labels)
+plt.colorbar()
+
+da_labelled = xr.DataArray(assigned_labels, coords=da.coords, dims=da.dims, attrs=da.attrs)
 
 
-
-
-
-
-
-
-
+da_labelled.rio.to_raster('TEST_labelled.tif')
 
 # +
 # Create a map with labelled shelterbelts to go along with the excel file
