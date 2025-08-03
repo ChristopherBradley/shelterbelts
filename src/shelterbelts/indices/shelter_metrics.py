@@ -147,18 +147,20 @@ def patch_metrics(geometry, folder):
     
     Parameters
     ----------
-        geometry: The region to calculate metrics
-        folder: The folder containing tif files with shelter categories for that region
-            
+        buffer_tif: A tif file where the integers represent the categories defined in 'buffer_category_labels'.
+
     Returns
     -------
-        df_individual: Individual attributes for each patch.
-        df_aggregates: Aggregated attributes for all patches.
+        ds: xarray.DataSet with cleaned_categories and labelled_categories
+        df: Individual attributes for each cluster.
 
     Downloads
     ---------
-        patch_metrics_individual.csv
-        patch_metrics_aggregated.csv
+        patch_metrics.csv: A csv file with stats for each cluster
+        cleaned_categories.tif: The buffer categories after applying a majority filter, pixel-wise and cluster-wise
+        cleaned_categories.png: Same as cleaned_categories.tif, but including a legend
+        labelled_categories.tif: A tif file with a unique identifier for each tree cluster. Note this does not have the scattered trees.
+        labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster
 
     """
 
@@ -222,7 +224,7 @@ def majority_filter_override(data, footprint, classes_that_override, classes_to_
 
 
 # +
-# Majority filter to cleanup straggler pixels
+# Pixel-wise majority filter to cleanup straggler pixels
 radius = 3
 y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
 # disk = (x**2 + y**2) <= radius**2  # circular footprint
@@ -259,7 +261,7 @@ for category_id in buffer_category_ids:
     mask = (arr == category_id)
     assigned_labels[mask] = labelled_arr[mask]
 
-# Reassign categories that have too few pixels
+# Cluster-wise majority filter to reassign categories that have too few pixels
 labels, counts = np.unique(assigned_labels, return_counts=True)
 min_patch_size = 20
 small_labels = labels[counts < min_patch_size]
@@ -283,65 +285,68 @@ plt.colorbar()
 from skimage.measure import regionprops
 from matplotlib.patches import Ellipse
 
+# Re-label the patches so they are consecutive integers
+unique_labels = np.unique(assigned_labels)
+unique_labels = unique_labels[unique_labels != 0]
+new_labels = np.arange(1, len(unique_labels) + 1)
+label_map = dict(zip(unique_labels, new_labels))
+assigned_labels_relabelled = np.zeros_like(assigned_labels)
+for old, new in label_map.items():
+    assigned_labels_relabelled[assigned_labels == old] = new
+assigned_labels = assigned_labels_relabelled
+
 # Fit an ellipse around each category
 props = regionprops(assigned_labels)
 
-da_labelled = xr.DataArray(assigned_labels_relabelled, coords=da.coords, dims=da.dims, attrs=da.attrs)
-da_labelled.rio.to_raster('TEST_relabelled.tif')
-
+# Create the patch metrics
 results = []
 for region in props:
     label_id = assigned_labels[region.coords[0][0], region.coords[0][1]]
     
-    # Major and minor axis lengths (from ellipse that matches 2nd moments)
-    length = region.major_axis_length
-    width = region.minor_axis_length
-    orientation = region.orientation  # in radians, CCW from horizontal axis
-    
     results.append({
         'label': label_id,
-        'length': length,
-        'width': width,
-        'orientation_radians': orientation,
-        'orientation_degrees': np.degrees(orientation)
+        'length': region.major_axis_length,
+        'width': region.minor_axis_length,
+        'perimeter': region.perimeter,
+        'area': region.area,
+        'orientation_degrees': np.degrees(region.orientation)
     })
 
-# +
+    # I can assign an average height later using the canopy height from earlier, and a better average width using skeletonization like in some papers I've read.
 
+df_patch_metrics = pd.DataFrame(results)
 
-# Plot the label map as a background
+# Plot the clusters with ellipses around each one
 fig, ax = plt.subplots(figsize=(10, 10))
 ax.imshow(assigned_labels, cmap='nipy_spectral', interpolation='nearest')
-
-# Loop through regionprops again to draw ellipses
 for region in props:
-    y0, x0 = region.centroid  # note: skimage gives (row, col) == (y, x)
+    y0, x0 = region.centroid  
     orientation = region.orientation
     length = region.major_axis_length
     width = region.minor_axis_length
-
-    # Matplotlib expects angle in degrees, measured CW from x-axis
     angle_deg = -np.degrees(orientation)
-
     ellipse = Ellipse(
-        (x0, y0),                # center (col, row)
-        width=width,            # major axis (matplotlib uses width = x-axis)
-        height=length,            # minor axis
-        angle=angle_deg,         # rotation angle in degrees
+        (x0, y0),             
+        width=width,           
+        height=length,       
+        angle=angle_deg,         
         edgecolor='red',
         facecolor='none',
         linewidth=1
     )
     ax.add_patch(ellipse)
 
-# Optional: turn off axes, add title
-ax.set_title("Fitted Ellipses over Assigned Labels")
-ax.axis('off')
+    ax.text(
+        x0, y0,
+        str(region.label),
+        color='white',
+        fontsize=12,
+        ha='center',
+        va='center'
+    )
+plt.title('Labelled Clusters')
 plt.show()
 
 
-# +
-# Create a map with labelled shelterbelts to go along with the excel file
-# -
 
 
