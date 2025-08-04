@@ -146,79 +146,6 @@ def plot_clusters(assigned_labels, props, filename=None):
         plt.show()
 
 
-def class_metrics(buffer_tif, outdir=".", stub="TEST", save_excel=True):
-    """Calculate the percentage cover in each class.
-    
-    Parameters
-    ----------
-        buffer_tif: A tif file where the integers represent the categories defined in 'buffer_category_labels'.
-
-    Returns
-    -------
-        dfs: A dictionary with 4 dataframes: overall, landcover, trees, shelter
-
-    Downloads
-    ---------
-        class_metrics.xlsx: An excel file with each dataframe in a separate tab.
-
-    """
-    da = rxr.open_rasterio(buffer_tif).isel(band=0)
-
-    # Overall stats per category
-    counts = da.values.ravel()
-    counts = pd.Series(counts).value_counts().sort_index()
-    total_pixels = da.shape[0] * da.shape[1]
-    df_overall = pd.DataFrame({
-        'category_id': counts.index,
-        'label': [buffer_categories_labels.get(cat, 'Unknown') for cat in counts.index],
-        'pixel_count': counts.values,
-        'percentage': (counts.values / total_pixels) * 100
-    })
-    df_overall = df_overall.set_index('label')
-    
-    # Landcover groups
-    df_overall['landcover_group'] = df_overall['category_id'].apply(group_label)
-    df_landcover = df_overall.groupby('landcover_group')[['pixel_count', 'percentage']].sum()
-    df_landcover = df_landcover.sort_values(by='percentage', ascending=False)
-    df_landcover['percentage'] = df_landcover['percentage'].round(2)
-    
-    # Tree groups
-    df_trees = df_overall[df_overall['landcover_group'] == 'Trees'].copy()
-    total_tree_pixels = df_trees['pixel_count'].sum()
-    df_trees['percentage'] = (df_trees['pixel_count'] / total_tree_pixels) * 100
-    df_trees['percentage'] = df_trees['percentage'].round(2)
-    df_trees = df_trees.drop(columns=['category_id', 'landcover_group'])
-    df_trees = df_trees.sort_values(by='percentage', ascending=False)
-
-    # Shelter groups
-    df_production = df_overall[df_overall.index.str.contains("sheltered", case=False)].copy()
-    df_production['shelter_status'] = df_production.index.str.split().str[0] # First word is the shelter status
-    df_production['production_category'] = df_production.index.str.split().str[1]  # Last word is Grassland or Cropland
-    df_summary = df_production.pivot_table(
-        index='production_category',
-        columns='shelter_status',
-        values='pixel_count',
-        aggfunc='sum',
-        fill_value=0
-    )
-    df_summary.loc['Total'] = df_summary.sum()
-    df_shelter = df_summary.div(df_summary.sum(axis=1), axis=0) * 100
-    df_shelter = df_shelter.round(2)
-
-    dfs = {
-        "Overall": df_overall,
-        "Landcover": df_landcover,
-        "Trees": df_trees,
-        "Shelter": df_shelter,
-    }
-
-    if save_excel:
-        filename = os.path.join(outdir, f"{stub}_class_metrics.xlsx")
-        save_excel_sheets(dfs, filename)
-
-    return dfs
-
-
 def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True, save_tif=True):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
@@ -236,8 +163,10 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
         patch_metrics.csv: A csv file with stats for each cluster.
         cleaned_categories.tif (dtype uint8): The buffer categories after applying a majority filter, pixel-wise and cluster-wise.
         cleaned_categories.png: Same as cleaned_categories.tif, but including a legend.
-        labelled_categories.tif: A tif file with a unique identifier for each tree cluster. Note this does not contain the scattered trees. 
-            - Uses dtype uint16, since there can theoretically be more than 256 patches.
+        labelled_categories.tif: A tif file with a unique identifier for each tree cluster. 
+            - No colour scheme applied, so can't view in Preview. Recommend viewing in QGIS with Paletted/Unique Values.
+            - Doesn't contain the scattered trees. 
+            - Uses dtype int32, since there can theoretically be more than 256 patches.
         labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster.
 
     """
@@ -340,7 +269,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
 
     # Reclassify patches with core or edge dominant for consistency
     # Later, might be interested in the percentage of these two categories in each patch like the class metrics
-    df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(buffer_categories_labels)
+    df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
 
@@ -349,7 +278,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
     df_patch_metrics['len/width'] = df_patch_metrics['length']/df_patch_metrics['width']
 
     for i, row in df_patch_metrics.iterrows():
-        if row["dominant_category"] == 14:
+        if row["category_id"] == 14:
             label_id = row["label"]
             len_width_ratio = row["len/width"]
 
@@ -374,7 +303,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")
 
     ds = da_linear.to_dataset(name="cleaned_categories")
-    ds['labelled_categories'] = (["y", "x"], assigned_labels)  # Should double check the dtype is larger than uint8
+    ds['labelled_categories'] = (["y", "x"], assigned_labels)
 
     if save_tif:
         filename_cleaned = os.path.join(outdir, f'{stub}_cleaned_categories.tif')
@@ -387,13 +316,105 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
     return ds, df_patch_metrics
 
 
+
+def class_metrics(buffer_tif, outdir=".", stub="TEST", save_excel=True):
+    """Calculate the percentage cover in each class.
+    
+    Parameters
+    ----------
+        buffer_tif: A tif file where the integers represent the categories defined in 'buffer_category_labels'.
+
+    Returns
+    -------
+        dfs: A dictionary with 4 dataframes: overall, landcover, trees, shelter
+
+    Downloads
+    ---------
+        class_metrics.xlsx: An excel file with each dataframe in a separate tab.
+
+    """
+    da = rxr.open_rasterio(buffer_tif).isel(band=0)
+
+    # Overall stats per category
+    counts = da.values.ravel()
+    counts = pd.Series(counts).value_counts().sort_index()
+    total_pixels = da.shape[0] * da.shape[1]
+    df_overall = pd.DataFrame({
+        'category_id': counts.index,
+        'label': [linear_categories_labels.get(cat, 'Unknown') for cat in counts.index],
+        'pixel_count': counts.values,
+        'percentage': (counts.values / total_pixels) * 100
+    })
+    df_overall = df_overall.set_index('label')
+    
+    # Landcover groups
+    df_overall['landcover_group'] = df_overall['category_id'].apply(group_label)
+    df_landcover = df_overall.groupby('landcover_group')[['pixel_count', 'percentage']].sum()
+    df_landcover = df_landcover.sort_values(by='percentage', ascending=False)
+    df_landcover['percentage'] = df_landcover['percentage'].round(2)
+    
+    # Tree groups
+    df_trees = df_overall[df_overall['landcover_group'] == 'Trees'].copy()
+    total_tree_pixels = df_trees['pixel_count'].sum()
+    df_trees['percentage'] = (df_trees['pixel_count'] / total_tree_pixels) * 100
+    df_trees['percentage'] = df_trees['percentage'].round(2)
+    df_trees = df_trees.drop(columns=['category_id', 'landcover_group'])
+    df_trees = df_trees.sort_values(by='percentage', ascending=False)
+
+    # Shelter groups
+    df_production = df_overall[df_overall.index.str.contains("sheltered", case=False)].copy()
+    df_production['shelter_status'] = df_production.index.str.split().str[0] # First word is the shelter status
+    df_production['production_category'] = df_production.index.str.split().str[1]  # Last word is Grassland or Cropland
+    df_summary = df_production.pivot_table(
+        index='production_category',
+        columns='shelter_status',
+        values='pixel_count',
+        aggfunc='sum',
+        fill_value=0
+    )
+    df_summary.loc['Total'] = df_summary.sum()
+    df_shelter = df_summary.div(df_summary.sum(axis=1), axis=0) * 100
+    df_shelter = df_shelter.round(2)
+
+    dfs = {
+        "Overall": df_overall,
+        "Landcover": df_landcover,
+        "Trees": df_trees,
+        "Shelter": df_shelter,
+    }
+
+    if save_excel:
+        filename = os.path.join(outdir, f"{stub}_class_metrics.xlsx")
+        save_excel_sheets(dfs, filename)
+
+    return dfs
+
+import argparse
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--buffer_tif', help='Integer tif file generated by buffer_categories.py')
+    parser.add_argument('--outdir', default='.', help='The output directory to save the results')
+    parser.add_argument('--stub', default=None, help='Prefix for output files.')
+
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    outdir = "../../../outdir/"
-    stub = "shelter_indices"
-    geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
+
+    args = parse_arguments()
+
+    geotif = args.buffer_tif
+    outdir = args.outdir
+    stub = args.stub
     ds, df = patch_metrics(geotif, outdir, stub)
 
     geotif = os.path.join(outdir, f"{stub}_cleaned_categories.tif")
     dfs = class_metrics(geotif, outdir, stub)
 
 
+
+# outdir = "../../../outdir/"
+# stub = "shelter_indices"
+# geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
