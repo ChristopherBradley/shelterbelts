@@ -6,8 +6,10 @@ import pandas as pd
 import rioxarray as rxr
 import xarray as xr
 from scipy import ndimage
+from scipy.stats import mode
 
-from shelterbelts.indices.buffer_categories import buffer_categories_labels
+
+from shelterbelts.indices.buffer_categories import buffer_categories_labels, buffer_categories_cmap
 from shelterbelts.indices.tree_categories import tree_clusters
 
 # +
@@ -29,6 +31,18 @@ from shelterbelts.indices.tree_categories import tree_clusters
 # 70: 'Snow and ice',
 # 80: 'Permanent water bodies',
 # -
+
+linear_cmap = {
+    18:  (168, 131, 50), # The old corridor colour for reference (22, 212, 0)
+    19: (91, 153, 75)  # Similar to the patch edges because similar function
+}
+linear_labels = {
+    18: "Linear Patches",
+    19: "Non-linear Patches"
+}
+
+linear_categories_cmap = buffer_categories_cmap | linear_cmap
+linear_categories_labels = buffer_categories_labels | linear_labels
 
 # Mapping for broader categories
 landcover_groups = {
@@ -156,11 +170,12 @@ def patch_metrics(geometry, folder):
 
     Downloads
     ---------
-        patch_metrics.csv: A csv file with stats for each cluster
-        cleaned_categories.tif: The buffer categories after applying a majority filter, pixel-wise and cluster-wise
-        cleaned_categories.png: Same as cleaned_categories.tif, but including a legend
-        labelled_categories.tif: A tif file with a unique identifier for each tree cluster. Note this does not have the scattered trees.
-        labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster
+        patch_metrics.csv: A csv file with stats for each cluster.
+        cleaned_categories.tif (dtype uint8): The buffer categories after applying a majority filter, pixel-wise and cluster-wise.
+        cleaned_categories.png: Same as cleaned_categories.tif, but including a legend.
+        labelled_categories.tif: A tif file with a unique identifier for each tree cluster. Note this does not contain the scattered trees. 
+            - Uses dtype uint16, since there can theoretically be more than 256 patches.
+        labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster.
 
     """
 
@@ -298,6 +313,7 @@ assigned_labels = assigned_labels_relabelled
 # Fit an ellipse around each category
 props = regionprops(assigned_labels)
 
+# +
 # Create the patch metrics
 results = []
 for region in props:
@@ -311,10 +327,16 @@ for region in props:
         'area': region.area,
         'orientation_degrees': np.degrees(region.orientation)
     })
-
-    # I can assign an average height later using the canopy height from earlier, and a better average width using skeletonization like in some papers I've read.
-
 df_patch_metrics = pd.DataFrame(results)
+
+# I can add the class stats per patch, e.g. number of pixels in each category (or at least a category type, assuming I override the small categories)
+# I can also assign an average height later using the canopy height from earlier
+# could also add a better average width using skeletonization like in Aksoy 2009
+# could also add the WSI and/or SNFI like in Liknes 2017, although probably allow any direction rather than just north/south and east/west
+
+# -
+
+df_patch_metrics.to_csv('patch_metrics.csv')
 
 # Plot the clusters with ellipses around each one
 fig, ax = plt.subplots(figsize=(10, 10))
@@ -345,8 +367,63 @@ for region in props:
         va='center'
     )
 plt.title('Labelled Clusters')
-plt.show()
+plt.savefig('labelled_clusters.png')
 
 
+# +
+# Determine the most common category in each cluster
+dominant_categories = []
+for region in props:
+    coords = region.coords
+    cat_values = da_filtered.data[coords[:, 0], coords[:, 1]]
+    most_common = mode(cat_values, axis=None, keepdims=False).mode
+    dominant_categories.append(most_common)
+    
+df_patch_metrics["category_id"] = dominant_categories
 
 
+# +
+# Reclassify patches with core or edge dominant to just be a patch with core. 
+# Might be interested in how much of the patch is each of these categories later
+df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(buffer_categories_labels)
+df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
+
+# Reclassifying patches with dominant core, to edge, to simplify reclassifications of corridor pixels to edges
+df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
+
+
+# +
+# Use the length/width ratio with a threshold of 2 to reassign corridor clusters to linear or non-linear
+da_linear = da_filtered.copy()
+df_patch_metrics['len/width'] = df_patch_metrics['length']/df_patch_metrics['width']
+
+for i, row in df_patch_metrics.iterrows():
+    if row["dominant_category"] == 14:
+        label_id = row["label"]
+        len_width_ratio = row["len/width"]
+
+        # Ideally I'd use a more robust index like WSI, SNFI or some combination of a few like that
+        new_class = 18 if len_width_ratio > 2 else 19  # 18 is linear features, 19 is non-linear features
+
+        mask = (assigned_labels == label_id)
+        da_linear.data[mask] = new_class
+        df_patch_metrics.loc[i, 'category_id'] = new_class
+        df_patch_metrics.loc[i, 'category_name'] = linear_labels[new_class]
+
+
+# +
+# Reassign the remaining corridor/other pixels to the corresponding cluster category (we could have done this before reclassifying corridor patches to linear/non-linear but it shouldn't matter)
+remaining_mask = (da_linear.data == 14)
+label_ids = assigned_labels[remaining_mask]
+
+# Map each pixel's label to its new category
+label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
+mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+da_linear.data[remaining_mask] = mapped_categories
+
+# -
+
+visualise_categories(da_linear, None, linear_categories_cmap, linear_categories_labels, "Linear Categories")
+
+# +
+# Put all this code into a function

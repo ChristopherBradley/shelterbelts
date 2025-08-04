@@ -20,9 +20,9 @@ buffer_cmap = {
     17:(49, 71, 31)
 }
 buffer_labels = {
-    15:'Trees in gullies',
-    16:'Trees on ridges',
-    17:'Trees next to roads'
+    15:'Trees in Gullies',
+    16:'Trees on Ridges',
+    17:'Trees next to Roads'
 }
 buffer_categories_cmap = cover_categories_cmap | buffer_cmap
 buffer_categories_labels = cover_categories_labels | buffer_labels

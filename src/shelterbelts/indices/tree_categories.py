@@ -20,8 +20,8 @@ tree_categories_labels = {
     11:'Scattered Trees',
     12:'Patch Core',
     13:'Patch Edge',
-    14:'Corridor (other)',
-    0:'Not trees'
+    14:'Other Trees',
+    0:'Not Trees'
 }
 inverted_labels = {v: k for k, v in tree_categories_labels.items()}
 
