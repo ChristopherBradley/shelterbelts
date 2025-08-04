@@ -48,17 +48,27 @@ ds_wind = barra_daily(variables, lat, lon, buffer, start_year, end_year, outdir,
 
 wind_rose(ds_wind)
 
-# Open Streetmap Roads
+# Open Street Map Roads
 from shelterbelts.apis.osm import osm_roads, roads_cmap, roads_labels
 
 # %%time
-gdf, ds = osm_roads('../outdir/api_downloads_worldcover.tif', outdir, stub)
+geotif = '../outdir/api_downloads_worldcover.tif'
+gdf, ds = osm_roads(geotif, outdir, stub)
 
 visualise_categories(ds['roads'], None, roads_cmap, roads_labels, "Open Street Map Roads")
 
-# +
-# from shelterbelts.apis. import 
 # Catchments
-# -
+from shelterbelts.apis.catchments import catchments, plot_catchments, gullies_cmap
+filename_5m = "../data/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"   # Downloaded from here: https://portal.spatial.nsw.gov.au/portal/apps/webappviewer/index.html?id=437c0697e6524d8ebf10ad0d915bc219
+ds_catchments = catchments(filename_5m, outdir, stub, num_catchments=7)
+
+plot_catchments(ds_catchments)
 
 # Hydrolines
+from shelterbelts.apis.hydrolines import hydrolines
+hydrolines_gpkg = "../data/g2_26729_hydrolines_cropped.gpkg"  # Downloaded from here https://researchdata.edu.au/surface-hydrology-lines-regional/3409155 (and then cropped with the function below)
+gdf_hydrolines, ds_hydrolines = hydrolines(geotif, hydrolines_gpkg, outdir, stub)
+
+visualise_categories(ds_hydrolines['gullies'], None, gullies_cmap, {0:'Not gullies', 1:'Gullies'}, "Hydrolines")
+
+

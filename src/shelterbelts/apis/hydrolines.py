@@ -37,8 +37,11 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     raster_bounds = da.rio.bounds()
     raster_crs = da.rio.crs
 
-    # This may take a while since we're loading 2GB into memory
-    gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines') # 2GB
+    if hydrolines_gdb.endswith('.gpkg'):
+        gdf = gpd.read_file(hydrolines_gdb)  # pre-cropped geopackage
+    else: 
+        # This may take a while since we're loading 2GB into memory
+        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines') # 2GB
     hydrolines_crs = gdf.crs
 
     # Reproject raster bounding box to hydrolines CRS (more computationally efficient than the other way around)
