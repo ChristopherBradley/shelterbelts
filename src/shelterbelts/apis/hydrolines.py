@@ -8,7 +8,7 @@ from rasterio.features import rasterize
 from shapely.geometry import box
 
 from shelterbelts.apis.worldcover import tif_categorical
-from shelterbelts.indices.catchments import gullies_cmap
+from shelterbelts.apis.catchments import gullies_cmap
 
 # -
 

@@ -18,7 +18,7 @@ else:                                             # Already running from root of
 src_dir = os.path.join(repo_dir, 'src')
 os.chdir(src_dir)
 sys.path.append(src_dir)
-print(src_dir)
+# print(src_dir)
 
 from shelterbelts.apis.worldcover import tif_categorical, worldcover_labels
 # -
@@ -27,6 +27,11 @@ cmap_woody_veg = {
     0: (240, 240, 240), # Non-trees are white
     1: (0, 100, 0),   # Trees are green
     255: (0, 100, 200)  # Nodata is blue
+}
+labels_woody_veg = {
+    0: "Non-trees",
+    1: "Trees",
+    255: "Nodata"
 }
 
 
@@ -38,7 +43,8 @@ def worldcover_trees(filename, outdir):
     da_trees = (da == 10) | (da == 20)
     da_trees = da_trees.astype('uint8')
         
-    stub = filename.split('_')[-2]
+    # stub = filename.split('_')[-2]
+    stub = filename.split('/')[-1].split('.')[0]
     outpath = os.path.join(outdir, f"{stub}_woody_veg.tif")
     tif_categorical(da_trees, outpath, cmap_woody_veg, tiled=True)
     
@@ -46,6 +52,8 @@ def worldcover_trees(filename, outdir):
     levels  = [2, 4, 8, 16, 32, 64]
     with rasterio.open(outpath, "r+") as src:          
         src.build_overviews(levels)
+
+    return da_trees
 
 
 def canopy_height_trees(filename, outdir):
@@ -72,6 +80,8 @@ def canopy_height_trees(filename, outdir):
     levels  = [2, 4, 8, 16, 32, 64]
     with rasterio.open(outpath, "r+") as src:          
         src.build_overviews(levels)
+    
+    return da_trees
 
 
 # +

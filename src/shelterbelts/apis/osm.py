@@ -10,6 +10,7 @@ import geopandas as gpd
 import rioxarray as rxr
 from shapely.geometry import box
 from rasterio.features import rasterize
+from osmnx._errors import InsufficientResponseError 
 
 from shelterbelts.apis.worldcover import tif_categorical
 
@@ -18,6 +19,10 @@ from shelterbelts.apis.worldcover import tif_categorical
 roads_cmap = {
     0: (255, 255, 255),
     1: (138, 126, 125),
+}
+roads_labels = {
+    0: "Non-roads",
+    1: "Roads",
 }
 highway_types = ["motorway", "trunk", "primary", "secondary", "tertiary"]
 
@@ -47,8 +52,12 @@ def osm_roads(geotif, outdir=".", stub="TEST"):
     bbox_gdf = bbox_gdf.to_crs("EPSG:4326")
     bbox_list = list(bbox_gdf.total_bounds)
 
-    # Download the roads from Open Street Maps
-    roads = ox.features_from_bbox(bbox_list, {"highway":highway_types})  # This took about 10 secs for my test 2km x 2km region with 1 main road
+    try:
+        # Download the roads from Open Street Maps
+        roads = ox.features_from_bbox(bbox_list, {"highway":highway_types})  # This took about 10 secs for my test 2km x 2km region with 1 main road
+    except InsufficientResponseError:
+        # Return an empty GeoDataFrame if there are no roads in this location
+        roads = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
 
     # Save as a geopackage
     gdf = roads[roads.geometry.type.isin(["LineString", "MultiLineString"])]

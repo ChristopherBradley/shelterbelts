@@ -4,7 +4,7 @@ import time
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
 from shelterbelts.indices.cover_categories import cover_categories
-from shelterbelts.indices.hydrolines import hydrolines
+from shelterbelts.apis.hydrolines import hydrolines
 
 if not os.path.exists('tmpdir'):
     os.mkdir('tmpdir')
