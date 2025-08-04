@@ -13,7 +13,6 @@ outdir
 *.gpkg*
 *.kml
 *.pkl
-*.ipynb
 credentials.py
 snowflake/cache
 *.xml

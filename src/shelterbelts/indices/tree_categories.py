@@ -109,7 +109,7 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
     tree_categories[scattered_area] = inverted_labels['Scattered Trees']
     tree_categories[core_area]      = inverted_labels['Patch Core']
     tree_categories[edge_area]      = inverted_labels['Patch Edge']
-    tree_categories[corridor_area]  = inverted_labels['Corridor (other)']
+    tree_categories[corridor_area]  = inverted_labels['Other Trees']
     ds['tree_categories'] = (('y', 'x'), tree_categories)
     ds = ds.rename({'x':'longitude', 'y': 'latitude'})
 

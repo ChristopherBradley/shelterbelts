@@ -108,10 +108,11 @@ def majority_filter_override(data, footprint, classes_that_override, classes_to_
     return result
 
 
-def plot_clusters(assigned_labels, props, filename=None):
+def plot_clusters(assigned_labels, filename=None):
     """Visualise the clusters with ellipses and text ids"""
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.imshow(assigned_labels, cmap='nipy_spectral', interpolation='nearest')
+    props = regionprops(assigned_labels)
     for region in props:
         y0, x0 = region.centroid  
         orientation = region.orientation
@@ -155,14 +156,14 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
 
     Returns
     -------
-        ds: xarray.DataSet with cleaned_categories and labelled_categories
+        ds: xarray.DataSet with linear_categories and labelled_categories
         df: Individual attributes for each cluster.
 
     Downloads
     ---------
         patch_metrics.csv: A csv file with stats for each cluster.
-        cleaned_categories.tif (dtype uint8): The buffer categories after applying a majority filter, pixel-wise and cluster-wise.
-        cleaned_categories.png: Same as cleaned_categories.tif, but including a legend.
+        linear_categories.tif (dtype uint8): The buffer categories after applying a majority filter, pixel-wise and cluster-wise.
+        linear_categories.png: Same as linear_categories.tif, but including a legend.
         labelled_categories.tif: A tif file with a unique identifier for each tree cluster. 
             - No colour scheme applied, so can't view in Preview. Recommend viewing in QGIS with Paletted/Unique Values.
             - Doesn't contain the scattered trees. 
@@ -230,7 +231,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
 
     if plot:
         filename = os.path.join(outdir, f'{stub}_labelled_categories.png')
-        plot_clusters(assigned_labels, props, filename)
+        plot_clusters(assigned_labels, filename)
 
     # Create the patch metrics
     results = []
@@ -299,15 +300,15 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
     da_linear.data[remaining_mask] = mapped_categories
 
     if plot:
-        filename = os.path.join(outdir, f'{stub}_cleaned_categories.png')
+        filename = os.path.join(outdir, f'{stub}_linear_categories.png')
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")
 
-    ds = da_linear.to_dataset(name="cleaned_categories")
+    ds = da_linear.to_dataset(name="linear_categories")
     ds['labelled_categories'] = (["y", "x"], assigned_labels)
 
     if save_tif:
-        filename_cleaned = os.path.join(outdir, f'{stub}_cleaned_categories.tif')
-        tif_categorical(ds['cleaned_categories'], filename_cleaned, linear_categories_cmap) 
+        filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')
+        tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
 
         filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
         ds['labelled_categories'].rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
@@ -410,7 +411,7 @@ if __name__ == '__main__':
     stub = args.stub
     ds, df = patch_metrics(geotif, outdir, stub)
 
-    geotif = os.path.join(outdir, f"{stub}_cleaned_categories.tif")
+    geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
     dfs = class_metrics(geotif, outdir, stub)
 
 
