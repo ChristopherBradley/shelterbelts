@@ -94,8 +94,10 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
         woody_veg_categorised.png: A png file like the tif file, but with a legend as well.
     
     """
-    da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-    ds = da.to_dataset(name='woody_veg')
+    if not ds:
+        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+        ds = da.to_dataset(name='woody_veg')
+
     woody_veg = ds['woody_veg'].values.astype(bool)
 
     trees_labelled = tree_clusters(woody_veg, max_gap_size)

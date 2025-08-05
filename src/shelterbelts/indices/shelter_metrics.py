@@ -147,7 +147,7 @@ def plot_clusters(assigned_labels, filename=None):
         plt.show()
 
 
-def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True):
+def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
     Parameters
@@ -312,9 +312,10 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')
         tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
 
-        filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
-        ds['labelled_categories'].rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
-        print("Saved:", filename_labelled)
+        if save_labels:
+            filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
+            ds['labelled_categories'].rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
+            print("Saved:", filename_labelled)
 
     return ds, df_patch_metrics
 

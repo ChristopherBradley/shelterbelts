@@ -5,20 +5,20 @@ import xarray as xr
 import rioxarray as rxr
 import rasterio
 
-# +
-# Change directory to this repo - this should work on gadi or locally via python or jupyter.
-import os, sys
-repo_name = "shelterbelts"
-if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
-    repo_dir = os.path.dirname(os.getcwd())       
-else:                                             # Already running from root of this repo. 
-    repo_dir = os.getcwd()
-src_dir = os.path.join(repo_dir, 'src')
-os.chdir(src_dir)
-sys.path.append(src_dir)
-# print(src_dir)
+# # +
+# # Change directory to this repo - this should work on gadi or locally via python or jupyter.
+# import os, sys
+# repo_name = "shelterbelts"
+# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+# elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
+#     repo_dir = os.path.dirname(os.getcwd())       
+# else:                                             # Already running from root of this repo. 
+#     repo_dir = os.getcwd()
+# src_dir = os.path.join(repo_dir, 'src')
+# os.chdir(src_dir)
+# sys.path.append(src_dir)
+# # print(src_dir)
 
 from shelterbelts.apis.worldcover import tif_categorical, worldcover_labels
 # -
@@ -53,7 +53,8 @@ def worldcover_trees(filename, outdir):
     with rasterio.open(outpath, "r+") as src:          
         src.build_overviews(levels)
 
-    return da_trees
+    ds = da_trees.to_dataset(name='woody_veg')
+    return ds
 
 
 def canopy_height_trees(filename, outdir):
@@ -81,7 +82,8 @@ def canopy_height_trees(filename, outdir):
     with rasterio.open(outpath, "r+") as src:          
         src.build_overviews(levels)
     
-    return da_trees
+    ds = da_trees.to_dataset(name='woody_veg')
+    return ds
 
 
 # +
