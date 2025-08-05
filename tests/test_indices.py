@@ -37,6 +37,12 @@ def test_basic():
     assert os.path.exists(f"outdir/{stub}_cover_categories.tif")
     assert os.path.exists(f"outdir/{stub}_cover_categories.png")
 
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=None, roads_tif=None, outdir="outdir", stub=stub, buffer_width=3, savetif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'buffer_categories' in set(ds.data_vars)
+    assert os.path.exists(f"outdir/{stub}_buffer_categories.tif")
+    assert os.path.exists(f"outdir/{stub}_buffer_categories.png")
+
 def test_cover_categories():
     """More comprehensive cover category tests: with and without saving an plotting"""
     if os.path.exists(f"outdir/{stub}_cover_categories.tif"):
@@ -217,16 +223,26 @@ def test_buffer_categories():
 
 
 def test_shelter_metrics():
-    print()
+    """Simple shelter metrics tests, just checking the right files get created"""
+    ds, df = patch_metrics(f"outdir/{stub}_buffer_categories.tif", outdir="outdir", stub=stub, plot=True, save_csv=True, save_tif=True)
+    assert os.path.exists(f"outdir/{stub}_linear_categories.tif")
+    assert os.path.exists(f"outdir/{stub}_linear_categories.png")
+    assert os.path.exists(f"outdir/{stub}_labelled_categories.tif")
+    assert os.path.exists(f"outdir/{stub}_labelled_categories.png")
+    assert os.path.exists(f"outdir/{stub}_patch_metrics.csv")
+
+    dfs = class_metrics(f"outdir/{stub}_linear_categories.tif", outdir="outdir", stub=stub, save_excel=True)
+    assert os.path.exists(f"outdir/{stub}_class_metrics.xlsx")
 
 if __name__ == '__main__':
     print("testing indices")
     start = time.time()
 
-    # test_basic()
-    # test_tree_categories()
-    # test_shelter_categories()
-    # test_cover_categories()
+    test_basic()
+    test_tree_categories()
+    test_shelter_categories()
+    test_cover_categories()
     test_buffer_categories()
+    test_shelter_metrics()
 
     print(f"tests successfully completed in {time.time() - start} seconds")
