@@ -147,7 +147,7 @@ def plot_clusters(assigned_labels, filename=None):
         plt.show()
 
 
-def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True, save_tif=True):
+def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
     Parameters
@@ -171,8 +171,10 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
         labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster.
 
     """
-
-    da = rxr.open_rasterio(buffer_tif).isel(band=0)
+    if not ds:
+        da = rxr.open_rasterio(buffer_tif).isel(band=0)
+    else:
+        da = ds['buffer_categories']
 
     # Pixel-wise majority filter to cleanup straggler pixels
     radius = 3
@@ -318,7 +320,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", plot=True, save_csv=True,
 
 
 
-def class_metrics(buffer_tif, outdir=".", stub="TEST", save_excel=True):
+def class_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, save_excel=True):
     """Calculate the percentage cover in each class.
     
     Parameters
@@ -334,7 +336,10 @@ def class_metrics(buffer_tif, outdir=".", stub="TEST", save_excel=True):
         class_metrics.xlsx: An excel file with each dataframe in a separate tab.
 
     """
-    da = rxr.open_rasterio(buffer_tif).isel(band=0)
+    if not ds:
+        da = rxr.open_rasterio(buffer_tif).isel(band=0)
+    else:
+        da = ds['linear_categories']
 
     # Overall stats per category
     counts = da.values.ravel()

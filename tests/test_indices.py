@@ -43,24 +43,34 @@ def test_basic():
     assert os.path.exists(f"outdir/{stub}_buffer_categories.tif")
     assert os.path.exists(f"outdir/{stub}_buffer_categories.png")
 
-def test_cover_categories():
-    """More comprehensive cover category tests: with and without saving an plotting"""
-    if os.path.exists(f"outdir/{stub}_cover_categories.tif"):
-        os.remove(f"outdir/{stub}_cover_categories.tif")
-    ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", outdir='outdir', stub=stub, savetif=False, plot=True)
-    assert not os.path.exists(f"outdir/{stub}_cover_categories.tif")
 
-    if os.path.exists(f"outdir/{stub}_cover_categories.png"):
-        os.remove(f"outdir/{stub}_cover_categories.png")
-    ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", outdir='outdir', stub=stub, savetif=True, plot=False)
-    assert not os.path.exists(f"outdir/{stub}_cover_categories.png")
-    
-    # Same function as in test_basic, so that I have all the outputs at the end
-    ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", outdir='outdir', stub=stub, savetif=True, plot=True)
+def test_tree_categories():
+    """More comprehensive tree category tests: 2x patch sizes, 2x edge sizes, 2x max_gap_sizes, without saving tif, without plot"""
+    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_patch50', min_patch_size=50, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
-    assert 'cover_categories' in set(ds.data_vars)
-    assert os.path.exists(f"outdir/{stub}_cover_categories.tif")
-    assert os.path.exists(f"outdir/{stub}_cover_categories.png")
+    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
+
+    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_edge10', min_patch_size=10, edge_size=10, max_gap_size=2, ds=None, save_tif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
+
+    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_gap0', min_patch_size=10, edge_size=3, max_gap_size=0, ds=None, save_tif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
+
+    if os.path.exists(f"outdir/{stub}_categorised.tif"):
+        os.remove(f"outdir/{stub}_categorised.tif")
+    ds = tree_categories(test_filename, outdir='outdir', stub=stub, min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=False, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
+    assert not os.path.exists(f"outdir/{stub}_categorised.tif")
+
+    if os.path.exists(f"outdir/{stub}_categorised.png"):
+        os.remove(f"outdir/{stub}_categorised.png")
+    ds = tree_categories(test_filename, outdir='outdir', stub=stub, min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=False)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
+    assert not os.path.exists(f"outdir/{stub}_categorised.png")
 
 
 def test_shelter_categories():
@@ -158,33 +168,24 @@ def test_shelter_categories():
     assert not os.path.exists(f"outdir/{stub}_shelter_categories.png")
 
 
-def test_tree_categories():
-    """More comprehensive tree category tests: 2x patch sizes, 2x edge sizes, 2x max_gap_sizes, without saving tif, without plot"""
-    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_patch50', min_patch_size=50, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True)
-    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
-    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
+def test_cover_categories():
+    """More comprehensive cover category tests: with and without saving an plotting"""
+    if os.path.exists(f"outdir/{stub}_cover_categories.tif"):
+        os.remove(f"outdir/{stub}_cover_categories.tif")
+    ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", outdir='outdir', stub=stub, savetif=False, plot=True)
+    assert not os.path.exists(f"outdir/{stub}_cover_categories.tif")
 
-    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_edge10', min_patch_size=10, edge_size=10, max_gap_size=2, ds=None, save_tif=True, plot=True)
+    if os.path.exists(f"outdir/{stub}_cover_categories.png"):
+        os.remove(f"outdir/{stub}_cover_categories.png")
+    ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", outdir='outdir', stub=stub, savetif=True, plot=False)
+    assert not os.path.exists(f"outdir/{stub}_cover_categories.png")
+    
+    # Same function as in test_basic, so that I have all the outputs at the end
+    ds = cover_categories(f"outdir/{stub}_shelter_categories.tif", f"outdir/{stub}_worldcover.tif", outdir='outdir', stub=stub, savetif=True, plot=True)
     assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
-    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-
-    ds = tree_categories(test_filename, outdir='outdir', stub=f'{stub}_gap0', min_patch_size=10, edge_size=3, max_gap_size=0, ds=None, save_tif=True, plot=True)
-    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
-    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-
-    if os.path.exists(f"outdir/{stub}_categorised.tif"):
-        os.remove(f"outdir/{stub}_categorised.tif")
-    ds = tree_categories(test_filename, outdir='outdir', stub=stub, min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=False, plot=True)
-    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
-    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert not os.path.exists(f"outdir/{stub}_categorised.tif")
-
-    if os.path.exists(f"outdir/{stub}_categorised.png"):
-        os.remove(f"outdir/{stub}_categorised.png")
-    ds = tree_categories(test_filename, outdir='outdir', stub=stub, min_patch_size=10, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=False)
-    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
-    assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert not os.path.exists(f"outdir/{stub}_categorised.png")
+    assert 'cover_categories' in set(ds.data_vars)
+    assert os.path.exists(f"outdir/{stub}_cover_categories.tif")
+    assert os.path.exists(f"outdir/{stub}_cover_categories.png")
 
 
 def test_buffer_categories():

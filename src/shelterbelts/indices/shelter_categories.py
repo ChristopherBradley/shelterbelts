@@ -126,7 +126,7 @@ def computer_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_
     return da_percent_trees
 
 
-def shelter_categories(category_tif, wind_ds=None, height_tif=None, outdir='.', stub='TEST', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=True):
+def shelter_categories(category_tif, wind_ds=None, height_tif=None, outdir='.', stub='TEST', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, ds=None, savetif=True, plot=True):
     """Define sheltered and unsheltered pixels
     
     Parameters
@@ -150,6 +150,7 @@ def shelter_categories(category_tif, wind_ds=None, height_tif=None, outdir='.', 
             - Only applies if the wind_ds is not provided.
         minimum_height: Assume that all tree pixels are at least this tall. 
             - Only applies if a the height_tif is provided. 
+        ds: Used instead of the category_tif when provided to avoid writing and reading lots of data.
             
     Returns
     -------
@@ -161,7 +162,10 @@ def shelter_categories(category_tif, wind_ds=None, height_tif=None, outdir='.', 
         shelter_categories.png: A png file like the tif file, but with a legend as well.
     
     """
-    da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
+    if not ds:
+        da_categories = rxr.open_rasterio(category_tif).squeeze('band').drop_vars('band')
+    else:
+        da_categories = ds['tree_categories']
 
     # I'm assuming that scattered trees don't count towards shelter for the purposes of blocking the wind, but do contribute to percentage tree cover
     tree_mask = (da_categories >= 10) & (da_categories < 20)
@@ -234,7 +238,7 @@ def shelter_categories(category_tif, wind_ds=None, height_tif=None, outdir='.', 
         filename_png = os.path.join(outdir, f"{stub}_shelter_categories.png")
         visualise_categories(ds['shelter_categories'], filename_png, shelter_categories_cmap, shelter_categories_labels, "Shelter Categories")
 
-    ds = ds.rename({'x':'longitude', 'y': 'latitude'})
+    # ds = ds.rename({'x':'longitude', 'y': 'latitude'})
 
     return ds
 
