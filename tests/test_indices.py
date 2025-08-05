@@ -183,8 +183,37 @@ def test_tree_categories():
 
 def test_buffer_categories():
     """More comprehensive buffer category tests: 2x buffer widths, with and without ridges_tif, roads, both ridges & roads, saving, plotting"""
-    print()
-    ds = buffer_categories(f'outdir/{stub}_cover.tif', f'outdir/{stub}_gullies.tif', ridges_tif=None, roads_tif=None, outdir=".", stub="TEST", buffer_width=3, savetif=True, plot=True)
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=None, roads_tif=None, outdir="outdir", stub=stub, buffer_width=5, savetif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'buffer_categories' in set(ds.data_vars)
+
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=f'outdir/{stub}_ridges.tif', roads_tif=None, outdir="outdir", stub=stub, buffer_width=5, savetif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'buffer_categories' in set(ds.data_vars)
+
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=None, roads_tif=f'outdir/{stub}_roads.tif', outdir="outdir", stub=stub, buffer_width=5, savetif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'buffer_categories' in set(ds.data_vars)
+
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=f'outdir/{stub}_ridges.tif', roads_tif=f'outdir/{stub}_roads.tif', outdir="outdir", stub=stub, buffer_width=5, savetif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'buffer_categories' in set(ds.data_vars)
+
+    if os.path.exists(f"outdir/{stub}_buffer_categories.tif"):
+        os.remove(f"outdir/{stub}_buffer_categories.tif")
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=None, roads_tif=None, outdir="outdir", stub=stub, buffer_width=3, savetif=False, plot=True)
+    assert not os.path.exists(f"outdir/{stub}_buffer_categories.tif")
+
+    if os.path.exists(f"outdir/{stub}_buffer_categories.png"):
+        os.remove(f"outdir/{stub}_buffer_categories.png")
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=None, roads_tif=None, outdir="outdir", stub=stub, buffer_width=3, savetif=True, plot=False)
+    assert not os.path.exists(f"outdir/{stub}_buffer_categories.png")
+
+    ds = buffer_categories(f'outdir/{stub}_cover_categories.tif', f'outdir/{stub}_gullies.tif', ridges_tif=None, roads_tif=None, outdir="outdir", stub=stub, buffer_width=3, savetif=True, plot=True)
+    assert set(ds.coords) == {'latitude', 'longitude', 'spatial_ref'}  
+    assert 'buffer_categories' in set(ds.data_vars)
+    assert os.path.exists(f"outdir/{stub}_buffer_categories.tif")
+    assert os.path.exists(f"outdir/{stub}_buffer_categories.png")
 
 
 def test_shelter_metrics():
@@ -197,8 +226,7 @@ if __name__ == '__main__':
     # test_basic()
     # test_tree_categories()
     # test_shelter_categories()
-    test_cover_categories()
-
-    # test_buffer_categories()
+    # test_cover_categories()
+    test_buffer_categories()
 
     print(f"tests successfully completed in {time.time() - start} seconds")

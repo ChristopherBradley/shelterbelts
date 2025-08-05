@@ -63,7 +63,7 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, o
     riparian_trees = uncategorised_trees & buffered_gullies
     da_buffered = da_cover.where(~riparian_trees, 15)  # Assigning gully trees label 15
     
-    ds = da_cover.to_dataset(name="cover_categories")
+    ds = da_cover.drop_vars('band').to_dataset(name="cover_categories")
     ds['gullies'] = (('y', 'x'), da_gullies_reprojected.values)
 
     if ridges_tif:
