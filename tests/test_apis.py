@@ -113,7 +113,7 @@ def test_hydrolines():
     hydrolines_gpkg = "data/g2_26729_hydrolines_cropped.gpkg"  
     stub = 'g2_26729'
     outdir = 'outdir'
-    geotif = f"{outdir}{stub}_categorised.tif"
+    geotif = os.path.join(outdir, f"{stub}_categorised.tif")
     ds = hydrolines(geotif, hydrolines_gpkg, outdir=outdir, stub=stub)
 
 def test_catchments():
