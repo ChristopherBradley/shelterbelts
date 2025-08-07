@@ -210,10 +210,12 @@ def merged_ds(mosaic, out_meta, layer_name='canopy_height'):
     height, width = mosaic.shape[1:]
     x = (np.arange(width) + 0.5) * transform.a + transform.c
     y = (np.arange(height) + 0.5) * transform.e + transform.f
+    
+    coords = {"longitude": x, "latitude": y}
     da = xr.DataArray(
         mosaic[0],
-        dims=("longitude", "latitude"),
-        coords={"longitude": y, "latitude": x},
+        dims=("latitude", "longitude"),
+        coords=coords,
         name=layer_name
     ).rio.write_crs(out_meta['crs'])
     ds = da.to_dataset()
