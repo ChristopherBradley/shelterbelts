@@ -297,3 +297,12 @@ if __name__ == '__main__':
 # wind_dir='E'
 # max_distance=20
 # density_threshold=10
+
+# +
+# outdir = '/scratch/xe2/cb8590/tmp4'
+
+# +
+# ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', outdir=outdir)
+# -
+
+

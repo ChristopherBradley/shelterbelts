@@ -79,8 +79,11 @@ ds_woody_veg = worldcover_trees(None, None, da_worldcover, savetif=False)
 
 ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=20, edge_size=3, max_gap_size=1, save_tif=True, plot=False, ds=ds_woody_veg)
 
-# %%time
-ds_shelter = shelter_categories(None, distance_threshold=10, density_threshold=5, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_tree_categories)
+ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', outdir=outdir)
+
+ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', distance_threshold=10, density_threshold=5, outdir=outdir, stub=stub, savetif=True, plot=False)
+
+ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', distance_threshold=10, density_threshold=5, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_tree_categories)
 
 ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=True, plot=False, da_worldcover=da_worldcover)
 

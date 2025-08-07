@@ -59,6 +59,11 @@ def worldcover_trees(filename, outdir, da=None, stub=None, savetif=True):
             src.build_overviews(levels)
 
     ds = da_trees.to_dataset(name='woody_veg')
+
+    # latitude and longitude is what the worldcover API returns and is more readable
+    # However, x and y is what rxr.open_rasterio provides, and it's what the rest of the pipeline expects
+    ds = ds.rename({'longitude':'x', 'latitude':'y'})
+
     return ds
 
 
