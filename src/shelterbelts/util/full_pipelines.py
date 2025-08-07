@@ -7,7 +7,7 @@ import rasterio
 from shelterbelts.util.binary_trees import worldcover_trees, canopy_height_trees
 from shelterbelts.apis.worldcover import worldcover_bbox
 from shelterbelts.apis.hydrolines import hydrolines
-from shelterbelts.apis.canopy_height import canopy_height_bbox, merge_tiles_bbox
+from shelterbelts.apis.canopy_height import canopy_height_bbox, merge_tiles_bbox, merged_ds
 
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
@@ -70,7 +70,11 @@ worldcover_tif = os.path.join(outdir, f'{stub}_worldcover.tif')
 with rasterio.open(worldcover_tif, "w", **out_meta) as dest:
     dest.write(mosaic)
 print("Saved:", worldcover_tif)
-gdf, ds_hydrolines = hydrolines(worldcover_tif, hydrolines_gdb, outdir=".", stub="TEST", savetif=False, save_gpkg=False)
+ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
+
+ds_worldcover
+
+gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", savetif=False, save_gpkg=False, da=ds_worldcover['worldcover'])
 
 ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=tmpdir, save_tif=False, plot=False, footprints_geojson='tiles_global.geojson')
 

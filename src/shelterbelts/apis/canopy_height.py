@@ -211,12 +211,7 @@ def merged_ds(mosaic, out_meta, layer_name='canopy_height'):
     x = (np.arange(width) + 0.5) * transform.a + transform.c
     y = (np.arange(height) + 0.5) * transform.e + transform.f
     
-    # There has to be a better way to do this
-    if str(out_meta['crs']) != 'EPSG:3857':
-        coords = {"longitude": y, "latitude": x}
-    else:
-        coords = {"longitude": x, "latitude": y}
-
+    coords = {"longitude": x, "latitude": y}
     da = xr.DataArray(
         mosaic[0],
         dims=("latitude", "longitude"),
