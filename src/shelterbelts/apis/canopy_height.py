@@ -112,8 +112,13 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     # original_transform = out_meta['transform']
     # new_transform = original_transform * Affine.translation(0, -10)
 
-    # These outputs aren't very intuitive, should maybe just combine with merged_ds
-    return mosaic, out_meta, out_trans
+    out_meta.update({
+        "height": mosaic.shape[1],
+        "width": mosaic.shape[2],
+        "transform": out_trans
+    })
+    
+    return mosaic, out_meta
 
 def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canopy_height_dir="."):
     """Find the tiles that overlap with the region of interest"""
@@ -220,12 +225,7 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
     canopy_height_dir = tmpdir
     tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
     download_new_tiles(tiles, canopy_height_dir)
-    mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, tmpdir, footprints_geojson)
-    out_meta.update({
-        "height": mosaic.shape[1],
-        "width": mosaic.shape[2],
-        "transform": out_trans
-    })
+    mosaic, out_meta = merge_tiles_bbox(bbox, outdir, stub, tmpdir, footprints_geojson)
 
     if save_tif:
         output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
