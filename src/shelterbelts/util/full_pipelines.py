@@ -76,17 +76,65 @@ stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
 
 
 
+from shelterbelts.apis.canopy_height import merge_tiles_bbox, identify_relevant_tiles_bbox, transform_bbox
+import rioxarray as rxr
+import rasterio
+from rasterio.windows import from_bounds
+
+
+relevant_tiles = identify_relevant_tiles_bbox(bbox, worldcover_dir, os.path.join(worldcover_dir, 'tiles_global.geojson'))
+tiff_file = os.path.join(worldcover_dir, f"ESA_WorldCover_10m_2021_v200_S36E147_Map.tif")
+bbox_3857 = transform_bbox(bbox)
+roi_coords_3857 = box(*bbox_3857)
+roi_polygon_3857 = Polygon(roi_coords_3857)
+
+da = rxr.open_rasterio(tiff_file)
+
+da.rio.crs
+
+da2 = rxr.open_rasterio('/scratch/xe2/cb8590/Global_Canopy_Height/311203333.tif')
+
+da2.rio.crs
+
+roi_bounds
+
+tiff_bounds
+
+intersection_bounds
+
+src.crs
+
+with rasterio.open(tiff_file) as src:
+    # Get bounds of the TIFF file
+    tiff_bounds = src.bounds
+    roi_bounds = roi_polygon_3857.bounds
+    intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
+    window = from_bounds(*intersection_bounds, transform=src.transform)
+
+    # Read data within the window
+    out_image = src.read(window=window)
+    out_transform = src.window_transform(window)
+    out_meta = src.meta.copy()
+
+mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, worldcover_dir)
+
+
+
+
+
+
+
+
+
+
 # %%time
 # Save a worldcover tif for this bbox with this stub and outdir
 # Can replace this later by using the canopy_height.merge_tiles_bbox and identify_relevant_tiles_bbox functions. 
 # Just need to make a 'tiles_global.geojson' in /scratch/xe2/cb8590/Worldcover_Australia with the same format as the canopy_height one.
 da_worldcover = worldcover_bbox(bbox)   # Took 8 seconds to download a 4km x 4km area from the microsoft planetary computer
-gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", da=da_worldcover, savetif=False, save_gpkg=False)
 
-# %%time
-ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=tmpdir, save_tif=False, plot=False, footprints_geojson='tiles_global_full.geojson')
-# 12 seconds to load the canoy height, granted it has 100x as many pixels as worldcover
-# I might be able to make this go faster by creating a smaller tiles_global.geojson with just the tiles that I've downloaded
+
+gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", da=da_worldcover, savetif=False, save_gpkg=False)
 
 # %%time
 ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=tmpdir, save_tif=False, plot=False, footprints_geojson='tiles_global.geojson')

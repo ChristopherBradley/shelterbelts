@@ -91,7 +91,7 @@ def bounding_boxes(folder, outdir=".", stub="TEST", filetype='.tif'):
 
 
 def create_index(gpkg, tmpdir):
-    """Creates a geojson from the gpkg for my tile merging function to use"""
+    """Creates a geojson from the gpkg for my tile merging function in apis.canopy_height"""
     gdf = gpd.read_file(gpkg)
     gdf['tile'] = [filename.split('.')[0] for filename in gdf['filename']]
     gdf = gdf[['tile', 'geometry']]
@@ -100,6 +100,7 @@ def create_index(gpkg, tmpdir):
     gdf.to_file(filename)
     print("Saved:", filename)
     return gdf
+    
 # create_index('/g/data/xe2/cb8590/Outlines/Worldcover_Australia_footprints.gpkg', '/scratch/xe2/cb8590/Worldcover_Australia')
 # create_index('/g/data/xe2/cb8590/Outlines/global_canopy_height_footprints.gpkg', '/scratch/xe2/cb8590/Global_Canopy_Height')
 
