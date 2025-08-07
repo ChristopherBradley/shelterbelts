@@ -35,7 +35,7 @@ labels_woody_veg = {
 }
 
 
-def worldcover_trees(filename, outdir, da=None, stub=None, savetif=True):
+def worldcover_trees(filename, outdir=None, da=None, stub=None, savetif=True):
     """Convert a worldcover tif into a binary tree cover tif"""
     # These arguments are unintuitive... I should rethink the arguments you provide this function
     # Probably better to have two functions, one that you supply the filename, outdir and optional stub, and one where you just supply the da.
@@ -62,7 +62,7 @@ def worldcover_trees(filename, outdir, da=None, stub=None, savetif=True):
 
     # latitude and longitude is what the worldcover API returns and is more readable
     # However, x and y is what rxr.open_rasterio provides, and it's what the rest of the pipeline expects
-    ds = ds.rename({'longitude':'x', 'latitude':'y'})
+    # da = da.rename({'longitude':'x', 'latitude':'y'})
 
     return ds
 
