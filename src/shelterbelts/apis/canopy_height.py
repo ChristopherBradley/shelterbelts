@@ -221,8 +221,8 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
     # Create xarray
     transform = out_meta['transform']
     height, width = mosaic.shape[1:]
-    x = np.arange(width) * transform.a + transform.c
-    y = np.arange(height) * transform.e + transform.f
+    x = (np.arange(width) + 0.5) * transform.a + transform.c
+    y = (np.arange(height) + 0.5) * transform.e + transform.f
     da = xr.DataArray(
         mosaic,
         dims=("band", "longitude", "latitude"),
