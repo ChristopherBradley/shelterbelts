@@ -211,12 +211,12 @@ def merged_ds(mosaic, out_meta, layer_name='canopy_height'):
     x = (np.arange(width) + 0.5) * transform.a + transform.c
     y = (np.arange(height) + 0.5) * transform.e + transform.f
     da = xr.DataArray(
-        mosaic,
-        dims=("band", "longitude", "latitude"),
-        coords={"band": ["band1"], "longitude": x, "latitude": y},
+        mosaic[0],
+        dims=("longitude", "latitude"),
+        coords={"longitude": y, "latitude": x},
         name=layer_name
     ).rio.write_crs(out_meta['crs'])
-    ds = da.to_dataset().squeeze('band').drop_vars(['band'])
+    ds = da.to_dataset()
     return ds
 
 def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson'):

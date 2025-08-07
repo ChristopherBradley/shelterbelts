@@ -126,12 +126,11 @@ if __name__ == '__main__':
     print("testing APIs")
     start = time.time()
 
-    test_basic()
-    test_worldcover()
+    # test_basic()
+    # test_worldcover()
     test_canopy_height()
-    test_barra_daily()
-
-    test_hydrolines()
+    # test_barra_daily()
+    # test_hydrolines()
 
     
     print(f"tests successfully completed in {time.time() - start} seconds")
