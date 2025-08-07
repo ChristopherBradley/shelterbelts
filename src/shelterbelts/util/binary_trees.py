@@ -1,4 +1,5 @@
 import os
+import gc
 import argparse
 import glob
 import xarray as xr
@@ -35,7 +36,7 @@ labels_woody_veg = {
 }
 
 
-def worldcover_trees(filename, outdir=None, da=None, stub=None, savetif=True):
+def worldcover_trees(filename, outdir=".", stub="TEST", savetif=True, da=None):
     """Convert a worldcover tif into a binary tree cover tif"""
     # These arguments are unintuitive... I should rethink the arguments you provide this function
     # Probably better to have two functions, one that you supply the filename, outdir and optional stub, and one where you just supply the da.
@@ -67,7 +68,7 @@ def worldcover_trees(filename, outdir=None, da=None, stub=None, savetif=True):
     return ds
 
 
-def canopy_height_trees(filename, outdir, da=None):
+def canopy_height_trees(filename, outdir=".", savetif=True, da=None):
     """Convert a canopy height tif into a binary tree cover tif"""
     if da is None:
         da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
@@ -82,25 +83,25 @@ def canopy_height_trees(filename, outdir, da=None):
         resolution=10,                
         resampling=rasterio.enums.Resampling.max  
     )
-    
-    stub = filename.split('/')[-1].split('.')[0]
-    
-    outpath = os.path.join(outdir, f"{stub}_woody_veg.tif")
-    tif_categorical(da_trees, outpath, cmap_woody_veg, tiled=True)
-    
-    # Add pyramid for faster viewing in zoomed out views QGIS
-    levels  = [2, 4, 8, 16, 32, 64]
-    with rasterio.open(outpath, "r+") as src:          
-        src.build_overviews(levels)
+
+    if savetif:
+        stub = filename.split('/')[-1].split('.')[0]
+        outpath = os.path.join(outdir, f"{stub}_woody_veg.tif")
+        tif_categorical(da_trees, outpath, cmap_woody_veg, tiled=True)
+        levels  = [2, 4, 8, 16, 32, 64]
+        with rasterio.open(outpath, "r+") as src:          
+            src.build_overviews(levels)
     
     ds = da_trees.to_dataset(name='woody_veg')
-    return ds
 
     # Trying to avoid memory accumulation
     da.close()          
     da_trees.close()   
     del da, da_trees
     gc.collect()  
+
+    return ds
+
 
 
 # +
