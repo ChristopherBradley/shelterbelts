@@ -12,7 +12,7 @@ from shelterbelts.apis.catchments import gullies_cmap
 
 # -
 
-def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
+def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gpkg=True, savetif=True):
     """Crop the hydrolines to the region of interest
     
     Parameters
@@ -32,16 +32,17 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     hydrolines.tif: A georeferenced tif file of the gullies based on hydrolines
 
     """
-    # Read raster to get bounding box and CRS
-    da = rxr.open_rasterio(geotif, masked=True).isel(band=0)
+    # Use raster to get bounding box and CRS
+    if da is None:
+        da = rxr.open_rasterio(geotif, masked=True).isel(band=0)
     raster_bounds = da.rio.bounds()
     raster_crs = da.rio.crs
 
     if hydrolines_gdb.endswith('.gpkg'):
         gdf = gpd.read_file(hydrolines_gdb)  # pre-cropped geopackage
     else: 
-        # This may take a while since we're loading 2GB into memory
-        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines') # 2GB
+        # This file is about 2GB, but can be spatially indexed so loads really fast
+        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines', bbox=raster_bounds)
     hydrolines_crs = gdf.crs
 
     # Reproject raster bounding box to hydrolines CRS (more computationally efficient than the other way around)
@@ -50,9 +51,11 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     bbox_gdf = bbox_gdf.to_crs(hydrolines_crs)
 
     gdf_cropped = gpd.clip(gdf, bbox_gdf) # 7 secs for 2kmx2km test region with 30 hydrolines
-    cropped_path = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
-    gdf_cropped.to_file(cropped_path)
-    print("Saved", cropped_path)
+
+    if save_gpkg:
+        cropped_path = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
+        gdf_cropped.to_file(cropped_path)
+        print("Saved", cropped_path)
 
     gdf_cropped = gdf_cropped.to_crs(da.rio.crs)
     shapes = [(geom, 1) for geom in gdf_cropped.geometry]
@@ -66,8 +69,9 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST"):
     ds = da.to_dataset(name='terrain')
     ds['gullies'] = (["y", "x"], hydro_gullies)
 
-    filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines.tif")
-    tif_categorical(ds['gullies'], filename_hydrolines, colormap=gullies_cmap)
+    if savetif:
+        filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines.tif")
+        tif_categorical(ds['gullies'], filename_hydrolines, colormap=gullies_cmap)
 
     return gdf, ds
 

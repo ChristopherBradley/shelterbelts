@@ -29,7 +29,7 @@ cover_categories_cmap = tree_categories_cmap | worldcover_cmap | cover_cmap
 inverted_labels = {v: k for k, v in cover_categories_labels.items()}
 
 
-def cover_categories(shelter_tif, worldcover_tif, outdir='.', stub='TEST', ds=None, savetif=True, plot=True):
+def cover_categories(shelter_tif, worldcover_tif, outdir='.', stub='TEST', ds=None, da_worldcover=None, savetif=True, plot=True):
     """Reclassify non-tree pixels with categories from worldcover
     
     Parameters
@@ -53,7 +53,8 @@ def cover_categories(shelter_tif, worldcover_tif, outdir='.', stub='TEST', ds=No
     else:
         da_shelter = ds['shelter_categories']
 
-    da_worldcover = rxr.open_rasterio(worldcover_tif).squeeze('band').drop_vars('band')
+    if da_worldcover is None: # Need to treat DataArrays differently to DataSets when checking if it exists or not
+        da_worldcover = rxr.open_rasterio(worldcover_tif).squeeze('band').drop_vars('band')
 
     da_worldcover2 = da_worldcover.rio.reproject_match(da_shelter)
 

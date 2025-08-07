@@ -35,31 +35,37 @@ labels_woody_veg = {
 }
 
 
-def worldcover_trees(filename, outdir):
+def worldcover_trees(filename, outdir, da=None, stub=None, savetif=True):
     """Convert a worldcover tif into a binary tree cover tif"""
-    da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+    # These arguments are unintuitive... I should rethink the arguments you provide this function
+    # Probably better to have two functions, one that you supply the filename, outdir and optional stub, and one where you just supply the da.
+
+    if da is None:
+        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
 
     # Trees or Shrubland
     da_trees = (da == 10) | (da == 20)
     da_trees = da_trees.astype('uint8')
         
-    # stub = filename.split('_')[-2]
-    stub = filename.split('/')[-1].split('.')[0]
-    outpath = os.path.join(outdir, f"{stub}_woody_veg.tif")
-    tif_categorical(da_trees, outpath, cmap_woody_veg, tiled=True)
-    
-    # Add pyramid for faster viewing in zoomed out views QGIS
-    levels  = [2, 4, 8, 16, 32, 64]
-    with rasterio.open(outpath, "r+") as src:          
-        src.build_overviews(levels)
+    if savetif:
+        if stub is None:
+            stub = filename.split('/')[-1].split('.')[0]
+        outpath = os.path.join(outdir, f"{stub}_woody_veg.tif")
+        tif_categorical(da_trees, outpath, cmap_woody_veg, tiled=True)
+        
+        # Add pyramid for faster viewing in zoomed out views QGIS
+        levels  = [2, 4, 8, 16, 32, 64]
+        with rasterio.open(outpath, "r+") as src:          
+            src.build_overviews(levels)
 
     ds = da_trees.to_dataset(name='woody_veg')
     return ds
 
 
-def canopy_height_trees(filename, outdir):
+def canopy_height_trees(filename, outdir, da=None):
     """Convert a canopy height tif into a binary tree cover tif"""
-    da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+    if da is None:
+        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
 
     # Anything taller than 1m
     da_trees = (da >= 1)

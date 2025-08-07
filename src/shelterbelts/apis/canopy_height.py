@@ -101,10 +101,10 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.'):
     for src in src_files_to_mosaic:
         src.close()
 
-    # From visual inspection, it looks like the canopy height map is offset by about 10m south. This corrects that.
-    # My hypothesis is this is due to Australia being in the southern hemisphere so shadows point south at midday, whereas the model was trained in the United States where shadows point north at midday
-    original_transform = out_meta['transform']
-    new_transform = original_transform * Affine.translation(0, -10)
+    # # From visual inspection, it looks like the canopy height map is offset by about 10m south. This is meant to correct that.
+    # # My hypothesis is this is due to Australia being in the southern hemisphere so shadows point south at midday, whereas the model was trained in the United States where shadows point north at midday
+    # original_transform = out_meta['transform']
+    # new_transform = original_transform * Affine.translation(0, -10)
 
     return mosaic, out_meta, out_trans
 

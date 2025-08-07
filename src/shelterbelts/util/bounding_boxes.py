@@ -11,6 +11,8 @@ from pyproj import Transformer
 
 # -
 
+# Should move the api.barra_bbox function to here for consistency. 
+
 def bounding_boxes(folder, outdir=".", stub="TEST", filetype='.tif'):
     """Download a gpkg of bounding boxes for all the tif files in a folder
 

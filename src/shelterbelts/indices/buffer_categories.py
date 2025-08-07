@@ -29,7 +29,7 @@ buffer_categories_labels = cover_categories_labels | buffer_labels
 inverted_labels = {v: k for k, v in buffer_categories_labels.items()}
 
 
-def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, outdir=".", stub="TEST", buffer_width=3, ds=None, savetif=True, plot=True):
+def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, outdir=".", stub="TEST", buffer_width=3, savetif=True, plot=True, ds=None, ds_gullies=None):
     """Reclassify relevant corridors as riparian buffers and ridge buffers.
     
     Parameters
@@ -56,7 +56,12 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, o
     else: 
         da_cover = ds['cover_categories']
 
-    da_gullies = rxr.open_rasterio(gullies_tif).isel(band=0).drop_vars('band')
+    if not ds_gullies: 
+        da_gullies = rxr.open_rasterio(gullies_tif).isel(band=0).drop_vars('band')
+    else: 
+        # Might be cleaner to pass just one ds with the cover_categories and gullies as separate variables
+        da_gullies = ds_gullies['gullies']
+    
     da_gullies_reprojected = da_gullies.rio.reproject_match(da_cover, resampling=Resampling.max) # This may downsample, changing the edge width 
     gullies_thinned = skeletonize(da_gullies_reprojected.values) # This makes the edges 1 wide again
 
