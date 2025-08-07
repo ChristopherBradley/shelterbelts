@@ -2,11 +2,12 @@
 import os
 
 import geopandas as gpd
+import rasterio
 
-from shelterbelts.util.binary_trees import worldcover_trees
+from shelterbelts.util.binary_trees import worldcover_trees, canopy_height_trees
 from shelterbelts.apis.worldcover import worldcover_bbox
 from shelterbelts.apis.hydrolines import hydrolines
-from shelterbelts.apis.canopy_height import canopy_height_bbox
+from shelterbelts.apis.canopy_height import canopy_height_bbox, merge_tiles_bbox, merged_ds
 
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
@@ -64,77 +65,25 @@ bbox = bbox_polygon.geometry.bounds
 centroid = bbox_polygon.geometry.centroid
 stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
 
+mosaic, out_meta = merge_tiles_bbox(bbox, outdir, stub, worldcover_dir)
+worldcover_tif = os.path.join(outdir, f'{stub}_worldcover.tif')
+with rasterio.open(worldcover_tif, "w", **out_meta) as dest:
+    dest.write(mosaic)
+print("Saved:", worldcover_tif)
+ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
 
+ds_worldcover
 
+gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", savetif=False, save_gpkg=False, da=ds_worldcover['worldcover'])
 
-from shelterbelts.apis.canopy_height import merge_tiles_bbox
-import numpy as np
-import xarray as xr
-
-mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, worldcover_dir)
-
-
-mosaic
-
-layer_name = "worldcover"
-save_tif = True
-
-# +
-# Create coordinates
-transform = out_meta['transform']
-height, width = mosaic.shape[1:]
-x = np.arange(width) * transform.a + transform.c
-y = np.arange(height) * transform.e + transform.f
-if transform.e < 0:
-    y = y[::-1]
-
-# Create xarray
-da = xr.DataArray(
-    mosaic,
-    dims=("band", "longitude", "latitude"),
-    coords={"band": ["band1"], "longitude": y, "latitude": x},
-    name=layer_name
-).rio.write_crs(out_meta['crs'])
-ds = da.to_dataset().squeeze('band').drop_vars(['band'])
-
-if save_tif:
-    out_meta.update({
-        "height": mosaic.shape[1],
-        "width": mosaic.shape[2],
-        "transform": out_trans
-    })
-    output_tiff_filename = os.path.join(outdir, f'{stub}_{layer_name}.tif')
-    with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
-        dest.write(mosaic)
-    print("Saved:", output_tiff_filename)
-# -
-
-
-
-
-
-# %%time
-# Save a worldcover tif for this bbox with this stub and outdir
-# Can replace this later by using the canopy_height.merge_tiles_bbox and identify_relevant_tiles_bbox functions. 
-# Just need to make a 'tiles_global.geojson' in /scratch/xe2/cb8590/Worldcover_Australia with the same format as the canopy_height one.
-da_worldcover = worldcover_bbox(bbox)   # Took 8 seconds to download a 4km x 4km area from the microsoft planetary computer
-
-
-gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", da=da_worldcover, savetif=False, save_gpkg=False)
-
-# %%time
 ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=tmpdir, save_tif=False, plot=False, footprints_geojson='tiles_global.geojson')
-# Brought this down from 12 secs to 3 secs by using a smaller footprints file
 
-# +
+ds_woody_veg = canopy_height_trees(None, savetif=False, da=ds_canopy_height['canopy_height'])
+
 # %%time
 # Rest of the pipeline
-ds_woody_veg = worldcover_trees(None, None, da_worldcover, savetif=False)
 ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=20, edge_size=3, max_gap_size=1, save_tif=True, plot=False, ds=ds_woody_veg)
 ds_shelter = shelter_categories(None, distance_threshold=10, density_threshold=5, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_tree_categories)
-ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=True, plot=False, da_worldcover=da_worldcover)
+ds_cover = cover_categories(None, worldcover_tif, outdir=outdir, stub=stub, ds=ds_shelter, savetif=True, plot=False)
 ds_buffer = buffer_categories(None, None, buffer_width=3, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines)
 ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False)
-
-# All this takes less than 1 second, so could have a 10x speed up by loading worldcover from file instead of from planetary computer. 
-# Also need to load from file if I want to use the normal or express gadi queues. So let's set that up.
