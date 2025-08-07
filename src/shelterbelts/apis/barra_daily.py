@@ -25,9 +25,14 @@ barra_abbreviations = {
 
 # +
 # %%time
-def barra_singlemonth_thredds(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", month="01"):
-    
-    url = f"https://thredds.nci.org.au/thredds/dodsC/ob53/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
+def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", month="01", gdata=False):
+
+    if gdata:
+        # Needs to be run on NCI with access to the ob53 project
+        url = f"/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
+    else:
+        # URL for NCI thredds - should work anywhere with internet access
+        url = f"https://thredds.nci.org.au/thredds/dodsC/ob53/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
 
     try:
         ds = xr.open_dataset(url, engine="netcdf4")
@@ -54,11 +59,11 @@ def barra_singlemonth_thredds(var="uas", latitude=-34.3890427, longitude=148.469
 
 # +
 # %%time
-def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020"):
+def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", gdata=False):
     months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
     dss = []
     for month in months:
-        ds_month = barra_singlemonth_thredds(var, latitude, longitude, buffer, year, month)
+        ds_month = barra_singlemonth(var, latitude, longitude, buffer, year, month, gdata)
         if ds_month:
             dss.append(ds_month)
     ds_concat = xr.concat(dss, dim='time')
@@ -69,10 +74,10 @@ def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buf
 
 
 # +
-def barra_multiyear(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, years=["2020", "2021"]):
+def barra_multiyear(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, years=["2020", "2021"], gdata=False):
     dss = []
     for year in years:
-        ds_year = barra_single_year(var, latitude, longitude, buffer, year)
+        ds_year = barra_single_year(var, latitude, longitude, buffer, year, gdata)
         if ds_year:
             dss.append(ds_year)
     ds_concat = xr.concat(dss, dim='time')
@@ -196,6 +201,7 @@ def wind_dataframe(ds):
     
     return df, max_speed, direction_max_speed
 
+
 # # Usage example of wind_dataframe
 # df, max_speed, max_direction = wind_dataframe(ds)
 
@@ -203,9 +209,7 @@ def wind_dataframe(ds):
 # df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
 # direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
 
-
-
-def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True):
+def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True, gdata=False):
     """Download 8day variables from BARRA at 4.4km resolution for the region/time of interest
 
     Parameters
@@ -227,7 +231,7 @@ def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffe
     dss = []
     years = [str(year) for year in list(range(int(start_year), int(end_year) + 1))]
     for variable in variables:
-        ds_variable = barra_multiyear(variable, lat, lon, buffer, years)
+        ds_variable = barra_multiyear(variable, lat, lon, buffer, years, gdata)
         dss.append(ds_variable)
     ds = xr.merge(dss)
 
@@ -275,4 +279,8 @@ if __name__ == '__main__':
     plot = args.plot
     
     barra_daily(["uas", "vas"], lat, lon, buffer, start_year, end_year, outdir, stub, save_netcdf=True, plot=plot)
+
+# In my experiments comparing thredds and gdata with the default arguments, these were the times taken
+# thredds: 21 secs, then 10, 10, 10
+# gdata: 6 secs, then 4, 4, 4
 
