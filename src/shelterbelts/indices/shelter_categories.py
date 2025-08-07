@@ -177,13 +177,16 @@ def shelter_categories(category_tif, wind_ds=None, height_tif=None, outdir='.', 
     if height_tif:
         da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
         da_heights_reprojected = da_heights.rio.reproject_match(da_categories) 
-        da_heights_nan = xr.where(shelter, da_heights_reprojected, np.nan)  # I think xr.where() is more readable than da.where()
-        shelter_heights = xr.where(da_heights_nan <= minimum_height, minimum_height, da_heights_nan)
+
+        # Using da.where instead of xr.where to preserve the xr.rio.crs
+        da_heights_nan = da_heights_reprojected.where(~shelter, np.nan)  
+        shelter_heights = da_heights_nan.where(da_heights_nan <= minimum_height, minimum_height)
 
         pixel_size = 10 # metres
         shelter_heights = (shelter_heights / pixel_size) * distance_threshold  # Scale the tree heights by the distance threshold
     else:
-        shelter_heights = xr.where(shelter, distance_threshold, np.nan)  
+        # shelter_heights = xr.where(shelter, distance_threshold, np.nan)  
+        shelter_heights = shelter.where(shelter, other=np.nan) * distance_threshold # preserving the rio.crs
 
     if wind_ds:
         ds_wind = xr.load_dataset(wind_ds)
