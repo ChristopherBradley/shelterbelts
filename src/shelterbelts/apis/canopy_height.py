@@ -25,7 +25,7 @@ from matplotlib import colors
 
 # -
 
-def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], canopy_height_dir="."):
+def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], canopy_height_dir=".", footprints_geojson='tiles_global.geojson'):
     """Find the tiles that overlap with the region of interest"""
     
     # This assumes the crs is EPSG:4326, because the aws tiles.geojson is also in EPSG:4326
@@ -33,8 +33,10 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     roi_polygon = Polygon(roi_coords)
     
     # Download the 'tiles_global.geojson' to this folder if we haven't already
-    filename = os.path.join(canopy_height_dir, 'tiles_global.geojson')
+    filename = os.path.join(canopy_height_dir, footprints_geojson)
+    
     if not os.path.exists(filename):
+        assert footprints_geojson == 'tiles_global.geojson', 'Please provide footprints for the tifs in this directory'
         url = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson"
         with requests.get(url, stream=True) as stream:
             with open(filename, "wb") as file:
@@ -54,7 +56,7 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     return relevant_tiles
 
 
-def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.'):
+def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson'):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
 
     # Assumes the bbox starts as EPSG:4326
@@ -64,7 +66,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.'):
     roi_polygon_3857 = Polygon(roi_coords_3857)
     
     canopy_height_dir = tmpdir
-    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
+    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson)
     
     for tile in relevant_tiles:
         tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
@@ -193,13 +195,13 @@ def visualise_canopy_height(ds, filename=None):
         plt.show()
 
 
-def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True):
+def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson'):
     """Create a merged canopy height raster, downloading new tiles if necessary"""
     # Assumes the bbox is in EPSG:4326
     canopy_height_dir = tmpdir
     tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
     download_new_tiles(tiles, canopy_height_dir)
-    mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, tmpdir)
+    mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, tmpdir, footprints_geojson)
 
     # Create coordinates
     transform = out_meta['transform']

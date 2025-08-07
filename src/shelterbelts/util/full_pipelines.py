@@ -3,13 +3,16 @@ import os
 
 import geopandas as gpd
 
+from shelterbelts.util.binary_trees import worldcover_trees
+from shelterbelts.apis.worldcover import worldcover_bbox
+from shelterbelts.apis.hydrolines import hydrolines
+from shelterbelts.apis.canopy_height import canopy_height_bbox
+
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
 from shelterbelts.indices.cover_categories import cover_categories
 from shelterbelts.indices.buffer_categories import buffer_categories
 from shelterbelts.indices.shelter_metrics import class_metrics, patch_metrics
-
-from shelterbelts.util.binary_trees import worldcover_trees
 
 # -
 
@@ -42,7 +45,24 @@ def run_gdf(func, gdf):
     pass
 
 
+# +
 filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_4.gpkg'
+outdir = '/scratch/xe2/cb8590/tmp4'
+tmpdir = '/scratch/xe2/cb8590/Global_Canopy_Height'
+worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
+
+hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
+# -
+
+# Creating the canopy height subset filename
+gpkg_canopy_height_footprints = '/g/data/xe2/cb8590/Outlines/global_canopy_height_footprints.gpkg'
+gdf_canopy_height = gpd.read_file(gpkg_canopy_height_footprints)
+gdf_canopy_height['tile'] = [filename.split('.')[0] for filename in gdf_canopy_height['filename']]
+gdf_canopy_height = gdf_canopy_height[['tile', 'geometry']]
+gdf_canopy_height = gdf.to_crs('EPSG:4326')
+filename = os.path.join(tmpdir, 'tiles_global.geojson')
+gdf_canopy_height.to_file(filename)
+
 gdf_barra_bboxs = gpd.read_file(filename)
 
 # Extract the bbox
@@ -54,41 +74,33 @@ centroid = bbox_polygon.geometry.centroid
 stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
 
 
-# Create the files we need to run the full pipeline
-from shelterbelts.apis.worldcover import worldcover_bbox, worldcover_cmap, tif_categorical
-from shelterbelts.apis.hydrolines import hydrolines
 
-outdir = '/scratch/xe2/cb8590/tmp4'
+
+# %%time
+# Save a worldcover tif for this bbox with this stub and outdir
+# Can replace this later by using the canopy_height.merge_tiles_bbox and identify_relevant_tiles_bbox functions. 
+# Just need to make a 'tiles_global.geojson' in /scratch/xe2/cb8590/Worldcover_Australia with the same format as the canopy_height one.
+da_worldcover = worldcover_bbox(bbox)   # Took 8 seconds to download a 4km x 4km area from the microsoft planetary computer
+gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", da=da_worldcover, savetif=False, save_gpkg=False)
+
+# %%time
+ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=tmpdir, save_tif=False, plot=False, footprints_geojson='tiles_global_full.geojson')
+# 12 seconds to load the canoy height, granted it has 100x as many pixels as worldcover
+# I might be able to make this go faster by creating a smaller tiles_global.geojson with just the tiles that I've downloaded
+
+# %%time
+ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=tmpdir, save_tif=False, plot=False, footprints_geojson='tiles_global.geojson')
+# Brought this down from 12 secs to 3 secs by using a smaller footprints file
 
 # +
 # %%time
-# Save a worldcover tif for this bbox with this stub and outdir
-# Can replace this later by using the canopy_height.merge_tiles_bbox and identify_relevant_tiles_boox functions. 
-# Just need to make a 'tiles_global.geojson' in /scratch/xe2/cb8590/Worldcover_Australia with the same format as the canopy_height one.
-da_worldcover = worldcover_bbox(bbox)   # Took 8 seconds to download a 4km x 4km area from the microsoft planetary computer
-
-# Don't need to do this anymore, now that I've added the option to pass the da as an argument directly
-# filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
-# tif_categorical(da_worldcover, filename, worldcover_cmap)
-# -
-
-hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
-gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", da=da_worldcover, savetif=False, save_gpkg=False)
-
+# Rest of the pipeline
 ds_woody_veg = worldcover_trees(None, None, da_worldcover, savetif=False)
-
 ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=20, edge_size=3, max_gap_size=1, save_tif=True, plot=False, ds=ds_woody_veg)
-
-ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', outdir=outdir)
-
-ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', distance_threshold=10, density_threshold=5, outdir=outdir, stub=stub, savetif=True, plot=False)
-
-ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', distance_threshold=10, density_threshold=5, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_tree_categories)
-
+ds_shelter = shelter_categories(None, distance_threshold=10, density_threshold=5, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_tree_categories)
 ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=True, plot=False, da_worldcover=da_worldcover)
-
 ds_buffer = buffer_categories(None, None, buffer_width=3, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines)
-
 ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False)
 
-
+# All this takes less than 1 second, so could have a 10x speed up by loading worldcover from file instead of from planetary computer. 
+# Also need to load from file if I want to use the normal or express gadi queues. So let's set that up.

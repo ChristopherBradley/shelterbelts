@@ -90,6 +90,20 @@ def bounding_boxes(folder, outdir=".", stub="TEST", filetype='.tif'):
     print(f"Saved: {centroid_gpkg}")
 
 
+def create_index(gpkg, tmpdir):
+    """Creates a geojson from the gpkg for my tile merging function to use"""
+    gdf = gpd.read_file(gpkg)
+    gdf['tile'] = [filename.split('.')[0] for filename in gdf['filename']]
+    gdf = gdf[['tile', 'geometry']]
+    gdf = gdf.to_crs('EPSG:4326')
+    filename = os.path.join(tmpdir, 'tiles_global.geojson')
+    gdf.to_file(filename)
+    print("Saved:", filename)
+    return gdf
+# create_index('/g/data/xe2/cb8590/Outlines/Worldcover_Australia_footprints.gpkg', '/scratch/xe2/cb8590/Worldcover_Australia')
+# create_index('/g/data/xe2/cb8590/Outlines/global_canopy_height_footprints.gpkg', '/scratch/xe2/cb8590/Global_Canopy_Height')
+
+
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
@@ -124,26 +138,7 @@ if __name__ == '__main__':
 # bounding_boxes(filepath, outdir, stub)
 
 # Footprints currently aren't working with the .asc files, but centroids are for some reason.
-filepath = '/g/data/xe2/cb8590/NSW_5m_DEMs'
-stub = 'NSW_5m_DEMs'
-outdir = "/g/data/xe2/cb8590/Outlines"
-bounding_boxes(filepath, outdir, stub, filetype='.asc')
-
-# +
-# albury_dem = '/g/data/xe2/cb8590/NSW_5m_DEMs/Albury-DEM-AHD_55_5m.asc'
-
-# with rasterio.open(albury_dem) as src:
-#     bounds = src.bounds
-#     src_crs = src.crs
-
-# bounds
-
-# import rioxarray as rxr
-
-# da = rxr.open_rasterio(albury_dem).isel(band=0)
-
-# da.rio.to_raster('/scratch/xe2/cb8590/tmp/albury_dem.tif')
-
-# # !du -sh /scratch/xe2/cb8590/tmp/albury_dem.tif
-
-# # !ls /g/data/xe2/cb8590/NSW_5m_DEMs/Albury-DEM-AHD_55_5m.asc 
+# filepath = '/g/data/xe2/cb8590/NSW_5m_DEMs'
+# stub = 'NSW_5m_DEMs'
+# outdir = "/g/data/xe2/cb8590/Outlines"
+# bounding_boxes(filepath, outdir, stub, filetype='.asc')
