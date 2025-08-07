@@ -5,6 +5,8 @@ import time
 from shelterbelts.apis.worldcover import worldcover
 from shelterbelts.apis.canopy_height import canopy_height
 from shelterbelts.apis.barra_daily import barra_daily
+from shelterbelts.apis.hydrolines import hydrolines
+
 
 if not os.path.exists('tmpdir'):
     os.mkdir('tmpdir')
@@ -105,6 +107,21 @@ def test_worldcover():
     assert set(ds.data_vars) == {'worldcover'}
     assert not os.path.exists("outdir/g2_26729_worldcover.png")
 
+
+def test_hydrolines():
+    print()
+    hydrolines_gpkg = "data/g2_26729_hydrolines_cropped.gpkg"  
+    stub = 'g2_26729'
+    outdir = 'outdir'
+    geotif = os.path.join(outdir, f"{stub}_categorised.tif")
+    ds = hydrolines(geotif, hydrolines_gpkg, outdir=outdir, stub=stub)
+
+def test_catchments():
+    print()
+
+def test_roads():
+    print()
+
 if __name__ == '__main__':
     print("testing APIs")
     start = time.time()
@@ -113,5 +130,8 @@ if __name__ == '__main__':
     test_worldcover()
     test_canopy_height()
     test_barra_daily()
+
+    test_hydrolines()
+
     
     print(f"tests successfully completed in {time.time() - start} seconds")

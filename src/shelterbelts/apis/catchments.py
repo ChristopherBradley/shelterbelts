@@ -204,7 +204,9 @@ def plot_catchments(ds, filename=None):
     rows_r, cols_r = np.where(ds['ridges'])
     xr, yr = rasterio.transform.xy(transform, rows_r, cols_r)
     plt.scatter(xs, ys, marker='.', linewidths=0.01, c="blue", label='Gullies')
-    plt.scatter(xr, yr, marker='.', linewidths=0.01, c="red", label='Ridges')
+    plt.scatter(xr, yr, marker='.', linewidths=0.01, c="red", label='Catchments')
+
+    plt.legend(loc='upper right', markerscale=2)
 
     if filename:
         plt.savefig(filename, bbox_inches='tight')

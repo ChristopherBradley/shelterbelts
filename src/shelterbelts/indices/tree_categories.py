@@ -20,8 +20,8 @@ tree_categories_labels = {
     11:'Scattered Trees',
     12:'Patch Core',
     13:'Patch Edge',
-    14:'Corridor (other)',
-    0:'Not trees'
+    14:'Other Trees',
+    0:'Not Trees'
 }
 inverted_labels = {v: k for k, v in tree_categories_labels.items()}
 
@@ -94,8 +94,10 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
         woody_veg_categorised.png: A png file like the tif file, but with a legend as well.
     
     """
-    da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-    ds = da.to_dataset(name='woody_veg')
+    if not ds:
+        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+        ds = da.to_dataset(name='woody_veg')
+
     woody_veg = ds['woody_veg'].values.astype(bool)
 
     trees_labelled = tree_clusters(woody_veg, max_gap_size)
@@ -109,9 +111,9 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
     tree_categories[scattered_area] = inverted_labels['Scattered Trees']
     tree_categories[core_area]      = inverted_labels['Patch Core']
     tree_categories[edge_area]      = inverted_labels['Patch Edge']
-    tree_categories[corridor_area]  = inverted_labels['Corridor (other)']
+    tree_categories[corridor_area]  = inverted_labels['Other Trees']
     ds['tree_categories'] = (('y', 'x'), tree_categories)
-    ds = ds.rename({'x':'longitude', 'y': 'latitude'})
+    # ds = ds.rename({'x':'longitude', 'y': 'latitude'})
 
     if not stub:
         # Use the same prefix as the original woody_veg filename
