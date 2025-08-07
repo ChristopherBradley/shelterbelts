@@ -112,8 +112,8 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     # original_transform = out_meta['transform']
     # new_transform = original_transform * Affine.translation(0, -10)
 
+    # These outputs aren't very intuitive, should maybe just combine with merged_ds
     return mosaic, out_meta, out_trans
-
 
 def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canopy_height_dir="."):
     """Find the tiles that overlap with the region of interest"""
@@ -199,26 +199,8 @@ def visualise_canopy_height(ds, filename=None):
         plt.show()
 
 
-def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson'):
-    """Create a merged canopy height raster, downloading new tiles if necessary"""
-    # Assumes the bbox is in EPSG:4326
-    canopy_height_dir = tmpdir
-    tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
-    download_new_tiles(tiles, canopy_height_dir)
-    mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, tmpdir, footprints_geojson)
-
-    if save_tif:
-        out_meta.update({
-            "height": mosaic.shape[1],
-            "width": mosaic.shape[2],
-            "transform": out_trans
-        })
-        output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
-        with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
-            dest.write(mosaic)
-        print("Saved:", output_tiff_filename)
-        
-    # Create xarray
+def merged_ds(mosaic, out_meta, layer_name='canopy_height'):
+    """Create an xr.DataArray from the outputs of merge_tiles_bbox"""
     transform = out_meta['transform']
     height, width = mosaic.shape[1:]
     x = (np.arange(width) + 0.5) * transform.a + transform.c
@@ -227,10 +209,31 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
         mosaic,
         dims=("band", "longitude", "latitude"),
         coords={"band": ["band1"], "longitude": x, "latitude": y},
-        name="canopy_height"
+        name=layer_name
     ).rio.write_crs(out_meta['crs'])
     ds = da.to_dataset().squeeze('band').drop_vars(['band'])
+    return ds
 
+def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson'):
+    """Create a merged canopy height raster, downloading new tiles if necessary"""
+    # Assumes the bbox is in EPSG:4326
+    canopy_height_dir = tmpdir
+    tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
+    download_new_tiles(tiles, canopy_height_dir)
+    mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, tmpdir, footprints_geojson)
+    out_meta.update({
+        "height": mosaic.shape[1],
+        "width": mosaic.shape[2],
+        "transform": out_trans
+    })
+
+    if save_tif:
+        output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
+        with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
+            dest.write(mosaic)
+        print("Saved:", output_tiff_filename)
+        
+    ds = merged_ds(mosaic, out_meta)
     if plot:
         filename = os.path.join(outdir, f"{stub}_canopy_height.png")    
         visualise_canopy_height(ds, filename)
