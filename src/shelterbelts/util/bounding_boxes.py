@@ -1,17 +1,36 @@
+# +
 import os
+import argparse
 import glob
+
 import rasterio
 import fiona
 from shapely.geometry import box, mapping, Point
 from pyproj import Transformer
 
-def bounding_boxes(folder, outdir=".", stub="TEST"):
-    """Download a gpkg of bounding boxes for all the tif files in a folder"""
 
-    tif_files = glob.glob(os.path.join(filepath, "*.tif*"))
+# -
+
+def bounding_boxes(folder, outdir=".", stub="TEST", filetype='.tif'):
+    """Download a gpkg of bounding boxes for all the tif files in a folder
+
+    Parameters
+    ----------
+        folder: Folder containing lots of tifs that we want to extract the bounding box from
+        outdir: The output directory to save the results 
+        stub: Prefix for output file 
+
+    Downloads
+    ---------
+        footprint_gpkg: A gpkg with the bounding box of each tif file and corresponding filename
+        centroid_gpkg: A gpkg of the centroid of each tif file (this can be easier to view when there are lots of small tif files and you're zoomed out)
     
-    footprint_geojson = f"{outdir}/{stub}_footprints.gpkg"
-    centroid_geojson = f"{outdir}/{stub}_centroids.gpkg"
+    """
+
+    tif_files = glob.glob(os.path.join(filepath, f"*{filetype}*"))
+    
+    footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
+    centroid_gpkg = f"{outdir}/{stub}_centroids.gpkg"
     
     footprint_crs = 'EPSG:3857'
     centroid_crs = 'EPSG:4326'
@@ -26,11 +45,11 @@ def bounding_boxes(folder, outdir=".", stub="TEST"):
         'properties': {'filename': 'str'}
     }
     
-    with fiona.open(footprint_geojson, 'w', crs=footprint_crs, schema=footprint_schema) as fp_dst, \
-         fiona.open(centroid_geojson, 'w', crs=centroid_crs, schema=centroid_schema) as ct_dst:
+    with fiona.open(footprint_gpkg, 'w', crs=footprint_crs, schema=footprint_schema) as fp_dst, \
+         fiona.open(centroid_gpkg, 'w', crs=centroid_crs, schema=centroid_schema) as ct_dst:
     
         for i, tif in enumerate(tif_files):
-            if i % 1000 == 0:
+            if i % 10 == 0:
                 print(f"Working on tiff {i}/{len(tif_files)}")
             try:
                 with rasterio.open(tif) as src:
@@ -65,19 +84,64 @@ def bounding_boxes(folder, outdir=".", stub="TEST"):
             except Exception:
                     print(f"Could not open {tif}")
                     
-    print(f"Saved: {footprint_geojson}")
-    print(f"Saved: {centroid_geojson}")
+    print(f"Saved: {footprint_gpkg}")
+    print(f"Saved: {centroid_gpkg}")
+
+
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--filepath', help='Folder containing lots of tifs that we want to extract the bounding box from')
+    parser.add_argument('--outdir', default='.', help='The output directory to save the results')
+    parser.add_argument('--stub', help='Prefix for output file')
+
+    return parser.parse_args()
+
 
 
 if __name__ == '__main__':
-    # filepath = "/Users/christopherbradley/Documents/PHD/Data/Worldcover_Australia"
-    # stub = "worldcover"
-    # outdir = "../../../outdir"
-    # bounding_boxes(filepath, outdir, stub)
+    
+    args = parse_arguments()
 
-    filepath = "/scratch/xe2/cb8590/Worldcover_Australia"
-    stub = "Worldcover_Australia"
-    outdir = "/g/data/xe2/cb8590/Outlines"
-    bounding_boxes(filepath, outdir, stub)
+    filepath = args.filepath
+    outdir = args.outdir
+    stub = args.stub
 
+    bounding_boxes(filename, outdir, stub)
 
+# +
+# filepath = "/Users/christopherbradley/Documents/PHD/Data/Worldcover_Australia"
+# stub = "worldcover"
+# outdir = "../../../outdir"
+# bounding_boxes(filepath, outdir, stub)
+
+# filepath = "/scratch/xe2/cb8590/Worldcover_Australia"
+# stub = "Worldcover_Australia"
+# outdir = "/g/data/xe2/cb8590/Outlines"
+# bounding_boxes(filepath, outdir, stub)
+
+# Footprints currently aren't working with the .asc files, but centroids are for some reason.
+filepath = '/g/data/xe2/cb8590/NSW_5m_DEMs'
+stub = 'NSW_5m_DEMs'
+outdir = "/g/data/xe2/cb8590/Outlines"
+bounding_boxes(filepath, outdir, stub, filetype='.asc')
+
+# +
+# albury_dem = '/g/data/xe2/cb8590/NSW_5m_DEMs/Albury-DEM-AHD_55_5m.asc'
+
+# with rasterio.open(albury_dem) as src:
+#     bounds = src.bounds
+#     src_crs = src.crs
+
+# bounds
+
+# import rioxarray as rxr
+
+# da = rxr.open_rasterio(albury_dem).isel(band=0)
+
+# da.rio.to_raster('/scratch/xe2/cb8590/tmp/albury_dem.tif')
+
+# # !du -sh /scratch/xe2/cb8590/tmp/albury_dem.tif
+
+# # !ls /g/data/xe2/cb8590/NSW_5m_DEMs/Albury-DEM-AHD_55_5m.asc 

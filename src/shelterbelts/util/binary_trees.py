@@ -73,6 +73,12 @@ def canopy_height_trees(filename, outdir):
     with rasterio.open(outpath, "r+") as src:          
         src.build_overviews(levels)
 
+    # Trying to avoid memory accumulation
+    da.close()          
+    da_trees.close()   
+    del da, da_trees
+    gc.collect()  
+
 
 # +
 funcs = {
