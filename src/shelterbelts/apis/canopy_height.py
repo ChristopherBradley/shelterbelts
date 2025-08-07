@@ -58,12 +58,6 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
 
 def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson'):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
-
-    # Assumes the bbox starts as EPSG:4326
-    # Convert the bounding box to EPSG:3857 (tiles.geojson uses EPSG:4326 (geographic), but the tiff files use EPSG:3857 (projected)')
-    bbox_3857 = transform_bbox(bbox)
-    roi_coords_3857 = box(*bbox_3857)
-    roi_polygon_3857 = Polygon(roi_coords_3857)
     
     canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson)
@@ -75,7 +69,17 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         with rasterio.open(tiff_file) as src:
             # Get bounds of the TIFF file
             tiff_bounds = src.bounds
-            roi_bounds = roi_polygon_3857.bounds
+
+            if str(src.crs) != 'EPSG:4326':
+                # Change the bbox to match the tif crs (canopy height is in EPSG:3857, whereas worldcover is in EPSG:4326)
+                # Should probs change this to match the actual src.crs instead of just assuming EPSG:3857
+                bbox_3857 = transform_bbox(bbox)
+                roi_coords_3857 = box(*bbox_3857)
+                roi_polygon_3857 = Polygon(roi_coords_3857)
+                roi_bounds = roi_polygon_3857.bounds
+            else:
+                roi_bounds = bbox
+
             intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
             window = from_bounds(*intersection_bounds, transform=src.transform)
 
