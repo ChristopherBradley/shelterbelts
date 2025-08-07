@@ -207,23 +207,6 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
     download_new_tiles(tiles, canopy_height_dir)
     mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, tmpdir, footprints_geojson)
 
-    # Create coordinates
-    transform = out_meta['transform']
-    height, width = mosaic.shape[1:]
-    x = np.arange(width) * transform.a + transform.c
-    y = np.arange(height) * transform.e + transform.f
-    if transform.e < 0:
-        y = y[::-1]
-    
-    # Create xarray
-    da = xr.DataArray(
-        mosaic,
-        dims=("band", "longitude", "latitude"),
-        coords={"band": ["band1"], "longitude": y, "latitude": x},
-        name="canopy_height"
-    ).rio.write_crs(out_meta['crs'])
-    ds = da.to_dataset().squeeze('band').drop_vars(['band'])
-
     if save_tif:
         out_meta.update({
             "height": mosaic.shape[1],
@@ -235,6 +218,19 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
             dest.write(mosaic)
         print("Saved:", output_tiff_filename)
         
+    # Create xarray
+    transform = out_meta['transform']
+    height, width = mosaic.shape[1:]
+    x = np.arange(width) * transform.a + transform.c
+    y = np.arange(height) * transform.e + transform.f
+    da = xr.DataArray(
+        mosaic,
+        dims=("band", "longitude", "latitude"),
+        coords={"band": ["band1"], "longitude": x, "latitude": y},
+        name="canopy_height"
+    ).rio.write_crs(out_meta['crs'])
+    ds = da.to_dataset().squeeze('band').drop_vars(['band'])
+
     if plot:
         filename = os.path.join(outdir, f"{stub}_canopy_height.png")    
         visualise_canopy_height(ds, filename)
