@@ -74,25 +74,33 @@ import xarray as xr
 mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, worldcover_dir)
 
 
-mosaic
-
 layer_name = "worldcover"
 save_tif = True
+
+transform.e
+
+out_meta
+
+out_meta.update({
+    "height": mosaic.shape[1],
+    "width": mosaic.shape[2],
+    "transform": 5
+})
 
 # +
 # Create coordinates
 transform = out_meta['transform']
 height, width = mosaic.shape[1:]
-x = np.arange(width) * transform.a + transform.c
-y = np.arange(height) * transform.e + transform.f
-if transform.e < 0:
-    y = y[::-1]
+# x = np.arange(width) * transform.a + transform.c
+# y = np.arange(height) * transform.e + transform.f
 
-# Create xarray
+x = (np.arange(width) + 0.5) * transform.a + transform.c
+y = (np.arange(height) + 0.5) * transform.e + transform.f
+
 da = xr.DataArray(
     mosaic,
     dims=("band", "longitude", "latitude"),
-    coords={"band": ["band1"], "longitude": y, "latitude": x},
+    coords={"band": ["band1"], "longitude": x, "latitude": y},
     name=layer_name
 ).rio.write_crs(out_meta['crs'])
 ds = da.to_dataset().squeeze('band').drop_vars(['band'])
@@ -107,9 +115,13 @@ if save_tif:
     with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
         dest.write(mosaic)
     print("Saved:", output_tiff_filename)
+
+
 # -
 
+from shelterbelts.apis.worldcover import worldcover_bbox, tif_categorical, worldcover_cmap
 
+tif_categorical(ds['worldcover'], '/scratch/xe2/cb8590/tmp/TEST7_worldcover.tif', colormap=worldcover_cmap)
 
 
 
@@ -125,6 +137,8 @@ gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", d
 # %%time
 ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=tmpdir, save_tif=False, plot=False, footprints_geojson='tiles_global.geojson')
 # Brought this down from 12 secs to 3 secs by using a smaller footprints file
+
+ds_canopy_height.rio.to_raster('/scratch/xe2/cb8590/tmp/TEST_canopy_height.tif')
 
 # +
 # %%time
