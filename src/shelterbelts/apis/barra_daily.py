@@ -13,8 +13,11 @@ import argparse
 import numpy as np
 import xarray as xr
 import pandas as pd
+import geopandas as gpd
+from shapely.geometry import box
 import matplotlib.pyplot as plt
 from windrose import WindroseAxes
+
 # -
 
 barra_abbreviations = {
@@ -40,18 +43,17 @@ def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buf
         # Likely no data for the specified month
         return None
 
-    # This bbox selection was giving a 0 latitude coordinates, even with a larger slice, 
-    # so I've made the code ignore the buffer and only return a single point for now.
+    # This issue randomly fixed itself as of 7 August, so ignore the comment below (hopefully the issue doesn't come back).
+        # Issue in May 2025: This bbox selection was giving a 0 latitude coordinates, even with a larger slice, so I've made the code ignore the buffer and only return a single point for now.
+        # ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
     
-    # bbox = [longitude - buffer, latitude - buffer, longitude + buffer, latitude + buffer]
-    # ds_region = ds.sel(lat=slice(bbox[3], bbox[1]), lon=slice(bbox[0], bbox[2]))
-    # min_buffer_size = 0.03
-    # if buffer < min_buffer_size:
-    #     # Find a single point but keep the lat and lon dimensions for consistency
-    #     ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
+    bbox = [longitude - buffer, latitude - buffer, longitude + buffer, latitude + buffer]
+    ds_region = ds.sel(lat=slice(bbox[3], bbox[1]), lon=slice(bbox[0], bbox[2]))
+    min_buffer_size = 0.03
+    if buffer < min_buffer_size:
+        # Find a single point but keep the lat and lon dimensions for consistency
+        ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
     
-    ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
-
     return ds_region
 
 # barra_singlemonth_thredds()
@@ -157,6 +159,7 @@ def dominant_wind_direction(ds, threshold_kmh=15):
     return most_frequent_direction, df_direction_counts
 
 
+# +
 def wind_dataframe(ds):
     """Create a dataframe of the frequency of each wind speed in each direction"""
     ds = ds.median(dim=['latitude', 'longitude'])
@@ -201,13 +204,51 @@ def wind_dataframe(ds):
     
     return df, max_speed, direction_max_speed
 
-
-# # Usage example of wind_dataframe
+# Use example =
 # df, max_speed, max_direction = wind_dataframe(ds)
-
-# # Calculating the direction with the most days with winds over 20km/hr
 # df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
 # direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
+
+
+# +
+def pixel_bbox(i, j, transform):
+    """Get the bbox of a specific pixel"""
+    x0, y0 = transform * (j, i)        # top-left corner
+    x1, y1 = transform * (j + 1, i + 1)  # bottom-right corner
+    return box(x0, y1, x1, y0) 
+
+def get_barra_bboxs(filename=None):
+    """Create a gdf of all the bboxs in the BARRA dataset"""
+    # Could swap this to the Thredds version to make it work not on NCI
+    # Might want to make ds an input if I need to do this on a different dataset
+    url = f"/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_202001-202001.nc"
+    ds = xr.open_dataset(url, engine="netcdf4")
+
+    # Get properties
+    transform = ds.rio.transform()
+    crs = ds.rio.crs
+    ny, nx = ds.rio.shape
+
+    # Create the gdf
+    bboxes = []
+    for i in range(ny):
+        for j in range(nx):
+            geom = pixel_bbox(i, j, transform)
+            bboxes.append(geom)
+    gdf_all = gpd.GeoDataFrame(geometry=bboxes, crs=crs)  # Took about 40 secs
+
+    if filename:
+        gdf_all.to_file(filename)  # Took about 5 mins and final output was about 200MB. Could make it smaller by cropping to the Australia border.
+        print(f"Saved: {filename}")
+        # Then I created smaller files for testing by selecting the relevant tiles in QGIS and Export > Save Selected Features as 
+
+    return gdf_all
+    
+# filename = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg'
+# get_barra_bboxs(filename)
+
+
+# -
 
 def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True, gdata=False):
     """Download 8day variables from BARRA at 4.4km resolution for the region/time of interest
@@ -280,7 +321,7 @@ if __name__ == '__main__':
     
     barra_daily(["uas", "vas"], lat, lon, buffer, start_year, end_year, outdir, stub, save_netcdf=True, plot=plot)
 
-# In my experiments comparing thredds and gdata with the default arguments, these were the times taken
+# +
+# In my experiments comparing thredds and gdata with the default arguments, these were the times taken.
 # thredds: 21 secs, then 10, 10, 10
 # gdata: 6 secs, then 4, 4, 4
-
