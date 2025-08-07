@@ -54,15 +54,6 @@ worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
 hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
 # -
 
-# Creating the canopy height subset filename
-gpkg_canopy_height_footprints = '/g/data/xe2/cb8590/Outlines/global_canopy_height_footprints.gpkg'
-gdf_canopy_height = gpd.read_file(gpkg_canopy_height_footprints)
-gdf_canopy_height['tile'] = [filename.split('.')[0] for filename in gdf_canopy_height['filename']]
-gdf_canopy_height = gdf_canopy_height[['tile', 'geometry']]
-gdf_canopy_height = gdf.to_crs('EPSG:4326')
-filename = os.path.join(tmpdir, 'tiles_global.geojson')
-gdf_canopy_height.to_file(filename)
-
 gdf_barra_bboxs = gpd.read_file(filename)
 
 # Extract the bbox
@@ -76,52 +67,47 @@ stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
 
 
 
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, identify_relevant_tiles_bbox, transform_bbox
-import rioxarray as rxr
-import rasterio
-from rasterio.windows import from_bounds
-
-
-relevant_tiles = identify_relevant_tiles_bbox(bbox, worldcover_dir, os.path.join(worldcover_dir, 'tiles_global.geojson'))
-tiff_file = os.path.join(worldcover_dir, f"ESA_WorldCover_10m_2021_v200_S36E147_Map.tif")
-bbox_3857 = transform_bbox(bbox)
-roi_coords_3857 = box(*bbox_3857)
-roi_polygon_3857 = Polygon(roi_coords_3857)
-
-da = rxr.open_rasterio(tiff_file)
-
-da.rio.crs
-
-da2 = rxr.open_rasterio('/scratch/xe2/cb8590/Global_Canopy_Height/311203333.tif')
-
-da2.rio.crs
-
-roi_bounds
-
-tiff_bounds
-
-intersection_bounds
-
-src.crs
-
-with rasterio.open(tiff_file) as src:
-    # Get bounds of the TIFF file
-    tiff_bounds = src.bounds
-    roi_bounds = roi_polygon_3857.bounds
-    intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
-    window = from_bounds(*intersection_bounds, transform=src.transform)
-
-    # Read data within the window
-    out_image = src.read(window=window)
-    out_transform = src.window_transform(window)
-    out_meta = src.meta.copy()
+from shelterbelts.apis.canopy_height import merge_tiles_bbox
+import numpy as np
+import xarray as xr
 
 mosaic, out_meta, out_trans = merge_tiles_bbox(bbox, outdir, stub, worldcover_dir)
 
 
+mosaic
 
+layer_name = "worldcover"
+save_tif = True
 
+# +
+# Create coordinates
+transform = out_meta['transform']
+height, width = mosaic.shape[1:]
+x = np.arange(width) * transform.a + transform.c
+y = np.arange(height) * transform.e + transform.f
+if transform.e < 0:
+    y = y[::-1]
 
+# Create xarray
+da = xr.DataArray(
+    mosaic,
+    dims=("band", "longitude", "latitude"),
+    coords={"band": ["band1"], "longitude": y, "latitude": x},
+    name=layer_name
+).rio.write_crs(out_meta['crs'])
+ds = da.to_dataset().squeeze('band').drop_vars(['band'])
+
+if save_tif:
+    out_meta.update({
+        "height": mosaic.shape[1],
+        "width": mosaic.shape[2],
+        "transform": out_trans
+    })
+    output_tiff_filename = os.path.join(outdir, f'{stub}_{layer_name}.tif')
+    with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
+        dest.write(mosaic)
+    print("Saved:", output_tiff_filename)
+# -
 
 
 
