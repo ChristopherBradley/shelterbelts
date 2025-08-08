@@ -1,25 +1,19 @@
 # +
-import glob
-import math
-import numpy as np
-import pandas as pd
-import xarray as xr
-
-import geopandas as gpd
-import geopandas as gpd
-from shapely.geometry import box
-from shapely.affinity import rotate
-
-from tensorflow import keras
+import os
 import subprocess
-import joblib
-# -
+
+import numpy as np
+import geopandas as gpd
+
+
+# +
+# Only using this for the predictions_filename() right now, so it can run in a jupyter notebook when testing
 
 # Change directory to this repo
 import sys, os
 repo_name = "shelterbelts"
 if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}/src")
 elif os.path.basename(os.getcwd()) != repo_name:
     repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
 else:  # Already running locally from repo root
@@ -27,142 +21,96 @@ else:  # Already running locally from repo root
 os.chdir(repo_dir)
 sys.path.append(repo_dir)
 print(f"Running from {repo_dir}")
-
-
-# %%time
-from tree_classifications.sentinel_parallel import sentinel_download
-from tree_classifications.predictions_batch import tif_prediction_ds
-from tree_classifications.merge_inputs_outputs import aggregated_metrics
-
-outdir = '/scratch/xe2/cb8590/ka08_trees'
-outdir_batches = "/g/data/xe2/cb8590/models/batches_aus"
-# outdir_batches = "/g/data/xe2/cb8590/models/batches_aus_10km"
-
-# %%time
-# Load the sentinel imagery tiles
-filename_sentinel_bboxs = "/g/data/xe2/cb8590/Nick_outlines/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
-gdf_sentinel = gpd.read_file(filename_sentinel_bboxs)
-
-
-# +
-def sub_tiles(gdf_sentinel, tile_id, grid_size=5):
-    """Create 25 equally spaced tiles within the larger sentinel tile"""
-
-    polygon = gdf_sentinel.loc[gdf_sentinel['Name'] == tile_id, 'geometry'].values[0]
-
-    gdf = gpd.GeoDataFrame(geometry=[polygon], crs="EPSG:4326")
-
-    # 1. Automatically determine appropriate UTM zone
-    utm_crs = gdf.estimate_utm_crs()
-    gdf_utm = gdf.to_crs(utm_crs)
-    polygon_utm = gdf_utm.geometry.iloc[0]
-
-    # 2. Compute minimum rotated rectangle and its angle
-    min_rect = polygon_utm.minimum_rotated_rectangle
-    coords = list(min_rect.exterior.coords)
-    dx = coords[1][0] - coords[0][0]
-    dy = coords[1][1] - coords[0][1]
-    angle = math.degrees(math.atan2(dy, dx))
-
-    # 3. Rotate the polygon to axis-align it
-    origin = polygon_utm.centroid
-    rotated_polygon = rotate(polygon_utm, -angle, origin=origin)
-    minx, miny, maxx, maxy = rotated_polygon.bounds
-
-    # 4. Create grid inside the bounds of rotated polygon
-    dx = (maxx - minx) / grid_size
-    dy = (maxy - miny) / grid_size
-
-    tiles = []
-    names = []
-
-    for i in range(grid_size):
-        for j in range(grid_size):
-            x0 = minx + j * dx
-            y0 = miny + i * dy
-            x1 = x0 + dx
-            y1 = y0 + dy
-            tile = box(x0, y0, x1, y1)
-
-            # Rotate tile back to original orientation
-            tile_rotated = rotate(tile, angle, origin=origin)
-
-            tiles.append(tile_rotated)
-
-            # Create a name from centroid
-            lon, lat = gpd.GeoSeries([tile_rotated], crs=utm_crs).to_crs("EPSG:4326").centroid.iloc[0].xy
-            name = f"{tile_id}{np.round(lat[0], 2)}_{np.round(lon[0], 2)}".replace(".", "_")
-            names.append(name)
-
-    # 5. Create GeoDataFrame and reproject back to EPSG:4326
-    tiles_gdf = gpd.GeoDataFrame({'stub': names, 'geometry': tiles}, crs=utm_crs)
-    tiles_wgs84 = tiles_gdf.to_crs("EPSG:4326")
-
-    # 6. Save to GeoPackage
-    # filename = "/scratch/xe2/cb8590/tmp/55HFC_grid_tiles.gpkg"
-    filename = os.path.join(outdir_batches, f"{tile_id}.gpkg")
-    if os.path.exists(filename):
-        os.remove(filename)
-    tiles_wgs84.to_file(filename, layer="tiles", driver="GPKG")
-    print("Saved", filename)
-    
-    return tiles_wgs84
-    
-# gdf = sub_tiles(gdf_sentinel, "55HFC")
-# len(gdf)
 # -
 
-# I want to try relaunching the subprocess for each for full tile to see if that solves memory accumulation issues.
 
-outdir_batches = "/g/data/xe2/cb8590/models/batches_aus_100km"
-test_tiles_unconnected = [["55HDA"], # Number of tiles per row is the number of subprocesses we launch each time
-                          ["55HFA"],
-                          ["55HFC"],
-                          ['55HDC']  # Number of rows is the number of times we relaunch the subprocesses
-                        ]   
- # 
-# test_tiles_connected = ["55HFC", "55HEC", "55HEB", "55HFB",
-#                         "55HGC", "56HKH", "55HGB", "56HKG",
-                        # "55HEV", "55HFV", "55HEU", "55HFU",
-                        # "55HGV", "56HKE", "55HGU", "56HKD"]
+predictions_filename = os.path.join(repo_dir, 'shelterbelts/classifications/predictions_batch.py')
 
-all_tiles = test_tiles_unconnected
 
-for tile_batch in all_tiles:
-
-    for tile_id in tile_batch:
-        # Create a geopackage with a list of stubs and bboxs for this subprocess to work on
-        sub_tiles(gdf_sentinel, tile_id, grid_size=1)
-
-    # Recreate the filename for each of those geopackages we just saved
-    batch_files = [os.path.join(outdir_batches, f"{tile_id}.gpkg") for tile_id in tile_batch]
-
-    # Launch a bunch of subprocesses in parallel
+def predictions_workers(gpkg, outdir, num_workers=10, year=2020, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', limit=None):
+    """Run predictions_batch in parallel with n workers at once
+    
+    Parameters  (same as predictions_batch + num_workers)
+    ----------
+        gpkg: Geopackage with the bounding box for each tile to download. A stub gets automatically assigned based on the center of the bbox.
+        outdir: Folder to save the output tifs.
+        num_workers: Integer number of processes to launch.
+        year: The year of sentinel imagery to use as input for the tree predictions.
+        nn_dir: The directory containing the neural network model and scaler.
+        nn_stub: The stub of the neural network and preprocessing scaler model to make the predictions.
+        limit: Number of rows for each worker to process. 'None' means process all the rows.
+    
+    Downloads
+    ---------
+        A tif with tree classifications for each bbox in the gpkg
+    
+    """
+    
+    gdf = gpd.read_file(gdf_filename)
+    batch_dir = os.path.join(nn_dir, "batches")
+    batch_stub = gdf_filename.split('/')[-1].split('.')[0]
+    if not os.path.exists(batch_dir):
+        os.mkdir(batch_dir)
+    
+    gdf_chunks = [gdf.iloc[i:i+num_workers] for i in range(0, len(gdf), num_workers)]
+    
     procs = []
-    for batch_file in batch_files:
-        p = subprocess.Popen(["python", "tree_classifications/predictions_batch.py", "--csv", batch_file])
+    for i, gdf_chunk in enumerate(gdf_chunks):
+        if limit:
+            gdf_chunk = gdf_chunk[:int(limit)]
+        filename = os.path.join(batch_dir, f'{batch_stub}_num_workers{num_workers}_batch{i}.gpkg')
+        gdf_chunk.to_file(filename)
+        print(f"Created batch: {filename}, with num rows: {len(gdf_chunk)}")
+
+        p = subprocess.Popen(["python", predictions_filename, "--gpkg", filename, "--outdir", outdir, "--year", str(year), "--nn_dir", nn_dir, "--nn_stub", nn_stub])
         procs.append(p)
-        
-    # Wait before relaunching more subprocesses
+        print(f"Launched process: {i}")
+
     for p in procs:
         p.wait()
+    
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument("--gpkg", type=str, required=True, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
+    parser.add_argument("--outdir", type=str, required=True, help="Output directory for the final classified tifs")
+    parser.add_argument("--num_workers", type=int, required=True, help="Number of processes to launch")
+    parser.add_argument("--year", type=int, default=2020, help="Year of satellite imagery to download for doing the classification")
+    parser.add_argument("--nn_dir", type=str, default='/g/data/xe2/cb8590/models', help="The stub of the neural network model and preprocessing scaler")
+    parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
+    parser.add_argument("--limit", type=int, default=None, help="Number of rows for each worker to process. 'None' means every row that worker is assigned")
+
+    return parser.parse_args()
+
+
+
+if __name__ == '__main__':
+
+    args = parse_arguments()
+    
+    gpkg = args.gpkg
+    outdir = args.outdir
+    num_workers = int(args.num_workers)
+    year = int(args.year)
+    nn_dir = args.nn_dir
+    nn_stub = args.nn_stub
+    limit = args.limit
+    
+    predictions_workers(gpkg, outdir, num_workers, year, nn_dir, nn_stub, limit)
+
 
 # +
-# sentinel_download with Large compute (7 cores, 32GB)
-# 1km x 1km x 1 year = 30, 10, 20, 10, 10, 20s 5GB, 26s 500MB
-# 2km x 2km x 1 year = 10, 10, 10, 23s 5GB 
-# 4kmx4km = 20s 1.5GB, 20s 1.5GB
-# 10kmx10km = 34, 25s 5GB, 15s 5GB, 16s 5GB, 28s 5GB
-# 20km x 20km x 1 year = 69 kernel died, 29s 12GB, 29s 20GB, 30s 20GB, 28s 20GB (but there seems to be 10GB not being used)
+# %%time
+filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+outdir = '/scratch/xe2/cb8590/tmp'
+num_workers = 10
+predictions_workers(filename, outdir, num_workers, limit=1)
 
-# Preprocessing + neural network predictions 
-# (the predictions are the slowest part, presumably faster on GPU)
-# 4km: 20 secs
-# 10km: 1 min 17 secs
-# 20km: 5 mins as predicted.
+# 40 secs for 1 file
+# 6 mins for 10 files
+# -
 
-# Scaling up estimations
-# If it takes 5 mins for 20kmx20km, that's 25*5 = 125 mins = 2 hours per Sentinel Tile. 
-# There are about 30x30 = 900 Sentinel tiles in Australia
-# Hopefully I can do tiles in parallel, so that will be about 20 hours on one Node, 
-# Or just 2 hours if it scales nicely up to 20 nodes (1000 CPUS)
+

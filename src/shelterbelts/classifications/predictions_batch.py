@@ -119,7 +119,7 @@ def tif_prediction_ds(ds, stub, outdir,  model, scaler, savetif):
     ) as dst:
         dst.write(da.values, 1)
         dst.write_colormap(1, cmap)
-    print("Saved", filename)
+    print(f"Saved: {filename}", flush=True)
 
     return da
 
@@ -207,7 +207,6 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models
     run_worker(func, rows, nn_dir, nn_stub)
 
 
-# Allow this file to be run with arguments from the command line
 def parse_arguments():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter
@@ -240,12 +239,10 @@ if __name__ == '__main__':
 
 
 # +
-# %%time
-filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
-outdir = '/scratch/xe2/cb8590/tmp'
-predictions_batch(filename, outdir, limit=10)
+# # %%time
+# filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# predictions_batch(filename, outdir, limit=10)
 
-# 40 secs for 1 file
-# -
-
-
+# # 40 secs for 1 file
+# # 6 mins for 10 files
