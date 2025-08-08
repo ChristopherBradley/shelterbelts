@@ -210,44 +210,6 @@ def wind_dataframe(ds):
 # direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
 
 
-# +
-def pixel_bbox(i, j, transform):
-    """Get the bbox of a specific pixel"""
-    x0, y0 = transform * (j, i)        # top-left corner
-    x1, y1 = transform * (j + 1, i + 1)  # bottom-right corner
-    return box(x0, y1, x1, y0) 
-
-def get_barra_bboxs(filename=None):
-    """Create a gdf of all the bboxs in the BARRA dataset"""
-    # Could swap this to the Thredds version to make it work not on NCI
-    # Might want to make ds an input if I need to do this on a different dataset
-    url = f"/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_202001-202001.nc"
-    ds = xr.open_dataset(url, engine="netcdf4")
-
-    # Get properties
-    transform = ds.rio.transform()
-    crs = ds.rio.crs
-    ny, nx = ds.rio.shape
-
-    # Create the gdf
-    bboxes = []
-    for i in range(ny):
-        for j in range(nx):
-            geom = pixel_bbox(i, j, transform)
-            bboxes.append(geom)
-    gdf_all = gpd.GeoDataFrame(geometry=bboxes, crs=crs)  # Took about 40 secs
-
-    if filename:
-        gdf_all.to_file(filename)  # Took about 5 mins and final output was about 200MB. Could make it smaller by cropping to the Australia border.
-        print(f"Saved: {filename}")
-        # Then I created smaller files for testing by selecting the relevant tiles in QGIS and Export > Save Selected Features as 
-
-    return gdf_all
-    
-# filename = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg'
-# get_barra_bboxs(filename)
-
-
 # -
 
 def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True, gdata=False):

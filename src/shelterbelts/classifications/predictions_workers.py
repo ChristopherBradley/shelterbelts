@@ -1,5 +1,6 @@
 # +
 import os
+import argparse
 import subprocess
 
 import numpy as np
@@ -46,9 +47,9 @@ def predictions_workers(gpkg, outdir, num_workers=10, year=2020, nn_dir='/g/data
     
     """
     
-    gdf = gpd.read_file(gdf_filename)
+    gdf = gpd.read_file(gpkg)
     batch_dir = os.path.join(nn_dir, "batches")
-    batch_stub = gdf_filename.split('/')[-1].split('.')[0]
+    batch_stub = gpkg.split('/')[-1].split('.')[0]
     if not os.path.exists(batch_dir):
         os.mkdir(batch_dir)
     
@@ -60,11 +61,11 @@ def predictions_workers(gpkg, outdir, num_workers=10, year=2020, nn_dir='/g/data
             gdf_chunk = gdf_chunk[:int(limit)]
         filename = os.path.join(batch_dir, f'{batch_stub}_num_workers{num_workers}_batch{i}.gpkg')
         gdf_chunk.to_file(filename)
-        print(f"Created batch: {filename}, with num rows: {len(gdf_chunk)}")
+        print(f"Created batch: {filename}, with num rows: {len(gdf_chunk)}", flush=True)
 
         p = subprocess.Popen(["python", predictions_filename, "--gpkg", filename, "--outdir", outdir, "--year", str(year), "--nn_dir", nn_dir, "--nn_stub", nn_stub])
         procs.append(p)
-        print(f"Launched process: {i}")
+        print(f"Launched process: {i}", flush=True)
 
     for p in procs:
         p.wait()
@@ -103,14 +104,11 @@ if __name__ == '__main__':
 
 
 # +
-# %%time
-filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
-outdir = '/scratch/xe2/cb8590/tmp'
-num_workers = 10
-predictions_workers(filename, outdir, num_workers, limit=1)
-
-# 40 secs for 1 file
-# 6 mins for 10 files
+# # %%time
+# filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# num_workers = 10
+# predictions_workers(filename, outdir, num_workers, limit=1)
 # -
 
 
