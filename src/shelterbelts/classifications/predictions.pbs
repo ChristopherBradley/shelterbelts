@@ -20,8 +20,8 @@ wd=/home/147/cb8590/Projects/shelterbelts/tree_classifications
 cd $wd
 
 # Run the script
-# python3 predictions_batch.py --csv /g/data/xe2/cb8590/models/batches_aus_10km/55HFC.gpkg
+python3 predictions_batch.py --csv /g/data/xe2/cb8590/models/batches_aus_10km/55HFC.gpkg
 # python3 predictions_batch.py --csv /g/data/xe2/cb8590/models/batches_aus_10km/55HFC.gpkg
 # python3 predictions_batch.py --csv /g/data/xe2/cb8590/models/batches_aus/55HFC.gpkg
 # python3 7.predictions.py
-python3 8.predictions_aus.py
+# python3 8.predictions_aus.py

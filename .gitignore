@@ -1,5 +1,6 @@
 data
 outdir
+pbs_outputs
 .DS_Store
 *.nc
 *.tif*

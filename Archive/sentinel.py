@@ -29,12 +29,13 @@ import datacube
 from dea_tools.datahandling import load_ard
 from dea_tools.plotting import xr_animation
 
-# Local imports
-os.chdir(os.path.join(os.path.expanduser('~'), "Projects/PaddockTS"))
-from DAESIM_preprocess.util import gdata_dir, scratch_dir
-
-
+# # Local imports
+# os.chdir(os.path.join(os.path.expanduser('~'), "Projects/PaddockTS"))
+# from DAESIM_preprocess.util import gdata_dir, scratch_dir
 # -
+scratch_dir = "/scratch/xe2/cb8590/tmp"
+
+
 def define_query(lat=-34.389042, lon=148.469499, buffer=0.005 , start_year=2020, end_year=2021):
     """Just requesting the bands needed for RGB and fractional cover"""
     lat_range = (lat-buffer, lat+buffer)
@@ -287,13 +288,26 @@ if __name__ == '__main__':
     end_year = 2030    # This automatically gets the most recent timepoint
 
     # Filenames
-    chris_outdir = os.path.join(gdata_dir, "Data/PadSeg/")
+    chris_outdir = os.path.join("/scratch/xe2/cb8590/tmp", "Data/PadSeg/")
     filename = os.path.join(chris_outdir, f"{stub}.nc")
         
     query = define_query(lat, lon, buffer, start_year, end_year)
+    
+    # Worked on 8/8/2025
     ds = load_and_process_data(query)
     
     available_imagery_sentinel(ds)
     calendar_plot_sentinel(ds)
     time_lapse(ds)
+
+
+# %%time
+available_imagery_sentinel(ds)
+
+# %%time
+calendar_plot_sentinel(ds)
+
+# %%time
+time_lapse(ds)
+
 

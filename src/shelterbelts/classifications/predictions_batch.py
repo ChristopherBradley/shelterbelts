@@ -28,13 +28,16 @@ import joblib
 import gc
 import psutil
 process = psutil.Process(os.getpid())
+# -
 
+
+repo_dir
 
 # +
-# Change directory to this repo
+# Change directory to this repo. Need to do this when using the DEA environment since I can't just pip install -e .
 repo_name = "shelterbelts"
 if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}/src")
 elif os.path.basename(os.getcwd()) != repo_name:
     repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
 else:  # Already running locally from repo root
@@ -43,8 +46,8 @@ os.chdir(repo_dir)
 sys.path.append(repo_dir)
 # print(f"Running from {repo_dir}")
 
-from tree_classifications.merge_inputs_outputs import aggregated_metrics
-from tree_classifications.sentinel_parallel import sentinel_download
+from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
+from shelterbelts.classifications.sentinel_parallel import sentinel_download
 
 # -
 
@@ -70,6 +73,7 @@ nearal_network_stub = 'fft_89a_92s_85r_86p'
 filename_model = f'/g/data/xe2/cb8590/models/nn_{nearal_network_stub}.keras'
 filename_scaler = f'/g/data/xe2/cb8590/models/scaler_{nearal_network_stub}.pkl'
 
+# Doing this inside the worker to hopefully avoid concurrency issues
 # model = keras.models.load_model(filename_model)
 # scaler = joblib.load(filename_scaler)
 
@@ -189,11 +193,11 @@ def run_worker(func, rows):
 if __name__ == '__main__':
 
     # Load the list of tiles we want to download
-    # args = argparse.Namespace(
-    #     # csv='/g/data/xe2/cb8590/models/batches/batch_0.csv'
-    #     csv='/g/data/xe2/cb8590/models/batches_aus/55HFC.gpkg'
-    # )
-    args = parse_arguments()
+    args = argparse.Namespace(
+        # csv='/g/data/xe2/cb8590/models/batches/batch_0.csv'
+        csv='/g/data/xe2/cb8590/models/batches_aus/55HFC.gpkg'
+    )
+    # args = parse_arguments()
     
     # Download Nick's tiles in serial
     # df = pd.read_csv(args.csv)
@@ -213,6 +217,9 @@ if __name__ == '__main__':
         rows.append([stub, year, outdir, bounds, crs])
     func = tif_prediction_bbox
 
-    # rows = rows[:10]
+    limit = 1
+    rows = rows[:limit]
 
     run_worker(func, rows)
+
+
