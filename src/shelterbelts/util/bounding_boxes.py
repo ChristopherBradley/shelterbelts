@@ -144,9 +144,57 @@ def get_barra_bboxs(filename=None):
         # Then I created smaller files for testing by selecting the relevant tiles in QGIS and Export > Save Selected Features as 
 
     return gdf_all
-    
+
 # filename = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg'
 # get_barra_bboxs(filename)
+
+def crop_barra_bboxs():
+    # This is the code I used to create barra_bboxs_aus and the state versions
+    filepath_barra_bbox_full = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg' # Takes 3 mins to load
+    gdf = gpd.read_file(filepath_barra_bbox_full)
+
+    filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
+    gdf2 = gpd.read_file(filename_state_boundaries)
+
+    state_mapping = {"New South Wales": "nsw",
+                     "Victoria":"vic",
+                     "Queensland":"qld",
+                     "South Australia":"sa",
+                     "Western Australia":"wa",
+                     "Tasmania":"tas",
+                     "Northern Territory":"nt",
+                     "Australian Capital Territory":"act"
+    }
+
+    # Create a geopackage for each state
+    for state, abbreviation in state_mapping.items():
+        geom = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales', 'geometry'].unary_union
+        gdf_sindex = gdf.sindex
+        possible_matches_index = list(gdf_sindex.intersection(geom.bounds))
+        possible_matches = gdf.iloc[possible_matches_index]
+        geom_prep = prep(geom)
+        mask = possible_matches.geometry.map(geom_prep.intersects)
+        gdf_state = possible_matches[mask]
+
+        filename = os.path.join('/g/data/xe2/cb8590/Outlines/BARRA_bboxs', f'barra_bboxs_{abbreviation}.gpkg')
+        gdf_nsw.to_file(filename)
+        print(f"Saved: {filename}")
+
+    # Create a geopackage of the tiles inside Australia
+    filename_aus = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
+    gdf3 = gpd.read_file(filename_aus)
+    geom_prep = prep(gdf3.loc[0,'geometry'])
+    mask = gdf.geometry.map(geom_prep.intersects) # Only took 1 min, I love shapely's prep function
+    gdf_aus = gdf[mask]
+    filename = os.path.join('/g/data/xe2/cb8590/Outlines/BARRA_bboxs', f'barra_bboxs_aus.gpkg')
+    gdf_aus.to_file(filename)
+    print(f"Saved: {filename}")
+
+    # Notes on number of tiles:
+    # 1 million in the original barra_bboxs
+    # 440k tiles in Australia boundary
+    # 100k in the NSW bbox
+    # 50k in NSW boundary
 
 
 # -
@@ -188,64 +236,3 @@ if __name__ == '__main__':
 # stub = 'NSW_5m_DEMs'
 # outdir = "/g/data/xe2/cb8590/Outlines"
 # bounding_boxes(filepath, outdir, stub, filetype='.asc')
-
-# +
-# Notes on number of tiles:
-# 1 million in the original barra_bboxs
-# 440k tiles in Australia
-# 100k in the NSW bbox
-# 50k in NSW
-# -
-
-# %%time
-filepath_barra_bbox_full = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg'
-gdf = gpd.read_file(filepath_barra_bbox_full)
-
-# %%time
-filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-gdf2 = gpd.read_file(filename_state_boundaries)
-
-state_mapping = {"New South Wales": "nsw",
-                 "Victoria":"vic",
-                 "Queensland":"qld",
-                 "South Australia":"sa",
-                 "Western Australia":"wa",
-                 "Tasmania":"tas",
-                 "Northern Territory":"nt",
-                 "Australian Capital Territory":"act"
-}
-
-# %%time
-# Create a geopackage for each state
-for state, abbreviation in state_mapping.items():
-    geom = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales', 'geometry'].unary_union
-    gdf_sindex = gdf.sindex
-    possible_matches_index = list(gdf_sindex.intersection(geom.bounds))
-    possible_matches = gdf.iloc[possible_matches_index]
-    geom_prep = prep(geom)
-    mask = possible_matches.geometry.map(geom_prep.intersects)
-    gdf_state = possible_matches[mask]
-    
-    filename = os.path.join('/g/data/xe2/cb8590/Outlines/BARRA_bboxs', f'barra_bboxs_{abbreviation}.gpkg')
-    gdf_nsw.to_file(filename)
-    print(f"Saved: {filename}")
-
-# %%time
-filename_aus = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
-gdf3 = gpd.read_file(filename_aus)
-
-geom_prep = prep(gdf3.loc[0,'geometry'])
-
-# %%time
-mask = gdf.geometry.map(geom_prep.intersects)
-# Only took 1 min, I love shapely's prep function
-
-gdf_aus = gdf[mask]
-len(gdf_aus)
-
-# %%time
-filename = os.path.join('/g/data/xe2/cb8590/Outlines/BARRA_bboxs', f'barra_bboxs_aus.gpkg')
-gdf_aus.to_file(filename)
-print(f"Saved: {filename}")
-
-
