@@ -279,4 +279,3 @@ if __name__ == '__main__':
     stub = "kernel4"
     neural_network(outdir, stub, stratification_columns=['tree_cover'], limit=10000)
 
-
