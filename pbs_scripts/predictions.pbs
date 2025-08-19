@@ -1,10 +1,10 @@
 #!/bin/bash
-#PBS -N predictions_100x48
-#PBS -l mem=190GB
-#PBS -l ncpus=48
+#PBS -N sentinel_x500_4GB_2CPUS
+#PBS -l mem=4GB
+#PBS -l ncpus=2
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=02:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
@@ -20,5 +20,5 @@ wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 cd $wd
 
 # Run the script
-# python3 predictions_batch.py --gpkg /g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_1000.gpkg --outdir /scratch/xe2/cb8590/barra_trees --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p
-python3 predictions_workers.py --num_workers 48 --gpkg /g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10000.gpkg --outdir /scratch/xe2/cb8590/barra_trees --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p --limit 100
+python3 predictions_batch.py --gpkg /g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg --outdir /scratch/xe2/cb8590/barra_trees --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p --limit 500
+# python3 predictions_workers.py --num_workers 4 --gpkg /g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg --outdir /scratch/xe2/cb8590/barra_trees --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p

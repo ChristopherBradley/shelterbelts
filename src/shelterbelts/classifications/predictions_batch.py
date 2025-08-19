@@ -138,18 +138,19 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
     da = tif_prediction_ds(ds, stub, outdir, model, scaler, savetif=True)
 
     # # Trying to avoid memory accumulating with new tiles
-    del ds, da
+    del ds 
+    del da
     gc.collect()
     return None
 
 def run_worker(func, rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p'):
     """Abstracting the for loop & try except for each worker"""
     
-    # Would be nice to not hardcode this so other people can use their own models
+    # # Would be nice to not hardcode this so other people can use their own models
     filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
     filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
 
-    # Should load this once per worker, so they aren't sharing the same model
+    # # Loading this once per worker, so they aren't sharing the same model
     model = keras.models.load_model(filename_model)
     scaler = joblib.load(filename_scaler)
 
@@ -221,7 +222,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# +
 # %%time
 if __name__ == '__main__':
 
@@ -246,3 +246,70 @@ if __name__ == '__main__':
 
 # # 40 secs for 1 file
 # # 6 mins for 10 files
+
+# +
+# # Trees for Dmitry, should move to a different file
+# filename = '/scratch/xe2/cb8590/tmp/Esdale_bbox.gpkg'
+
+# gdf = gpd.read_file(filename)
+
+# year = 2020
+# stub = f"ESDALE_{year}"
+# outdir = "/scratch/xe2/cb8590/ka08_trees"
+# src_crs = gdf.crs
+# bounds = list(gdf.bounds.iloc[0])
+
+# nn_dir = '/g/data/xe2/cb8590/models'
+# nn_stub = 'fft_89a_92s_85r_86p'
+
+# filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
+# filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
+
+# # # Loading this once per worker, so they aren't sharing the same model
+# model = keras.models.load_model(filename_model)
+# scaler = joblib.load(filename_scaler)
+
+# # %%time
+# tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
+
+# # %%time
+# years = [2017, 2018, 2019, 2021, 2022, 2023, 2024]
+# for year in years:
+#     stub = f"ESDALE_{year}"
+#     tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
+
+# year = 2025
+# stub = f"ESDALE_{year}"
+# tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
+
+# from shelterbelts.apis.worldcover import worldcover_bbox, worldcover_cmap, tif_categorical
+
+
+# da = worldcover_bbox(bounds, src_crs)
+
+# stub = "ESDALE"
+# filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
+# tif_categorical(da, filename, worldcover_cmap)
+
+# from shelterbelts.apis.canopy_height import canopy_height_bbox
+
+# # %%time
+# ds = canopy_height_bbox(bounds, outdir, stub, tmpdir='/scratch/xe2/cb8590/Global_Canopy_Height', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson')
+
+# from shelterbelts.util.binary_trees import worldcover_trees, canopy_height_trees, cmap_woody_veg, labels_woody_veg
+
+# da_canopy_height_trees = canopy_height_trees('/scratch/xe2/cb8590/ka08_trees/ESDALE_Canopy_Height_canopy_height.tif', outdir)
+
+# da_worldcover_trees = worldcover_trees('/scratch/xe2/cb8590/ka08_trees/ESDALE_worldcover.tif', outdir, stub)
+
+# da_2017 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2017_predicted.tif').isel(band=0).drop_vars('band')
+# da_2019 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2019_predicted.tif').isel(band=0).drop_vars('band')
+# da_2020 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2020_predicted.tif').isel(band=0).drop_vars('band')
+# da_2021 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2021_predicted.tif').isel(band=0).drop_vars('band')
+# da_2023 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2023_predicted.tif').isel(band=0).drop_vars('band')
+# da_2024 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2023_predicted.tif').isel(band=0).drop_vars('band')
+
+# da_union = da_2017 | da_2020 | da_2021 | da_2023 | da_2024
+
+# tif_categorical(da_union, '/scratch/xe2/cb8590/ka08_trees/ESDALE_woody_veg_union2.tif', cmap_woody_veg)
+
