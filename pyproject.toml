@@ -35,7 +35,9 @@ dependencies = [
     "openpyxl",
     "DAESIM_preprocess",
     "osmnx", 
-    "xlsxwriter"
+    "xlsxwriter",
+    "pyarrow",
+    "tensorflow"
 ]
 
 [project.optional-dependencies]
