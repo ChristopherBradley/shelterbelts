@@ -20,6 +20,8 @@ wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 cd $wd
 
 # Run the script
-python3 predictions_batch.py --gpkg /g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg --outdir /scratch/xe2/cb8590/barra_trees --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p --limit 1
+python3 predictions_batch.py --csv /g/data/xe2/cb8590/models/batches_aus_10km/55HFC.gpkg
+# python3 predictions_batch.py --csv /g/data/xe2/cb8590/models/batches_aus_10km/55HFC.gpkg
+# python3 predictions_batch.py --csv /g/data/xe2/cb8590/models/batches_aus/55HFC.gpkg
 # python3 7.predictions.py
 # python3 8.predictions_aus.py

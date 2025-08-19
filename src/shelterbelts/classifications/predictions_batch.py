@@ -1,5 +1,8 @@
 # +
 import os, sys
+import argparse
+import logging
+logging.basicConfig(level=logging.INFO)
 
 import glob
 import pickle
@@ -31,10 +34,10 @@ process = psutil.Process(os.getpid())
 
 
 # +
-# Change directory to this repo
+# Change directory to this repo. Need to do this when using the DEA environment since I can't just pip install -e .
 repo_name = "shelterbelts"
 if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}/src")
 elif os.path.basename(os.getcwd()) != repo_name:
     repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
 else:  # Already running locally from repo root
@@ -43,35 +46,10 @@ os.chdir(repo_dir)
 sys.path.append(repo_dir)
 # print(f"Running from {repo_dir}")
 
-from tree_classifications.merge_inputs_outputs import aggregated_metrics
-from tree_classifications.sentinel_parallel import sentinel_download
+from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
+from shelterbelts.classifications.sentinel_parallel import sentinel_download
 
 # -
-
-# Allow this file to be run with arguments from the command line
-import argparse
-import logging
-logging.basicConfig(level=logging.INFO)
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="""Run the model predictions in parallel
-        
-Example usage locally:
-python3 predictions_batch.py --csv batch.csv""",
-        formatter_class=argparse.RawTextHelpFormatter
-    )
-    parser.add_argument("--csv", type=str, required=True, help="csv filename containing a list of tiles for this subprocess")
-    return parser.parse_args()
-
-
-# +
-# Load the trained model and standard scaler
-nearal_network_stub = 'fft_89a_92s_85r_86p'
-filename_model = f'/g/data/xe2/cb8590/models/nn_{nearal_network_stub}.keras'
-filename_scaler = f'/g/data/xe2/cb8590/models/scaler_{nearal_network_stub}.pkl'
-
-# model = keras.models.load_model(filename_model)
-# scaler = joblib.load(filename_scaler)
 
 # Prepare the colour scheme for the tiff files
 cmap = {
@@ -154,7 +132,7 @@ def tif_prediction(tile, outdir='/scratch/xe2/cb8590/Nick_predicted'):
     da = tif_prediction_ds(ds, tile_id, outdir, savetif=True)
     return da
 
-def tif_prediction_bbox(stub, year, outdir, bounds, src_crs,  model, scaler):
+def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
     # Run the sentinel download and tree classification for a given location
     ds = sentinel_download(stub, year, outdir, bounds, src_crs)
     da = tif_prediction_ds(ds, stub, outdir, model, scaler, savetif=True)
@@ -164,9 +142,14 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs,  model, scaler):
     gc.collect()
     return None
 
-def run_worker(func, rows):
+def run_worker(func, rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p'):
     """Abstracting the for loop & try except for each worker"""
-    # Should load this once per worker
+    
+    # Would be nice to not hardcode this so other people can use their own models
+    filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
+    filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
+
+    # Should load this once per worker, so they aren't sharing the same model
     model = keras.models.load_model(filename_model)
     scaler = joblib.load(filename_scaler)
 
@@ -185,34 +168,84 @@ def run_worker(func, rows):
 
 # -
 
+def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', limit=None):
+    """Use the model to make tree classifications based on sentinel imagery for that year
+    
+    Parameters
+    ----------
+        gpkg: Geopackage with the bounding box for each tile to download. A stub gets automatically assigned based on the center of the bbox.
+        outdir: Folder to save the output tifs.
+        year: The year of sentinel imagery to use as input for the tree predictions.
+        nn_dir: The directory containing the neural network model and scaler.
+        nn_stub: The stub of the neural network and preprocessing scaler model to make the predictions.
+        limit: The number of rows in the gpkg to read. 'None' means use all the rows.
+    
+    Downloads
+    ---------
+        A tif with tree classifications for each bbox in the gpkg
+    
+    
+    """
+    
+    gdf = gpd.read_file(gpkg)
+    crs = gdf.crs
+    rows = []
+    for i, row in gdf.iterrows():
+        bbox = row['geometry'].bounds
+        centroid = row['geometry'].centroid
+        
+        # Maybe I should make it so that if there is a 'stub' column in the gdf then use that, otherwise create a stub automatically like this
+        stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
+        rows.append([stub, year, outdir, bbox, crs])
+
+    if limit:
+        rows = rows[:int(limit)]
+
+    # Legacy argument, not sure when we'd want to use run_worker with another function anymore.
+    func = tif_prediction_bbox
+
+    run_worker(func, rows, nn_dir, nn_stub)
+
+
+# Allow this file to be run with arguments from the command line
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument("--gpkg", type=str, required=True, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
+    parser.add_argument("--outdir", type=str, required=True, help="Output directory for the final classified tifs")
+    parser.add_argument("--year", type=int, default=2020, help="Year of satellite imagery to download for doing the classification")
+    parser.add_argument("--nn_dir", type=str, default='/g/data/xe2/cb8590/models', help="The stub of the neural network model and preprocessing scaler")
+    parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
+    parser.add_argument("--limit", type=int, default=None, help="Number of rows to process")
+
+    return parser.parse_args()
+
+
+# +
 # %%time
 if __name__ == '__main__':
 
-    # Load the list of tiles we want to download
-    # args = argparse.Namespace(
-    #     # csv='/g/data/xe2/cb8590/models/batches/batch_0.csv'
-    #     csv='/g/data/xe2/cb8590/models/batches_aus/55HFC.gpkg'
-    # )
     args = parse_arguments()
     
-    # Download Nick's tiles in serial
-    # df = pd.read_csv(args.csv)
-    # rows = df['0'].to_list()
-    # rows = [[row] for row in rows]
-    # run_worker(func, rows)
+    gpkg = args.gpkg
+    outdir = args.outdir
+    year = int(args.year)
+    nn_dir = args.nn_dir
+    nn_stub = args.nn_stub
+    limit = args.limit
+    
+    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit)
 
-    # Download the aus ka08 subtiles in serial
-    gdf = gpd.read_file(args.csv)
-    rows = []
-    outdir = '/scratch/xe2/cb8590/ka08_trees'
-    for i, tile in gdf.iterrows():
-        stub = tile['stub']
-        year = "2020"
-        bounds = tile['geometry'].bounds
-        crs = gdf.crs
-        rows.append([stub, year, outdir, bounds, crs])
-    func = tif_prediction_bbox
 
-    # rows = rows[:10]
 
-    run_worker(func, rows)
+# +
+# %%time
+filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+outdir = '/scratch/xe2/cb8590/tmp'
+predictions_batch(filename, outdir, limit=10)
+
+# 40 secs for 1 file
+# -
+
+
