@@ -25,26 +25,31 @@ def monthly_mosaic(sentinel_file, tree_file=None, clip_percentile=(2, 98)):
 
     # Reproject to match tree mask exactly (should already have roughly the same dimensions)
     if tree_file:
+        # print(f"Opening {tree_file}")
         ds_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
         ds_sentinel = ds_sentinel.rio.reproject_match(ds_tree)
     else:
         ds_tree = None  # Would use this option when applying the model to unseen data
     
+    # print("Creating tile_array")
     # Create tile_array and timestamps
     bands = list(ds_sentinel.data_vars)
     T = ds_sentinel.dims['time']
     C = len(bands)
     H, W = ds_sentinel.dims['y'], ds_sentinel.dims['x']
 
+    # print("Stacking bands")
     # Stack all bands into shape (H, W, T, C)
     tile_array = np.zeros((H, W, T, C), dtype=np.float32)
     for c, var in enumerate(bands):
         tile_array[:, :, :, c] = ds_sentinel[var].values.transpose(1, 2, 0)  # y,x,time → H,W,T
 
+    # print("Interpolating")
     # Interpolate and normalise the data
     timestamps = pd.to_datetime(ds_sentinel.time.values)
     monthly_tile = monthly_median_stack(tile_array, timestamps, clip_percentile)
 
+    # print("Returning monthly_tile")
     return monthly_tile, ds_tree
 
 
@@ -108,19 +113,25 @@ def extract_patches(X, y, patch_size=64, stride=32):
 
 def preprocess_tile(sentinel_file, tree_file, patch_size=64, stride=32, clip_percentile=(2, 98)):
     """Load, normalise, and reshape the inputs and outputs for a single tile training the CNN"""
+    # print(sentinel_file)
+    # print(tree_file)
     monthly_tile, ds_tree = monthly_mosaic(sentinel_file, tree_file, clip_percentile)
 
+    # print("Extracting patches")
     # I want to add the option for tree_file to be None, so that I can use the same function when applying the model to unseen data
+    # print("mosaic_output_shapes", monthly_tile.shape, ds_tree.shape)
     X_p, y_p = extract_patches(monthly_tile, ds_tree.values, patch_size, stride)
     
     # Collapse the time & tile dimensions into a single channel dimension (removes temporal sequence information, but retains temporal variation)
-    X_p_reshaped = X_p.reshape(
-        X_p.shape[0],
-        X_p.shape[1], 
-        X_p.shape[2],   
-        X_p.shape[3] * X_p.shape[4]   # 12 months * 10 bands = 120 channels
-    )
-    return X_p_reshaped, y_p
+    if len(X_p) > 0:
+        # print("Reshaping: ", X_p.shape, y_p.shape)
+        X_p = X_p.reshape(
+            X_p.shape[0],
+            X_p.shape[1], 
+            X_p.shape[2],   
+            X_p.shape[3] * X_p.shape[4]   # 12 months * 10 bands = 120 channels
+        )
+    return X_p, y_p
 
 def prep_tiles(sentinel_folder, tree_folder, patch_size=64, stride=32, clip_percentile=(2, 98), limit=None):
     """Use a bunch of tiles to create the training and testing arrays for the CNN"""
@@ -128,30 +139,32 @@ def prep_tiles(sentinel_folder, tree_folder, patch_size=64, stride=32, clip_perc
     sentinel_files = sorted(glob.glob(os.path.join(sentinel_folder, "*.pkl")))
 
     # Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
-    # interesting_tile_ids = [
-    # "g2_017_",
-    # "g2_019_",
-    # "g2_021_",
-    # "g2_21361_",
-    # "g2_23939_",
-    # "g2_23938_",
-    # "g2_09_",
-    # "g2_2835_",
-    # "g2_25560_",
-    # "g2_24903_"
-    # ]
-    # sentinel_files = [filename for filename in sentinel_files if any(tile_id in filename for tile_id in interesting_tile_ids)]
+    interesting_tile_ids = [
+    "g2_017_",
+    "g2_019_",
+    "g2_021_",
+    "g2_21361_",
+    "g2_23939_",
+    "g2_23938_",
+    "g2_09_",
+    "g2_2835_",
+    "g2_25560_",
+    "g2_24903_"
+    ]
+    sentinel_files = [filename for filename in sentinel_files if any(tile_id in filename for tile_id in interesting_tile_ids)]
     
     sentinel_files = sentinel_files[:limit]
+    
+    print("Number of tiles to use as input", len(sentinel_files))
 
     sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_files]
-    tree_files = [os.path.join(tree_folder, tile_id, "*.tif*") for tile_id in sentinel_tile_ids]
-    # tree_files = [os.path.join(tree_folder, f'{tile_id}_binary_tree_cover_10m.tiff') for tile_id in sentinel_tile_ids]
+    tree_files = [os.path.join(tree_folder, f'{tile_id}_binary_tree_cover_10m.tiff') for tile_id in sentinel_tile_ids]
     pairs = [(t, s) for t, s in zip(tree_files, sentinel_files)]
 
     all_X, all_y = [], []
     for tree_file, sentinel_file in pairs:
-        X_p, y_p = preprocess_tile(tree_file, sentinel_file, patch_size, stride, clip_percentile)
+        X_p, y_p = preprocess_tile(sentinel_file, tree_file, patch_size, stride, clip_percentile)
+        # print("Appending")
         all_X.append(X_p)
         all_y.append(y_p)
 
@@ -211,14 +224,18 @@ def train_model(X, y, test_size=0.2, random_state=1, batch_size=8, epochs=10):
 
     return model
 
+
+
+# -
+
 # %%time
 if __name__ == '__main__':
 
     sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
-    tree_folder = '/scratch/xe2/cb8590/Nick_Aus_treecover_10m'
-    limit = 20
+    tree_folder = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+    limit = 10
 
-    X, y = prep_tiles(sentinel_folder, tree_folder, limit)
+    X, y = prep_tiles(sentinel_folder, tree_folder, limit=limit)
 
     model = train_model(X, y)
 
