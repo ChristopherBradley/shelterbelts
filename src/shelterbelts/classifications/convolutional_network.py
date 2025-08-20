@@ -150,7 +150,7 @@ def preprocess_tile(sentinel_file, tree_file=None, patch_size=64, stride=32, cli
     monthly_tile, ds_tree = monthly_mosaic(sentinel_file, tree_file, clip_percentile)
 
     # I want to add the option for tree_file to be None, so that I can use the same function when applying the model to unseen data
-    tree_values = ds_tree.values if ds_tree else None
+    tree_values = ds_tree.values if ds_tree is not None else None
     X_p, y_p = extract_patches(monthly_tile, tree_values, patch_size, stride)
     
     # Collapse the time & tile dimensions into a single channel dimension (removes temporal sequence information, but retains temporal variation)
@@ -380,4 +380,12 @@ tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_
 da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
 da_tree_reprojected = da_tree.rio.reproject_match(ds_sentinel)
 
+da_tree.shape
+
 da_tree_reprojected.plot()
+
+# sanity check
+X_p, y_p = preprocess_tile(sentinel_file, tree_file)
+
+reconstructed = reconstruct_from_patches(y_p, da_tree.shape)
+
