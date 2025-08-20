@@ -9,6 +9,7 @@ import pandas as pd
 import rioxarray as rxr
 
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import layers, Model
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
@@ -27,32 +28,27 @@ def monthly_mosaic(sentinel_file, tree_file=None, clip_percentile=(2, 98)):
 
     # Reproject to match tree mask exactly (should already have roughly the same dimensions)
     if tree_file:
-        # print(f"Opening {tree_file}")
-        ds_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
-        ds_sentinel = ds_sentinel.rio.reproject_match(ds_tree)
+        da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
+        ds_sentinel = ds_sentinel.rio.reproject_match(da_tree)
     else:
-        ds_tree = None  # Would use this option when applying the model to unseen data
+        da_tree = None  # Would use this option when applying the model to unseen data
     
-    # print("Creating tile_array")
     # Create tile_array and timestamps
     bands = list(ds_sentinel.data_vars)
     T = ds_sentinel.dims['time']
     C = len(bands)
     H, W = ds_sentinel.dims['y'], ds_sentinel.dims['x']
 
-    # print("Stacking bands")
     # Stack all bands into shape (H, W, T, C)
     tile_array = np.zeros((H, W, T, C), dtype=np.float32)
     for c, var in enumerate(bands):
         tile_array[:, :, :, c] = ds_sentinel[var].values.transpose(1, 2, 0)  # y,x,time → H,W,T
 
-    # print("Interpolating")
     # Interpolate and normalise the data
     timestamps = pd.to_datetime(ds_sentinel.time.values)
     monthly_tile = monthly_median_stack(tile_array, timestamps, clip_percentile)
 
-    # print("Returning monthly_tile")
-    return monthly_tile, ds_tree
+    return monthly_tile, da_tree
 
 
 def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
@@ -98,27 +94,64 @@ def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
     return monthly_values
 
 
-def extract_patches(X, y, patch_size=64, stride=32):
-    """Create smaller patches for the convolutional network to learn from"""
+def extract_patches(X, y=None, patch_size=64, stride=32):
+    """
+    Create smaller patches for the convolutional network.
+    
+    Parameters
+    ----------
+    X : np.ndarray
+        Shape (H, W, C, T) or (H, W, C)
+    y : np.ndarray or None
+        Shape (H, W). If None, just return X patches.
+    patch_size : int
+        Size of square patch.
+    stride : int
+        Step size when sliding the patch window.
+        
+    Returns
+    -------
+    patches_X : np.ndarray
+        Shape (N, patch_size, patch_size, C, T) or (N, patch_size, patch_size, C)
+    patches_y : np.ndarray
+        Shape (N, patch_size, patch_size, 1) if y is provided, else None
+    """
     patches_X, patches_y = [], []
-    H, W, _, _ = X.shape
+    H, W = X.shape[:2]
+
     for i in range(0, H - patch_size + 1, stride):
         for j in range(0, W - patch_size + 1, stride):
-            Xp = X[i:i+patch_size, j:j+patch_size, :, :]
-            yp = y[i:i+patch_size, j:j+patch_size]
-            if np.any(yp):
+            Xp = X[i:i+patch_size, j:j+patch_size, ...]
+            if y is not None:
+                yp = y[i:i+patch_size, j:j+patch_size]
+                if np.any(yp):
+                    patches_X.append(Xp)
+                    patches_y.append(yp[..., None])
+            else:
                 patches_X.append(Xp)
-                patches_y.append(yp[..., None])
 
-    return np.array(patches_X), np.array(patches_y)
+    patches_X = np.array(patches_X)
+    
+    if y is not None:
+        if len(patches_y) == 0:
+            # no patches had trees → return empty array with correct shape
+            patches_y = np.zeros((0, patch_size, patch_size, 1), dtype=X.dtype)
+        else:
+            patches_y = np.array(patches_y)
+        return patches_X, patches_y
+    else:
+        return patches_X, None
 
 
-def preprocess_tile(sentinel_file, tree_file, patch_size=64, stride=32, clip_percentile=(2, 98)):
-    """Load, normalise, and reshape the inputs and outputs for a single tile training the CNN"""
+def preprocess_tile(sentinel_file, tree_file=None, patch_size=64, stride=32, clip_percentile=(2, 98)):
+    """Load, normalise, and reshape the inputs and outputs for a single tile training the CNN
+    If tree_file is None, then X_p will be preprocessed as normal, and y_p will also be None
+    """
     monthly_tile, ds_tree = monthly_mosaic(sentinel_file, tree_file, clip_percentile)
 
     # I want to add the option for tree_file to be None, so that I can use the same function when applying the model to unseen data
-    X_p, y_p = extract_patches(monthly_tile, ds_tree.values, patch_size, stride)
+    tree_values = ds_tree.values if ds_tree else None
+    X_p, y_p = extract_patches(monthly_tile, tree_values, patch_size, stride)
     
     # Collapse the time & tile dimensions into a single channel dimension (removes temporal sequence information, but retains temporal variation)
     if len(X_p) > 0:
@@ -136,6 +169,7 @@ def prep_tiles(sentinel_folder, tree_folder, outdir=".", stub="TEST", patch_size
     sentinel_files = sorted(glob.glob(os.path.join(sentinel_folder, "*.pkl")))
 
     # Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
+    # I should figure out how to balance the larger dataset, and/or adjust the loss function to not overpredict non-trees 
     interesting_tile_ids = [
         "g2_017_",
         "g2_019_",
@@ -161,7 +195,6 @@ def prep_tiles(sentinel_folder, tree_folder, outdir=".", stub="TEST", patch_size
     all_X, all_y = [], []
     for tree_file, sentinel_file in pairs:
         X_p, y_p = preprocess_tile(sentinel_file, tree_file, patch_size, stride, clip_percentile)
-        # print("Appending")
         all_X.append(X_p)
         all_y.append(y_p)
 
@@ -275,24 +308,76 @@ if __name__ == '__main__':
     X, y = load_preprocessed_npz(outdir, stub)   # Use this if you've already preprocessed the data previously
 
     model = train_model(X, y, outdir, stub)
+    # model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
 
 
-# +
-# test_size = 0.2
-# random_state = 1
-# batch_size = 16
-# epochs=10
-# X_train, X_val, y_train, y_val = train_test_split(
-#     X, y, test_size=test_size, random_state=random_state
-# )
+def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
+    """
+    Reconstruct full-size image from patches.
 
-# model = tiny_unet(input_shape=X_train.shape[1:])
-# model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+    Parameters
+    ----------
+    patches_y : np.ndarray
+        Shape (N, patch_size, patch_size, 1)
+    image_shape : tuple
+        (H, W) of original image
+    patch_size : int
+    stride : int
 
-# history = model.fit(
-#     X_train, y_train,
-#     validation_data=(X_val, y_val),
-#     batch_size=batch_size,
-#     epochs=epochs,
-#     callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)]
-# )
+    Returns
+    -------
+    y_full : np.ndarray
+        Shape (H, W)
+    """
+    H, W = image_shape
+    y_full = np.zeros((H, W), dtype=np.float32)
+    count = np.zeros((H, W), dtype=np.float32)  # for averaging overlapping pixels
+
+    n_patches_per_row = (H - patch_size) // stride + 1
+    n_patches_per_col = (W - patch_size) // stride + 1
+
+    idx = 0
+    for i in range(0, H - patch_size + 1, stride):
+        for j in range(0, W - patch_size + 1, stride):
+            if idx >= len(patches_y):
+                break
+            patch = patches_y[idx, ..., 0]  # remove channel dim
+            y_full[i:i+patch_size, j:j+patch_size] += patch
+            count[i:i+patch_size, j:j+patch_size] += 1
+            idx += 1
+
+    # Avoid division by zero
+    count[count == 0] = 1
+    y_full /= count
+    return y_full
+
+
+
+# Applying the model to new data
+sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_ds2_2020.pkl'
+X_p, _, shape = preprocess_tile(s, None)
+
+# Should probably use this ds as input into monthly_mosaic instead of the filename, so I don't have to load file twice
+print(f"Loading {sentinel_file}")
+with open(sentinel_file, 'rb') as f:
+    ds_sentinel = pickle.load(f)  # xarray.Dataset, dims: time, y, x
+
+
+shape = (ds_sentinel.dims['y'], ds_sentinel.dims['x'])  
+
+y_pred_prob = model.predict(X_val, batch_size=1)
+# y_pred = (y_pred_prob > 0.5).astype(np.uint8)
+
+trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
+
+trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
+
+ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
+
+ds_sentinel['trees_predicted'].plot()
+
+tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_10m.tiff'
+da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
+da_tree_reprojected = da_tree.rio.reproject_match(ds_sentinel)
+
+da_tree_reprojected.plot()
