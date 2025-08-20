@@ -1,17 +1,21 @@
+# +
 # %%time
 import os
 import glob
 import pickle
+
 import numpy as np
+import pandas as pd
 import rioxarray as rxr
 import xarray as xr
-from sklearn.model_selection import train_test_split
+
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-import pandas as pd
-from sklearn.metrics import classification_report
 from tensorflow.keras.metrics import Precision, Recall
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
 
+# -
 
 
 # -------------------
@@ -83,49 +87,6 @@ def monthly_mosaic(tree_file, sentinel_file):
 
 def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
     """
-    Convert variable-length Sentinel-2 time series into 12 monthly medians.
-    
-    Parameters
-    ----------
-    tile_array : np.ndarray
-        Shape (H, W, T, C) where T = number of acquisitions, C = bands.
-    timestamps : list-like
-        Length T, acquisition datetimes (pd.Timestamp or str).
-    clip_percentile : tuple
-        Percentiles to use for outlier clipping, e.g. (2, 98).
-    
-    Returns
-    -------
-    np.ndarray
-        Shape (H, W, 12, C), monthly medians normalized to [0,1].
-    """
-    H, W, T, C = tile_array.shape
-    timestamps = pd.to_datetime(timestamps)
-    
-    # Prepare monthly result
-    monthly = np.full((H, W, 12, C), np.nan, dtype=np.float32)
-
-    for month in range(1, 13):
-        mask = timestamps.month == month
-        if not np.any(mask):
-            continue  # no acquisitions this month
-        # Median over all acquisitions in that month
-        monthly[:, :, month-1, :] = np.median(tile_array[:, :, mask, :], axis=2)
-
-    # Handle outlier clipping + normalization per band
-    for c in range(C):
-        band = monthly[:, :, :, c]
-        vmin, vmax = np.nanpercentile(band, clip_percentile)
-        band = np.clip(band, vmin, vmax)
-        # Normalize to [0,1]
-        band = (band - vmin) / (vmax - vmin + 1e-6)
-        monthly[:, :, :, c] = band
-
-    return monthly
-
-
-def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
-    """
     Faster monthly median stack with global interpolation.
     Missing months are filled by interpolating the global per-band median time series.
     """
@@ -167,13 +128,6 @@ def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
 
 
 
-# %%time
-tree_file, sentinel_file = pairs[0]
-monthly_tile, ds_tree = monthly_mosaic(tree_file, sentinel_file)
-print("X range:", monthly_tile.min(), monthly_tile.max())
-
-
-# +
 def extract_patches(X, y, patch_size=64, stride=32):
     patches_X, patches_y = [], []
     H, W, _, _ = X.shape
@@ -187,16 +141,16 @@ def extract_patches(X, y, patch_size=64, stride=32):
 
     return np.array(patches_X), np.array(patches_y)
 
-# X_p, y_p = extract_patches(monthly_tile, ds_tree.values, patch_size=64, stride=32)
-# print(X_p.shape, y_p.shape)  # (#patches, 64, 64, 12*C), (#patches, 64, 64, 1)
 
 
+def preprocess(tree_file, sentinel_file, patch_size=64, stride=32, clip_percentile=(2, 98)):
+    
 
-# -
 
+# +
 # %%time
 # -------------------
-# 3. Build dataset
+# 2. Build the dataset
 # -------------------
 all_X, all_y = [], []
 for tree_file, sentinel_file in pairs:
@@ -214,23 +168,18 @@ for tree_file, sentinel_file in pairs:
         all_X.append(X_p_reshaped)
         all_y.append(y_p)
 
-
 X_p = np.concatenate(all_X, axis=0)
 y_p = np.concatenate(all_y, axis=0)
 print("Final dataset:", X_p.shape, y_p.shape)
 
-X_p.min(), X_p.max()
-
-# +
-# -------------------
-# 4. Train/val split
-# -------------------
 X_train, X_val, y_train, y_val = train_test_split(
     X_p, y_p, test_size=0.2, random_state=42
 )
 
+
+# +
 # -------------------
-# 5. Tiny U-Net (same as before)
+# 3. Create the Model
 # -------------------
 def conv_block(x, f):
     x = layers.Conv2D(f, 3, padding="same", activation="relu")(x)
@@ -250,46 +199,11 @@ def tiny_unet(input_shape):
 model = tiny_unet(input_shape=X_train.shape[1:])
 model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
 
-
-# +
-# Trying out weighted classes. Probs won't help because I wasn't learning even with evenly distributed inputs
-y_train_flat = y_train.flatten()
-total_pixels = len(y_train_flat)
-zeros = np.sum(y_train_flat == 0)
-ones = np.sum(y_train_flat == 1)
-
-# Compute weights inversely proportional to frequency
-weight_0 = total_pixels / (2 * zeros)
-weight_1 = total_pixels / (2 * ones)
-
-print(f"Weight for 0: {weight_0:.4f}, weight for 1: {weight_1:.4f}")
-
 # -
 
-def weighted_bce(weight_0, weight_1):
-    def loss(y_true, y_pred):
-        if tf.rank(y_pred) == 3:  # (batch,H,W)
-            y_pred = tf.expand_dims(y_pred, axis=-1)
-
-        y_true = tf.cast(y_true, tf.float32)
-        y_pred = tf.clip_by_value(y_pred, 1e-7, 1-1e-7)  # avoid log(0)
-
-        # compute weights
-        weights = y_true * weight_1 + (1 - y_true) * weight_0
-        bce = -(y_true * tf.math.log(y_pred) + (1 - y_true) * tf.math.log(1 - y_pred))
-        return tf.reduce_mean(bce * weights)
-    return loss
-
-
-
-optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4)
-
-model.compile(optimizer=optimizer, loss=loss_fn, metrics=["accuracy", Precision(), Recall()])
-
-
-# # %%time
+# %%time
 # -------------------
-# 6. Train
+# 4. Train the model
 # -------------------
 model.fit(
     X_train, y_train,
@@ -299,36 +213,13 @@ model.fit(
     callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)]
 )
 
-
 # +
 # -------------------
-# 1. Check distribution in training/validation
-# -------------------
-def pixel_distribution(y_array):
-    # y_array shape: (N, H, W, 1)
-    counts = np.bincount(y_array.flatten().astype(int))
-    zeros = counts[0] if len(counts) > 0 else 0
-    ones  = counts[1] if len(counts) > 1 else 0
-    total = zeros + ones
-    print(f"Total pixels: {total}, zeros: {zeros} ({zeros/total:.2%}), ones: {ones} ({ones/total:.2%})")
-
-print("Training set distribution:")
-pixel_distribution(y_train)
-
-print("Validation set distribution:")
-pixel_distribution(y_val)
-
-
-# +
-# -------------------
-# 2. Make predictions on validation set
+# 5. Evaluate the model
 # -------------------
 y_pred_prob = model.predict(X_val, batch_size=1)
 y_pred = (y_pred_prob > 0.5).astype(np.uint8)
 
-# -------------------
-# 3. Flatten for classification report
-# -------------------
 y_val_flat = y_val.flatten()
 y_pred_flat = y_pred.flatten()
 
