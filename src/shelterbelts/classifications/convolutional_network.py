@@ -15,14 +15,32 @@ from sklearn.metrics import classification_report
 # -------------------
 # 1. File discovery
 # -------------------
+sentinel_dir = '/scratch/xe2/cb8590/Nick_sentinel'
 sentinel_files = sorted(glob.glob(os.path.join(sentinel_dir, "*.pkl")))
+
+# Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
+interesting_tile_ids = [
+"g2_017_",
+"g2_019_",
+"g2_021_",
+"g2_21361_",
+"g2_23939_",
+"g2_23938_",
+"g2_09_",
+"g2_2835_",
+"g2_25560_",
+"g2_24903_"
+]
+sentinel_files = [filename for filename in sentinel_files if any(tile_id in filename for tile_id in interesting_tile_ids)]
+
 sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_files]
 tree_files = [f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile_id}_binary_tree_cover_10m.tiff' for tile_id in sentinel_tile_ids]
 pairs = [(t, s) for t, s in zip(tree_files, sentinel_files)]
 
 
-pairs = pairs[:10]
-
+# +
+# pairs = pairs[:10]
+# -
 
 def monthly_mosaic(tree_file, sentinel_file):
     # -------------------
@@ -115,6 +133,7 @@ def extract_patches(X, y, patch_size=64, stride=32):
             if np.any(yp):
                 patches_X.append(Xp)
                 patches_y.append(yp[..., None])
+
     return np.array(patches_X), np.array(patches_y)
 
 # X_p, y_p = extract_patches(monthly_tile, ds_tree.values, patch_size=64, stride=32)
@@ -124,8 +143,6 @@ def extract_patches(X, y, patch_size=64, stride=32):
 
 # -
 
-len(pairs)
-
 # %%time
 # -------------------
 # 3. Build dataset
@@ -134,9 +151,17 @@ all_X, all_y = [], []
 for tree_file, sentinel_file in pairs:
     monthly_tile, ds_tree = monthly_mosaic(tree_file, sentinel_file)
     X_p, y_p = extract_patches(monthly_tile, ds_tree.values, patch_size=64, stride=32)
-    if len(Xp) > 0:
-        all_X.append(Xp)
-        all_y.append(yp)
+    
+    # Collapse the time & tile dimensions into a single channel dimension (removes temporal sequence information, but retains temporal variation)
+    X_p_reshaped = X_p.reshape(
+        X_p.shape[0],   # number of patches
+        X_p.shape[1],   # 64
+        X_p.shape[2],   # 64
+        X_p.shape[3] * X_p.shape[4]   # 12 months * 10 tiles = 120 channels
+    )
+    if len(X_p) > 0:
+        all_X.append(X_p_reshaped)
+        all_y.append(y_p)
 
 
 X_p = np.concatenate(all_X, axis=0)
@@ -187,8 +212,6 @@ model.fit(
 )
 
 
-
-
 # +
 # -------------------
 # 1. Check distribution in training/validation
@@ -223,4 +246,7 @@ y_pred_flat = y_pred.flatten()
 
 print("\nClassification report (pixelwise):")
 print(classification_report(y_val_flat, y_pred_flat, digits=4))
+
+# -
+
 
