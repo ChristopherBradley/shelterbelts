@@ -10,6 +10,8 @@ import tensorflow as tf
 from tensorflow.keras import layers, Model
 import pandas as pd
 from sklearn.metrics import classification_report
+from tensorflow.keras.metrics import Precision, Recall
+
 
 
 # -------------------
@@ -122,6 +124,55 @@ def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
     return monthly
 
 
+def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
+    """
+    Faster monthly median stack with global interpolation.
+    Missing months are filled by interpolating the global per-band median time series.
+    """
+    H, W, T, C = tile_array.shape
+    timestamps = pd.to_datetime(timestamps)
+
+    monthly = np.full((H, W, 12, C), np.nan, dtype=np.float32)
+
+    # Step 1: per-month median
+    for month in range(1, 13):
+        mask = timestamps.month == month
+        if not np.any(mask):
+            continue
+        monthly[:, :, month-1, :] = np.median(tile_array[:, :, mask, :], axis=2)
+
+    # Step 2: interpolate *global* median time series per band
+    for c in range(C):
+        global_series = np.nanmedian(monthly[:, :, :, c], axis=(0, 1))  # shape (12,)
+        idx = np.arange(12)
+        valid = ~np.isnan(global_series)
+        if np.any(valid):
+            filled = np.interp(idx, idx[valid], global_series[valid])
+            # fill only NaN months with broadcasted values
+            for m in range(12):
+                if np.isnan(monthly[0, 0, m, c]):  # month is empty
+                    monthly[:, :, m, c] = filled[m]
+
+    # Step 3: clip + normalize
+    for c in range(C):
+        band = monthly[:, :, :, c]
+        vmin, vmax = np.nanpercentile(band, clip_percentile)
+        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+            vmin, vmax = 0.0, 1.0
+        band = np.clip(band, vmin, vmax)
+        band = (band - vmin) / (vmax - vmin + 1e-6)
+        monthly[:, :, :, c] = band
+
+    return np.nan_to_num(monthly, nan=0.0, posinf=1.0, neginf=0.0)
+
+
+
+# %%time
+tree_file, sentinel_file = pairs[0]
+monthly_tile, ds_tree = monthly_mosaic(tree_file, sentinel_file)
+print("X range:", monthly_tile.min(), monthly_tile.max())
+
+
 # +
 def extract_patches(X, y, patch_size=64, stride=32):
     patches_X, patches_y = [], []
@@ -168,6 +219,8 @@ X_p = np.concatenate(all_X, axis=0)
 y_p = np.concatenate(all_y, axis=0)
 print("Final dataset:", X_p.shape, y_p.shape)
 
+X_p.min(), X_p.max()
+
 # +
 # -------------------
 # 4. Train/val split
@@ -197,9 +250,44 @@ def tiny_unet(input_shape):
 model = tiny_unet(input_shape=X_train.shape[1:])
 model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
 
+
+# +
+# Trying out weighted classes. Probs won't help because I wasn't learning even with evenly distributed inputs
+y_train_flat = y_train.flatten()
+total_pixels = len(y_train_flat)
+zeros = np.sum(y_train_flat == 0)
+ones = np.sum(y_train_flat == 1)
+
+# Compute weights inversely proportional to frequency
+weight_0 = total_pixels / (2 * zeros)
+weight_1 = total_pixels / (2 * ones)
+
+print(f"Weight for 0: {weight_0:.4f}, weight for 1: {weight_1:.4f}")
+
 # -
 
-# %%time
+def weighted_bce(weight_0, weight_1):
+    def loss(y_true, y_pred):
+        if tf.rank(y_pred) == 3:  # (batch,H,W)
+            y_pred = tf.expand_dims(y_pred, axis=-1)
+
+        y_true = tf.cast(y_true, tf.float32)
+        y_pred = tf.clip_by_value(y_pred, 1e-7, 1-1e-7)  # avoid log(0)
+
+        # compute weights
+        weights = y_true * weight_1 + (1 - y_true) * weight_0
+        bce = -(y_true * tf.math.log(y_pred) + (1 - y_true) * tf.math.log(1 - y_pred))
+        return tf.reduce_mean(bce * weights)
+    return loss
+
+
+
+optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4)
+
+model.compile(optimizer=optimizer, loss=loss_fn, metrics=["accuracy", Precision(), Recall()])
+
+
+# # %%time
 # -------------------
 # 6. Train
 # -------------------
@@ -246,7 +334,4 @@ y_pred_flat = y_pred.flatten()
 
 print("\nClassification report (pixelwise):")
 print(classification_report(y_val_flat, y_pred_flat, digits=4))
-
-# -
-
 
