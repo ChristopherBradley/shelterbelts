@@ -5,22 +5,37 @@
 import pdal, json
 
 filename = '/Users/christopherbradley/Documents/PHD/Data/ESDALE/NSW_LiDAR_2018_80cm/Point Clouds/AHD/Brindabella201802-LID2-C3-AHD_6746112_55_0002_0002.laz'
+outpath = f'tree_raster_10m.tif'
+
+# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Milgadara/Point Clouds/AHD/Young201702-PHO3-C0-AHD_6306194_55_0002_0002.laz'
+filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Milgadara/Point Clouds/AHD/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz'
+stub = 'g2_26729'
+counts_tif = f'{stub}_10m_counts.tif'
+tree_tif = f'{stub}_10m_binary.tif'
 
 
-# Using the pre-classified values to create a 10m tree raster
+# +
+# %%time
+# Count the number of points with classification 5 (> 2m) that lie in each 10m pixel
 pipeline = {
     "pipeline": [
         filename,
         {"type": "filters.range", "limits": "Classification[5:5]"},
         {"type": "writers.gdal",
-         "filename": "tree_raster10.tif",
+         "filename": counts_tif,
          "resolution": 10,
          "output_type": "count",
-         "gdaldriver": "GTiff"}
+         "gdaldriver": "GTiff"},
     ]
 }
 p = pdal.Pipeline(json.dumps(pipeline))
 p.execute()
+
+# Convert point counts into a binary raster
+counts = rioxarray.open_rasterio(outpath).isel(band=0).drop_vars('band')
+tree = (counts > 0).astype('uint8')
+tree.rio.to_raster(tree_tif)
+print("Saved:", tree_tif)
 
 # +
 # %%time
