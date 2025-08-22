@@ -19,6 +19,7 @@ snowflake/cache
 *.xml
 *.txt
 *cache*
+*.laz
 
 # qsub logging files
 *.o*
