@@ -1,5 +1,11 @@
 import geopandas as gpd
 
+tif1 = ''
+
+tif2 = ''
+
+
+
 filename = '/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/tiff_centroids_years.gpkg'
 
 # !ls /Users/christopherbradley/Documents/PHD/Data/Nick_outlines/tiff_centroids_years.gpkg

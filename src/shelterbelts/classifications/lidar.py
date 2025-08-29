@@ -103,9 +103,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None):
     }
     p_chm = pdal.Pipeline(json.dumps(chm_json))
     p_chm.execute()
+    print("Saved:", chm_tif)
 
     # Create the woodyveg tif
-    chm = rioxarray.open_rasterio(chm_tif)
+    chm = rioxarray.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
     da_tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
     tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_height{height_threshold}m.tif')
     tif_categorical(da_tree, filename=tree_tif, colormap=cmap_woody_veg)
@@ -206,3 +207,27 @@ if __name__ == '__main__':
 # +
 # # %%time
 # da_tree = lidar(filename, resolution=1)
+# -
+
+first_step = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_26729/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz'
+
+chm_tif = 'chm.tif'
+chm_json = {
+    "pipeline": [
+        first_step,
+        {"type": "filters.smrf"},  # classify ground
+        {"type": "filters.hag_nn"},  # compute HeightAboveGround
+        {"type": "writers.gdal",
+         "filename": chm_tif,
+         "resolution": resolution,
+         "gdaldriver": "GTiff",
+         "dimension": "HeightAboveGround",
+         "output_type": "max",
+         "nodata": -9999}
+    ]
+}
+p_chm = pdal.Pipeline(json.dumps(chm_json))
+p_chm.execute()
+print("Saved:", chm_tif)
+
+
