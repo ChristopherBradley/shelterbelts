@@ -27,15 +27,27 @@ def check_classified(infile, classification_code=5):
     return classified_bool
 
 
-
-def use_existing_classifications(infile, outdir, stub, resolution=1, classification_code=5):
+def use_existing_classifications(infile, outdir, stub, resolution=1, classification_code=5, epsg=None):
     """Use the number of points with classification 5 (> 2m) in each pixel to generate a woody_veg tif"""
 
     # Create raster of points with this category per pixel 
     counts_tif = os.path.join(outdir, f'{stub}_counts_res{resolution}_cat{classification_code}.tif')
+    
+    # Some of the ACT 2015 laz files don't have an EPSG specified
+    if not epsg:
+        first_step = infile
+    else:
+        first_step = {
+              "type": "readers.las",
+              "filename": infile,
+              "spatialreference": f'EPSG:{epsg}' # Should be "28355" for ACT 2015 LiDAR
+            }
+
+    print('first_step', first_step)
+    
     pipeline = {
         "pipeline": [
-            infile,
+            first_step,
             {"type": "filters.range", "limits": "Classification[5:5]"},
             {"type": "writers.gdal",
              "filename": counts_tif,
@@ -46,6 +58,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     }
     p = pdal.Pipeline(json.dumps(pipeline))
     p.execute()
+    print("Saved:", counts_tif)
 
     # Convert point counts into a binary raster
     counts = rioxarray.open_rasterio(counts_tif).isel(band=0).drop_vars('band')
@@ -57,17 +70,26 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     # print("Saved:", tree_tif)
 
     return counts, da_tree
-    
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
+    # Some of the ACT 2015 laz files don't have an EPSG specified
+    if not epsg:
+        first_step = infile
+    else:
+        first_step = {
+              "type": "readers.las",
+              "filename": infile,
+              "spatialreference": f'EPSG:{epsg}' # Should be "28355" for ACT 2015 LiDAR
+            }
+    
     # Create the canopy height tif
     chm_tif = os.path.join(outdir, f'{stub}_chm_res{resolution}.tif')
     chm_json = {
         "pipeline": [
-            {"type": "readers.las", "filename": infile},
+            first_step,
             {"type": "filters.smrf"},  # classify ground
             {"type": "filters.hag_nn"},  # compute HeightAboveGround
             {"type": "writers.gdal",
@@ -94,7 +116,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2):
     return chm, da_tree
 
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None):
     """Convert a laz point cloud to a raster
 
     Parameters
@@ -117,18 +139,18 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     """
     if category5:
         # Try to use the existing classifications
-        classified_bool = check_classified(laz_file, classification_code=5)
+        classified_bool = check_classified(laz_file, classification_code=5)  # geolocation only matters for creating the tif files later
         if classified_bool:
             outfile = os.path.join(outdir, f'{stub}_woody_veg_res{resolution}_cat5.tif')
-            counts, da_tree = use_existing_classifications(laz_file, outdir, stub, resolution)
+            print("EPSG", epsg)
+            counts, da_tree = use_existing_classifications(laz_file, outdir, stub, resolution, epsg=epsg)
             return da_tree
         else:
             print("No existing classifications, generating our own canopy height model instead")
             
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold)
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg=epsg)
     return da_tree
-    
 
 
 # +
@@ -143,6 +165,7 @@ def parse_arguments():
     parser.add_argument("--stub", default="TEST", help="Prefix for output files (default: TEST)")
     parser.add_argument("--resolution", type=int, default=10, help="Pixel size in the output rasters (default: 10)")
     parser.add_argument("--height_threshold", type=float, default=2, help="Cutoff for creating the binary tif (default: 2)")
+    parser.add_argument("--epsg", default=None, help="Option to specify the epsg if the .laz doesn't already have it encoded. Default: None")
     parser.add_argument("--category5", action="store_true", help="Use preclassified high vegetation (LAS 1.4 category 5). Default: False")
 
     return parser.parse_args()
@@ -160,6 +183,7 @@ if __name__ == '__main__':
     resolution = args.resolution
     height_threshold = args.height_threshold
     category5 = args.category5
+    epsg = args.epsg
     
     lidar(
         laz_file,
@@ -167,7 +191,8 @@ if __name__ == '__main__':
         stub=stub,
         resolution=resolution,
         height_threshold=height_threshold,
-        category5=category5
+        category5=category5,
+        epsg=epsg
     )
 
 
