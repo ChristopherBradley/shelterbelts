@@ -7,7 +7,8 @@ import os
 import pdal, json
 import rioxarray
 import numpy as np
-from rasterio.enums import Resampling
+
+from shelterbelts.util.binary_trees import tif_categorical, cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work
 
 
 def check_classified(infile, classification_code=5):
@@ -50,8 +51,10 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     counts = rioxarray.open_rasterio(counts_tif).isel(band=0).drop_vars('band')
     da_tree = (counts > 0).astype('uint8')
     tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_cat{classification_code}.tif')
-    da_tree.rio.to_raster(tree_tif)
-    print("Saved:", tree_tif)
+    tif_categorical(da_tree, filename=tree_tif, colormap=cmap_woody_veg)
+
+    # da_tree.rio.to_raster(tree_tif)
+    # print("Saved:", tree_tif)
 
     return counts, da_tree
     
@@ -64,7 +67,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2):
     chm_tif = os.path.join(outdir, f'{stub}_chm_res{resolution}.tif')
     chm_json = {
         "pipeline": [
-            {"type": "readers.las", "filename": filename},
+            {"type": "readers.las", "filename": infile},
             {"type": "filters.smrf"},  # classify ground
             {"type": "filters.hag_nn"},  # compute HeightAboveGround
             {"type": "writers.gdal",
@@ -81,15 +84,17 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2):
 
     # Create the woodyveg tif
     chm = rioxarray.open_rasterio(chm_tif)
-    tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
+    da_tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
     tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_height{height_threshold}m.tif')
-    tree.rio.to_raster(tree_tif, compress="LZW")  # Could use my categorial_tif function in worldcover for a prettier tif
-    print("Saved:", tree_tif)
+    tif_categorical(da_tree, filename=tree_tif, colormap=cmap_woody_veg)
+
+    # da_tree.rio.to_raster(tree_tif, compress="LZW") 
+    # print("Saved:", tree_tif)
 
     return chm, da_tree
 
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category_5=False):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False):
     """Convert a laz point cloud to a raster
 
     Parameters
@@ -110,7 +115,7 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     chm.tif
     woody_veg.tif
     """
-    if category_5:
+    if category5:
         # Try to use the existing classifications
         classified_bool = check_classified(laz_file, classification_code=5)
         if classified_bool:
@@ -138,7 +143,7 @@ def parse_arguments():
     parser.add_argument("--stub", default="TEST", help="Prefix for output files (default: TEST)")
     parser.add_argument("--resolution", type=int, default=10, help="Pixel size in the output rasters (default: 10)")
     parser.add_argument("--height_threshold", type=float, default=2, help="Cutoff for creating the binary tif (default: 2)")
-    parser.add_argument("--category_5", action="store_true", help="Use preclassified high vegetation (LAS 1.4 category 5). Default: False")
+    parser.add_argument("--category5", action="store_true", help="Use preclassified high vegetation (LAS 1.4 category 5). Default: False")
 
     return parser.parse_args()
 
@@ -154,7 +159,7 @@ if __name__ == '__main__':
     stub = args.stub
     resolution = args.resolution
     height_threshold = args.height_threshold
-    category_5 = args.category_5
+    category5 = args.category5
     
     lidar(
         laz_file,
@@ -162,7 +167,7 @@ if __name__ == '__main__':
         stub=stub,
         resolution=resolution,
         height_threshold=height_threshold,
-        category_5=category_5
+        category5=category5
     )
 
 
