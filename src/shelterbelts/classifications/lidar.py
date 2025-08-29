@@ -1,131 +1,178 @@
 # +
+# Using a separate environment for this to my shelterbelts environment (conda activate pdal)
 # # !conda install -c conda-forge pdal python-pdal rasterio
 # -
 
+import os
 import pdal, json
-
-filename = '/Users/christopherbradley/Documents/PHD/Data/ESDALE/NSW_LiDAR_2018_80cm/Point Clouds/AHD/Brindabella201802-LID2-C3-AHD_6746112_55_0002_0002.laz'
-outpath = f'tree_raster_10m.tif'
-
-# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Milgadara/Point Clouds/AHD/Young201702-PHO3-C0-AHD_6306194_55_0002_0002.laz'
-filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Milgadara/Point Clouds/AHD/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz'
-stub = 'g2_26729'
-counts_tif = f'{stub}_10m_counts.tif'
-tree_tif = f'{stub}_10m_binary.tif'
-
-
-# +
-# %%time
-# Count the number of points with classification 5 (> 2m) that lie in each 10m pixel
-pipeline = {
-    "pipeline": [
-        filename,
-        {"type": "filters.range", "limits": "Classification[5:5]"},
-        {"type": "writers.gdal",
-         "filename": counts_tif,
-         "resolution": 10,
-         "output_type": "count",
-         "gdaldriver": "GTiff"},
-    ]
-}
-p = pdal.Pipeline(json.dumps(pipeline))
-p.execute()
-
-# Convert point counts into a binary raster
-counts = rioxarray.open_rasterio(outpath).isel(band=0).drop_vars('band')
-tree = (counts > 0).astype('uint8')
-tree.rio.to_raster(tree_tif)
-print("Saved:", tree_tif)
-
-# +
-# %%time
-# Doing my own classifications 
-dem_tif = "dem.tif"
-dsm_tif = "dsm.tif"
-chm_tif = "chm.tif"
-resolution = 1.0
-
-# ---------------- DEM pipeline ----------------
-dem_json = {
-    "pipeline": [
-        {"type": "readers.las", "filename": filename},
-        {"type": "filters.smrf"},  # classify ground
-        {"type": "filters.range", "limits": "Classification[2:2]"},  # keep only ground
-        {"type": "writers.gdal",
-         "filename": dem_tif,
-         "resolution": resolution,
-         "gdaldriver": "GTiff",
-         "output_type": "min",
-         "nodata": -9999}
-    ]
-}
-p_dem = pdal.Pipeline(json.dumps(dem_json))
-p_dem.execute()
-
-
-# ---------------- DSM pipeline ----------------
-dsm_json = {
-    "pipeline": [
-        {"type": "readers.las", "filename": filename},
-        {"type": "filters.range", "limits": "ReturnNumber[1:1]"},  # first returns
-        {"type": "writers.gdal",
-         "filename": dsm_tif,
-         "resolution": resolution,
-         "gdaldriver": "GTiff",
-         "output_type": "max",
-         "nodata": -9999}
-    ]
-}
-p_dsm = pdal.Pipeline(json.dumps(dsm_json))
-p_dsm.execute()
-
-
-# ---------------- CHM pipeline ----------------
-chm_json = {
-    "pipeline": [
-        {"type": "readers.las", "filename": filename},
-        {"type": "filters.smrf"},  # classify ground
-        {"type": "filters.hag_nn"},  # compute HeightAboveGround
-        {"type": "writers.gdal",
-         "filename": chm_tif,
-         "resolution": resolution,
-         "gdaldriver": "GTiff",
-         "dimension": "HeightAboveGround",
-         "output_type": "max",
-         "nodata": -9999}
-    ]
-}
-p_chm = pdal.Pipeline(json.dumps(chm_json))
-p_chm.execute()
-
-
-# +
 import rioxarray
 import numpy as np
 from rasterio.enums import Resampling
 
-tree_height_thresh = 2
-tree_tif = "tree_binary_10m.tif"
 
-# Open CHM
-chm = rioxarray.open_rasterio("chm.tif")
+def check_classified(infile, classification_code=5):
+    """Check at least 1 point has this classification code"""
+    check_pipeline = {
+        "pipeline": [
+            infile,
+            {"type": "filters.range", "limits": f"Classification[{classification_code}:{classification_code}]"},
+            {"type": "filters.stats"}
+        ]
+    }
+    p_check = pdal.Pipeline(json.dumps(check_pipeline))
+    p_check.execute()
+    num_points = p_check.metadata['metadata']["filters.stats"]['statistic'][0]['count'] 
+    classified_bool = num_points > 0
+    return classified_bool
 
-# Reproject to 10 m resolution, using max aggregation
-chm_10m = chm.rio.reproject(
-    chm.rio.crs,
-    resolution=10,
-    resampling=Resampling.max
-)
 
-# Apply threshold
-tree = (chm_10m > tree_height_thresh).astype(np.uint8)
 
-# Ensure nodata = 0
-tree = tree.rio.write_nodata(0)
+def use_existing_classifications(infile, outdir, stub, resolution=1, classification_code=5):
+    """Use the number of points with classification 5 (> 2m) in each pixel to generate a woody_veg tif"""
 
-# Save to GeoTIFF
-tree.rio.to_raster(tree_tif, compress="LZW")
+    # Create raster of points with this category per pixel 
+    counts_tif = os.path.join(outdir, f'{stub}_counts_res{resolution}_cat{classification_code}.tif')
+    pipeline = {
+        "pipeline": [
+            infile,
+            {"type": "filters.range", "limits": "Classification[5:5]"},
+            {"type": "writers.gdal",
+             "filename": counts_tif,
+             "resolution": resolution,
+             "output_type": "count",
+             "gdaldriver": "GTiff"},
+        ]
+    }
+    p = pdal.Pipeline(json.dumps(pipeline))
+    p.execute()
+
+    # Convert point counts into a binary raster
+    counts = rioxarray.open_rasterio(counts_tif).isel(band=0).drop_vars('band')
+    da_tree = (counts > 0).astype('uint8')
+    tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_cat{classification_code}.tif')
+    da_tree.rio.to_raster(tree_tif)
+    print("Saved:", tree_tif)
+
+    return counts, da_tree
+    
+
+
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2):
+    """Create a canopy height model and corresponding woody_veg tif from a laz file"""
+
+    # Create the canopy height tif
+    chm_tif = os.path.join(outdir, f'{stub}_chm_res{resolution}.tif')
+    chm_json = {
+        "pipeline": [
+            {"type": "readers.las", "filename": filename},
+            {"type": "filters.smrf"},  # classify ground
+            {"type": "filters.hag_nn"},  # compute HeightAboveGround
+            {"type": "writers.gdal",
+             "filename": chm_tif,
+             "resolution": resolution,
+             "gdaldriver": "GTiff",
+             "dimension": "HeightAboveGround",
+             "output_type": "max",
+             "nodata": -9999}
+        ]
+    }
+    p_chm = pdal.Pipeline(json.dumps(chm_json))
+    p_chm.execute()
+
+    # Create the woodyveg tif
+    chm = rioxarray.open_rasterio(chm_tif)
+    tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
+    tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_height{height_threshold}m.tif')
+    tree.rio.to_raster(tree_tif, compress="LZW")  # Could use my categorial_tif function in worldcover for a prettier tif
+    print("Saved:", tree_tif)
+
+    return chm, da_tree
+
+
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category_5=False):
+    """Convert a laz point cloud to a raster
+
+    Parameters
+    ----------
+    laz_file: The .laz point cloud file
+    outdir: Output directory to store the tifs
+    stub: Prefix for output files
+    resolution: Pixel size in the output rasters    
+    height_threshold: Cutoff for creating the binary tif
+    category_5: If True then it attempts to use the preclassified high vegetation from the LAS 1.4 specifications (category 5): https://www.spatial.nsw.gov.au/__data/assets/pdf_file/0004/218992/Elevation_Data_Product_Specs.pdf  
+
+    Returns
+    -------
+    ds: xarray.Dataset with band 'woody_veg'
+    
+    Downloads
+    ---------
+    chm.tif
+    woody_veg.tif
+    """
+    if category_5:
+        # Try to use the existing classifications
+        classified_bool = check_classified(laz_file, classification_code=5)
+        if classified_bool:
+            outfile = os.path.join(outdir, f'{stub}_woody_veg_res{resolution}_cat5.tif')
+            counts, da_tree = use_existing_classifications(laz_file, outdir, stub, resolution)
+            return da_tree
+        else:
+            print("No existing classifications, generating our own canopy height model instead")
+            
+    # Do our own classifications
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold)
+    return da_tree
+    
+
+
+# +
+import argparse
+
+def parse_arguments():
+    """Parse command line arguments for lidar() with default values."""
+    parser = argparse.ArgumentParser(description="Convert a laz point cloud to a raster")
+
+    parser.add_argument("laz_file", help="The input .laz point cloud file")
+    parser.add_argument("--outdir", default=".", help="Output directory to store the tifs (default: current directory)")
+    parser.add_argument("--stub", default="TEST", help="Prefix for output files (default: TEST)")
+    parser.add_argument("--resolution", type=int, default=10, help="Pixel size in the output rasters (default: 10)")
+    parser.add_argument("--height_threshold", type=float, default=2, help="Cutoff for creating the binary tif (default: 2)")
+    parser.add_argument("--category_5", action="store_true", help="Use preclassified high vegetation (LAS 1.4 category 5). Default: False")
+
+    return parser.parse_args()
+
 
 # -
 
-print("Wrote:", dem_tif, dsm_tif, chm_tif, tree_tif)
+if __name__ == '__main__':
+
+    args = parse_arguments()
+    
+    laz_file = args.laz_file
+    outdir = args.outdir
+    stub = args.stub
+    resolution = args.resolution
+    height_threshold = args.height_threshold
+    category_5 = args.category_5
+    
+    lidar(
+        laz_file,
+        outdir=outdir,
+        stub=stub,
+        resolution=resolution,
+        height_threshold=height_threshold,
+        category_5=category_5
+    )
+
+
+# %%time
+# filename = '/Users/christopherbradley/Documents/PHD/Data/ESDALE/NSW_LiDAR_2018_80cm/Point Clouds/AHD/Brindabella201802-LID2-C3-AHD_6746112_55_0002_0002.laz'
+# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Milgadara/Point Clouds/AHD/Young201702-PHO3-C0-AHD_6306194_55_0002_0002.laz'
+# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Cal/ACT Government/Point Clouds/AHD/ACT2015_4ppm-C3-AHD_6926038_55_0002_0002.laz'
+# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Cal/ACT Government 2020/Point Clouds/AHD/ACT2020-12ppm-C3-AHD_6936039_55_0001_0001.laz'
+# da_tree_cat5 = lidar(filename, resolution=1, category_5=True)
+
+# +
+# # %%time
+# da_tree = lidar(filename, resolution=1)

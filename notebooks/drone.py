@@ -6,6 +6,8 @@ filename = '/Users/christopherbradley/Documents/PHD/Data/Drone/Milgadara_2025-07
 
 da = rxr.open_rasterio(filename)
 
+da
+
 ds = da.to_dataset('band')
 
 ds = ds.astype(int) # Need to increase precision before calculating indices or else you get overflow issues
@@ -28,3 +30,5 @@ ds['NDVI'].plot()
 B5.plot()
 
 B3.plot()
+
+
