@@ -42,8 +42,6 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
               "filename": infile,
               "spatialreference": f'EPSG:{epsg}' # Should be "28355" for ACT 2015 LiDAR
             }
-
-    print('first_step', first_step)
     
     pipeline = {
         "pipeline": [
@@ -143,7 +141,6 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
         classified_bool = check_classified(laz_file, classification_code=5)  # geolocation only matters for creating the tif files later
         if classified_bool:
             outfile = os.path.join(outdir, f'{stub}_woody_veg_res{resolution}_cat5.tif')
-            print("EPSG", epsg)
             counts, da_tree = use_existing_classifications(laz_file, outdir, stub, resolution, epsg=epsg)
             return da_tree
         else:
@@ -207,27 +204,3 @@ if __name__ == '__main__':
 # +
 # # %%time
 # da_tree = lidar(filename, resolution=1)
-# -
-
-first_step = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_26729/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz'
-
-chm_tif = 'chm.tif'
-chm_json = {
-    "pipeline": [
-        first_step,
-        {"type": "filters.smrf"},  # classify ground
-        {"type": "filters.hag_nn"},  # compute HeightAboveGround
-        {"type": "writers.gdal",
-         "filename": chm_tif,
-         "resolution": resolution,
-         "gdaldriver": "GTiff",
-         "dimension": "HeightAboveGround",
-         "output_type": "max",
-         "nodata": -9999}
-    ]
-}
-p_chm = pdal.Pipeline(json.dumps(chm_json))
-p_chm.execute()
-print("Saved:", chm_tif)
-
-
