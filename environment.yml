@@ -8,7 +8,7 @@
 #   - pip:
 #       - -e .[dev]
 
-name: shelterbelts_pdal
+name: shelterbelts
 channels:
   - conda-forge
   - defaults
