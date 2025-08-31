@@ -88,6 +88,14 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None):
     chm_json = {
         "pipeline": [
             first_step,
+            {
+                "type": "filters.assign",
+                "assignment": "ReturnNumber[:]=1"  # Needed this to resolve an smrf error when NumberOfReturns or ReturnNumber = 0
+            },
+            {
+                "type": "filters.assign",
+                "assignment": "NumberOfReturns[:]=1"
+            },
             {"type": "filters.smrf"},  # classify ground
             {"type": "filters.hag_nn"},  # compute HeightAboveGround
             {"type": "writers.gdal",
@@ -199,8 +207,6 @@ if __name__ == '__main__':
 # filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Milgadara/Point Clouds/AHD/Young201702-PHO3-C0-AHD_6306194_55_0002_0002.laz'
 # filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Cal/ACT Government/Point Clouds/AHD/ACT2015_4ppm-C3-AHD_6926038_55_0002_0002.laz'
 # filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Cal/ACT Government 2020/Point Clouds/AHD/ACT2020-12ppm-C3-AHD_6936039_55_0001_0001.laz'
+# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_09/ACT2020-12ppm-C3-AHD_6826095_55_0001_0001.laz'
 # da_tree_cat5 = lidar(filename, resolution=1, category_5=True)
-
-# +
-# # %%time
 # da_tree = lidar(filename, resolution=1)

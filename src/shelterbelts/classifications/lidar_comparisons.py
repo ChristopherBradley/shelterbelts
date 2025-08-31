@@ -59,4 +59,24 @@ tif_comparison(da_nsw, da_sep)
 
 tif_comparison(da_feb, da_sep)
 
+# +
+nick_act = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_09/g2_09_binary_tree_cover_10m_Nick.tiff'
+act_2015_mine = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_09/2015_g2_09_woodyveg_res10_height2m.tif'
+act_2015_theirs = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_09/ACT2015_g2_09_woodyveg_res10_cat5.tif'
 
+
+# -
+
+da_nick_act = rxr.open_rasterio(nick_act).isel(band=0).drop_vars('band')
+da_act_2015_mine= rxr.open_rasterio(act_2015_mine).isel(band=0).drop_vars('band')
+da_act_2015_theirs = rxr.open_rasterio(act_2015_theirs).isel(band=0).drop_vars('band')
+
+
+da_act_2015_mine = da_act_2015_mine.rio.write_crs('EPSG:28355')
+da_act_2015_theirs = da_act_2015_theirs.rio.write_crs('EPSG:28355')
+
+tif_comparison(da_act_2015_mine, da_act_2015_theirs)
+
+tif_comparison(da_nick_act, da_act_2015_mine)
+
+tif_comparison(da_nick_act, da_act_2015_theirs)
