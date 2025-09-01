@@ -6,8 +6,10 @@
 import os
 import glob
 import pdal, json
-import rioxarray
+import rioxarray as rxr
 import numpy as np
+import geopandas as gpd
+from shapely.geometry import box
 
 from shelterbelts.util.binary_trees import tif_categorical, cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work
 
@@ -60,7 +62,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     print("Saved:", counts_tif)
 
     # Convert point counts into a binary raster
-    counts = rioxarray.open_rasterio(counts_tif).isel(band=0).drop_vars('band')
+    counts = rxr.open_rasterio(counts_tif).isel(band=0).drop_vars('band')
     da_tree = (counts > 0).astype('uint8')
     tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_cat{classification_code}.tif')
     tif_categorical(da_tree, filename=tree_tif, colormap=cmap_woody_veg)
@@ -113,7 +115,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None):
     print("Saved:", chm_tif)
 
     # Create the woodyveg tif
-    chm = rioxarray.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
+    chm = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
     da_tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
     tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_height{height_threshold}m.tif')
     tif_categorical(da_tree, filename=tree_tif, colormap=cmap_woody_veg)
@@ -122,6 +124,49 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None):
     # print("Saved:", tree_tif)
 
     return chm, da_tree
+
+
+# Oops, this just removed all the tifs - sadface
+def tif_cleanup(outdir, size_threshold=80, percent_cover_threshold=10):
+    """Remove tifs that don't meet the size or cover threshold"""
+    
+    # Removing all the counts, since I only care about the woody veg outputs
+    counts_tifs = glob.glob(os.path.join(outdir, '*_counts_*'))
+    for counts_tif in counts_tifs:
+        os.remove(counts_tif)
+    
+    # Create a geopackage of the attributes of each tif
+    veg_tifs = glob.glob(os.path.join(outdir, '*.tif'))
+    records = []
+    for veg_tif in veg_tifs:
+        da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
+    
+        height, width = da.shape
+        bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
+        minx, miny, maxx, maxy = bounds
+        unique, counts = np.unique(da.values, return_counts=True)
+        category_counts = dict(zip(unique.tolist(), counts.tolist()))
+        rec = {
+            "filename": os.path.basename(veg_tif),
+            "height": height,
+            "width": width,
+            "pixels_0": category_counts.get(0, 0),
+            "pixels_1": category_counts.get(1, 0),
+            "geometry": box(minx, miny, maxx, maxy),
+        }
+        records.append(rec)
+    gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
+    gdf['percent_trees'] = 100 * gdf['pixels_1'] / (gdf['pixels_1'] + gdf['pixels_0']) 
+
+    filename = os.path.join(outdir, 'tas_lidar_tif_attributes.gpkg')
+    gdf.to_file(filename) # Ignore the errors from pdal, the file actually saves fine
+    
+    # Remove tifs that are too small, or not enough variation in trees vs no trees
+    bad_tifs = gdf[(gdf['height'] < size_threshold) | (gdf['width'] < size_threshold) | 
+        (gdf['percent_trees'] > 100 - percent_cover_threshold) | (gdf['percent_trees'] < percent_cover_threshold)]
+    for filename in bad_tifs['filename']:
+        filepath = os.path.join(outdir, filename)
+        os.remove(filepath)
 
 
 def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None):
@@ -222,13 +267,14 @@ if __name__ == '__main__':
 # da_tree = lidar(filename, resolution=1)
 
 # +
-# %%time
-# laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Point Clouds/AHD/'
-laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS_Government_2/Point Clouds/AHD' 
-outdir = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Tas_tifs'
-lidar_folder(laz_folder, outdir, category5=True)
-
-# Took 10 mins to process 100 tiles in Tasmania
+# outdir = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Tas_tifs'
 
 # +
-# Remove all of the counts.tif, and any tiles that don't have a nice distribution of trees vs no trees (and make a record of all the tiles that we removed, just in case).
+# # %%time
+# # laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Point Clouds/AHD/'
+# # laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS_Government_2/Point Clouds/AHD' 
+# laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS_Government_3/Point Clouds/AHD'
+
+# # Took about 10 mins to process 100 tiles
+# lidar_folder(laz_folder, outdir, category5=True)
+# # tif_cleanup(outdir)

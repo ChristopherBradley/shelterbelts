@@ -142,16 +142,12 @@ if __name__ == '__main__':
         args.limit = int(args.limit)
     run_tifs(args.folder, args.func_string, args.outdir, args.limit)
 
-da = rxr.open_rasterio('/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Tas_tifs/Buckland2019-C1-AHD_5545255_GDA2020_55_woodyveg_res10_cat5.tif')
-da = da.isel(band=0).drop_vars('band')
-
-da = da.rio.write_nodata(0, inplace=True)
-
-cmap_just_green = {
-    1: (0, 100, 0),   # Trees are green
-}
-
-filename = '/Users/christopherbradley/Desktop/TEST.tif' 
-tif_categorical(da, filename, cmap_just_green)
-
-
+# +
+# da = rxr.open_rasterio('/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Tas_tifs/Buckland2019-C1-AHD_5545255_GDA2020_55_woodyveg_res10_cat5.tif')
+# da = da.isel(band=0).drop_vars('band')
+# da = da.rio.write_nodata(0, inplace=True)
+# cmap_just_green = {
+#     1: (0, 100, 0),   # Trees are green
+# }
+# filename = '/Users/christopherbradley/Desktop/TEST.tif' 
+# tif_categorical(da, filename, cmap_just_green)
