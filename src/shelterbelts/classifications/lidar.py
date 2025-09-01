@@ -4,6 +4,7 @@
 # -
 
 import os
+import glob
 import pdal, json
 import rioxarray
 import numpy as np
@@ -123,6 +124,15 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None):
     return chm, da_tree
 
 
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None):
+    """Run the classifications on every laz file in a folder"""
+    laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
+    for laz_file in laz_files:
+        stub = laz_file.split('/')[-1].split('.')[0]
+        lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg)
+    
+
+
 def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None):
     """Convert a laz point cloud to a raster
 
@@ -210,3 +220,15 @@ if __name__ == '__main__':
 # filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_09/ACT2020-12ppm-C3-AHD_6826095_55_0001_0001.laz'
 # da_tree_cat5 = lidar(filename, resolution=1, category_5=True)
 # da_tree = lidar(filename, resolution=1)
+
+# +
+# %%time
+# laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Point Clouds/AHD/'
+laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS_Government_2/Point Clouds/AHD' 
+outdir = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Tas_tifs'
+lidar_folder(laz_folder, outdir, category5=True)
+
+# Took 10 mins to process 100 tiles in Tasmania
+
+# +
+# Remove all of the counts.tif, and any tiles that don't have a nice distribution of trees vs no trees (and make a record of all the tiles that we removed, just in case).

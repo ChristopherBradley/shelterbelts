@@ -96,7 +96,8 @@ def tif_categorical(da, filename= "TEST.tif", colormap=None, tiled=False):
         transform=da.rio.transform(),
         compress="LZW",  # "deflate" gives slightly smaller filesize but slower
         photometric="palette",
-        tiled=tiled      # Don't bother tiling unless it's a really big area (maybe bigger than 10kmx10km)
+        tiled=tiled,      # Don't bother tiling unless it's a really big area (maybe bigger than 10kmx10km)
+        nodata=da.rio.nodata 
     ) as dst:
         dst.write(da.values, 1)
         if colormap:
