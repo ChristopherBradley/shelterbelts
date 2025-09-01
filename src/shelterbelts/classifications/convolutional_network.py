@@ -389,3 +389,6 @@ X_p, y_p = preprocess_tile(sentinel_file, tree_file)
 
 reconstructed = reconstruct_from_patches(y_p, da_tree.shape)
 
+ds_sentinel['trees_reconstructed'] = ('y', 'x'), reconstructed
+
+ds_sentinel['trees_reconstructed'].plot()
