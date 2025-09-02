@@ -14,26 +14,32 @@ from sklearn.preprocessing import StandardScaler
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
 
-filename = "/g/data/xe2/cb8590/shelterbelts/woody_veg_preprocessed.feather"
+filename = "/scratch/xe2/cb8590/Tas_csv/preprocessed.feather"
 df = pd.read_feather(filename) 
-df.shape
+df = df[df.notna().all(axis=1)]  # There are a couple of EVI's that are NaN. I should look into why this is.
+drop_columns = ['tree_cover', 'y', 'x', 'tile_id']
 
 # +
-# Somehow I ended up with 3219 labels = 0.00393701. Need to look into if these should be 0 or NaN. 
-df = df[(df['woody_veg'] == 0) | (df['woody_veg'] == 1)]
+# filename = "/g/data/xe2/cb8590/shelterbelts/woody_veg_preprocessed.feather"
+# df = pd.read_feather(filename) 
+# df.shape
 
-# Remove any NaN inputs (there are about 7000 of these)
-df = df[df.notna().all(axis=1)]
+# +
+# # Somehow I ended up with 3219 labels = 0.00393701. Need to look into if these should be 0 or NaN. 
+# df = df[(df['woody_veg'] == 0) | (df['woody_veg'] == 1)]
+
+# # Remove any NaN inputs (there are about 7000 of these)
+# df = df[df.notna().all(axis=1)]
 
 # +
 # %%time
 # Start out by training on just 60k samples like in Stewart et al. 2025
-sample_size = 60000
+sample_size = min(len(df), 60000)
 random_state = 0
 df_sample = df.sample(n=sample_size, random_state=random_state)
 
-X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
-y = df_sample['woody_veg']  # target variable
+X = df_sample.drop(columns=drop_columns) # input variables
+y = df_sample['tree_cover']  # target variable
 
 # Split the data into training and testing sets (70% train, 30% test)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
@@ -89,7 +95,7 @@ top_features = feature_importance.nlargest(60)  # Adjust the number as needed
 # +
 # Standardize the data (important for PCA)
 scaler = StandardScaler()
-X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
+X = df_sample.drop(columns=drop_columns) # input variables
 X_scaled = scaler.fit_transform(X)
 
 # Fit PCA, keeping enough components to explain 95% of variance

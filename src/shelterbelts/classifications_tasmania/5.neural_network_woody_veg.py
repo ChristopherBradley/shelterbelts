@@ -16,28 +16,22 @@ from tensorflow.keras.callbacks import EarlyStopping
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
 
-# %%time
-# From my testing, feather seems like the fastest and smallest filetype for a panda dataframe (better than parquet or csv, although csv is more readable)
-filename = "/g/data/xe2/cb8590/shelterbelts/woody_veg_preprocessed.feather"
+filename = "/scratch/xe2/cb8590/Tas_csv/preprocessed.feather"
 df = pd.read_feather(filename) 
-df.shape
-
-# Remove bad samples (about 3000 samples = 0.3, and about 7000 NaN)
-df = df[(df['woody_veg'] == 0) | (df['woody_veg'] == 1)]
-df = df[df.notna().all(axis=1)]
+df = df[df.notna().all(axis=1)]  # There are a couple of EVI's that are NaN. I should look into why this is.
+drop_columns = ['tree_cover', 'y', 'x', 'tile_id']
 
 # +
 random_state = 0
-# sample_size = 60000
-sample_size = 200000
+sample_size = min(len(df), 60000)
 df_sample = df.sample(n=sample_size, random_state=random_state)
 # df_sample = df
 
 # Normalise the input features (should probs do this before creating the .feather file)
-X = df_sample.drop(columns=['woody_veg', 'y', 'x', 'Unnamed: 0']) # input variables
+X = df_sample.drop(columns=drop_columns) # input variables
 X = StandardScaler().fit_transform(X)
 
-y = df_sample['woody_veg']  # target variable
+y = df_sample['tree_cover']  # target variable
 y_categorical = keras.utils.to_categorical(y, 2)
 
 # Split the data into training and testing sets (70% train, 30% test)

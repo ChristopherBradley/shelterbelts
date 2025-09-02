@@ -15,14 +15,19 @@ pd.set_option('display.max_columns', 100)
 
 random_state = 0
 
+# !ls /scratch/xe2/cb8590/Tas_csv/preprocessed.feather
+
+filename = "/scratch/xe2/cb8590/Tas_csv/preprocessed.feather"
+df = pd.read_feather(filename) 
+
 filename = "/g/data/xe2/cb8590/shelterbelts/canopycover_preprocessed.csv"
 df = pd.read_csv(filename) 
-df = df[df.notna().all(axis=1)]
+df = df[df.notna().all(axis=1)]  # There are a couple of EVI's that are NaN. I should look into why this is.
 
 # +
 # %%time
 # Start out by training on just 60k samples like in Stewart et al. 2025
-sample_size = 60000
+sample_size = min(len(df), 60000)
 df_sample = df.sample(n=sample_size, random_state=random_state)
 # df_sample = df
 
