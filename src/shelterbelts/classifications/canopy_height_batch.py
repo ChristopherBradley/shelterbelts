@@ -78,6 +78,7 @@ def global_canopy_height_tile(row):
 
 
 # I ran this code in a jupyter notebook on NCI ARE before submitting the jobs via qsub
+# I want to generalise this and make it work on gpkg files instead of csv's for the final pipeline
 def generate_batches():
     csv = os.path.join(outlines_dir, "nick_bbox_crs.csv")
     df = pd.read_csv(csv)

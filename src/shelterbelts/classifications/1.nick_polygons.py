@@ -191,3 +191,54 @@ df_years_2017_2022.sample(n=100, random_state=0).to_csv(filename)
 filename ='/g/data/xe2/cb8590/Nick_outlines/gdf_2017_2022.csv'
 df_years_2017_2022.to_csv(filename)
 
+%%time
+# Should move this code into Nick_polygons.py
+def extract_bbox_year():
+    """I used this code to extract the bbox and year for each of Nick's tiles"""
+    # Read in the bbox and year for each of the tif files
+    df = pd.read_csv(filename_gdf_maxyear, index_col='filename')
+
+    # Load the crs and bounds for each tif file
+    rows = list(df[['year']].itertuples(name=None))
+    rows2 = []
+    for row in rows:
+        tif, year = row
+        filename = os.path.join(indir, tif)
+        with rasterio.open(filename) as src:
+            bounds = src.bounds
+            crs = src.crs.to_string()
+        bbox = [bounds.left, bounds.bottom, bounds.right, bounds.top]
+        rows2.append((tif, year, bbox, crs))
+
+    df = pd.DataFrame(rows2, columns=["tif", "year", "bbox", "crs"])
+    df.to_csv(filename_bbox_year, index=False)
+    print("Saved", filename_bbox_year)
+
+    # Took 3 mins
+    
+# Create rows for each of the 7k bbox's for tiffs Nick provided after 2017
+def prep_rows_Nick():   
+    indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+    outdir = '/scratch/xe2/cb8590/Nick_sentinel'
+    filename_bbox_year = "/g/data/xe2/cb8590/Nick_outlines/nick_bbox_year_crs.csv"
+    filename_gdf_maxyear = '/g/data/xe2/cb8590/Nick_outlines/gdf_filename_maxyear.csv'
+    outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
+
+    # Load the tiff bboxs
+    df = pd.read_csv(filename_bbox_year)
+    df_2017_2022 = df[df['year'] >= 2017]
+    print("Number of tiles between 2017-2022", len(df_2017_2022))
+
+    # Find the tiles we have already downloaded
+    sentinel_dir = "/scratch/xe2/cb8590/Nick_sentinel"
+    sentinel_tiles = glob.glob(f'{sentinel_dir}/*')
+    print("Number of sentinel tiles downloaded:", len(sentinel_tiles))
+
+    # Find the tiles we haven't downloaded yet
+    sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_tiles]
+    downloaded = [f"{tile_id}_binary_tree_cover_10m.tiff" for tile_id in sentinel_tile_ids]
+    df_new = df_2017_2022[~df_2017_2022['tif'].isin(downloaded)]
+    print("Number of new tiles to download:", len(df_new))
+
+    rows = df_new[['tif', 'year', 'bbox', 'crs']].values.tolist()
+    return rows
