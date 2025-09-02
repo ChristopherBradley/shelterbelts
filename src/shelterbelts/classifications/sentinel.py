@@ -105,7 +105,7 @@ def run_download_gdf(gdf, outdir):
         bounds = row['geometry'].bounds
         try:
             print(f"Downloading: {stub}_{year}", flush=True)
-            sentinel_download(stub, year, outdir, bounds, crs)
+            sentinel_download(stub, year, outdir, bounds, crs)  # Should add the option to download June to June, or 2 years like Justin has suggested
         except Exception as e:
             print(f"Error in downloading: {stub}_{year}:", flush=True)
             traceback.print_exc(file=sys.stdout)
