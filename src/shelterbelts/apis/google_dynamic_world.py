@@ -1,7 +1,12 @@
 # +
 # Create a video of land classifications for Margaret's plots using Google Dynamic World
 # Google Earth Engine Collection is here: https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_DYNAMICWORLD_V1
+
+# +
+# # !pip install earthengine-api
 # -
+
+# !pip install geemap
 
 import numpy as np
 import ee
@@ -152,3 +157,14 @@ sentinel_tile = best_tile['Name']
 sentinel_tile
 
 best_tile['Name']
+
+
+
+print("HI")
+
+lat=-34.3890427
+lon=148.469499
+buffer=0.1
+
+bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]     # From my experimentation, the asris.csiro API allows a maximum bbox of about 40km (0.2 degrees in each direction)
+bbox

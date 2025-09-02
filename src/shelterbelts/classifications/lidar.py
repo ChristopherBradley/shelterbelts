@@ -126,7 +126,6 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None):
     return chm, da_tree
 
 
-# Oops, this just removed all the tifs - sadface
 def tif_cleanup(outdir, size_threshold=80, percent_cover_threshold=10):
     """Remove tifs that don't meet the size or cover threshold"""
     
@@ -140,7 +139,8 @@ def tif_cleanup(outdir, size_threshold=80, percent_cover_threshold=10):
     records = []
     for veg_tif in veg_tifs:
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
-    
+
+        year = veg_tif.split('-')[0][-4:]
         height, width = da.shape
         bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
         minx, miny, maxx, maxy = bounds
@@ -148,6 +148,7 @@ def tif_cleanup(outdir, size_threshold=80, percent_cover_threshold=10):
         category_counts = dict(zip(unique.tolist(), counts.tolist()))
         rec = {
             "filename": os.path.basename(veg_tif),
+            "year":year,
             "height": height,
             "width": width,
             "pixels_0": category_counts.get(0, 0),
@@ -277,4 +278,4 @@ if __name__ == '__main__':
 
 # # Took about 10 mins to process 100 tiles
 # lidar_folder(laz_folder, outdir, category5=True)
-# # tif_cleanup(outdir)
+tif_cleanup(outdir)
