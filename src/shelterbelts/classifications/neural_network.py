@@ -5,7 +5,6 @@
 # # !pip install pyarrow # For loading .feather files
 
 # +
-# %%time
 import os
 import numpy as np
 import pandas as pd
@@ -22,23 +21,6 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 # Takes 1 min to load all the libraries on my mac
 
-
-def attach_koppen_classes(df):
-    """Attach the koppen class of each tile to the relevant rows"""
-    # This should really all happen in merge_inputs_outputs
-    df = df[(df['tree_cover'] == 0) | (df['tree_cover'] == 1)]     # Drop the 174 rows where tree cover values = 2
-    df = df[df.notna().all(axis=1)]     # Drop the two rows with NaN values
-
-    # Add the bioregion to the training/testing data
-    gdf = gpd.read_file(filename_centroids)
-
-    gdf['tile_id'] = ["_".join(filename.split('/')[-1].split('_')[:2]) for filename in gdf['filename']]
-    gdf = gdf.rename(columns={'Full Name':'koppen_class'})
-    df = df.merge(gdf[['tile_id', 'koppen_class']])
-
-    # Should also use the y, x, tile_id to get a coord in the Australia EPSG:7844
-
-    return df
 
 def my_train_test_split(df, stratification_columns, train_frac, random_state):
     """Stratified train test split"""
@@ -94,7 +76,7 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables):
     X_test = scaler.transform(df_test.drop(columns=non_input_variables))
 
     # Save the StandardScaler
-    filename_scaler = os.path.join(outdir, f'scaler_{stub}.pkl')
+    filename_scaler = os.path.join(outdir, f'{stub}_scaler.pkl')
     joblib.dump(scaler, filename_scaler)  
     print("Saved", filename_scaler)
 
@@ -130,13 +112,14 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
                         callbacks=[early_stopping], validation_data=(X_test, y_test), verbose=2)
 
     # Save the model
-    filename = os.path.join(outdir, f'nn_{stub}.keras')
+    filename = os.path.join(outdir, f'{stub}_nn.keras')
     model.save(filename)
     print("Saved", filename)
     
     # Accuracy and Loss Plots
     history_df = pd.DataFrame.from_dict(history.history)
-    history_mapping = {'CategoricalAccuracy': 'Training Accuracy', 'val_CategoricalAccuracy': 'Testing Accuracy', 'loss': "Training Loss", 'val_loss': "Testing Loss"}
+    # history_mapping = {'CategoricalAccuracy': 'Training Accuracy', 'val_CategoricalAccuracy': 'Testing Accuracy', 'loss': "Training Loss", 'val_loss': "Testing Loss"}
+    history_mapping = {'categorical_accuracy': 'Training Accuracy', 'val_categorical_accuracy': 'Testing Accuracy', 'loss': "Training Loss", 'val_loss': "Testing Loss"}
     history_df = history_df.rename(columns = history_mapping)
     
     fig, axes = plt.subplots(1, 2, figsize=(12,6))
@@ -158,7 +141,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     return model
 
 
-def class_accuracies(df_test, model, scaler, outdir, stub):
+def class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_variables):
     """Calculate overall and per class accuracy metrics"""
     X_test = scaler.transform(df_test.drop(columns=non_input_variables))
     y_pred_percent = model.predict(X_test)
@@ -166,7 +149,6 @@ def class_accuracies(df_test, model, scaler, outdir, stub):
     
     results = df_test[['tree_cover', 'koppen_class']].copy()
     results['y_pred'] = y_pred
-
     rf_rows = []
     for koppen_class in results['koppen_class'].unique():
         subset = results[results['koppen_class'] == koppen_class]
@@ -183,7 +165,7 @@ def class_accuracies(df_test, model, scaler, outdir, stub):
                     'accuracy': accuracy,
                     'support': report[str(tree_class)]['support'],
                 })
-    
+
     # Overall metrics 
     rf_metrics_table = pd.DataFrame(rf_rows)
     overall_report = classification_report(results['tree_cover'], results['y_pred'], output_dict=True, zero_division=0)
@@ -199,7 +181,7 @@ def class_accuracies(df_test, model, scaler, outdir, stub):
                 'accuracy': overall_accuracy,
                 'support': overall_report[str(tree_class)]['support'],
             }
-    filename = os.path.join(outdir, f'metrics_{stub}.csv')
+    filename = os.path.join(outdir, f'{stub}_metrics.csv')
     rf_metrics_table.to_csv(filename)
     print("Saved", filename)
 
@@ -220,23 +202,53 @@ def class_accuracies(df_test, model, scaler, outdir, stub):
         df_combined[metric] = (df_combined[metric] * 100).round().astype(int)
     df_combined['test_samples'] = df_combined['test_samples'].astype(int)
     
-    filename = os.path.join(outdir, f'accuracy_{stub}.csv')
+    filename = os.path.join(outdir, f'{stub}_accuracy.csv')
     df_combined = df_combined.sort_values(by='koppen_class')
     df_combined.to_csv(filename, index=False)
     print("Saved", filename)
 
     return rf_metrics_table
     
+def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_variables):
+    """Calculate just the overall metrics"""
+    X_test = scaler.transform(df_test.drop(columns=non_input_variables))
+    y_pred_percent = model.predict(X_test)
+    y_pred = [percent.argmax() for percent in y_pred_percent]
+    overall_report = classification_report(results['tree_cover'], results['y_pred'], output_dict=True, zero_division=0)
+    overall_accuracy = accuracy_score(results['tree_cover'], results['y_pred'])
+    rf_rows = []
+    for tree_class in [0.0, 1.0]:
+        if str(tree_class) in overall_report:
+            rf_rows.append( {
+                'tree_class': tree_class,
+                'precision': overall_report[str(tree_class)]['precision'],
+                'recall': overall_report[str(tree_class)]['recall'],
+                'f1-score': overall_report[str(tree_class)]['f1-score'],
+                'accuracy': overall_accuracy,
+                'support': overall_report[str(tree_class)]['support'],
+            })
+    rf_metrics_table = pd.DataFrame(rf_rows)
+    filename = os.path.join(outdir, f'{stub}_metrics.csv')
+    rf_metrics_table.to_csv(filename)
+    print("Saved", filename)
+    
+    return rf_metrics_table
 
-def neural_network(outdir, stub, learning_rate=0.001, epochs=50, batch_size=32, random_state=1, stratification_columns=[], train_frac = 0.7, limit=None):
+def neural_network(outdir, stub, output_column='tree_cover', drop_columns=['x', 'y', 'tile_id'], learning_rate=0.001, epochs=50, batch_size=32, random_state=1, stratification_columns=['tree_cover'], train_frac = 0.7, limit=None):
     """
     Create and evaluate a neural network to predict tree vs no tree classifications
 
     Parameters
     ----------
-        outdir: 
-        stub: 
-        stratify: Whether to normalise the number of samples from each class (reduces the overall number of training samples)
+        outdir: The directory of the training feather file
+        stub: The suffix of the training feather file 
+        output_column: Column with the output data
+        drop_columns: The columns that aren't inputs or outputs (just extra metadata about that sample)
+        learning_rate: hyper_parameter for tuning
+        batch_size: hyper_parameter for tuning
+        epochs: Shouldn't matter too much since we're using early_stopping
+        stratification_columns: Whether to normalise the number of samples from each class (reduces the overall number of training samples)
+        train_frac: Percentage of training vs testing samples. Additionally, should reserve some extra tiles for validation.
         limit: Number of rows to use when training the model
 
     Returns
@@ -250,32 +262,52 @@ def neural_network(outdir, stub, learning_rate=0.001, epochs=50, batch_size=32, 
         scaler.pkl: The standard scaler used to normalise the input data
         training.png: accuracy and loss plots over each epoch
     """
-    feather_filename = os.path.join(outdir, f"tree_cover_preprocessed_{stub}.feather")
+    feather_filename = os.path.join(outdir, f"{stub}_preprocessed.feather")
     df = pd.read_feather(feather_filename)
+    
+    df = df[df.notna().all(axis=1)]  # Should do this in merge_inputs_outputs instead
 
     if limit:
         df = df.sample(limit, random_state=random_state)
 
-    filename_centroids = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/centroids_named.gpkg"
-    df = attach_koppen_classes(df)
-
     df_train, df_test = my_train_test_split(df, stratification_columns, train_frac, random_state)
     
-    non_input_columns = ['tree_cover', 'y', 'x', 'tile_id', 'koppen_class']  # Might be better to invert this so my_train_test_split takes the input_columns instead of non_input_columns
-    X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables)
+    non_input_columns = [output_column] + drop_columns # ['koppen_class']  
+    X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns)
     
     model = train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_size)
 
-    df_metrics = class_accuracies(df_test, model, scaler, outdir, stub)
+    if 'koppen_class' in df_test.columns:
+        df_metrics = class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_columns)
+    else:
+        df_metrics = class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns)
+    
+    print(df_metrics)
 
 
 
+# +
+# # %%time
+# if __name__ == '__main__':
+
+#     outdir = "/Users/christopherbradley/Documents/PHD/Data/Nick_models"
+#     stub = "kernel4"
+#     neural_network(outdir, stub, stratification_columns=['tree_cover'], limit=10000)
 # -
 
+
+outdir = '/scratch/xe2/cb8590/Tas_csv/'
+stub = 'TEST'
+
 # %%time
-if __name__ == '__main__':
+neural_network(outdir, stub, stratification_columns=[])
 
-    outdir = "/Users/christopherbradley/Documents/PHD/Data/Nick_models"
-    stub = "kernel4"
-    neural_network(outdir, stub, stratification_columns=['tree_cover'], limit=10000)
-
+# +
+# stratification_columns = []
+# train_frac = 0.7
+# random_state = 0
+# output_column = 'tree_cover'
+# drop_columns=['x', 'y', 'tile_id']
+# learning_rate=0.001
+# epochs=50
+# batch_size=32
