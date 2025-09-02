@@ -123,15 +123,16 @@ def tile_csv(sentinel_tile, tree_folder, outdir, radius=4, spacing=10, double_f=
     """Create a csv file with a subset of training pixels for this tile"""
     stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-2])    
     tree_cover_filename = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}") 
-    
+
     # Load the sentinel imagery and tree cover into an xarray
     with open(sentinel_tile, 'rb') as file:
+        print(f"Loading {sentinel_tile}")
         ds = pickle.load(file)
         
     # Load the woody veg and add to the main xarray
     print(f"Loading {tree_cover_filename}")
     da = rxr.open_rasterio(tree_cover_filename).isel(band=0).drop_vars('band')
-    ds = ds.rio.reproject_match(da)  # This should be the computationally as reprojecting the other way around, because both rasters are 10m pixels
+    ds = ds.rio.reproject_match(da)  # This should be the computationally the same as reprojecting the other way around, because both rasters are 10m pixels
     ds['tree_cover'] = da.astype(float)
 
     # Calculate vegetation indices
@@ -218,6 +219,14 @@ def preprocess(sentinel_folder, tree_folder=None, outdir=".", radius=4, spacing=
 sentinel_folder = "/scratch/xe2/cb8590/Tas_sentinel"
 tree_folder = "/scratch/xe2/cb8590/Tas_tifs"
 outdir = f"/scratch/xe2/cb8590/Tas_csv"
+
+print(sentinel_folder)
+print(tree_folder)
+print(outdir)
+
+preprocess(sentinel_folder, tree_folder, outdir, limit=1)
+
+
 
 preprocess(sentinel_folder, tree_folder, outdir, limit=1)
 
