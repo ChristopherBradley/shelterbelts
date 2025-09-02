@@ -287,20 +287,57 @@ def neural_network(outdir, stub, output_column='tree_cover', drop_columns=['x', 
 
 
 # +
+import argparse
+
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--outdir', required=True, help='Directory of the training feather file')
+    parser.add_argument('--stub', required=True, help='Suffix of the training feather file (used to identify it)')
+    parser.add_argument('--output_column', default='tree_cover', help='Column with the output data (default: tree_cover)')
+    parser.add_argument('--drop_columns', nargs='+', default=['x', 'y', 'tile_id'], help='Columns to drop (default: x y tile_id)')
+    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate hyperparameter (default: 0.001)')
+    parser.add_argument('--epochs', type=int, default=50, help='Max number of epochs (default: 50)')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training (default: 32)')
+    parser.add_argument('--random_state', type=int, default=1, help='Random seed (default: 1)')
+    parser.add_argument('--stratification_columns', nargs='+', default=['tree_cover'], help='Columns to stratify samples on (default: tree_cover)')
+    parser.add_argument('--train_frac', type=float, default=0.7, help='Fraction of samples to use for training (default: 0.7)')
+    parser.add_argument('--limit', type=int, default=None, help='Number of rows to use when training (default: all)')
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    
+    neural_network(
+        outdir=args.outdir,
+        stub=args.stub,
+        output_column=args.output_column,
+        drop_columns=args.drop_columns,
+        learning_rate=args.learning_rate,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        random_state=args.random_state,
+        stratification_columns=args.stratification_columns,
+        train_frac=args.train_frac,
+        limit=args.limit
+    )
+
+
+# +
 # # %%time
-# if __name__ == '__main__':
-
-#     outdir = "/Users/christopherbradley/Documents/PHD/Data/Nick_models"
-#     stub = "kernel4"
-#     neural_network(outdir, stub, stratification_columns=['tree_cover'], limit=10000)
-# -
+# outdir = "/Users/christopherbradley/Documents/PHD/Data/Nick_models"
+# stub = "kernel4"
+# neural_network(outdir, stub, stratification_columns=['tree_cover'], limit=10000)
 
 
-outdir = '/scratch/xe2/cb8590/Tas_csv/'
-stub = 'TEST'
-
-# %%time
-neural_network(outdir, stub, stratification_columns=[])
+# +
+# # %%time
+# outdir = '/scratch/xe2/cb8590/Tas_csv/'
+# stub = 'TEST'
+# neural_network(outdir, stub, stratification_columns=['tree_cover'])
 
 # +
 # stratification_columns = []
