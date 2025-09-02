@@ -122,15 +122,21 @@ def test_catchments():
 def test_roads():
     print()
 
+
+# Ran these command in the terminal to get rid of postgres errors (they didn't prevent the code from running, just clogged up the outputs).
+# rm $CONDA_PREFIX/lib/gdalplugins/ogr_PG.dylib
+# rm $CONDA_PREFIX/lib/gdalplugins/gdal_PostGISRaster.dylib
+# export KMP_WARNINGS=0 (put this in my .zshrc)
+
 if __name__ == '__main__':
     print("testing APIs")
     start = time.time()
 
-    # test_basic()
-    # test_worldcover()
+    test_basic()
+    test_worldcover()
     test_canopy_height()
-    # test_barra_daily()
-    # test_hydrolines()
+    test_barra_daily()
+    test_hydrolines()
 
     
     print(f"tests successfully completed in {time.time() - start} seconds")

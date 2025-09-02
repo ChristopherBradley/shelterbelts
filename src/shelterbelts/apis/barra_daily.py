@@ -43,16 +43,16 @@ def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buf
         # Likely no data for the specified month
         return None
 
-    # This issue randomly fixed itself as of 7 August, so ignore the comment below (hopefully the issue doesn't come back).
-        # Issue in May 2025: This bbox selection was giving a 0 latitude coordinates, even with a larger slice, so I've made the code ignore the buffer and only return a single point for now.
-        # ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
+    # This bbox selection was giving a 0 latitude coordinates, even with a larger slice, so I've made the code ignore the buffer and only return a single point for now.
+    # Issue in May 2025, working again on 7 August, then broken again on 3 September: 
+    ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
     
-    bbox = [longitude - buffer, latitude - buffer, longitude + buffer, latitude + buffer]
-    ds_region = ds.sel(lat=slice(bbox[3], bbox[1]), lon=slice(bbox[0], bbox[2]))
-    min_buffer_size = 0.03
-    if buffer < min_buffer_size:
-        # Find a single point but keep the lat and lon dimensions for consistency
-        ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
+    # bbox = [longitude - buffer, latitude - buffer, longitude + buffer, latitude + buffer]
+    # ds_region = ds.sel(lat=slice(bbox[3], bbox[1]), lon=slice(bbox[0], bbox[2]))
+    # min_buffer_size = 0.03
+    # if buffer < min_buffer_size:
+    #     # Find a single point but keep the lat and lon dimensions for consistency
+    #     ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')
     
     return ds_region
 
@@ -236,7 +236,7 @@ def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffe
     for variable in variables:
         ds_variable = barra_multiyear(variable, lat, lon, buffer, years, gdata)
         dss.append(ds_variable)
-    ds = xr.merge(dss)
+    ds = xr.merge(dss, compat="override")
 
     ds = ds.drop_vars(['time_bnds', 'height', 'crs'])
     ds = ds.rename({'lat':'latitude', 'lon':'longitude'})
