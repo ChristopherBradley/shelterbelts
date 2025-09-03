@@ -278,4 +278,4 @@ if __name__ == '__main__':
 
 # # Took about 10 mins to process 100 tiles
 # lidar_folder(laz_folder, outdir, category5=True)
-tif_cleanup(outdir)
+# tif_cleanup(outdir)
