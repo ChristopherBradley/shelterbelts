@@ -20,22 +20,22 @@ from dask.distributed import Client as DaskClient
 
 # -
 
-def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST") -> Dataset:
+def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir=".") -> Dataset:
     """Download sentinel imagery matching the bounding box of the tif file"""
     da = rxr.open_rasterio(tif).isel(band=0).drop_vars('band')
     da_4326 = da.rio.reproject('EPSG:4326')
     bbox = da_4326.rio.bounds()
+    stub = tif.split('/')[-1].split('.')[0]
     ds2 = download_ds2_bbox(bbox, start_date, end_date, outdir, stub)
     return ds2
 
-
-
-def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", crs="utm") -> Dataset:
+# Takes about 5 mins to download 1 year of data, compared to 40 secs using the datacube on gadi
+def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST") -> Dataset:
     """
     Download sentinel imagery for the bounding box and time period of interest.
 
     Parameters:
-        bbox: filename of the tif to match the bounding box
+        bbox: bounding box of the region of interest
         start_date: First date of imagery to download
         end_date: Last date of imagery to download
         outdir: Output folder for the pickle file
@@ -63,31 +63,62 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
               'nbart_red_edge_1', 'nbart_red_edge_2', 'nbart_red_edge_3',
               'nbart_nir_1', 'nbart_nir_2',
               'nbart_swir_2', 'nbart_swir_3'],
-        crs=crs,
+        crs='utm',
         resolution=10,
         groupby='solar_day',
         bbox=bbox,
-        chunks={
-            'time': 1,
-            'x': 1024,
-            'y': 1024
-        }
+        # chunks={  # Lazy loading. Seems to break my merge_inputs_outputs currently.
+        #     'time': 1,
+        #     'x': 1024,
+        #     'y': 1024
+        # }
     )
     filename = os.path.join(outdir, f'{stub}_ds2.pkl')
     with open(filename, 'wb') as handle:
         pickle.dump(ds2, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print("Saved", filename)
+
+    ## Later you can load this pickle file using this. It seems to have the same filesize and efficiency and lazy loading as netcdf files from my experimenting.
+    # with open('ds2.pkl', 'rb') as file:
+    #     ds = pickle.load(file)
+    
     return ds2
 
 
 
+# +
+import argparse
+
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--tif', required=True, help='Filename of the tif to match the bounding box')
+    parser.add_argument('--start_date', default='2020-01-01', help='First date of imagery to download (default: 2020-01-01)')
+    parser.add_argument('--end_date', default='2021-01-01', help='Last date of imagery to download (default: 2021-01-01)')
+    parser.add_argument('--outdir', default='.', help='Output folder for the pickle file (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix of the pickle file (default: TEST)')
+
+    return parser.parse_args()
+
+
+# # %%time
 if __name__ == '__main__':
-    print(test())
+    args = parse_arguments()
+    
+    download_ds2_bbox(
+        bbox=args.bbox,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        outdir=args.outdir,
+        stub=args.stub
+    )
+
 
 # +
 # # %%time
 # tif = '../../../data/g2_26729_binary_tree_cover_10m.tiff'
-# download_ds2(tif)
-# with open('./TEST_ds2.pkl', 'rb') as file:
-#     ds = pickle.load(file)
-# ds['nbart_red'].isel(time=0).plot()
+# ds = download_ds2(tif)
+# # ds['nbart_red'].isel(time=0).plot()
+# stub
+# # !ls

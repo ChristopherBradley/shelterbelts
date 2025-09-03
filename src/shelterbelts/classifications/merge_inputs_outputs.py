@@ -64,7 +64,9 @@ def aggregated_metrics(ds, radius=4):
         ds_mean_focal_7p = xr.apply_ufunc(
             ndimage.uniform_filter, 
             ds_median_temporal, 
-            kwargs={'size': kernel_size, 'mode': 'nearest'}
+            kwargs={'size': kernel_size, 'mode': 'nearest'},
+            dask="parallelized",  # Lazy loading
+            output_dtypes=[ds_median_temporal.dtype],
         )
 
         kernel = make_circular_kernel(radius=radius)
@@ -119,25 +121,29 @@ def jittered_grid(ds, spacing_x=10, spacing_y=10):
     return df
 
 
-def tile_csv(sentinel_tile, tree_folder, outdir, radius=4, spacing=10, double_f=False):
+def tile_csv(sentinel_tile, tree_folder, outdir, radius=4, spacing=10, double_f=False, verbose=True):
     """Create a csv file with a subset of training pixels for this tile"""
-    stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-2])    
-    tree_cover_filename = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}") 
+    stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
+    # stub = sentinel_tile.split('/')[-1].split('.')[0]
+    tree_cover_filename = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")  # Should probably just rename all the files to have the same suffix instead
 
-    # Load the sentinel imagery and tree cover into an xarray
-    with open(sentinel_tile, 'rb') as file:
-        # print(f"Loading {sentinel_tile}")
-        ds = pickle.load(file)
-        
-    # Load the woody veg and add to the main xarray
-    # print(f"Loading {tree_cover_filename}")
+    # Load the woody veg
+    if verbose:
+        print(f"Loading {tree_cover_filename}")
     da = rxr.open_rasterio(tree_cover_filename).isel(band=0).drop_vars('band')
     
+    # Load the sentinel imagery and tree cover into an xarray
+    with open(sentinel_tile, 'rb') as file:
+        if verbose:
+            print(f"Loading {sentinel_tile}")
+        ds = pickle.load(file)
+        
     # Should really make sure there's always a crs in lidar.py before writing out the tif file
     if da.rio.crs is None:
         da = da.rio.write_crs("EPSG:28355", inplace=True)
-    
-    ds = ds.rio.reproject_match(da)  # This should be the computationally the same as reprojecting the other way around, because both rasters are 10m pixels
+
+    # Add the woody veg to the main xarray
+    da = da.rio.reproject_match(ds)  # Reprojecting the ds can take forever, especially if it was loaded lazily.
     ds['tree_cover'] = da.astype(float)
 
     # Calculate vegetation indices
@@ -161,9 +167,9 @@ def tile_csv(sentinel_tile, tree_folder, outdir, radius=4, spacing=10, double_f=
     df["tile_id"] = stub
 
     # Save a copy of this dataframe just in case something messes up later
-    filename = os.path.join(outdir, f"{stub}_df_tree_cover.csv")
+    filename = os.path.join(outdir, f"{stub}_df_r{radius}_s{spacing}.csv")
     df.to_csv(filename, index=False)
-    print(f"Saved {filename}")
+    print(f"Saved: {filename}")
     
     return df
 
@@ -184,24 +190,22 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
 
 # +
 # Haven't yet added this into the main preprocess pipeline
+# def attach_koppen_classes(df):
+#     """Attach the koppen class of each tile to the relevant rows"""
+#     # This should really all happen in merge_inputs_outputs
+#     df = df[(df['tree_cover'] == 0) | (df['tree_cover'] == 1)]     # Drop the 174 rows where tree cover values = 2
+#     df = df[df.notna().all(axis=1)]     # Drop the two rows with NaN values
 
-def attach_koppen_classes(df):
-    """Attach the koppen class of each tile to the relevant rows"""
-    # This should really all happen in merge_inputs_outputs
-    df = df[(df['tree_cover'] == 0) | (df['tree_cover'] == 1)]     # Drop the 174 rows where tree cover values = 2
-    df = df[df.notna().all(axis=1)]     # Drop the two rows with NaN values
+#     # Add the bioregion to the training/testing data
+#     gdf = gpd.read_file(filename_centroids)
 
-    # Add the bioregion to the training/testing data
-    gdf = gpd.read_file(filename_centroids)
+#     gdf['tile_id'] = ["_".join(filename.split('/')[-1].split('_')[:2]) for filename in gdf['filename']]
+#     gdf = gdf.rename(columns={'Full Name':'koppen_class'})
+#     df = df.merge(gdf[['tile_id', 'koppen_class']])
 
-    gdf['tile_id'] = ["_".join(filename.split('/')[-1].split('_')[:2]) for filename in gdf['filename']]
-    gdf = gdf.rename(columns={'Full Name':'koppen_class'})
-    df = df.merge(gdf[['tile_id', 'koppen_class']])
+#     # Should also use the y, x, tile_id to get a coord in the Australia EPSG:7844
 
-    # Should also use the y, x, tile_id to get a coord in the Australia EPSG:7844
-
-    return df
-
+#     return df
 # filename_centroids = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/centroids_named.gpkg"
 # df = attach_koppen_classes(df)
 
@@ -292,3 +296,10 @@ if __name__ == '__main__':
 # tree_folder = "/scratch/xe2/cb8590/Tas_tifs"
 # outdir = f"/scratch/xe2/cb8590/Tas_csv"
 # preprocess(sentinel_folder, tree_folder, outdir, limit=1)
+
+# +
+# # %%time
+# outdir = '../../../outdir'
+# tree_folder = '../../../data'
+# sentinel_tile = os.path.join(outdir,'g2_26729_binary_tree_cover_10m.pkl ')
+# tile_csv(sentinel_tile, tree_folder, outdir, double_f=True)
