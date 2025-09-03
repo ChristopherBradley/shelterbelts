@@ -37,7 +37,9 @@ dependencies = [
     "osmnx", 
     "xlsxwriter",
     "pyarrow",
-    "tensorflow"
+    "tensorflow",
+    "dask[distributed]",
+    "cql2"
 ]
 
 [project.optional-dependencies]

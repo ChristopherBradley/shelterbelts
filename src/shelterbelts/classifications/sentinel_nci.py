@@ -61,7 +61,7 @@ def load_and_process_data(dc, query):
     with contextlib.redirect_stdout(io.StringIO()):     # Silence the print statements
         ds = load_ard(
             dc=dc,
-            products=['ga_s2am_ard_3', 'ga_s2bm_ard_3'],
+            products=['ga_s2am_ard_3', 'ga_s2bm_ard_3', 'ga_s2cm_ard_3'],
             cloud_mask='s2cloudless',
             min_gooddata=0.9,
             measurements=['nbart_blue', 'nbart_green', 'nbart_red', 
