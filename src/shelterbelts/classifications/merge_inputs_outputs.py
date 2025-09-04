@@ -164,8 +164,10 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=True):
     if da.rio.crs is None:
         da = da.rio.write_crs("EPSG:28355", inplace=True)
 
+    assert da.shape[0] <= ds.sizes['x'] and da.shape[1] <= ds.sizes['y']  # Need to make sure the larger array to reprojected to match the smaller array
+    ds = ds.rio.reproject_match(da)  
+
     # Add the woody veg to the main xarray
-    da = da.rio.reproject_match(ds)  # Reprojecting the ds can take forever, especially if it was loaded lazily.
     ds['tree_cover'] = da.astype(float)
 
     # Calculate vegetation indices
@@ -186,7 +188,6 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=True):
 
     # I'm currently undecided whether to use a jittered grid or random sample of points. 
     df = jittered_grid(ds, spacing)
-    # stub = "_".join(sentinel_file.split('/')[-1].split('_')[:-1])   # Removing the _ds2
     stub = tree_file.split('/')[-1].split('.')[0]  # filename without the path
     df["tile_id"] = stub
 

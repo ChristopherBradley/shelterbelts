@@ -19,6 +19,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tensorflow.keras.callbacks import EarlyStopping
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Remove tensorflow logging info
+
 # Takes 1 min to load all the libraries on my mac
 
 
@@ -118,9 +120,19 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     
     # Accuracy and Loss Plots
     history_df = pd.DataFrame.from_dict(history.history)
-    # history_mapping = {'CategoricalAccuracy': 'Training Accuracy', 'val_CategoricalAccuracy': 'Testing Accuracy', 'loss': "Training Loss", 'val_loss': "Testing Loss"}
-    history_mapping = {'categorical_accuracy': 'Training Accuracy', 'val_categorical_accuracy': 'Testing Accuracy', 'loss': "Training Loss", 'val_loss': "Testing Loss"}
-    history_df = history_df.rename(columns = history_mapping)
+
+    # Different versions of keras have different naming conventions for the accuracy and loss
+    def norm(k: str) -> str:
+        return k.lower().replace("_", "")
+    desired = {
+        "categoricalaccuracy": "Training Accuracy",
+        "valcategoricalaccuracy": "Testing Accuracy",
+        "loss": "Training Loss",
+        "valloss": "Testing Loss",
+    }
+    rename_map = {col: desired[norm(col)] for col in history_df.columns if norm(col) in desired}
+    
+    history_df = history_df.rename(columns = rename_map)
     
     fig, axes = plt.subplots(1, 2, figsize=(12,6))
     

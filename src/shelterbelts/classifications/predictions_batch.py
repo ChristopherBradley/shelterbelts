@@ -3,21 +3,15 @@ import os, sys
 import argparse
 import logging
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("rasterio").setLevel(logging.ERROR)
 
-import glob
 import pickle
-import ast
 import traceback
 
-import math
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import shape
-from shapely.ops import transform
 
-import pyproj
-from pyproj import Transformer
 
 import xarray as xr
 import rioxarray as rxr
@@ -27,6 +21,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 from tensorflow import keras
 import joblib
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Remove tensorflow logging info
+
 
 import gc
 import psutil
@@ -38,16 +34,9 @@ process = psutil.Process(os.getpid())
 repo_name = "shelterbelts"
 if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}/src")
-elif os.path.basename(os.getcwd()) != repo_name:
-    repo_dir = os.path.dirname(os.getcwd())  # Running in a jupyter notebook 
-else:  # Already running locally from repo root
-    repo_dir = os.getcwd()
-os.chdir(repo_dir)
-sys.path.append(repo_dir)
-# print(f"Running from {repo_dir}")
+    os.chdir(repo_dir)
 
 from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
-from shelterbelts.classifications.sentinel_nci import download_ds2_bbox
 
 # -
 
@@ -67,7 +56,7 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     B4 = ds['nbart_red']
     B3 = ds['nbart_green']
     B2 = ds['nbart_blue']
-    ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))
+    ds['EVI'] = 2.5 * ((B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1))  # Should look into why this is giving NaN subtraction warnings
     ds['NDVI'] = (B8 - B4) / (B8 + B4)
     ds['GRNDVI'] = (B8 - B3 + B4) / (B8 + B3 + B4)
 
@@ -89,7 +78,7 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     # print("Predicting")
     preds = model.predict(X_all_scaled)
     predicted_class = np.argmax(preds, axis=1)
-    pred_map = xr.DataArray(predicted_class.reshape(ds.dims['y'], ds.dims['x']),
+    pred_map = xr.DataArray(predicted_class.reshape(ds.sizes['y'], ds.sizes['x']),
                             coords={'y': ds.y, 'x': ds.x},
                             dims=['y', 'x'])
     pred_map.rio.write_crs(ds.rio.crs, inplace=True)
@@ -115,7 +104,7 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
         # tiled=True,       # Can't be tiled if you want to be able to visualise it in preview. And no point in tiling such a small tif file
         # blockxsize=2**10,
         # blockysize=2**10,
-        photometric="palette",
+        # photometric="palette",
     ) as dst:
         dst.write(da.values, 1)
         dst.write_colormap(1, cmap)
@@ -139,7 +128,9 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
 
 def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
     # Run the sentinel download and tree classification for a given location
-    ds = sentinel_download(stub, year, outdir, bounds, src_crs)
+    from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
+
+    ds = download_ds2_bbox(stub, year, outdir, bounds, src_crs)  # Need to update these parameters to the latest version
     da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True)
 
     # # Trying to avoid memory accumulating with new tiles

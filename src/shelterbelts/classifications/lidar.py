@@ -74,6 +74,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
             da_tree.coarsen(x=resolution, y=resolution, boundary="trim")
               .mean() * 100
         ).astype(np.uint8)
+        percent_cover = percent_cover.rio.write_transform(percent_cover.rio.transform(recalc=True)) 
         tree_tif = os.path.join(outdir, f'{stub}_percentcover_res{resolution}_cat{classification_code}.tif')
         percent_cover.rio.to_raster(tree_tif)
         print("Saved:", tree_tif)
@@ -144,6 +145,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
             da_tree.coarsen(x=resolution, y=resolution, boundary="trim")
               .mean() * 100
         ).astype(np.uint8)
+        percent_cover =percent_cover.rio.write_transform(percent_cover.rio.transform(recalc=True))  # update the transformation, or else using rasterio to create a tif file will be 10x too small
         tree_tif = os.path.join(outdir, f'{stub}_percentcover_res{resolution}_height{height_threshold}m.tif')
         percent_cover.rio.to_raster(tree_tif)
         print("Saved:", tree_tif)

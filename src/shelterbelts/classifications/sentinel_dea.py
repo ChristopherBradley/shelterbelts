@@ -73,7 +73,7 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
         #     'y': 1024
         # }
     )
-    filename = os.path.join(outdir, f'{stub}_ds2.pkl')
+    filename = os.path.join(outdir, f'{stub}_ds2_{start_date}.pkl')
     with open(filename, 'wb') as handle:
         pickle.dump(ds2, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print("Saved", filename)
