@@ -33,7 +33,12 @@ def focal_std_fft(array, kernel):
     kernel = kernel / kernel.sum()
     mean = fftconvolve(array, kernel, mode='same')
     mean_sq = fftconvolve(array**2, kernel, mode='same')
-    std = np.sqrt(mean_sq - mean**2)
+    
+    var = mean_sq - mean**2
+    var = np.maximum(var, 0)   # prevent negative due to round-off
+    std = np.sqrt(var)
+
+    # std = np.sqrt(mean_sq - mean**2)
     
     std_unpadded = std[radius:-radius or None, radius:-radius or None]
     return std_unpadded
@@ -83,14 +88,18 @@ def aggregated_metrics(ds, radius=4):
 
     return ds
 
-def jittered_grid(ds, spacing_x=10, spacing_y=10):
+# +
+def jittered_grid(ds, spacing=10):
     """Create an equally spaced 10x10 coordinate grid with a random jitter"""
 
     # Calculate grid
+    spacing_x = spacing_y = spacing
     half_spacing_x = spacing_x // 2
     half_spacing_y = spacing_y // 2
     # jitter_range = [-2, -1, 0, 1, 2]
-    jitter_range = [-1, 0, 1]
+    # jitter_range = [-1, 0, 1]
+    max_jitter = spacing // 2
+    jitter_range = list(range(-max_jitter, max_jitter + 1))
 
     # Regular grid
     y_inds = np.arange(half_spacing_y, ds.sizes['y'] - half_spacing_y, spacing_y)
@@ -110,18 +119,24 @@ def jittered_grid(ds, spacing_x=10, spacing_y=10):
     # Get non-time-dependent variables
     aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
 
-    data_list = []
-    for y_coord, x_coord in zip(yy_jittered_coords.ravel(), xx_jittered_coords.ravel()):
-        values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
-        values.update({'y': y_coord, 'x': x_coord})
-        data_list.append(values)
-
-    # Create DataFrame
-    df = pd.DataFrame(data_list)
+    # Much faster way of adding x and y coordinates to the dataframe
+    subset = ds[aggregated_vars].interp(y=("points", y_coords), x=("points", x_coords))
+    df = subset.to_dataframe().reset_index()
+    
+#     # Old method was really slow
+#     data_list = []
+#     for y_coord, x_coord in zip(yy_jittered_coords.ravel(), xx_jittered_coords.ravel()):
+#         values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
+#         values.update({'y': y_coord, 'x': x_coord})
+#         data_list.append(values)
+#     df = pd.DataFrame(data_list)
+    
     return df
 
 
-def tile_csv(sentinel_tile, tree_file, outdir, radius=4, spacing=10, double_f=False, verbose=True):
+# -
+
+def tile_csv(sentinel_file, tree_file, outdir, radius=4, spacing=10, verbose=True):
     """Create a csv file with a subset of training pixels for this tile"""
 
     # Load the woody veg
@@ -130,9 +145,9 @@ def tile_csv(sentinel_tile, tree_file, outdir, radius=4, spacing=10, double_f=Fa
     da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
     
     # Load the sentinel imagery and tree cover into an xarray
-    with open(sentinel_tile, 'rb') as file:
+    with open(sentinel_file, 'rb') as file:
         if verbose:
-            print(f"Loading {sentinel_tile}")
+            print(f"Loading {sentinel_file}")
         ds = pickle.load(file)
         
     # Should really make sure there's always a crs in lidar.py before writing out the tif file
@@ -160,8 +175,8 @@ def tile_csv(sentinel_tile, tree_file, outdir, radius=4, spacing=10, double_f=Fa
     ds_selected = ds[variables] 
 
     # I'm currently undecided whether to use a jittered grid or random sample of points. 
-    df = jittered_grid(ds, spacing_x=spacing, spacing_y=spacing)
-    stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
+    df = jittered_grid(ds, spacing)
+    stub = "_".join(sentinel_file.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
     df["tile_id"] = stub
 
     # Save a copy of this dataframe just in case something messes up later
@@ -208,8 +223,6 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
 #     return df
 # filename_centroids = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/centroids_named.gpkg"
 # df = attach_koppen_classes(df)
-
-
 
 # -
 
@@ -292,6 +305,13 @@ if __name__ == '__main__':
 
 
 # +
+# # %%time
+# outdir = '../../../outdir'
+# tree_folder = '../../../data'
+# sentinel_tile = os.path.join(outdir,'g2_26729_binary_tree_cover_10m.pkl ')
+# tile_csv(sentinel_tile, tree_folder, outdir, double_f=True)
+
+# +
 # sentinel_folder = "/scratch/xe2/cb8590/Tas_sentinel"
 # tree_folder = "/scratch/xe2/cb8590/Tas_tifs"
 # outdir = f"/scratch/xe2/cb8590/Tas_csv"
@@ -299,7 +319,18 @@ if __name__ == '__main__':
 
 # +
 # # %%time
-# outdir = '../../../outdir'
-# tree_folder = '../../../data'
-# sentinel_tile = os.path.join(outdir,'g2_26729_binary_tree_cover_10m.pkl ')
-# tile_csv(sentinel_tile, tree_folder, outdir, double_f=True)
+# data_dir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+# stub = 'g2_26729_binary_tree_cover_10m'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# verbose = True
+# radius = 4
+# spacing = 5
+# double_f = True
+
+# tree_file = f'{data_dir}/{stub}.tiff'
+# sentinel_file = f'{outdir}/{stub}_ds2_2020.pkl'
+# tile_csv(sentinel_file, tree_file=tree_file, outdir=outdir, radius=4, spacing=1)
+
+# -
+
+
