@@ -88,17 +88,16 @@ def aggregated_metrics(ds, radius=4):
 
     return ds
 
-# +
 def jittered_grid(ds, spacing=10):
-    """Create an equally spaced 10x10 coordinate grid with a random jitter"""
+    """Create an equally spaced grid with a random jitter"""
 
     # Calculate grid
-    spacing_x = spacing_y = spacing
+    spacing_x = spacing
+    spacing_y = spacing
     half_spacing_x = spacing_x // 2
     half_spacing_y = spacing_y // 2
-    # jitter_range = [-2, -1, 0, 1, 2]
-    # jitter_range = [-1, 0, 1]
-    max_jitter = spacing // 2
+
+    max_jitter = math.ceil(spacing/2) - 1
     jitter_range = list(range(-max_jitter, max_jitter + 1))
 
     # Regular grid
@@ -120,21 +119,27 @@ def jittered_grid(ds, spacing=10):
     aggregated_vars = [var for var in ds.data_vars if 'time' not in ds[var].dims]
 
     # Much faster way of adding x and y coordinates to the dataframe
+    y_coords = yy_jittered_coords.ravel()
+    x_coords = xx_jittered_coords.ravel()
+
     subset = ds[aggregated_vars].interp(y=("points", y_coords), x=("points", x_coords))
     df = subset.to_dataframe().reset_index()
-    
-#     # Old method was really slow
-#     data_list = []
-#     for y_coord, x_coord in zip(yy_jittered_coords.ravel(), xx_jittered_coords.ravel()):
-#         values = {var: ds[var].sel(y=y_coord, x=x_coord, method='nearest').item() for var in aggregated_vars}
-#         values.update({'y': y_coord, 'x': x_coord})
-#         data_list.append(values)
-#     df = pd.DataFrame(data_list)
     
     return df
 
 
-# -
+def visualise_jittered_grid(ds, spacing=10, outdir='/scratch/xe2/cb8590/tmp', stub="TEST"):
+    """Save a geopackage so you can visualise the jittered grid in QGIS"""
+    df = jittered_grid(ds, spacing)
+    gdf = gpd.GeoDataFrame(
+        df,
+        geometry=gpd.points_from_xy(df['x'], df['y']),
+        crs=ds.rio.crs
+    )
+    filename = os.path.join(outdir, f'{stub}_jittered_s{spacing}.gpkg')
+    gdf.to_file(filename) 
+    print("Saved: ", filename)
+
 
 def tile_csv(sentinel_file, tree_file, outdir, radius=4, spacing=10, verbose=True):
     """Create a csv file with a subset of training pixels for this tile"""
@@ -329,8 +334,5 @@ if __name__ == '__main__':
 
 # tree_file = f'{data_dir}/{stub}.tiff'
 # sentinel_file = f'{outdir}/{stub}_ds2_2020.pkl'
-# tile_csv(sentinel_file, tree_file=tree_file, outdir=outdir, radius=4, spacing=1)
-
-# -
-
+# # tile_csv(sentinel_file, tree_file=tree_file, outdir=outdir, radius=4, spacing=1)
 
