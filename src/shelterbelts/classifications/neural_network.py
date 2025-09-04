@@ -288,6 +288,7 @@ def neural_network(training_file, outdir=".", stub="TEST", output_column='tree_c
         df_metrics = class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns)
     
     print(df_metrics)
+    return df_metrics
 
 
 

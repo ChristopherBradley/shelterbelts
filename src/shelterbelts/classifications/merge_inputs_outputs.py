@@ -125,6 +125,8 @@ def jittered_grid(ds, spacing=10):
     subset = ds[aggregated_vars].interp(y=("points", y_coords), x=("points", x_coords))
     df = subset.to_dataframe().reset_index()
     
+    df = df.drop(columns='points')
+    
     return df
 
 
@@ -140,21 +142,24 @@ def visualise_jittered_grid(ds, spacing=10, outdir='/scratch/xe2/cb8590/tmp', st
     gdf.to_file(filename) 
     print("Saved: ", filename)
 
-
 def tile_csv(sentinel_file, tree_file, outdir, radius=4, spacing=10, verbose=True):
-    """Create a csv file with a subset of training pixels for this tile"""
+    """Create a csv file with a subset of training pixels for this sentinel filename"""
+    with open(sentinel_file, 'rb') as file:
+        if verbose:
+            print(f"Loading {sentinel_file}")
+        ds = pickle.load(file)
+    df = tile_csv_ds(ds, tree_file, outdir, radius, spacing, verbose)
+    return df
+
+def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=True):
+    """Create a csv file with a subset of training pixels for this sentinel xarray"""
 
     # Load the woody veg
     if verbose:
         print(f"Loading {tree_file}")
     da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
     
-    # Load the sentinel imagery and tree cover into an xarray
-    with open(sentinel_file, 'rb') as file:
-        if verbose:
-            print(f"Loading {sentinel_file}")
-        ds = pickle.load(file)
-        
+
     # Should really make sure there's always a crs in lidar.py before writing out the tif file
     if da.rio.crs is None:
         da = da.rio.write_crs("EPSG:28355", inplace=True)
@@ -181,7 +186,8 @@ def tile_csv(sentinel_file, tree_file, outdir, radius=4, spacing=10, verbose=Tru
 
     # I'm currently undecided whether to use a jittered grid or random sample of points. 
     df = jittered_grid(ds, spacing)
-    stub = "_".join(sentinel_file.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
+    # stub = "_".join(sentinel_file.split('/')[-1].split('_')[:-1])   # Removing the _ds2
+    stub = tree_file.split('/')[-1].split('.')[0]  # filename without the path
     df["tile_id"] = stub
 
     # Save a copy of this dataframe just in case something messes up later

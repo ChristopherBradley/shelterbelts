@@ -122,7 +122,7 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
             pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
         print(f"Saved {filename}", flush=True)
     
-    
+    return ds
 # -
 
 def run_download_gdf(gdf, outdir):
