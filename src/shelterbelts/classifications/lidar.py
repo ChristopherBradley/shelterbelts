@@ -66,6 +66,13 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
 
     # Convert point counts into a binary raster
     counts = rxr.open_rasterio(counts_tif).isel(band=0).drop_vars('band')
+
+    if counts.rio.crs is None:
+        # Some of the ACT 2015 laz files don't have an EPSG specified
+        print(f"{stub} missing crs, assuming EPSG:28355")
+        counts = counts.rio.write_crs('EPSG:28355')
+        counts.rio.to_raster(counts_tif)
+        
     da_tree = (counts > 0).astype('uint8')
 
     if not binary:
@@ -137,6 +144,13 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     # Open the canopy height and create a binary raster
     chm = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
+
+    if chm.rio.crs is None:
+        # Some of the ACT 2015 laz files don't have an EPSG specified
+        print(f"{stub} missing crs, assuming EPSG:28355")
+        chm = chm.rio.write_crs('EPSG:28355')
+        chm.rio.to_raster(chm_tif)
+
     da_tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
 
     if not binary:
@@ -205,12 +219,12 @@ def tif_cleanup(outdir, size_threshold=80, percent_cover_threshold=10):
         os.remove(filepath)
 
 
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None):
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True):
     """Run the classifications on every laz file in a folder"""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     for laz_file in laz_files:
         stub = laz_file.split('/')[-1].split('.')[0]
-        lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg)
+        lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary)
 
 
 def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True):
@@ -257,7 +271,7 @@ def parse_arguments():
     """Parse command line arguments for lidar() with default values."""
     parser = argparse.ArgumentParser(description="Convert a laz point cloud to a raster")
 
-    parser.add_argument("laz_file", help="The input .laz point cloud file")
+    parser.add_argument("laz_file", help="The input .laz point cloud file. If the suffix is not .laz then assume it's a folder of laz files instead.")
     parser.add_argument("--outdir", default=".", help="Output directory to store the tifs (default: current directory)")
     parser.add_argument("--stub", default="TEST", help="Prefix for output files (default: TEST)")
     parser.add_argument("--resolution", type=int, default=10, help="Pixel size in the output rasters (default: 10)")
@@ -284,16 +298,27 @@ if __name__ == '__main__':
     epsg = args.epsg
     binary = args.binary
     
-    lidar(
-        laz_file,
-        outdir=outdir,
-        stub=stub,
-        resolution=resolution,
-        height_threshold=height_threshold,
-        category5=category5,
-        epsg=epsg,
-        binary=binary
-    )
+    if laz_file.endswith('.laz'):
+        lidar(
+            laz_file,
+            outdir=outdir,
+            stub=stub,
+            resolution=resolution,
+            height_threshold=height_threshold,
+            category5=category5,
+            epsg=epsg,
+            binary=binary
+        )
+    else:
+        lidar_folder(
+            laz_file, 
+            # We don't specify the stub, because the name of each file gets used as the stub
+            outdir=outdir, 
+            resolution=resolution, 
+            height_threshold=height_threshold, 
+            category5=category5, 
+            epsg=epsg, 
+            binary=binary)
 
 
 # +
@@ -324,3 +349,18 @@ if __name__ == '__main__':
 # # Took about 10 mins to process 100 tiles
 # lidar_folder(laz_folder, outdir, category5=True)
 # tif_cleanup(outdir)
+# -
+
+
+
+file = '/Users/christopherbradley/repos/PHD/shelterbelts/outdir/ACT2015_4ppm-C3-AHD_6906034_55_0002_0002_counts_res1_cat5.tif'
+
+da = rxr.open_rasterio(file).isel(band=0).drop_vars('band')
+
+da = da.rio.write_crs('EPSG:28355')
+
+file = '/Users/christopherbradley/repos/PHD/shelterbelts/outdir/ACT2015_fixed_crs.tif'
+
+da.rio.to_raster(file)
+
+

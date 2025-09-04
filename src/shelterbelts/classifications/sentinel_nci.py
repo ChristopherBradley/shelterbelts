@@ -133,13 +133,13 @@ def run_download_gdf(gdf, outdir):
         filename = row['filename']
         stub = filename.split('.')[0]
         year = row['year']
-        start_date = f'{year}-01-01'
+        start_date = f'{year}-01-01'  # Should add actual start_date and end_date columns in the gdf instead
         end_date = f'{year}-01-01'
-        crs = row['crs'] if 'crs' in gdf.columns else gdf.crs
+        # crs = row['crs'] if 'crs' in gdf.columns else gdf.crs. Assuming epsg:4326 since that's what the sentinel download needs to work properly
         bounds = row['geometry'].bounds
         try:
             print(f"Downloading: {stub}_{year}", flush=True)
-            download_ds2_bbox(bbox, start_date, end_date, outdir, stub)
+            download_ds2_bbox(bounds, start_date, end_date, outdir, stub)
         except Exception as e:
             print(f"Error in downloading: {stub}_{year}:", flush=True)
             traceback.print_exc(file=sys.stdout)
