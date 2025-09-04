@@ -60,7 +60,7 @@ cmap = {
 
 # +
 
-def tif_prediction_ds(ds, stub, outdir,  model, scaler, savetif):
+def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -123,19 +123,24 @@ def tif_prediction_ds(ds, stub, outdir,  model, scaler, savetif):
 
     return da
 
-def tif_prediction(tile, outdir='/scratch/xe2/cb8590/Nick_predicted'):
-    # Load the sentinel imagery
-    with open(tile, 'rb') as file:
+
+def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, savetif=True):
+    """Predict unknown data"""
+    with open(sentinel_filename, 'rb') as file:
         ds = pickle.load(file)
         
-    tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
-    da = tif_prediction_ds(ds, tile_id, outdir, savetif=True)
+    model = keras.models.load_model(model_filename)
+    scaler = joblib.load(scaler_filename)
+        
+    # tile_id = "_".join(tile.split('/')[-1].split('_')[:2])
+    tile_id = sentinel_filename.split('/')[-1].split('.')[0]
+    da = tif_prediction_ds(ds, outdir, tile_id, model, scaler, savetif)
     return da
 
 def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
     # Run the sentinel download and tree classification for a given location
     ds = sentinel_download(stub, year, outdir, bounds, src_crs)
-    da = tif_prediction_ds(ds, stub, outdir, model, scaler, savetif=True)
+    da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True)
 
     # # Trying to avoid memory accumulating with new tiles
     del ds 
