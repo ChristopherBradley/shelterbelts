@@ -36,17 +36,17 @@ def test_sentinel():
     """More comprehensive tests for sentinel imagery from the DEA STAC API: 2x year ranges"""
     download_ds2(sample_tif, start_date="2020-06-01", end_date="2021-06-01", outdir=outdir)
     # 10 secs using the NCI datacube compared to 5 mins using the DEA STAC API
-
-
-# -
-
+    
 def test_merging():
     """More comprehensive tests for the merging: 2x radius, 2x spacing"""
     sentinel_tile =  f'{outdir}/{stub}_ds2_2020.pkl'
-    tile_csv(sentinel_tile, tree_file=sample_tif, outdir=outdir, radius=4, spacing=10, double_f=True)
-    tile_csv(sentinel_tile, tree_file=sample_tif, outdir=outdir, radius=1, spacing=10, double_f=True)
-    tile_csv(sentinel_tile, tree_file=sample_tif, outdir=outdir, radius=4, spacing=1, double_f=True)
+    tile_csv(sentinel_tile, tree_file=sample_tif, outdir=outdir, radius=4, spacing=10)
+    tile_csv(sentinel_tile, tree_file=sample_tif, outdir=outdir, radius=1, spacing=10)
+    tile_csv(sentinel_tile, tree_file=sample_tif, outdir=outdir, radius=4, spacing=1)
     
+# -
+
+
 
 # +
 
@@ -66,3 +66,5 @@ if __name__ == '__main__':
     test_merging()
     
     print(f"tests successfully completed in {time.time() - start} seconds")
+
+
