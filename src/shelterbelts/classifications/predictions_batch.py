@@ -47,7 +47,7 @@ sys.path.append(repo_dir)
 # print(f"Running from {repo_dir}")
 
 from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
-from shelterbelts.classifications.sentinel_parallel import sentinel_download
+from shelterbelts.classifications.sentinel_nci import download_ds2_bbox
 
 # -
 
