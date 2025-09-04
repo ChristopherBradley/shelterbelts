@@ -121,16 +121,13 @@ def jittered_grid(ds, spacing_x=10, spacing_y=10):
     return df
 
 
-def tile_csv(sentinel_tile, tree_folder, outdir, radius=4, spacing=10, double_f=False, verbose=True):
+def tile_csv(sentinel_tile, tree_file, outdir, radius=4, spacing=10, double_f=False, verbose=True):
     """Create a csv file with a subset of training pixels for this tile"""
-    stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
-    # stub = sentinel_tile.split('/')[-1].split('.')[0]
-    tree_cover_filename = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")  # Should probably just rename all the files to have the same suffix instead
 
     # Load the woody veg
     if verbose:
-        print(f"Loading {tree_cover_filename}")
-    da = rxr.open_rasterio(tree_cover_filename).isel(band=0).drop_vars('band')
+        print(f"Loading {tree_file}")
+    da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
     
     # Load the sentinel imagery and tree cover into an xarray
     with open(sentinel_tile, 'rb') as file:
@@ -164,6 +161,7 @@ def tile_csv(sentinel_tile, tree_folder, outdir, radius=4, spacing=10, double_f=
 
     # I'm currently undecided whether to use a jittered grid or random sample of points. 
     df = jittered_grid(ds, spacing_x=spacing, spacing_y=spacing)
+    stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
     df["tile_id"] = stub
 
     # Save a copy of this dataframe just in case something messes up later
@@ -174,7 +172,7 @@ def tile_csv(sentinel_tile, tree_folder, outdir, radius=4, spacing=10, double_f=
     return df
 
 
-def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, limit=None):
+def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, limit=None, double_f=False):
     """Run tile_csv on all the tiles and report info on any errors that occur"""
     
     # Randomise the tiles so I can have a random sample before they all complete
@@ -185,7 +183,9 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
         
     print("About to process n tiles:", len(sentinel_tiles))
     for sentinel_tile in sentinel_randomised:
-        tile_csv(sentinel_tile, tree_folder, outdir, radius, spacing)
+        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
+        tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")  # Should probably just rename all the files to have the same suffix instead
+        tile_csv(sentinel_tile, tree_file, outdir, radius, spacing)
 
 
 # +

@@ -12,7 +12,7 @@ if not os.path.exists('tmpdir'):
 if not os.path.exists('outdir'):
     os.mkdir('outdir')
 
-# Should add this to git so the tests can run after doing a git clone
+# Should add this to git so the tests can run after doing a git clone. And/or a .laz file that can be downloaded from ELVIS.
 stub = 'g2_26729'
 test_filename = f'data/{stub}_binary_tree_cover_10m.tiff'
 

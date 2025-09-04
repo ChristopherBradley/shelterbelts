@@ -13,7 +13,7 @@ import csv
 import pickle
 import numpy as np
 import xarray as xr
-import rioxarray
+import rioxarray as rxr
 import datacube
 import hdstats
 import pandas as pd
@@ -72,11 +72,42 @@ def load_and_process_data(dc, query):
         )
     return ds
 
-def sentinel_download(stub, year, outdir, bounds, input_crs='epsg:4326', output_crs='epsg:6933', save=True):
+def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir=".", save=True):
+    """Download sentinel imagery matching the bounding box of the tif file"""
+    da = rxr.open_rasterio(tif).isel(band=0).drop_vars('band')
+    da_4326 = da.rio.reproject('EPSG:4326')
+    bbox = da_4326.rio.bounds()
+    stub = tif.split('/')[-1].split('.')[0]
+    ds2 = download_ds2_bbox(bbox, start_date, end_date, outdir, stub, save)
+    return ds2
+
+
+# +
+def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True):
+    """
+    Download sentinel imagery for the bounding box and time period of interest.
+
+    Parameters:
+        bbox: bounding box of the region of interest
+        start_date: First date of imagery to download
+        end_date: Last date of imagery to download
+        outdir: Output folder for the pickle file
+        stub: Prefix of the pickle file
+        save: Whether to save to file
+
+    Returns:
+        Dataset: The loaded xarray Dataset (also saved to `{outdir}/{stub}.pkl`).
+    """
+    
     # Prep the DEA query
-    lat_range = (bounds[1], bounds[3])
-    lon_range = (bounds[0], bounds[2])
-    time_range = (f"{year}-01-01", f"{year}-12-31")
+    lat_range = (bbox[1], bbox[3])
+    lon_range = (bbox[0], bbox[2])
+    time_range = (start_date, end_date)
+    print('lat_range', lat_range)
+    print('lon_range', lon_range)
+    print('time_range', time_range)
+    input_crs='epsg:4326' # I'm not sure it actually works with other crs' as input
+    output_crs='EPSG:3857'  # It takes about 50% longer with EPSG:28355 or EPSG:3577.
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
     # Load the data
@@ -85,13 +116,14 @@ def sentinel_download(stub, year, outdir, bounds, input_crs='epsg:4326', output_
 
     # Save the data
     if save:
+        year = start_date[:4]
         filename = os.path.join(outdir, f'{stub}_ds2_{year}.pkl')
         with open(filename, 'wb') as handle:
             pickle.dump(ds, handle, protocol=pickle.HIGHEST_PROTOCOL)
         print(f"Saved {filename}", flush=True)
     
-    return ds
-
+    
+# -
 
 def run_download_gdf(gdf, outdir):
     """Download sentinel imagery for each bbox year in the gdf.
@@ -101,11 +133,13 @@ def run_download_gdf(gdf, outdir):
         filename = row['filename']
         stub = filename.split('.')[0]
         year = row['year']
+        start_date = f'{year}-01-01'
+        end_date = f'{year}-01-01'
         crs = row['crs'] if 'crs' in gdf.columns else gdf.crs
         bounds = row['geometry'].bounds
         try:
             print(f"Downloading: {stub}_{year}", flush=True)
-            sentinel_download(stub, year, outdir, bounds, crs)  # Should add the option to download June to June, or 2 years like Justin has suggested
+            download_ds2_bbox(bbox, start_date, end_date, outdir, stub)
         except Exception as e:
             print(f"Error in downloading: {stub}_{year}:", flush=True)
             traceback.print_exc(file=sys.stdout)
@@ -144,3 +178,13 @@ if __name__ == '__main__':
 # gdf = gpd.read_file(gpkg)
 # gdf = gdf[:1]
 # run_download_gdf(gdf, outdir)
+
+# +
+# tif  = 'Projects/shelterbelts/data/Fulham_worldcover.tif'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# stub = 'TEST_Fulham'
+# download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir=".")
+# # 10 secs using the NCI datacube compared to 5 mins using the DEA STAC API
+# -
+
+
