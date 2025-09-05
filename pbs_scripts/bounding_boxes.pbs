@@ -5,19 +5,19 @@
 #PBS -l jobfs=1GB
 #PBS -P xe2
 #PBS -l walltime=01:00:00
-#PBS -l storage=gdata/xe2
+#PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
 # Print out input variables to the error log
 echo "Starting bounding_boxes.pbs"
 
 # Change working directory
-wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts
+wd=/home/147/cb8590/Projects/shelterbelts
 cd $wd
 
-# Setup DEA environment modules for running the Python script. Don't actually need this environment, but it's convenient since the next step for sentinel_imagery downloading will use this environment.
+# Setup DEA environment modules for running the Python script. Need to add the v10 storage if I want to use this environment. Don't actually need this environment, but it's convenient since the next step for sentinel_imagery downloading will use this environment.
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
 # Run the script
-python3 util/bounding_boxes.py /scratch/xe2/tmp/tif_folder
+python3 src/shelterbelts/classifications/bounding_boxes.py /scratch/xe2/tmp/tif_folder
