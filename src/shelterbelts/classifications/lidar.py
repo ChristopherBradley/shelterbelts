@@ -179,50 +179,6 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     return chm, da_tree
 
 
-def tif_cleanup(outdir, size_threshold=80, percent_cover_threshold=10):
-    """Remove tifs that don't meet the size or cover threshold"""
-    
-    # Removing all the counts, since I only care about the woody veg outputs
-    counts_tifs = glob.glob(os.path.join(outdir, '*_counts_*'))
-    for counts_tif in counts_tifs:
-        os.remove(counts_tif)
-    
-    # Create a geopackage of the attributes of each tif
-    veg_tifs = glob.glob(os.path.join(outdir, '*.tif'))
-    records = []
-    for veg_tif in veg_tifs:
-        da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
-
-        year = veg_tif.split('-')[0][-4:]
-        height, width = da.shape
-        bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
-        minx, miny, maxx, maxy = bounds
-        unique, counts = np.unique(da.values, return_counts=True)
-        category_counts = dict(zip(unique.tolist(), counts.tolist()))
-        rec = {
-            "filename": os.path.basename(veg_tif),
-            "year":year,
-            "height": height,
-            "width": width,
-            "pixels_0": category_counts.get(0, 0),
-            "pixels_1": category_counts.get(1, 0),
-            "geometry": box(minx, miny, maxx, maxy),
-        }
-        records.append(rec)
-    gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
-    gdf['percent_trees'] = 100 * gdf['pixels_1'] / (gdf['pixels_1'] + gdf['pixels_0']) 
-
-    filename = os.path.join(outdir, 'tas_lidar_tif_attributes.gpkg')
-    gdf.to_file(filename) # Ignore the errors from pdal, the file actually saves fine
-    
-    # Remove tifs that are too small, or not enough variation in trees vs no trees
-    bad_tifs = gdf[(gdf['height'] < size_threshold) | (gdf['width'] < size_threshold) | 
-        (gdf['percent_trees'] > 100 - percent_cover_threshold) | (gdf['percent_trees'] < percent_cover_threshold)]
-    for filename in bad_tifs['filename']:
-        filepath = os.path.join(outdir, filename)
-        os.remove(filepath)
-
-
 def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False):
     """Run the classifications on every laz file in a folder"""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))

@@ -1,4 +1,5 @@
-# + endofcell="--"
+# 
+#  + endofcell="--"
 # # +
 # Need to create a Copernicus CLIENT_ID and CLIENT_SECRET by following these instructions
 # https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Overview/Authentication.html

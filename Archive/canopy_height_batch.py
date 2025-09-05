@@ -1,3 +1,6 @@
+# This is a nice example of running things in parallel, 
+# However, for the canopy height I ended up just running canopy_height_aus.pbs because it only took 9 hours.
+
 import os
 import glob
 import pandas as pd
@@ -7,7 +10,6 @@ import ast
 import traceback, sys
 import time
 from rasterio.enums import Resampling
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # Change directory to this repo
 import os, sys
@@ -22,7 +24,7 @@ os.chdir(repo_dir)
 sys.path.append(repo_dir)
 print(f"Running from {repo_dir}")
 
-from shelterbelt_identification.canopy_height import canopy_height_bbox
+from shelterbelts.apis.canopy_height import canopy_height_bbox
 
 tree_cover_dir = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
 outlines_dir = "/g/data/xe2/cb8590/Nick_outlines"
