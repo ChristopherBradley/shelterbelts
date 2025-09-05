@@ -4,7 +4,7 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=02:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
@@ -21,4 +21,7 @@ module load dea/20231204
 
 # Run the script
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/Tas_tifs/tas_lidar_tif_attributes.gpkg --outdir /scratch/xe2/cb8590/Tas_sentinel
-python3 sentinel_nci.py --gpkg /scratch/xe2/tmp/tif_folder/tif_folder_footprints.gpkg --outdir /scratch/xe2/tmp/
+# python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/practice/tmp/tif_folder/tif_folder_footprints.gpkg --outdir /scratch/xe2/cb8590/tmp/
+python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/ACT_tifs/ACT_tifs_footprints.gpkg --outdir /scratch/xe2/cb8590/ACT_tifs_sentinel
+
+# Accidentally saved a bunch of tifs to /scratch/xe2/cb8590/tmp/ACT_tifs_sentinel

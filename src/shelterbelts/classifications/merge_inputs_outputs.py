@@ -164,8 +164,10 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=True):
     if da.rio.crs is None:
         da = da.rio.write_crs("EPSG:28355", inplace=True)
 
-    assert da.shape[0] <= ds.sizes['x'] and da.shape[1] <= ds.sizes['y']  # Need to make sure the larger array to reprojected to match the smaller array
+    # Match the tree tif. Reprojecting the other way round breaks if a sentinel dimension is larger thna a tree dimension
     ds = ds.rio.reproject_match(da)  
+    for var in ds.data_vars:
+        ds[var].attrs.pop("grid_mapping", None)
 
     # Add the woody veg to the main xarray
     ds['tree_cover'] = da.astype(float)
@@ -210,7 +212,7 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
         
     print("About to process n tiles:", len(sentinel_tiles))
     for sentinel_tile in sentinel_randomised:
-        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-1])   # Need to remove the _ds2
+        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-2])   # Remove the _ds2_year
         tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")  # Should probably just rename all the files to have the same suffix instead
         tile_csv(sentinel_tile, tree_file, outdir, radius, spacing)
 
@@ -343,3 +345,10 @@ if __name__ == '__main__':
 # sentinel_file = f'{outdir}/{stub}_ds2_2020.pkl'
 # # tile_csv(sentinel_file, tree_file=tree_file, outdir=outdir, radius=4, spacing=1)
 
+# +
+# sentinel_file = '/scratch/xe2/cb8590/Tas_sentinel/NorthernMidlands2019-C1-AHD_5375370_GDA2020_55_woodyveg_res10_cat5_ds2_2019.pkl'
+# tree_file =  '/scratch/xe2/cb8590/Tas_tifs/NorthernMidlands2019-C1-AHD_5375370_GDA2020_55_woodyveg_res10_cat5.tif'
+# with open(sentinel_file, 'rb') as file:
+#     ds2 = pickle.load(file)
+# da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
+# ds['nbart_red'].isel(time=0).rio.to_raster('/scratch/xe2/cb8590/TAS_red0.tif')

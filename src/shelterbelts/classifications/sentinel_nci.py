@@ -102,9 +102,9 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
     lat_range = (bbox[1], bbox[3])
     lon_range = (bbox[0], bbox[2])
     time_range = (start_date, end_date)
-    print('lat_range', lat_range)
-    print('lon_range', lon_range)
-    print('time_range', time_range)
+    # print('lat_range', lat_range)
+    # print('lon_range', lon_range)
+    # print('time_range', time_range)
     input_crs='epsg:4326' # I'm not sure it actually works with other crs' as input
     output_crs='EPSG:3857'  # It takes about 50% longer with EPSG:28355 or EPSG:3577.
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
