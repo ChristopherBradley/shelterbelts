@@ -3,22 +3,26 @@ import os
 import argparse
 import glob
 
-import rasterio
-import fiona
-from shapely.geometry import box, mapping, Point
-from pyproj import Transformer
+from shapely.geometry import box
+
+import geopandas as gpd
+import rioxarray as rxr
+import numpy as np
 
 
-
-# -
-def bounding_boxes(folder, outdir=None, stub=None, filetype='.tif'):
-    """Download a gpkg of bounding boxes for all the tif files in a folder
-
+def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=10, pixel_cover_threshold=None, remove=False, filetype='.tif'):
+    """Create a geopackage of tif bboxs and remove tifs that don't meet the size or cover threshold
+    
     Parameters
     ----------
         folder: Folder containing lots of tifs that we want to extract the bounding box from
         outdir: The output directory to save the results 
         stub: Prefix for output file 
+        size_threshold: The number of pixels wide and long the tif should be
+        tif_cover_threshold: The minimum percentage cover for tree or no tree pixels that the tif needs to have
+        pixel_cover_threshold: The threshold to convert percent_cover pixels into binary pixels
+            - Only applies if it isn't already a binary tif
+        remove: Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)
 
     Downloads
     ---------
@@ -29,72 +33,74 @@ def bounding_boxes(folder, outdir=None, stub=None, filetype='.tif'):
 
     if outdir is None:
         outdir = folder
-
     if stub is None:
         stub = folder.split('/')[-1].split('.')[0]  # The filename without the path or the suffix
+        
+    veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
 
-    tif_files = glob.glob(os.path.join(folder, f"*{filetype}*"))
-    
+    # Create a geopackage of the attributes of each tif
+    records = []
+    for veg_tif in veg_tifs:
+        da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
+
+        # Convert to EPSG:4326, because this is what's expected by the sentinel_download scripts
+        if da.rio.crs is None:
+            da = da.rio.write_crs('EPSG:28355')
+            
+        da = da.rio.reproject("EPSG:4326")
+        
+        height, width = da.shape
+        bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
+        minx, miny, maxx, maxy = bounds
+
+        if pixel_cover_threshold:
+            da = (da > pixel_cover_threshold).astype('uint8')
+
+        unique, counts = np.unique(da.values, return_counts=True)
+        category_counts = dict(zip(unique.tolist(), counts.tolist()))
+        
+        # year = veg_tif.split('-')[0][-4:] # I don't think there's a generalisable way to figure out the year per tile, since the filenames are all bespoke formats
+        
+        rec = {
+            "filename": os.path.basename(veg_tif),
+            "height": height,
+            "width": width,
+            "pixels_0": category_counts.get(0, 0),
+            "pixels_1": category_counts.get(1, 0),
+            "geometry": box(minx, miny, maxx, maxy),
+            # "year":year,  
+        }
+        records.append(rec)
+    gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
+
+    # Calculate which tifs don't meet our thresholds
+    gdf['percent_trees'] = 100 * gdf['pixels_1'] / (gdf['pixels_1'] + gdf['pixels_0']) 
+    bad_tifs = ((gdf['height'] < size_threshold) | (gdf['width'] < size_threshold) 
+    | (gdf['percent_trees'] > 100 - tif_cover_threshold) | (gdf['percent_trees'] < tif_cover_threshold))
+    gdf['bad_tif'] = bad_tifs
+
+    # Save geopackages
     footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
     centroid_gpkg = f"{outdir}/{stub}_centroids.gpkg"
-    
-    footprint_crs = 'EPSG:3857'
-    centroid_crs = 'EPSG:4326'
-    
-    footprint_schema = {
-        'geometry': 'Polygon',
-        'properties': {'filename': 'str'}
-    }
-    
-    centroid_schema = {
-        'geometry': 'Point',
-        'properties': {'filename': 'str'}
-    }
-    
-    with fiona.open(footprint_gpkg, 'w', crs=footprint_crs, schema=footprint_schema) as fp_dst, \
-         fiona.open(centroid_gpkg, 'w', crs=centroid_crs, schema=centroid_schema) as ct_dst:
-    
-        for i, tif in enumerate(tif_files):
-            if i % 10 == 0:
-                print(f"Working on tiff {i}/{len(tif_files)}")
-            try:
-                with rasterio.open(tif) as src:
-                    bounds = src.bounds
-                    src_crs = src.crs
         
-                    # Transform bounds to EPSG:3857
-                    footprint_transformer = Transformer.from_crs(src_crs, footprint_crs, always_xy=True)
-                    minx, miny = footprint_transformer.transform(bounds.left, bounds.bottom)
-                    maxx, maxy = footprint_transformer.transform(bounds.right, bounds.top)
-                    geom = box(minx, miny, maxx, maxy)
-        
-                    # Write footprint
-                    fp_dst.write({
-                        'geometry': mapping(geom),
-                        'properties': {'filename': os.path.basename(tif)}
-                    })
-        
-                    # Get centroid in original CRS
-                    centroid = geom.centroid
-        
-                    # Transform centroid to EPSG:4326
-                    centroid_transformer = Transformer.from_crs(footprint_crs, centroid_crs, always_xy=True)
-                    lon, lat = centroid_transformer.transform(centroid.x, centroid.y)
-                    point = Point(lon, lat)
-        
-                    # Write centroid
-                    ct_dst.write({
-                        'geometry': mapping(point),
-                        'properties': {'filename': os.path.basename(tif)}
-                    })
-            except Exception:
-                    print(f"Could not open {tif}")
-                    
-    print(f"Saved: {footprint_gpkg}")
-    print(f"Saved: {centroid_gpkg}")
+    gdf.to_file(footprint_gpkg)
+    print("Saved:", footprint_gpkg)
 
+    # The centroids are easier to view if you zoom out a lot, hence I like saving both the bounding boxes and centroids
+    gdf2 = gdf.copy()
+    gdf2["geometry"] = gdf2.to_crs("EPSG:6933").centroid.to_crs(gdf2.crs)  # Removing the centroid inaccurate warning
+    gdf2.to_file(centroid_gpkg)
+    print("Saved:", centroid_gpkg)
 
-# -
+    if remove:
+        # Remove tifs that are too small, or not enough variation in trees vs no trees
+        bad_filenames = gdf.loc[gdf['bad_tifs'], 'filename']
+        for filename in bad_filenames:
+            filepath = os.path.join(outdir, filename)
+            os.remove(filepath)
+
+    return gdf
+
 
 def parse_arguments():
     """Parse command line arguments with default values."""
@@ -103,7 +109,11 @@ def parse_arguments():
     parser.add_argument('folder', type=str, help='Folder containing lots of tifs that we want to extract the bounding box from')
     parser.add_argument('--outdir', type=str, default=None, help='The output directory to save the results. By default it gets saved in the same directory as the tifs.')
     parser.add_argument('--stub', type=str, default=None, help='Prefix for output file. By default it gets the same name as the folder.')
+    parser.add_argument('--size_threshold', type=int, default=80, help='The number of pixels wide and long the tif should be.')
+    parser.add_argument('--tif_cover_threshold', type=int, default=10, help='The minimum percentage cover for tree or no tree pixels that the tif needs to have.')
+    parser.add_argument('--pixel_cover_threshold', type=int, default=None, help="The threshold to convert percent_cover pixels into binary pixels. Doesn't apply to tifs that are already binary.")
     parser.add_argument('--filetype', type=str, default=".tif", help='Suffix of the tif files. Probably .tif or .tiff')
+    parser.add_argument('--remove', action="store_true", help="Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)")
 
     return parser.parse_args()
 
@@ -111,13 +121,15 @@ def parse_arguments():
 if __name__ == '__main__':
     
     args = parse_arguments()
-
-    folder = args.folder
-    outdir = args.outdir
-    stub = args.stub
-    filetype = args.filetype
-
-    bounding_boxes(folder, outdir, stub, filetype)
+    bounding_boxes(
+        args.folder, 
+        args.outdir, 
+        args.stub,
+        args.size_threshold, 
+        args.tif_cover_threshold, 
+        args.pixel_cover_threshold, 
+        args.remove, 
+        args.filetype)
 
 # +
 # filepath = "/Users/christopherbradley/Documents/PHD/Data/Worldcover_Australia"
@@ -135,3 +147,9 @@ if __name__ == '__main__':
 # stub = 'NSW_5m_DEMs'
 # outdir = "/g/data/xe2/cb8590/Outlines"
 # bounding_boxes(filepath, outdir, stub, filetype='.asc')
+
+
+# +
+# # %%time
+# folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Tas_tifs'
+# gdf = tif_cleanup(folder)
