@@ -149,9 +149,12 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--gpkg", type=str, required=True, help="filename of the gpkg with: (filename, year, geometry) for each tif")
+    parser.add_argument("--filepath", type=str, required=True, help="Either a gpkg with: (filename, year, geometry), or a folder of geotifs")
     parser.add_argument("--outdir", type=str, required=True, help="Output directory for the pickle files")
     parser.add_argument("--limit", type=int, default=None, help="Output directory for the pickle files")
+    parser.add_argument("--start_date", type=str, default='2020-01-01', help="Starting date to download sentinel imagery. Only gets used if the filepath is a folder")
+    parser.add_argument("--end_date", type=str, default='2021-01-01', help="Ending date to download sentinel imagery. Only gets used if the filepath is a folder")
+
 
     return parser.parse_args()
 
@@ -161,11 +164,15 @@ if __name__ == '__main__':
     
     args = parse_arguments()
     
-    gpkg = args.gpkg
+    filepath = args.filepath
     outdir = args.outdir
     limit = args.limit
-    
-    gdf = gpd.read_file(gpkg)
+
+    if filepath.endswith('.gpkg'):
+        gdf = gpd.read_file(filepath)
+    else:
+        # Create our own gpkg from the folder
+        pass
     
     if limit is not None:
         gdf = gdf[:limit]
