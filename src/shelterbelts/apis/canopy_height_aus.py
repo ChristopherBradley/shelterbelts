@@ -26,19 +26,19 @@ from shelterbelts.apis.canopy_height import download_new_tiles
 def filter_canopy_height(tiles_geojson, boundary_shp, out_gpkg):
     """Used this code to generate the canopy_height_tiles_aus.gpkg"""
     # Load the canopy height and australia boundary
-    df_canopy_height = gpd.read_file(canopy_height_tiles)
-    df_aus_boundary = gpd.read_file(aus_boundary)
+    df_canopy_height = gpd.read_file(tiles_geojson)
+    df_aus_boundary = gpd.read_file(boundary_shp)
     df_aus_boundary = df_aus_boundary.to_crs(df_canopy_height.crs)
 
     # Filter the canopy height tiles and save a geopackage
     aus_geom = df_aus_boundary.iloc[0].geometry
     df_canopy_height_filtered = df_canopy_height[df_canopy_height.intersects(aus_geom)]
-    df_canopy_height_filtered.to_file(outpath)
+    df_canopy_height_filtered.to_file(out_gpkg)
 
 
 def run_rows(tiles_gpkg, outdir, column='tile', limit=None):
     """Download all the tiles"""
-    df_canopy_height = gpd.read_file(canopy_height_tiles)
+    df_canopy_height = gpd.read_file(tiles_gpkg)
     tiles = list(df_canopy_height[column])
     print("Number of tiles in gpkg: ", len(tiles))
     
@@ -64,14 +64,8 @@ def parse_arguments():
     parser.add_argument('--limit', default=None)
     return parser.parse_args()
 
-if __name__ == '__main__':
-    # Load the list of all tiles in Australia
-    canopy_height_tiles = '/g/data/xe2/cb8590/Nick_outlines/canopy_height_tiles_aus.gpkg'
-    df_canopy_height = gpd.read_file(canopy_height_tiles)
-    tiles = list(df_canopy_height['tile'])
-    print("Tiles in Australia: ", len(tiles))
 
-if __name__ == '__main__'
+if __name__ == '__main__':
 
     # Local filepaths
     # tiles_global = '/Users/christopherbradley/repos/PHD/shelterbelts/tiles_global.geojson' 

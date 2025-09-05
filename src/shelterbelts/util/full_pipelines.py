@@ -4,7 +4,7 @@ import os
 import geopandas as gpd
 import rasterio
 
-from shelterbelts.util.binary_trees import worldcover_trees, canopy_height_trees
+from shelterbelts.classifications.binary_trees import worldcover_trees, canopy_height_trees
 from shelterbelts.apis.worldcover import worldcover_bbox
 from shelterbelts.apis.hydrolines import hydrolines
 from shelterbelts.apis.canopy_height import canopy_height_bbox, merge_tiles_bbox, merged_ds

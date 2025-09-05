@@ -11,7 +11,7 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import box
 
-from shelterbelts.util.binary_trees import tif_categorical, cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work
+from shelterbelts.classifications.binary_trees import tif_categorical, cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work
 
 
 def check_classified(infile, classification_code=5):
