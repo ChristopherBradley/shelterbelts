@@ -12,10 +12,7 @@ from shapely.prepared import prep
 
 
 # -
-
-# Should move the api.barra_bbox function to here for consistency. 
-
-def bounding_boxes(folder, outdir=".", stub="TEST", filetype='.tif'):
+def bounding_boxes(folder, outdir=None, stub=None, filetype='.tif'):
     """Download a gpkg of bounding boxes for all the tif files in a folder
 
     Parameters
@@ -31,7 +28,13 @@ def bounding_boxes(folder, outdir=".", stub="TEST", filetype='.tif'):
     
     """
 
-    tif_files = glob.glob(os.path.join(filepath, f"*{filetype}*"))
+    if outdir is None:
+        outdir = folder
+
+    if stub is None:
+        stub = folder.split('/')[-1].split('.')[0]  # The filename without the path or the suffix
+
+    tif_files = glob.glob(os.path.join(folder, f"*{filetype}*"))
     
     footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
     centroid_gpkg = f"{outdir}/{stub}_centroids.gpkg"
@@ -203,9 +206,10 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--filepath', help='Folder containing lots of tifs that we want to extract the bounding box from')
-    parser.add_argument('--outdir', default='.', help='The output directory to save the results')
-    parser.add_argument('--stub', help='Prefix for output file')
+    parser.add_argument('folder', type=str, help='Folder containing lots of tifs that we want to extract the bounding box from')
+    parser.add_argument('--outdir', type=str, default=None, help='The output directory to save the results. By default it gets saved in the same directory as the tifs.')
+    parser.add_argument('--stub', type=str, default=None, help='Prefix for output file. By default it gets the same name as the folder.')
+    parser.add_argument('--filetype', type=str, default=".tif", help='Suffix of the tif files. Probably .tif or .tiff')
 
     return parser.parse_args()
 
@@ -214,11 +218,12 @@ if __name__ == '__main__':
     
     args = parse_arguments()
 
-    filepath = args.filepath
+    folder = args.folder
     outdir = args.outdir
     stub = args.stub
+    filetype = args.filetype
 
-    bounding_boxes(filename, outdir, stub)
+    bounding_boxes(folder, outdir, stub, filetype)
 
 # +
 # filepath = "/Users/christopherbradley/Documents/PHD/Data/Worldcover_Australia"

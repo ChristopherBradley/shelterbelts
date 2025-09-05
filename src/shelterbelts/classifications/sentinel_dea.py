@@ -18,7 +18,8 @@ import odc.stac
 import pystac_client
 from dask.distributed import Client as DaskClient
 
-# -
+
+# I haven't bothered to create a function for downloading sentinel imagery from a folder of tifs with DEA like in sentinel_nci, because it takes sooo much longer than just doing this on NCI
 
 def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir=".") -> Dataset:
     """Download sentinel imagery matching the bounding box of the tif file"""
