@@ -30,7 +30,7 @@ def check_classified(infile, classification_code=5):
     return classified_bool
 
 
-def use_existing_classifications(infile, outdir, stub, resolution=1, classification_code=5, epsg=None, binary=True):
+def use_existing_classifications(infile, outdir, stub, resolution=1, classification_code=5, epsg=None, binary=True, cleanup=False):
     """Use the number of points with classification 5 (> 2m) in each pixel to generate a woody_veg tif"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -72,8 +72,14 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
         print(f"{stub} missing crs, assuming EPSG:28355")
         counts = counts.rio.write_crs('EPSG:28355')
         counts.rio.to_raster(counts_tif)
-        
-    da_tree = (counts > 0).astype('uint8')
+    
+    if cleanup:
+        print(f"Removing: {counts_tif}")
+        os.remove(counts_tif)
+
+    num_points_threshold = 0
+
+    da_tree = (counts > num_points_threshold).astype('uint8')
 
     if not binary:
         # Create the percent cover tif
@@ -91,13 +97,10 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_cat{classification_code}.tif')
     tif_categorical(da_tree, filename=tree_tif, colormap=cmap_woody_veg)
 
-    # da_tree.rio.to_raster(tree_tif)
-    # print("Saved:", tree_tif)
-
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=True):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=True, cleanup=False):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -151,6 +154,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
         chm = chm.rio.write_crs('EPSG:28355')
         chm.rio.to_raster(chm_tif)
 
+    if cleanup:
+        print(f"Removing: {chm_tif}")
+        os.remove(chm_tif)
+
     da_tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
 
     if not binary:
@@ -168,9 +175,6 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     # Create the woodyveg tif
     tree_tif = os.path.join(outdir, f'{stub}_woodyveg_res{resolution}_height{height_threshold}m.tif')
     tif_categorical(da_tree, filename=tree_tif, colormap=cmap_woody_veg)
-
-    # da_tree.rio.to_raster(tree_tif, compress="LZW") 
-    # print("Saved:", tree_tif)
 
     return chm, da_tree
 
@@ -219,15 +223,15 @@ def tif_cleanup(outdir, size_threshold=80, percent_cover_threshold=10):
         os.remove(filepath)
 
 
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True):
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False):
     """Run the classifications on every laz file in a folder"""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     for laz_file in laz_files:
         stub = laz_file.split('/')[-1].split('.')[0]
-        lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary)
+        lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup)
 
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False):
     """Convert a laz point cloud to a raster
 
     Parameters
@@ -254,13 +258,13 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
         classified_bool = check_classified(laz_file, classification_code=5)  # geolocation only matters for creating the tif files later
         if classified_bool:
             classification_code = 5
-            counts, da_tree = use_existing_classifications(laz_file, outdir, stub, resolution, classification_code, epsg, binary)
+            counts, da_tree = use_existing_classifications(laz_file, outdir, stub, resolution, classification_code, epsg, binary, cleanup)
             return da_tree
         else:
             print("No existing classifications, generating our own canopy height model instead")
             
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary)
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup)
     return da_tree
 
 
@@ -279,7 +283,7 @@ def parse_arguments():
     parser.add_argument("--epsg", default=None, help="Option to specify the epsg if the .laz doesn't already have it encoded. Default: None")
     parser.add_argument("--category5", action="store_true", help="Use preclassified high vegetation (LAS 1.4 category 5). Default: False")
     parser.add_argument("--binary", action="store_true", help="Create a binary raster instead of percent tree cover. Default: False")
-
+    parser.add_argument("--cleanup", action="store_true", help="Remove the intermediate counts or chm raster. Default: False")
     return parser.parse_args()
 
 
@@ -297,6 +301,7 @@ if __name__ == '__main__':
     category5 = args.category5
     epsg = args.epsg
     binary = args.binary
+    cleanup = args.cleanup
     
     if laz_file.endswith('.laz'):
         lidar(
@@ -307,7 +312,8 @@ if __name__ == '__main__':
             height_threshold=height_threshold,
             category5=category5,
             epsg=epsg,
-            binary=binary
+            binary=binary,
+            cleanup=cleanup
         )
     else:
         lidar_folder(
@@ -318,7 +324,9 @@ if __name__ == '__main__':
             height_threshold=height_threshold, 
             category5=category5, 
             epsg=epsg, 
-            binary=binary)
+            binary=binary,
+            cleanup=cleanup
+            )
 
 
 # +
@@ -350,17 +358,3 @@ if __name__ == '__main__':
 # lidar_folder(laz_folder, outdir, category5=True)
 # tif_cleanup(outdir)
 # -
-
-
-
-file = '/Users/christopherbradley/repos/PHD/shelterbelts/outdir/ACT2015_4ppm-C3-AHD_6906034_55_0002_0002_counts_res1_cat5.tif'
-
-da = rxr.open_rasterio(file).isel(band=0).drop_vars('band')
-
-da = da.rio.write_crs('EPSG:28355')
-
-file = '/Users/christopherbradley/repos/PHD/shelterbelts/outdir/ACT2015_fixed_crs.tif'
-
-da.rio.to_raster(file)
-
-
