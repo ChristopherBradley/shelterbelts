@@ -4,9 +4,10 @@
 
 # +
 # # !pip install earthengine-api
-# -
 
-# !pip install geemap
+# +
+# # !pip install geemap
+# -
 
 import numpy as np
 import ee
@@ -40,19 +41,23 @@ dem_xr = xr.DataArray(array_2d, dims=('y', 'x'), name='elevation')
 dem_xr.plot(cmap='terrain')
 
 # +
-# %%time
-# Load the Sentinel bounding boxes
-# I downloaded this file from here: https://github.com/justinelliotmeyers/Sentinel-2-Shapefile-Index
-filename_sentinel_bboxs = "../data/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
-gdf = gpd.read_file(filename_sentinel_bboxs)
-# Took 8 secs to read in all the sentinel bboxs
+# # # %%time
+# # Load the Sentinel bounding boxes
+# # I downloaded this file from here: https://github.com/justinelliotmeyers/Sentinel-2-Shapefile-Index
+# # filename_sentinel_bboxs = "../data/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
+# filename_sentinel_bboxs = "/g/data/xe2/cb8590/Outlines/sentinel_2_index_shapefile.shp"
 
-# Find the sentinel tile with the greatest overlap
-footprint_geom = shapely.geometry.box(bbox[0], bbox[1], bbox[2], bbox[3])
-gdf["overlap_area"] = gdf.geometry.intersection(footprint_geom).area
-best_tile = gdf.loc[gdf["overlap_area"].idxmax()]
-sentinel_tilename = best_tile['Name']
-sentinel_tilename
+# gdf = gpd.read_file(filename_sentinel_bboxs)
+# # Took 8 secs to read in all the sentinel bboxs
+
+# # Find the sentinel tile with the greatest overlap
+# footprint_geom = shapely.geometry.box(bbox[0], bbox[1], bbox[2], bbox[3])
+# gdf["overlap_area"] = gdf.geometry.intersection(footprint_geom).area
+# best_tile = gdf.loc[gdf["overlap_area"].idxmax()]
+# sentinel_tilename = best_tile['Name']
+# sentinel_tilename
+
+# # I'm doing this so that I can choose a single sentinel tile, so I don't get multiple pixels at the same coordinate when they overlap.
 # -
 
 # Prep a collection of images for a given region and time range
@@ -66,8 +71,8 @@ collection = (
 # %%time
 # Get the metadata for each of the images in this filtered collection
 collection_info = collection.toList(collection.size()).getInfo()
-collection_info2 = [c for c in collection_info if c['id'][-5:] == sentinel_tilename]
-dates = [c['properties']['system:index'][:8] for c in collection_info2]
+# collection_info2 = [c for c in collection_info if c['id'][-5:] == sentinel_tilename]
+dates = [c['properties']['system:index'][:8] for c in collection_info]
 len(dates)
 
 # +
@@ -88,13 +93,16 @@ for image in collection_info:
 data_3d = np.stack(numpy_arrays, axis=0)  # Shape: (time, y, x)
 
 # Create xarray DataArray
-dem_xr = xr.DataArray(
+cover_da = xr.DataArray(
     data_3d,
     dims=("time", "y", "x"),
     coords={"time": dates},
     name="land_cover",
 )
-dem_xr
+cover_da
+# -
+
+
 
 # +
 import matplotlib.pyplot as plt
@@ -141,12 +149,6 @@ c = collection_info[1]
 
 c['properties']['system:footprint']
 
-# +
-
-
-
-# -
-
 bbox
 
 # Find the sentinel tile with the greatest overlap
@@ -168,3 +170,7 @@ buffer=0.1
 
 bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]     # From my experimentation, the asris.csiro API allows a maximum bbox of about 40km (0.2 degrees in each direction)
 bbox
+
+
+
+
