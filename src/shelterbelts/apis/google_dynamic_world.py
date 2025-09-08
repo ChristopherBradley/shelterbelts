@@ -25,6 +25,28 @@ import os
 ee.Authenticate()
 ee.Initialize()
 
+# Define class names and colors
+CLASS_NAMES = [
+    "water", "trees", "grass", "flooded_vegetation", "crops",
+    "shrub_and_scrub", "built", "bare", "snow_and_ice"
+]
+VIS_PALETTE = [
+    "#419bdf", "#397d49", "#88b053", "#7a87c6", "#e49635",
+    "#dfc35a", "#c4281b", "#a59b8f", "#b39fe1"
+]
+
+bbox = [149.124453, -36.150333, 149.157412, -36.126003]
+polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[1]), (bbox[0], bbox[1])]
+roi = ee.Geometry.Polygon([polygon_coords])
+def GEE_DEA_DEM():
+    # Example GEE download of digital earth australia elevation data 
+    dataset = ee.Image('AU/GA/DEM_1SEC/v10/DEM-H')
+    array = geemap.ee_to_numpy(dataset, region=roi, bands=['elevation'], scale=30)
+    array_2d = array[:,:,0]
+    dem_xr = xr.DataArray(array_2d, dims=('y', 'x'), name='elevation')
+    dem_xr.plot(cmap='terrain')
+
+
 # Can conveniently generately these coordinates using geojson.io or bbox_finder.com
 bbox_spring_valley = [149.00336491999764, -35.27196845308364, 149.02249143582833, -35.29889331119306]
 bbox_bunyan_airfield = [149.124453, -36.150333, 149.157412, -36.126003]
@@ -33,47 +55,29 @@ polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (b
 roi = ee.Geometry.Polygon([polygon_coords])
 bbox
 
-# Example GEE download of digital earth australia elevation data 
-dataset = ee.Image('AU/GA/DEM_1SEC/v10/DEM-H')
-array = geemap.ee_to_numpy(dataset, region=roi, bands=['elevation'], scale=30)
-array_2d = array[:,:,0]
-dem_xr = xr.DataArray(array_2d, dims=('y', 'x'), name='elevation')
-dem_xr.plot(cmap='terrain')
-
 # +
-# # # %%time
-# # Load the Sentinel bounding boxes
-# # I downloaded this file from here: https://github.com/justinelliotmeyers/Sentinel-2-Shapefile-Index
-# # filename_sentinel_bboxs = "../data/Sentinel-2-Shapefile-Index-master/sentinel_2_index_shapefile.shp"
-# filename_sentinel_bboxs = "/g/data/xe2/cb8590/Outlines/sentinel_2_index_shapefile.shp"
+lat = -35.71799
+lon = 149.14970
+buffer = 0.005
+bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
 
-# gdf = gpd.read_file(filename_sentinel_bboxs)
-# # Took 8 secs to read in all the sentinel bboxs
 
-# # Find the sentinel tile with the greatest overlap
-# footprint_geom = shapely.geometry.box(bbox[0], bbox[1], bbox[2], bbox[3])
-# gdf["overlap_area"] = gdf.geometry.intersection(footprint_geom).area
-# best_tile = gdf.loc[gdf["overlap_area"].idxmax()]
-# sentinel_tilename = best_tile['Name']
-# sentinel_tilename
-
-# # I'm doing this so that I can choose a single sentinel tile, so I don't get multiple pixels at the same coordinate when they overlap.
+start_date = "2017-01-01"
+end_date = "2026-01-01"
 # -
 
 # Prep a collection of images for a given region and time range
+polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[1]), (bbox[0], bbox[1])]
+roi = ee.Geometry.Polygon([polygon_coords])
 collection = (
     ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
     .filterBounds(roi)
-    .filterDate("2023-01-01", "2023-03-31")
+    .filterDate(start_date, end_date)
     .select("label")  # Select the classification band
 )
-
-# %%time
-# Get the metadata for each of the images in this filtered collection
 collection_info = collection.toList(collection.size()).getInfo()
-# collection_info2 = [c for c in collection_info if c['id'][-5:] == sentinel_tilename]
 dates = [c['properties']['system:index'][:8] for c in collection_info]
-len(dates)
+
 
 # +
 # %%time
@@ -86,7 +90,7 @@ for image in collection_info:
     # Remove extra dimension (shape: (height, width, 1) → (height, width))
     numpy_arrays.append(np_array[:, :, 0])
 
-# Took 23 secs (about 1 second per image for a 3kmx3km region)
+
 
 # +
 # Stack along time dimension
@@ -99,25 +103,80 @@ cover_da = xr.DataArray(
     coords={"time": dates},
     name="land_cover",
 )
-cover_da
+
+# Sometimes there can be multiple values for a pixel because there are slightly overlapping sentinel tiles on the same day
+cover_unique = cover_da.groupby("time").first()
+
+# Remove timepoints where everything is water because it was probably cloud cover
+mask = (cover_unique != 0).any(dim=("y", "x"))
+cover_filtered = cover_unique.sel(time=mask)
+
 # -
 
+from scipy.stats import mode
 
+import pandas as pd
+
+cover_da = cover_da.assign_coords(
+    time=pd.to_datetime(cover_da.time, format="%Y%m%d", errors='coerce')
+)
+
+cover_da.dims
+
+# +
+# Find the most common category per year, unless it's water, then the second most common
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+# Suppose water category is 0 (change if different)
+WATER_CLASS = 0
+
+# 1. Convert string time to year
+time_dt = pd.to_datetime(cover_da.time, format="%Y%m%d", errors='coerce')
+mask_valid = ~pd.isna(time_dt)
+cover_da = cover_da.sel(time=mask_valid)
+years = time_dt[mask_valid].year.values
+
+# 2. Prepare output array
+unique_years = np.unique(years)
+yearly_data = np.zeros((len(unique_years), cover_da.sizes['y'], cover_da.sizes['x']), dtype=cover_da.dtype)
+
+# 3. Loop over years
+for i, year in enumerate(unique_years):
+    mask = years == year
+    data_year = cover_da.values[mask]  # shape (time_in_year, y, x)
+
+    # Loop over pixels (y, x)
+    for y in range(data_year.shape[1]):
+        for x in range(data_year.shape[2]):
+            pixel_vals = data_year[:, y, x]
+            counts = np.bincount(pixel_vals)
+            
+            # If water is present but not the only category, pick second most common
+            if WATER_CLASS in np.nonzero(counts)[0] and counts.sum() > counts[WATER_CLASS]:
+                counts[WATER_CLASS] = 0  # ignore water unless it's the only category
+            
+            yearly_data[i, y, x] = counts.argmax()
+
+# 4. Wrap back in xarray
+cover_yearly = xr.DataArray(
+    yearly_data,
+    dims=('time', 'y', 'x'),
+    coords={'time': unique_years, 'y': cover_da.y, 'x': cover_da.x},
+    name='land_cover'
+)
+
+# -
+
+dem_xr = cover_yearly
 
 # +
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.colors as mcolors
 
-# Define class names and colors
-CLASS_NAMES = [
-    "water", "trees", "grass", "flooded_vegetation", "crops",
-    "shrub_and_scrub", "built", "bare", "snow_and_ice"
-]
-VIS_PALETTE = [
-    "#419bdf", "#397d49", "#88b053", "#7a87c6", "#e49635",
-    "#dfc35a", "#c4281b", "#a59b8f", "#b39fe1"
-]
+
 
 # Create colormap
 cmap = mcolors.ListedColormap(VIS_PALETTE)
@@ -145,32 +204,39 @@ plt.show()  # Display inline if running in a Jupyter Notebook
 
 # -
 
-c = collection_info[1]
+def google_dynamic_world_bbox(bbox, start_date, end_date):
+    """Download google dynamic world categories for the bbox and time of interest"""
 
-c['properties']['system:footprint']
-
-bbox
-
-# Find the sentinel tile with the greatest overlap
-footprint_geom = shapely.geometry.box(bbox[0], bbox[1], bbox[2], bbox[3])
-gdf["overlap_area"] = gdf.geometry.intersection(footprint_geom).area
-best_tile = gdf.loc[gdf["overlap_area"].idxmax()]
-sentinel_tile = best_tile['Name']
-sentinel_tile
-
-best_tile['Name']
+    return da
 
 
+def google_dynamic_world(lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST"):
+    """Download google dynamic world categories for the region and time of interest
+    
+    Parameters
+    ----------
+        lat, lon: Coordinates in WGS 84 (EPSG:4326).
+        buffer: Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so would give a ~2kmx2km area.
+        start_year, end_year: Inclusive, so setting both to 2020 would give data for the full year.
+        outdir: The directory to save the final cleaned tiff file.
+        stub: The name to be prepended to each file download.
 
-print("HI")
+    Returns
+    -------
+        da: xarray.DataArray of the google dynamic world classifications
 
-lat=-34.3890427
-lon=148.469499
-buffer=0.1
+    Downloads
+    ---------
+        gdw.pkl: A pickle file of the classifications
+        gdw_yearly.tif: A tif file of the most common class per year
+        gdw_yearly.mp4: A video of the most common class per year
+    """
+    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
+    start_date = f"{start_year}-01-01"
+    end_date = f"{start_year}-12-31"
+    da = google_dynamic_world_bbox(bbox, start_date, end_date)
+    return da
 
-bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]     # From my experimentation, the asris.csiro API allows a maximum bbox of about 40km (0.2 degrees in each direction)
-bbox
-
-
-
-
+# +
+# Took 23 secs (about 1 second per image for a 3kmx3km region)
+# Took 3 mins for all timepoints from 2017 to 2025 for a 1kmx1km area
