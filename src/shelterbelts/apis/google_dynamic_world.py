@@ -58,8 +58,6 @@ from shelterbelts.apis.worldcover import tif_categorical, worldcover_labels
 #     dem_xr.plot(cmap='terrain')
 # -
 
-
-
 def prep_collection(bbox, start_date, end_date, image_collection="GOOGLE/DYNAMICWORLD/V1"):
     """Prep a collection of images for a given region and time range"""
     polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[1]), (bbox[0], bbox[1])]
@@ -209,7 +207,7 @@ def gif_categorical(da, outdir, stub):
     ani.save(filename, writer="pillow", fps=2)  # Save as GIF
     plt.show()  # Display inline if running in a Jupyter Notebook
     print("Saved:", filename)
-    
+
 
 
 # +
