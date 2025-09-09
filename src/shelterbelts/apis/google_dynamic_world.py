@@ -85,9 +85,7 @@ collection_info = collection.toList(collection.size()).getInfo()
 dates = [c['properties']['system:index'][:8] for c in collection_info]
 
 
-ds = geemap.ee_to_xarray(
-    collection, projection="EPSG:4326", geometry=geometry, scale=10, n_images=len(dates), 
-)
+proj = collection.first().projection()
 
 # %%time
 # This was is working, but not automatically georeferenced
@@ -99,40 +97,53 @@ for image in collection_info:
     
     # Remove extra dimension (shape: (height, width, 1) → (height, width))
     numpy_arrays.append(np_array[:, :, 0])
-collection.first().select(0).projection()
-
-# %%time
-# Attempting to load into xarray directly. I want to do something like this but for the google dynamic world.
-ds = geemap.ee_to_xarray(
-    dataset # , projection=collection.first().select(0).projection(), geometry=roi
-)
-ds
-
-
-ds.time[:20]
-
-
-
-
-
-
-
 # +
 # Stack along time dimension
 data_3d = np.stack(numpy_arrays, axis=0)  # Shape: (time, y, x)
 
-# Create xarray DataArray
+# # Create xarray DataArray
+# cover_da = xr.DataArray(
+#     data_3d,
+#     dims=("time", "y", "x"),
+#     coords={"time": dates},
+#     name="land_cover",
+# )
+
+# # Sometimes there can be multiple values for a pixel because there are slightly overlapping sentinel tiles on the same day
+# cover_unique = cover_da.groupby("time").first()
+
+# # Remove timepoints where everything is water because it was probably cloud cover
+# mask = (cover_unique != 0).any(dim=("y", "x"))
+# cover_filtered = cover_unique.sel(time=mask)
+
+
+# +
+# Dimensions
+ny, nx = data_3d.shape[1:]  # y, x
+
+# Generate coords
+x_coords = np.linspace(bbox[0], bbox[2], nx)  # longitudes
+y_coords = np.linspace(bbox[3], bbox[1], ny)  # latitudes (top → bottom)
+
+# Create DataArray with coords
 cover_da = xr.DataArray(
     data_3d,
     dims=("time", "y", "x"),
-    coords={"time": dates},
+    coords={
+        "time": dates,
+        "x": x_coords,
+        "y": y_coords,
+    },
     name="land_cover",
 )
 
-# Sometimes there can be multiple values for a pixel because there are slightly overlapping sentinel tiles on the same day
+# Ensure CF convention (so geospatial libs interpret correctly)
+cover_da.rio.write_crs("EPSG:4326", inplace=True)
+
+# Deduplicate by time
 cover_unique = cover_da.groupby("time").first()
 
-# Remove timepoints where everything is water because it was probably cloud cover
+# Remove all-water scenes
 mask = (cover_unique != 0).any(dim=("y", "x"))
 cover_filtered = cover_unique.sel(time=mask)
 
@@ -178,7 +189,9 @@ cover_yearly = xr.DataArray(
 
 # -
 
-dem_xr = cover_yearly
+cover_yearly.rio.to_raster('/scratch/xe2/cb8590/tmp/TEST_dynamic_world.tif')
+
+dem_xr = cover_filtered
 
 # +
 import matplotlib.pyplot as plt
