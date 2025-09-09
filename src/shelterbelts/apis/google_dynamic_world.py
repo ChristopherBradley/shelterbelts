@@ -7,13 +7,16 @@
 
 # +
 # # !pip install geemap
-# -
 
+# +
 import numpy as np
+import pandas as pd
+
 import ee
 import geemap
 import xarray as xr
 import matplotlib.pyplot as plt
+# -
 
 import geopandas as gpd
 import zipfile
@@ -62,11 +65,14 @@ buffer = 0.005
 bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
 
 
-start_date = "2017-01-01"
-end_date = "2026-01-01"
+start_date = "2020-01-01"
+end_date = "2020-03-01"
 # -
 
+bbox
+
 # Prep a collection of images for a given region and time range
+bbox = [149.1447, -35.72299, 149.1547, -35.71299]
 polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[1]), (bbox[0], bbox[1])]
 roi = ee.Geometry.Polygon([polygon_coords])
 collection = (
@@ -79,8 +85,12 @@ collection_info = collection.toList(collection.size()).getInfo()
 dates = [c['properties']['system:index'][:8] for c in collection_info]
 
 
-# +
+ds = geemap.ee_to_xarray(
+    collection, projection="EPSG:4326", geometry=geometry, scale=10, n_images=len(dates), 
+)
+
 # %%time
+# This was is working, but not automatically georeferenced
 # Get the values for each of the images
 numpy_arrays = []
 for image in collection_info:
@@ -89,6 +99,21 @@ for image in collection_info:
     
     # Remove extra dimension (shape: (height, width, 1) → (height, width))
     numpy_arrays.append(np_array[:, :, 0])
+collection.first().select(0).projection()
+
+# %%time
+# Attempting to load into xarray directly. I want to do something like this but for the google dynamic world.
+ds = geemap.ee_to_xarray(
+    dataset # , projection=collection.first().select(0).projection(), geometry=roi
+)
+ds
+
+
+ds.time[:20]
+
+
+
+
 
 
 
@@ -111,25 +136,9 @@ cover_unique = cover_da.groupby("time").first()
 mask = (cover_unique != 0).any(dim=("y", "x"))
 cover_filtered = cover_unique.sel(time=mask)
 
-# -
-
-from scipy.stats import mode
-
-import pandas as pd
-
-cover_da = cover_da.assign_coords(
-    time=pd.to_datetime(cover_da.time, format="%Y%m%d", errors='coerce')
-)
-
-cover_da.dims
 
 # +
 # Find the most common category per year, unless it's water, then the second most common
-import numpy as np
-import pandas as pd
-import xarray as xr
-
-# Suppose water category is 0 (change if different)
 WATER_CLASS = 0
 
 # 1. Convert string time to year
@@ -203,6 +212,12 @@ ani.save("dynamic_world.gif", writer="pillow", fps=2)  # Save as GIF
 plt.show()  # Display inline if running in a Jupyter Notebook
 
 # -
+
+
+
+
+
+
 
 def google_dynamic_world_bbox(bbox, start_date, end_date):
     """Download google dynamic world categories for the bbox and time of interest"""
