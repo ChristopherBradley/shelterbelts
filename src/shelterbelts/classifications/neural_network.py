@@ -70,7 +70,7 @@ def my_train_test_split(df, stratification_columns=[], train_frac=0.7, random_st
 
     return df_train, df_test
 
-def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables):
+def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, output_column='tree_cover'):
     """Final prepping of data for neural network training"""
     # Normalise the input features
     scaler = StandardScaler()     # I should probably remove outliers before scaling.
@@ -83,8 +83,8 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables):
     print("Saved", filename_scaler)
 
     # One-hot encode the output features
-    y_train = keras.utils.to_categorical(df_train['tree_cover'], 2)
-    y_test = keras.utils.to_categorical(df_test['tree_cover'], 2)
+    y_train = keras.utils.to_categorical(df_train[output_column], 2)
+    y_test = keras.utils.to_categorical(df_test[output_column], 2)
 
     return X_train, X_test, y_train, y_test, scaler
 
@@ -221,17 +221,18 @@ def class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_
 
     return rf_metrics_table
     
-def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_variables):
+def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_variables, output_column):
     """Calculate just the overall metrics"""
     X_test = scaler.transform(df_test.drop(columns=non_input_variables))
     y_pred_percent = model.predict(X_test)
     y_pred = [percent.argmax() for percent in y_pred_percent]
-    results = df_test[['tree_cover']].copy()
+    results = df_test[[output_column]].copy()
     results['y_pred'] = y_pred
-    overall_report = classification_report(results['tree_cover'], results['y_pred'], output_dict=True, zero_division=0)
-    overall_accuracy = accuracy_score(results['tree_cover'], results['y_pred'])
+    overall_report = classification_report(results[output_column], results['y_pred'], output_dict=True, zero_division=0)
+    overall_accuracy = accuracy_score(results[output_column], results['y_pred'])
     rf_rows = []
-    for tree_class in [0.0, 1.0]:
+    tree_classes = list(df_test[output_column].unique())
+    for tree_class in tree_classes:
         if str(tree_class) in overall_report:
             rf_rows.append( {
                 'tree_class': tree_class,
@@ -290,14 +291,14 @@ def neural_network(training_file, outdir=".", stub="TEST", output_column='tree_c
     df_train, df_test = my_train_test_split(df, stratification_columns, train_frac, random_state)
     
     non_input_columns = [output_column] + drop_columns # ['koppen_class']  
-    X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns)
+    X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns, output_column)
     
     model = train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_size, outdir, stub)
 
     if 'koppen_class' in df_test.columns:
         df_metrics = class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_columns)
     else:
-        df_metrics = class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns)
+        df_metrics = class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns, output_column)
     
     print(df_metrics)
     return df_metrics
@@ -349,34 +350,17 @@ if __name__ == '__main__':
 
 # +
 # # %%time
-# outdir = "/Users/christopherbradley/Documents/PHD/Data/Nick_models"
-# stub = "kernel4"
-# neural_network(outdir, stub, stratification_columns=['tree_cover'], limit=10000)
-
-
-# +
-# # %%time
-# outdir = '/scratch/xe2/cb8590/Tas_csv/'
-# stub = 'TEST'
-# neural_network(outdir, stub, stratification_columns=['tree_cover'])
-
-# +
-# stratification_columns = []
-# train_frac = 0.7
-# random_state = 0
-# output_column = 'tree_cover'
-# drop_columns=['x', 'y', 'tile_id']
-# learning_rate=0.001
-# epochs=50
-# batch_size=32
-
-# +
 # outdir = '/scratch/xe2/cb8590/tmp/'
 # stub = 'g2_26729_binary_tree_cover_10m_ds2_df_r4_s2'
-# filename = os.path.join(outdir, f'{stub}.csv')
-# df = pd.read_csv(filename)
+# training_file = os.path.join(outdir, f'{stub}.csv')
+# df = neural_network(training_file, outdir="/scratch/xe2/cb8590/tmp/", stub=stub, output_column='tree_cover', stratification_columns=['tree_cover'])
 # df
+# # Precision 96%, recall 92%, accuracy 94%
+# +
+# training_file = '/scratch/xe2/cb8590/alpha_earth_embeddings.csv'
+# df = neural_network(training_file, outdir="/scratch/xe2/cb8590/tmp/", stub="alpha_earth", output_column='tree', drop_columns=[], stratification_columns=['tree'])
+# df
+# 94% precision, 75% recall, 85% accuracy
 # -
-
 
 

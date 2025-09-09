@@ -66,10 +66,6 @@ filename = '/scratch/xe2/cb8590/tmp/ae_da_match2.tif'
 ae_da_match.isel(band=0).rio.to_raster(filename)
 print(filename)
 
-ae_da_match.shape
-
-da.shape
-
 # Prepare the flattened tree outputs
 tree_array = da.values  # shape (y, x), 0/1 labels
 lon = da['x'].values
@@ -78,10 +74,20 @@ xx, yy = np.meshgrid(lon, lat)
 coords = np.column_stack([xx.ravel(), yy.ravel()])
 tree_flat = tree_array.ravel()
 
-# Combine into DataFrame
-n_bands, height, width = np_array.shape
-inputs_flat = np_array.reshape(-1, n_bands)
-tree_flat = da.values.ravel()
+# +
+# Combine into a dataframe
+n_bands, height, width = ae_da_match.shape
+inputs_flat = ae_da_match.values.reshape(n_bands, -1).T 
+tree_flat = da.values.ravel() 
 columns = [f"emb_{i}" for i in range(n_bands)]
 df = pd.DataFrame(inputs_flat, columns=columns)
 df['tree'] = tree_flat
+
+df
+# -
+
+filename = '/scratch/xe2/cb8590/alpha_earth_embeddings.csv'
+df.to_csv(filename)
+print(filename)
+
+
