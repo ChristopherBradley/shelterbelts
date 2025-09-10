@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -N lidar
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=01:00:00
+#PBS -l storage=gdata/xe2
+#PBS -q normal
+
+# Print out input variables to the error log
+echo "Starting lidar.pbs"
+
+# Change working directory
+cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
+
+# Load the conda environment
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+# Run the script
+python lidar.py /scratch/xe2/cb8590/lidar/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz --outdir /scratch/xe2/cb8590/tmp --stub TEST --resolution 1 --category5
