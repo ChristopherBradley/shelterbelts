@@ -23,15 +23,10 @@ sys.path.append(src_dir)
 # +
 import os
 import pickle
-import joblib
 
-import numpy as np
 import pandas as pd
-import geopandas as gpd
 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 
 # -
 
