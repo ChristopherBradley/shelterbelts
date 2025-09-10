@@ -35,7 +35,7 @@ from shelterbelts.classifications.neural_network import my_train_test_split, inp
 
 def random_forest(training_file, outdir=".", stub="TEST", output_column='tree_cover', drop_columns=['x', 'y', 'tile_id'], n_estimators=100, min_samples_split=10, batch_size=32, random_state=1, stratification_columns=['tree_cover'], train_frac = 0.7, limit=None):
     """
-    Create and evaluate a neural network to predict tree vs no tree classifications
+    Create and evaluate a random forest to predict tree vs no tree classifications
 
     Parameters
     ----------
@@ -69,7 +69,7 @@ def random_forest(training_file, outdir=".", stub="TEST", output_column='tree_co
     df_train, df_test = my_train_test_split(df, stratification_columns, train_frac, random_state)
 
     non_input_columns = [output_column] + drop_columns # ['koppen_class']  
-    X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns)
+    X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns, output_column)
 
     model = RandomForestClassifier(n_estimators=n_estimators, min_samples_split=min_samples_split, random_state=random_state)
     model.fit(X_train, y_train)
@@ -79,7 +79,8 @@ def random_forest(training_file, outdir=".", stub="TEST", output_column='tree_co
         pickle.dump(model, f)
     print("Saved:", filename)
 
-    class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns)
+    df_accuracy = class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns, output_column)
+    return df_accuracy
 
 
 # +
@@ -119,24 +120,9 @@ if __name__ == '__main__':
 
 
 # +
-# outdir = '/scratch/xe2/cb8590/tmp/'
-# stub = 'g2_26729_binary_tree_cover_10m_ds2_df_r4_s2'
-# filename = os.path.join(outdir, f'{stub}.csv')
-# output_column = 'tree_cover'
-# drop_columns=['x', 'y', 'tile_id']
-# non_input_columns = [output_column] + drop_columns # ['koppen_class']  
-# random_state = 0
-
-# +
-# df_train, df_test = my_train_test_split(df, stratification_columns=[], train_frac=0.7, random_state=0)
-# X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns)
-
-# model = RandomForestClassifier(n_estimators=n_estimators, min_samples_split=min_samples_split, random_state=random_state)
-# model.fit(X_train, y_train)
-
-# filename = os.path.join(outdir, f'{stub}_random_forest.pkl')
-# with open(filename, "wb") as f:
-#     pickle.dump(model, f)
-# print("Saved:", filename)
-
-# class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns)
+# # # %%time
+# training_file = '/scratch/xe2/cb8590/alpha_earth_embeddings.csv'
+# df = random_forest(training_file, outdir="/scratch/xe2/cb8590/tmp/", stub="alpha_earth", output_column='tree', drop_columns=[], stratification_columns=['tree'])
+# df = pd.read_csv('/scratch/xe2/cb8590/tmp/alpha_earth_metrics.csv')
+# df
+# # Precision 93%, recall 94%, accuracy 94%
