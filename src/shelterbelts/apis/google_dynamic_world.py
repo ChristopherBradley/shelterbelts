@@ -46,7 +46,7 @@ from shelterbelts.apis.worldcover import tif_categorical, worldcover_labels
 
 
 # +
-# # Example GEE download of digital earth australia elevation data 
+# Example GEE download of digital earth australia elevation data 
 # bbox = [149.124453, -36.150333, 149.157412, -36.126003]
 # polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[1]), (bbox[0], bbox[1])]
 # roi = ee.Geometry.Polygon([polygon_coords])

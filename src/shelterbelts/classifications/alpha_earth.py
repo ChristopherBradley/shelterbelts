@@ -32,6 +32,7 @@ bbox = da_4326.rio.bounds()
 
 year = 2020
 
+# +
 # Prep the embeddings
 start_date = f"{year}-01-01"
 end_date = f"{year}-12-31"
@@ -43,9 +44,10 @@ collection = (
     .filterDate(start_date, end_date)
 )
 image = ee.Image(collection.first())  # Just one image if we just get a single year
-# %%time
+
 # Download the embeddings
 np_array = geemap.ee_to_numpy(image, region=roi, scale=10)  # Took 20 secs for a 1km x 1km region for 2020
+# -
 
 # Create an xarray to align with the tree tif
 ny, nx, n_bands = np_array.shape
