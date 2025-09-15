@@ -8,6 +8,7 @@ import rioxarray as rxr
 import xarray as xr
 from scipy import ndimage
 from scipy.stats import mode
+from skimage.morphology import skeletonize, disk
 from skimage.measure import regionprops
 from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
@@ -147,6 +148,42 @@ def plot_clusters(assigned_labels, filename=None):
         plt.show()
 
 
+def skeleton_stats(assigned_labels):
+    """Use a skeleton after cleaning with binary dilation/erosion to calculate mean width and length"""
+    results = []
+
+    labels = np.unique(assigned_labels)
+    labels = labels[labels != 0]  # 0 is background
+
+    for lbl in labels:
+        mask = (assigned_labels == lbl)
+
+        stats = {"label": int(lbl)}
+
+        disk_size = 2  # There doesn't seem to be much difference in the resulting average widths regardless of the disk size. 2 seems like a reasonable compromise.
+        selem = disk(disk_size) 
+        mask = binary_dilation(mask, structure=selem)
+        mask = binary_erosion(mask, structure=selem)
+
+        skel = skeletonize(mask)
+        
+        # Distance to the nearest background pixel
+        dist = ndimage.distance_transform_edt(mask)
+        widths = dist[skel] * 2  # diameter = radius x 2
+
+        if len(widths) > 0:
+            skeleton_width = float(np.mean(widths))
+            skeleton_area = skel.sum()
+            stats = stats | {
+                f"skeleton_width": skeleton_width,  # mean is probably more intuitive than median
+                f"skeleton_length": skeleton_area, 
+                f"skeleton len/width": skeleton_area/skeleton_width # Might also be interesting to look at ellipse length / skeleton width, and/or incorporate the perimeter area ratio
+            }
+        results.append(stats)
+
+    return pd.DataFrame(results)
+
+
 def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
@@ -175,14 +212,14 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         da = rxr.open_rasterio(buffer_tif).isel(band=0)
     else:
         da = ds['buffer_categories']
-
+    
     # Pixel-wise majority filter to cleanup straggler pixels
     radius = 3
-    disk = np.ones((2*radius+1, 2*radius+1), dtype=bool) # Square footprint seems to be better at fixing up diagonal stragglers
-    filtered_array = majority_filter_override(da.data, disk, [14, 15, 16, 17], [14, 15, 16, 17])  # Cleanup buffer classes
-    filtered_array = majority_filter_override(filtered_array, disk, [13], [14])  # Cleanup patch edges
+    majority_disk = np.ones((2*radius+1, 2*radius+1), dtype=bool) # Square footprint seems to be better at fixing up diagonal stragglers
+    filtered_array = majority_filter_override(da.data, majority_disk, [14, 15, 16, 17], [14, 15, 16, 17])  # Cleanup buffer classes
+    filtered_array = majority_filter_override(filtered_array, majority_disk, [13], [14])  # Cleanup patch edges
     da_filtered = xr.DataArray(filtered_array, coords=da.coords, dims=da.dims, attrs=da.attrs)
-
+    
     # Assign cluster ids to the core areas and corresponding edges
     arr = da_filtered.data  
     core_mask = (arr == 12)
@@ -194,7 +231,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     assigned_labels = np.zeros_like(arr, dtype=np.int32)
     assigned_labels[arr == 13] = nearest_core_labels[arr == 13]
     assigned_labels[arr == 12] = core_labels[arr == 12]
-
+    
     # Assign ids to the rest of the patch types
     buffer_category_ids = [14, 15, 16, 17]
     for category_id in buffer_category_ids:
@@ -204,7 +241,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         labelled_arr = labelled_category.data
         mask = (arr == category_id)
         assigned_labels[mask] = labelled_arr[mask]
-
+    
     # Cluster-wise majority filter to reassign categories that have too few pixels
     labels, counts = np.unique(assigned_labels, return_counts=True)
     min_patch_size = 20
@@ -217,7 +254,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     )
     nearest_labels = assigned_labels[inds_y, inds_x]
     assigned_labels[small_mask] = nearest_labels[small_mask]
-
+    
     # Re-label the patches so they are consecutive integers
     unique_labels = np.unique(assigned_labels)
     unique_labels = unique_labels[unique_labels != 0]
@@ -227,14 +264,14 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     for old, new in label_map.items():
         assigned_labels_relabelled[assigned_labels == old] = new
     assigned_labels = assigned_labels_relabelled
-
+    
     # Fit an ellipse around each category 
     props = regionprops(assigned_labels)
-
+    
     if plot:
         filename = os.path.join(outdir, f'{stub}_labelled_categories.png')
         plot_clusters(assigned_labels, filename)
-
+    
     # Create the patch metrics
     results = []
     for region in props:
@@ -242,8 +279,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         
         results.append({
             'label': label_id,
-            'length': region.major_axis_length,
-            'width': region.minor_axis_length,
+            'ellipse_length': region.major_axis_length,
+            'ellipse_width': region.minor_axis_length,
             'perimeter': region.perimeter,
             'area': region.area,
             'orientation_degrees': np.degrees(region.orientation)
@@ -253,13 +290,9 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             # average height using the canopy height from earlier
             # better average width using skeletonization like in Aksoy 2009
             # Other indices like the WSI and/or SNFI from Liknes 2017, although adjust to allow any direction rather than just north/south and east/west
-
+    
     df_patch_metrics = pd.DataFrame(results)
-    if save_csv:
-        filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
-        df_patch_metrics.to_csv(filename, index=False)
-        print("Saved:", filename)
-
+    
     # Determine the most common category in each cluster
     dominant_categories = []
     for region in props:
@@ -269,56 +302,65 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         dominant_categories.append(most_common)
         
     df_patch_metrics["category_id"] = dominant_categories
-
+    
     # Reclassify patches with core or edge dominant for consistency
     # Later, might be interested in the percentage of these two categories in each patch like the class metrics
     df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
-
+    
     # Use the length/width ratio to reassign corridor clusters to linear or non-linear
     da_linear = da_filtered.copy()
-    df_patch_metrics['len/width'] = df_patch_metrics['length']/df_patch_metrics['width']
-
+    df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
+    
+    df_widths = skeleton_stats(assigned_labels) 
+    df_patch_metrics = df_patch_metrics.merge(df_widths)
+    
+    if save_csv:
+        filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
+        df_patch_metrics.to_csv(filename, index=False)
+        print("Saved:", filename)
+    
     for i, row in df_patch_metrics.iterrows():
         if row["category_id"] == 14:
             label_id = row["label"]
-            len_width_ratio = row["len/width"]
-
-            # Later can change this to the WSI or SNFI or some combination of a few indices
-            ratio_threshold = 2
-            new_class = 18 if len_width_ratio > ratio_threshold else 19  # 18 is linear features, 19 is non-linear features
-
+            len_width_ratio = row["ellipse len/width"]
+    
+            # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
+            if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+                new_class = 18  # linear features
+            else:
+                new_class = 19  # non-linear features
+    
             mask = (assigned_labels == label_id)
             da_linear.data[mask] = new_class
             df_patch_metrics.loc[i, 'category_id'] = new_class
             df_patch_metrics.loc[i, 'category_name'] = linear_labels[new_class]
-
+    
     # Reassign the remaining corridor/other pixels to the corresponding cluster's category 
     remaining_mask = (da_linear.data == 14)
     label_ids = assigned_labels[remaining_mask]
     label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
     mapped_categories = np.vectorize(label_to_category.get)(label_ids)
     da_linear.data[remaining_mask] = mapped_categories
-
+    
     if plot:
         filename = os.path.join(outdir, f'{stub}_linear_categories.png')
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")
-
+    
     ds = da_linear.to_dataset(name="linear_categories")
     ds['labelled_categories'] = (["y", "x"], assigned_labels)
-
+    
     if save_tif:
         filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')
         tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
-
+    
         if save_labels:
             filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
             ds['labelled_categories'].rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
             print("Saved:", filename_labelled)
 
     return ds, df_patch_metrics
-
 
 
 def class_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, save_excel=True):
@@ -355,7 +397,7 @@ def class_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, save_excel=True)
     df_overall = df_overall.set_index('label')
     
     # Landcover groups
-    df_overall['landcover_group'] = df_overall['category_id'].apply(group_label)
+    # df_overall['landcover_group'] = df_overall['category_id'].apply(group_label)
     df_landcover = df_overall.groupby('landcover_group')[['pixel_count', 'percentage']].sum()
     df_landcover = df_landcover.sort_values(by='percentage', ascending=False)
     df_landcover['percentage'] = df_landcover['percentage'].round(2)
@@ -420,7 +462,9 @@ if __name__ == '__main__':
     geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
     dfs = class_metrics(geotif, outdir, stub)
 
-
+# +
+# patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
+# -
 
 # outdir = "../../../outdir/"
 # stub = "shelter_indices"
