@@ -100,7 +100,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=True, cleanup=False):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=True, cleanup=False, just_chm=False):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -143,7 +143,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     }
     p_chm = pdal.Pipeline(json.dumps(chm_json))
     p_chm.execute()
-    print("Saved:", chm_tif)
+    print(f"Saved: {chm_tif}", flush=True)
+
+    if just_chm:
+        return None, None
 
     # Open the canopy height and create a binary raster
     chm = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
@@ -166,10 +169,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
             da_tree.coarsen(x=resolution, y=resolution, boundary="trim")
               .mean() * 100
         ).astype(np.uint8)
-        percent_cover =percent_cover.rio.write_transform(percent_cover.rio.transform(recalc=True))  # update the transformation, or else using rasterio to create a tif file will be 10x too small
+        percent_cover = percent_cover.rio.write_transform(percent_cover.rio.transform(recalc=True))  # update the transformation, or else using rasterio to create a tif file will be 10x too small
         tree_tif = os.path.join(outdir, f'{stub}_percentcover_res{resolution}_height{height_threshold}m.tif')
         percent_cover.rio.to_raster(tree_tif)
-        print("Saved:", tree_tif)
+        print(f"Saved: {tree_tif}", flush=True)
         return chm, percent_cover
 
     # Create the woodyveg tif
@@ -178,16 +181,21 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     return chm, da_tree
 
-
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False):
+import gc
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False, just_chm=False, limit=None):
     """Run the classifications on every laz file in a folder"""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
+    if limit is not None:
+        laz_files = laz_files[:int(limit)]
     for laz_file in laz_files:
         stub = laz_file.split('/')[-1].split('.')[0]
-        lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup)
+        # lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm)
+        # Seeing if this helps resolve the memory accumulation issue. If not, I might have to move this to a separate python script that launches a new worker each time.
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm)
+        del chm, da
+        gc.collect()
 
-
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False, just_chm=False):
     """Convert a laz point cloud to a raster
 
     Parameters
@@ -215,13 +223,13 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
         if classified_bool:
             classification_code = 5
             counts, da_tree = use_existing_classifications(laz_file, outdir, stub, resolution, classification_code, epsg, binary, cleanup)
-            return da_tree
+            return counts, da_tree
         else:
             print("No existing classifications, generating our own canopy height model instead")
             
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup)
-    return da_tree
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm)
+    return chm, da_tree
 
 
 # +
@@ -240,6 +248,8 @@ def parse_arguments():
     parser.add_argument("--category5", action="store_true", help="Use preclassified high vegetation (LAS 1.4 category 5). Default: False")
     parser.add_argument("--binary", action="store_true", help="Create a binary raster instead of percent tree cover. Default: False")
     parser.add_argument("--cleanup", action="store_true", help="Remove the intermediate counts or chm raster. Default: False")
+    parser.add_argument("--just_chm", action="store_true", help="Don't create the binary raster. Default: False")
+    parser.add_argument("--limit", default=None, help="Number of laz files to process when passing a folder. Default: None")
     return parser.parse_args()
 
 
@@ -258,6 +268,7 @@ if __name__ == '__main__':
     epsg = args.epsg
     binary = args.binary
     cleanup = args.cleanup
+    just_chm = args.just_chm
     
     if laz_file.endswith('.laz'):
         lidar(
@@ -269,7 +280,8 @@ if __name__ == '__main__':
             category5=category5,
             epsg=epsg,
             binary=binary,
-            cleanup=cleanup
+            cleanup=cleanup,
+            just_chm=just_chm
         )
     else:
         lidar_folder(
@@ -281,7 +293,9 @@ if __name__ == '__main__':
             category5=category5, 
             epsg=epsg, 
             binary=binary,
-            cleanup=cleanup
+            cleanup=cleanup,
+            just_chm=just_chm,
+            limit=args.limit
             )
 
 

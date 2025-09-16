@@ -1,15 +1,17 @@
 #!/bin/bash
 #PBS -N lidar
-#PBS -l mem=4GB
+#PBS -l mem=8GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=01:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
 
 # Print out input variables to the error log
-echo "Starting lidar.pbs"
+# SUBFOLDER="/scratch/xe2/cb8590/lidar/DATA_587060/NSW Government - Spatial Services/Point Clouds/AHD/subfolder_1"
+echo "Starting lidar.pbs for LAZ_FOLDER $LAZ_FOLDER CHM_FOLDER $CHM_FOLDER"
+mkdir "$CHM_FOLDER"
 
 # Change working directory
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
@@ -19,4 +21,8 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python lidar.py /scratch/xe2/cb8590/lidar/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz --outdir /scratch/xe2/cb8590/tmp --stub TEST --resolution 1 --category5
+python lidar.py "$LAZ_FOLDER" --outdir "$CHM_FOLDER"
+
+# python lidar.py '/scratch/xe2/cb8590/lidar/DATA_587060/NSW Government - Spatial Services/Point Clouds/AHD' --outdir /scratch/xe2/cb8590/lidar/DATA_587060/chm_1m --resolution 1 --just_chm --limit 10  # A folder of lax files
+
+# python lidar.py /scratch/xe2/cb8590/lidar/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz --outdir /scratch/xe2/cb8590/tmp --stub TEST --resolution 1 --category5  # A single laz file

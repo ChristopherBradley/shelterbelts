@@ -1,0 +1,28 @@
+#!/bin/bash
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l walltime=4:00:00,ncpus=1,mem=2GB,jobfs=1GB
+#PBS -l storage=scratch/xe2
+
+cd /scratch/xe2/cb8590/lidar
+
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587000.zip # 300MB
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_586204.zip  # 128GB  R1C1
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587068.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587065.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587083.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587085.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587060.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587109.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587081.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587124.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587122.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587133.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587130.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587120.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587116.zip
+file=https://elvis-downloads.s3.amazonaws.com/DATA_587127.zip
+
+
+echo $file
+wget -q $file   # Supposedly -q should make this quiet so it doesn't create a massive .e file.

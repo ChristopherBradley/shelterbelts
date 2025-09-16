@@ -1,0 +1,24 @@
+#!/bin/bash
+#PBS -N unzip
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/xe2
+#PBS -q normal
+
+echo "Starting unzip job"
+
+cd /scratch/xe2/cb8590/lidar
+
+for f in *.zip; do
+    name="${f%.zip}"       # strip .zip extension
+    outdir="$name/laz"     # make subfolder with /chm inside
+    mkdir -p "$outdir"
+    echo "Unzipping $f -> $outdir"
+    unzip -q "$f" -d "$outdir"
+    mv "$f" "$name/"
+done
+
+echo "All done"
