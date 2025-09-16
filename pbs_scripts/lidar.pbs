@@ -1,12 +1,14 @@
 #!/bin/bash
 #PBS -N lidar
-#PBS -l mem=8GB
+#PBS -l mem=16GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
+
+# The ACT LiDAR needs 16GB, whereas the NSW LiDAR is fine with 8GB
 
 # Print out input variables to the error log
 # SUBFOLDER="/scratch/xe2/cb8590/lidar/DATA_587060/NSW Government - Spatial Services/Point Clouds/AHD/subfolder_1"

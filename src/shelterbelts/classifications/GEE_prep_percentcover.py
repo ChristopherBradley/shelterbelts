@@ -101,9 +101,6 @@ gdf_dedup.crs = gdf.crs
 filename_dedup = '/scratch/xe2/cb8590/lidar/DATA_586204/treepercent_uint8/treepercent_uint8_footprints_unique_002.gpkg'
 gdf_dedup.to_file(filename_dedup)
 print(filename_dedup)
-# -
-
-len(gdf_dedup)
 
 # +
 # %%time
@@ -122,10 +119,7 @@ da.rio.to_raster(outpath, compress="lzw")  # 6MB for the resulting 10m raster
 print(outpath)
 
 # Took 3 mins, with 1000 tifs at 10m res 
+# -
 
 
-# +
-# from shelterbelts.apis.worldcover import tif_categorical
-# from shelterbelts.classifications.binary_trees import cmap_woody_veg
-# outfile = '/Users/christopherbradley/Desktop/GEE_test_booroowa_res1.tif'
-# tif_categorical(da, outfile, cmap_woody_veg)
+
