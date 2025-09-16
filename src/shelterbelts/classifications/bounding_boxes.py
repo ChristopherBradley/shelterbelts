@@ -77,7 +77,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     gdf['percent_trees'] = 100 * gdf['pixels_1'] / (gdf['pixels_1'] + gdf['pixels_0']) 
     bad_tifs = ((gdf['height'] < size_threshold) | (gdf['width'] < size_threshold) 
     | (gdf['percent_trees'] > 100 - tif_cover_threshold) | (gdf['percent_trees'] < tif_cover_threshold))
-    gdf['bad_tif'] = bad_tifs
+    gdf['bad_tif'] = ~bad_tifs  # I'm not sure why this needs to be inverted.
 
     # Save geopackages
     footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
@@ -94,7 +94,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
 
     if remove:
         # Remove tifs that are too small, or not enough variation in trees vs no trees
-        bad_filenames = gdf.loc[gdf['bad_tifs'], 'filename']
+        bad_filenames = gdf.loc[gdf['bad_tif'], 'filename']
         for filename in bad_filenames:
             filepath = os.path.join(outdir, filename)
             os.remove(filepath)
