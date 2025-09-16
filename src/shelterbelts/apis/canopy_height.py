@@ -25,7 +25,7 @@ from matplotlib import colors
 
 # -
 
-def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], canopy_height_dir=".", footprints_geojson='tiles_global.geojson'):
+def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], canopy_height_dir=".", footprints_geojson='tiles_global.geojson', id_column='tile'):
     """Find the tiles that overlap with the region of interest"""
     
     # This assumes the crs is EPSG:4326, because the aws tiles.geojson is also in EPSG:4326
@@ -51,29 +51,34 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     for idx, row in gdf.iterrows():
         tile_polygon = row['geometry']
         if tile_polygon.intersects(roi_polygon):
-            relevant_tiles.append(row['tile'])
+            relevant_tiles.append(row[id_column])
             
     return relevant_tiles
 
 
-def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson'):
+def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson', id_column='tile'):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
     
     canopy_height_dir = tmpdir
-    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson)
+    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
     
-    for tile in relevant_tiles:
+    for i, tile in enumerate(relevant_tiles):
+        if i % 100 == 0:
+            print(f"Working on {i}/{len(relevant_tiles)}", tile)
+            
+        if tile.endswith('.tif'):
+            tile = tile.strip('.tif')  # I've been formatting the id_column in different ways in the past, so this should make them consistent
         tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
 
         # Get intersection of the tiff file and the region of interest. (any area outside this tiff file should be covered by another)
         with rasterio.open(tiff_file) as src:
             # Get bounds of the TIFF file
             tiff_bounds = src.bounds
+            tiff_crs = src.crs
 
             if str(src.crs) != 'EPSG:4326':
-                # Change the bbox to match the tif crs (canopy height is in EPSG:3857, whereas worldcover is in EPSG:4326)
-                # Should probs change this to match the actual src.crs instead of just assuming EPSG:3857
-                bbox_3857 = transform_bbox(bbox)
+                # Change the bbox to match the tif crs
+                bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
                 roi_coords_3857 = box(*bbox_3857)
                 roi_polygon_3857 = Polygon(roi_coords_3857)
                 roi_bounds = roi_polygon_3857.bounds
@@ -82,14 +87,14 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
 
             intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
             window = from_bounds(*intersection_bounds, transform=src.transform)
-
+            
             # Read data within the window
             out_image = src.read(window=window)
             out_transform = src.window_transform(window)
             out_meta = src.meta.copy()
     
         # Save cropped image
-        cropped_tiff_filename = os.path.join(tmpdir, f"{stub}_{tile}_cropped.tif")
+        cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
         out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
     
         with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
@@ -98,7 +103,9 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     # Merge the cropped tiffs
     src_files_to_mosaic = []
     for tile in relevant_tiles:
-        tiff_file = os.path.join(tmpdir, f'{stub}_{tile}_cropped.tif')
+        if tile.endswith('.tif'):
+            tile = tile.strip('.tif')
+        tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')
         src = rasterio.open(tiff_file)
         src_files_to_mosaic.append(src)
     mosaic, out_trans = merge(src_files_to_mosaic)
@@ -227,7 +234,7 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
     canopy_height_dir = tmpdir
     tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
     download_new_tiles(tiles, canopy_height_dir)
-    mosaic, out_meta = merge_tiles_bbox(bbox, outdir, stub, tmpdir, footprints_geojson)
+    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, tmpdir, footprints_geojson)
 
     if save_tif:
         output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
