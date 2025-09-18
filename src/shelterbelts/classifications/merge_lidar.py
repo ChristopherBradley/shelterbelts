@@ -57,27 +57,28 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     
-    # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
-    glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
-    filenames = glob.glob(glob_path)
-    # print('glob_path:', glob_path)
-    # print('len filenames', len(filenames))
-    for i, filename in enumerate(filenames):
-        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-        da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
-        da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
-        da = da.rio.write_nodata(255)
-        da = da.astype('uint8')
+        # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
+        glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
+        filenames = glob.glob(glob_path)
+        # print('glob_path:', glob_path)
+        # print('len filenames', len(filenames))
         
-        # Remove vertical component of the crs
-        horizontal_crs = PyprojCRS(da.rio.crs).to_2d()
-        da = da.rio.write_crs(horizontal_crs)
-
-        outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
-        outpath = os.path.join(outdir, outfile)
-        da.rio.to_raster(outpath, compress="lzw")
-        if i%100 == 0:
-            print(f"Saved {i}/{len(filenames)}:", outpath)
+        for i, filename in enumerate(filenames):
+            da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+            da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
+            da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
+            da = da.rio.write_nodata(255)
+            da = da.astype('uint8')
+            
+            # Remove vertical component of the crs
+            horizontal_crs = PyprojCRS(da.rio.crs).to_2d()
+            da = da.rio.write_crs(horizontal_crs)
+    
+            outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
+            outpath = os.path.join(outdir, outfile)
+            da.rio.to_raster(outpath, compress="lzw")
+            if i%100 == 0:
+                print(f"Saved {i}/{len(filenames)}:", outpath)
 
     # This gives extra info like number of pixels in each category, but we only care about the filename and geometry
     gdf = bounding_boxes(outdir)
@@ -85,6 +86,7 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     # This is the bounding box that I used to make the initial request from ELVIS
     gdf_bbox = gpd.read_file(filename_bbox)
     bbox = gdf_bbox.loc[0, 'geometry'].bounds
+    print("original_bbox", bbox)
 
     # This should work for ACT and NSW naming conventions (just for string ordering, not extracting the exact date)
     dates = [extract_year(filename) for filename in gdf['filename']]
@@ -125,40 +127,104 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     # da.rio.to_raster(outpath, compress="lzw", blocksize=512)  # 200MB for the resulting 1m raster in a 50km x 50km area
     # # !gdaladdo {outpath} 2 4 8 16 32 64 
 
+# +
+# import argparse
+
+# def parse_arguments():
+#     """Parse command line arguments with default values."""
+#     parser = argparse.ArgumentParser()
+    
+#     parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
+#     parser.add_argument('--filename_bbox', required=True, help='GeoJSON file of the bounding box used as input into ELVIS')
+#     parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
+#     parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
+#     parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
+
+#     return parser.parse_args()
+
+
+# if __name__ == '__main__':
+#     args = parse_arguments()
+    
+#     merge_lidar(
+#         base_dir=args.base_dir,
+#         filename_bbox=args.filename_bbox,
+#         tmpdir=args.tmpdir,
+#         suffix=args.suffix,
+#         subdir=args.subdir
+#     )
+
 
 # +
-import argparse
 
-def parse_arguments():
-    """Parse command line arguments with default values."""
-    parser = argparse.ArgumentParser()
-    
-    parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
-    parser.add_argument('--filename_bbox', required=True, help='GeoJSON file of the bounding box used as input into ELVIS')
-    parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
-    parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
-    parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
+# Dependencies
+import shutil
+import numpy as np
+import requests
+import rasterio
+import xarray as xr
+import rioxarray as rxr
+import geopandas as gpd
+from pyproj import Transformer
+from pyproj import CRS as PyprojCRS
+from rasterio.merge import merge
+from rasterio.transform import Affine
+from rasterio.windows import from_bounds
+from shapely.geometry import Polygon, box      
 
-    return parser.parse_args()
+# -
 
-
-if __name__ == '__main__':
-    args = parse_arguments()
-    
-    merge_lidar(
-        base_dir=args.base_dir,
-        filename_bbox=args.filename_bbox,
-        tmpdir=args.tmpdir,
-        suffix=args.suffix,
-        subdir=args.subdir
-    )
-
+from shelterbelts.apis.canopy_height import transform_bbox
 
 # +
 # # %%time
-# base_dir = '/scratch/xe2/cb8590/lidar/DATA_587060'
-# filename_bbox = '/scratch/xe2/cb8590/lidar/polygons/DATA_587060.geojson'
-# # filename_bbox = '/scratch/xe2/cb8590/lidar/polygons/r1_c2.geojson'
-# merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
+stub = 'DATA_587065'
+base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
+filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
 
 # # # Took 4 mins
+# -
+
+merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
+
+
+polygon = gpd.read_file(filename_bbox)
+bbox = polygon.loc[0, 'geometry'].bounds
+bbox
+
+veg_tif = '/scratch/xe2//cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/Gunning201503-PHO3-C0-AHD_7126178_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars('band')
+
+tiff_crs = da.rio.crs
+tiff_crs = PyprojCRS(tiff_crs).to_2d()
+tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
+tiff_crs
+
+bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
+roi_coords_3857 = box(*bbox_3857)
+roi_polygon_3857 = Polygon(roi_coords_3857)
+roi_bounds = roi_polygon_3857.bounds
+roi_bounds
+
+# +
+gdf = gpd.read_file('/scratch/xe2//cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
+
+len(gdf)
+
+# +
+# Make bounding box geometries
+bbox_geom = gpd.GeoSeries([box(*bbox)], crs="EPSG:4326")
+roi_geom = gpd.GeoSeries([box(*roi_bounds)], crs="EPSG:28355")  # GDA94 / MGA zone 55
+
+# --- 1. Check against bbox in EPSG:4326 ---
+gdf_4326 = gdf.to_crs("EPSG:4326")
+gdf["in_bbox"] = gdf_4326.intersects(bbox_geom.iloc[0])
+
+# --- 2. Check against ROI in GDA94 (EPSG:28355) ---
+gdf_28355 = gdf.to_crs("EPSG:28355")
+gdf["in_roi"] = gdf_28355.intersects(roi_geom.iloc[0])
+# -
+
+sum(~gdf['in_bbox'])
+
+sum(~gdf['in_roi'])

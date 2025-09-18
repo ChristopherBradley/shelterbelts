@@ -18,7 +18,6 @@ from pyproj import CRS as PyprojCRS
 from rasterio.merge import merge
 from rasterio.transform import Affine
 from rasterio.windows import from_bounds
-# from rasterio.crs import CRS
 from shapely.geometry import Polygon, box      
 
 import matplotlib.pyplot as plt
@@ -79,20 +78,29 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             tiff_crs = src.crs
 
             # # Remove vertical component of the crs. Otherwise this messes up merging in the latest versions of gdal.
-            # tiff_crs = PyprojCRS(tiff_crs).to_2d()
-            # tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
+            tiff_crs = PyprojCRS(tiff_crs).to_2d()
+            tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
             
-            if str(src.crs) != 'EPSG:4326':
-                # Change the bbox to match the tif crs
-                bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
-                roi_coords_3857 = box(*bbox_3857)
-                roi_polygon_3857 = Polygon(roi_coords_3857)
-                roi_bounds = roi_polygon_3857.bounds
-            else:
-                roi_bounds = bbox
+            # if str(src.crs) != 'EPSG:4326':
+            # Change the bbox to match the tif crs
+            print('bbox before transforming', bbox)
+            bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
+            roi_coords_3857 = box(*bbox_3857)
+            roi_polygon_3857 = Polygon(roi_coords_3857)
+            roi_bounds = roi_polygon_3857.bounds
+            # else:
+            #     roi_bounds = bbox
 
+            print('bbox after transforming', roi_bounds)
             intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
             window = from_bounds(*intersection_bounds, transform=src.transform)
+
+            print("tile", tile)
+            print("tiff_bounds", tiff_bounds)
+            print("tiff_crs", tiff_crs)
+            print('bbox', bbox)
+            print("roi_bounds", roi_bounds)
+            print()
             
             # Read data within the window
             out_image = src.read(window=window)
@@ -114,6 +122,8 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')
         src = rasterio.open(tiff_file)
         src_files_to_mosaic.append(src)
+    
+    # This assumes the the crs of all the input geotifs is the same
     mosaic, out_trans = merge(src_files_to_mosaic)
     out_meta = src_files_to_mosaic[0].meta.copy()
 

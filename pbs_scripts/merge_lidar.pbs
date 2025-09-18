@@ -8,7 +8,7 @@
 #PBS -l storage=gdata/xe2
 #PBS -q normal
 
-stub=DATA_587060
+# stub=DATA_587060
 echo "Starting elvis_geojsons.pbs for stub $stub"
 
 # Change working directory
