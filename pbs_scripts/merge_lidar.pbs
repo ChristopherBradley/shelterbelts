@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -N merge_lidar
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/xe2
+#PBS -q normal
+
+stub=DATA_587060
+echo "Starting elvis_geojsons.pbs for stub $stub"
+
+# Change working directory
+cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
+
+# Load the conda environment
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+# Run the script
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --filename_bbox /scratch/xe2/cb8590/lidar/polygons/$stub.geojson --suffix _percentcover_res10_height2m.tif
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --filename_bbox /scratch/xe2/cb8590/lidar/polygons/r1_c2.geojson --suffix _percentcover_res10_height2m.tif

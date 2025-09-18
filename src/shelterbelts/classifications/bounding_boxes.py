@@ -42,6 +42,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     records = []
     for veg_tif in veg_tifs:
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
+        original_crs = str(da.rio.crs)
 
         # Convert to EPSG:4326, because this is what's expected by the sentinel_download scripts
         if da.rio.crs is None:
@@ -67,6 +68,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
             "width": width,
             "pixels_0": category_counts.get(0, 0),
             "pixels_1": category_counts.get(1, 0),
+            "crs":original_crs,
             "geometry": box(minx, miny, maxx, maxy),
             # "year":year,  
         }

@@ -14,9 +14,11 @@ import xarray as xr
 import rioxarray as rxr
 import geopandas as gpd
 from pyproj import Transformer
+from pyproj import CRS as PyprojCRS
 from rasterio.merge import merge
 from rasterio.transform import Affine
 from rasterio.windows import from_bounds
+# from rasterio.crs import CRS
 from shapely.geometry import Polygon, box      
 
 import matplotlib.pyplot as plt
@@ -76,6 +78,10 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             tiff_bounds = src.bounds
             tiff_crs = src.crs
 
+            # Remove vertical component of the crs. Otherwise this messes up merging in the latest versions of gdal.
+            tiff_crs = PyprojCRS(src_crs).to_2d()
+            tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
+            
             if str(src.crs) != 'EPSG:4326':
                 # Change the bbox to match the tif crs
                 bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
