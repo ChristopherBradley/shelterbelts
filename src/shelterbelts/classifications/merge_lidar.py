@@ -6,6 +6,7 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 import re
+from pyproj import CRS as PyprojCRS
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
@@ -31,7 +32,7 @@ def cluster_bounds(bounds, tol=0.02):
     return groups
 
 
-def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', subdir='chm'):
+def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif', subdir='chm'):
     """Take a folder of tif files and merge them into a single uint8 raster
 
     Parameters
@@ -59,14 +60,19 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp', suffi
     # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
     glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
     filenames = glob.glob(glob_path)
-    print('glob_path:', glob_path)
-    print('len filenames', len(filenames))
+    # print('glob_path:', glob_path)
+    # print('len filenames', len(filenames))
     for i, filename in enumerate(filenames):
         da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
         da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
         da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
         da = da.rio.write_nodata(255)
         da = da.astype('uint8')
+        
+        # Remove vertical component of the crs
+        horizontal_crs = PyprojCRS(da.rio.crs).to_2d()
+        da = da.rio.write_crs(horizontal_crs)
+
         outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
         outpath = os.path.join(outdir, outfile)
         da.rio.to_raster(outpath, compress="lzw")
@@ -149,67 +155,10 @@ if __name__ == '__main__':
 
 
 # +
-# %%time
-base_dir = '/scratch/xe2/cb8590/lidar/DATA_587060'
-filename_bbox = '/scratch/xe2/cb8590/lidar/polygons/DATA_587060.geojson'
-# filename_bbox = '/scratch/xe2/cb8590/lidar/polygons/r1_c2.geojson'
-merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
+# # %%time
+# base_dir = '/scratch/xe2/cb8590/lidar/DATA_587060'
+# filename_bbox = '/scratch/xe2/cb8590/lidar/polygons/DATA_587060.geojson'
+# # filename_bbox = '/scratch/xe2/cb8590/lidar/polygons/r1_c2.geojson'
+# merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
 
-# # Took 4 mins
-# -
-
-
-
-# Dependencies
-import shutil
-import numpy as np
-import requests
-import rasterio
-import xarray as xr
-import rioxarray as rxr
-import geopandas as gpd
-from pyproj import Transformer
-from rasterio.merge import merge
-from rasterio.transform import Affine
-from rasterio.windows import from_bounds
-from rasterio.crs import CRS
-from shapely.geometry import Polygon, box      
-from pyproj import CRS as PyprojCRS
-
-
-# +
-veg_tif = '/scratch/xe2/cb8590/lidar/DATA_587060/uint8_percentcover_res10_height2m/Boorowa201709-LID1-C3-AHD_6826194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-with rasterio.open(veg_tif) as src:
-    # Get bounds of the TIFF file
-    tiff_bounds = src.bounds
-    tiff_crs = src.crs
-
-src_crs = tiff_crs
-tiff_crs = PyprojCRS(src_crs).to_2d()
-tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
-
-print(src_crs)
-print()
-print(tiff_crs)
-
-# +
-veg_tif = '/scratch/xe2/cb8590/lidar/DATA_587060/uint8_percentcover_res10_height2m/Boorowa201501-PHO3-C0-AHD_6546188_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-with rasterio.open(veg_tif) as src:
-    # Get bounds of the TIFF file
-    tiff_bounds = src.bounds
-    tiff_crs = src.crs
-
-src_crs = tiff_crs
-tiff_crs = PyprojCRS(src_crs).to_2d()
-tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
-
-print(src_crs)
-print()
-print(tiff_crs)
-# -
-
-# %%time
-gdf = bounding_boxes('/scratch/xe2/cb8590/lidar/DATA_587060/uint8_percentcover_res10_height2m/')
-gdf
-
-gdf['crs'].unique()
+# # # Took 4 mins

@@ -78,9 +78,9 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             tiff_bounds = src.bounds
             tiff_crs = src.crs
 
-            # Remove vertical component of the crs. Otherwise this messes up merging in the latest versions of gdal.
-            tiff_crs = PyprojCRS(src_crs).to_2d()
-            tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
+            # # Remove vertical component of the crs. Otherwise this messes up merging in the latest versions of gdal.
+            # tiff_crs = PyprojCRS(tiff_crs).to_2d()
+            # tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
             
             if str(src.crs) != 'EPSG:4326':
                 # Change the bbox to match the tif crs
