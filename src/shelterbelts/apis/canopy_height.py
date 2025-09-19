@@ -83,15 +83,12 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             
             # if str(src.crs) != 'EPSG:4326':
             # Change the bbox to match the tif crs
-            print('bbox before transforming', bbox)
             bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
             roi_coords_3857 = box(*bbox_3857)
             roi_polygon_3857 = Polygon(roi_coords_3857)
             roi_bounds = roi_polygon_3857.bounds
             # else:
             #     roi_bounds = bbox
-
-            print('bbox after transforming', roi_bounds)
             intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
             window = from_bounds(*intersection_bounds, transform=src.transform)
 

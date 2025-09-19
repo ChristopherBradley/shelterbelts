@@ -7,9 +7,11 @@ import pandas as pd
 import numpy as np
 import re
 from pyproj import CRS as PyprojCRS
+from shapely.geometry import box      
+
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds, transform_bbox
 
 
 def extract_year(name):
@@ -52,6 +54,10 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
         merged.tif: A geotif of the da
         
     """
+    # Decide on a crs for the merged output raster
+    polygon = gpd.read_file(filename_bbox)
+    final_crs = polygon.estimate_utm_crs()
+    
     suffix_stub = suffix.split('.')[0]
     outdir = os.path.join(base_dir, f'uint8{suffix_stub}')
     
@@ -62,22 +68,24 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     
-        for i, filename in enumerate(filenames):
-            da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-            da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
-            da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
-            da = da.rio.write_nodata(255)
-            da = da.astype('uint8')
-            
-            # Remove vertical component of the crs
-            horizontal_crs = PyprojCRS(da.rio.crs).to_2d()
-            da = da.rio.write_crs(horizontal_crs)
-    
-            outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
-            outpath = os.path.join(outdir, outfile)
-            da.rio.to_raster(outpath, compress="lzw")
-            if i%100 == 0:
-                print(f"Saved {i}/{len(filenames)}:", outpath)
+    for i, filename in enumerate(filenames):
+        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+        da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
+        da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
+        da = da.rio.write_nodata(255)
+        da = da.astype('uint8')
+        
+        # Remove vertical component of the crs. I should probably just explicitly convert everything to gda2020
+        # horizontal_crs = PyprojCRS(da.rio.crs).to_2d()
+        # da = da.rio.write_crs(horizontal_crs)
+        
+        da = da.rio.reproject(final_crs) 
+
+        outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
+        outpath = os.path.join(outdir, outfile)
+        da.rio.to_raster(outpath, compress="lzw")
+        if i%100 == 0:
+            print(f"Saved {i}/{len(filenames)}:", outpath)
 
     # This gives extra info like number of pixels in each category, but we only care about the filename and geometry
     gdf = bounding_boxes(outdir)
@@ -85,7 +93,6 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     # This is the bounding box that I used to make the initial request from ELVIS
     gdf_bbox = gpd.read_file(filename_bbox)
     bbox = gdf_bbox.loc[0, 'geometry'].bounds
-    print("original_bbox", bbox)
 
     # This should work for ACT and NSW naming conventions (just for string ordering, not extracting the exact date)
     dates = [extract_year(filename) for filename in gdf['filename']]
@@ -107,12 +114,12 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     gdf_dedup.crs = gdf.crs
 
     # Get the 2D CRS of one of the tifs
-    sample_file = os.path.join(outdir, f"{filenames[0].split('/')[-1].split('.')[0]}_uint8.tif")
-    da = rxr.open_rasterio(sample_file).isel(band=0).drop_vars('band')
-    tiff_crs = PyprojCRS(da.rio.crs).to_2d()
+    # sample_file = os.path.join(outdir, f"{filenames[0].split('/')[-1].split('.')[0]}_uint8.tif")
+    # da = rxr.open_rasterio(sample_file).isel(band=0).drop_vars('band')
+    # tiff_crs = PyprojCRS(da.rio.crs).to_2d()
     
-    # Get the geometry of the elvis request in this CRS
-    polygon = gpd.read_file(filename_bbox)
+    # Get the geometry of the elvis request
+    tiff_crs = final_crs
     bbox = polygon.loc[0, 'geometry'].bounds
     bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
     roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
@@ -128,10 +135,11 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     gdf_dedup.to_file(filename_dedup)
     print("Saved:", filename_dedup)
 
+    # Finally merge the relevant tiles
     stub = outdir.split('/')[-1]
     mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # I'm deliberately inverting the outdir and tmpdir so cropped files go to tmp
-    ds = merged_ds(mosaic, out_meta, 'chm')  # This name doesn't matter, since it's only used in the next step to reproject
-    da = ds['chm'].rio.reproject("EPSG:7856")  # GDA2020. This reprojecting also cleans up the nan values on the edge
+    ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
+    da = ds[suffix_stub].rio.reproject(tiff_crs)  # GDA2020. This reprojecting also cleans up the nan values on the edge
 
     outpath = os.path.join(base_dir, f'merged{suffix}')
     da.rio.to_raster(outpath, compress="lzw")  # 200MB for the resulting 1m raster in a 50km x 50km area
@@ -144,6 +152,7 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     # outpath = '/scratch/xe2/cb8590/lidar/merged_tifs/DATA_586204_chm_1m_gda2020_latest_tiled512.tif'
     # da.rio.to_raster(outpath, compress="lzw", blocksize=512)  # 200MB for the resulting 1m raster in a 50km x 50km area
     # # !gdaladdo {outpath} 2 4 8 16 32 64 
+    # Seems like earth engine already does the tiling by default, so I shouldn't need to do it myself if that's the main use case.
 
 # +
 # import argparse
@@ -171,59 +180,42 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
 #         suffix=args.suffix,
 #         subdir=args.subdir
 #     )
-
-
-# +
-
-# Dependencies
-import shutil
-import numpy as np
-import requests
-import rasterio
-import xarray as xr
-import rioxarray as rxr
-import geopandas as gpd
-from pyproj import Transformer
-from pyproj import CRS as PyprojCRS
-from rasterio.merge import merge
-from rasterio.transform import Affine
-from rasterio.windows import from_bounds
-from shapely.geometry import Polygon, box      
-
 # -
 
-from shelterbelts.apis.canopy_height import transform_bbox
 
-# +
 # # %%time
-stub = 'DATA_587065'
+stub = 'DATA_587068'
 base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
 filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
 gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
-
-# # # Took 4 mins
-# -
-
-# %%time
 merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
+# # # Took 4 mins first time, 1 min after that.
 
+filename = '/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/Taralga201611-LID2-C3-AHD_7526194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+# da = da.rio.reproject('EPSG:7844') 
+
+gdf = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/uint8_percentcover_res10_height2m_footprints.gpkg')
 
 # +
-# Get the 2D CRS of one of the tifs
-sample_file = os.path.join(outdir, f"{filenames[0].split('/')[-1].split('.')[0]}_uint8.tif")
-da = rxr.open_rasterio(sample_file).isel(band=0).drop_vars('band')
-tiff_crs = PyprojCRS(da.rio.crs).to_2d()
+# filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
+# polygon = gpd.read_file(filename_bbox)
+# # polygon.loc[0, 'geometry'].bounds
+# utm_crs = polygon.estimate_utm_crs()
+# print(utm_crs.to_epsg())
+
+# +
+final_crs = 'EPSG:32755'
+tiff_crs = final_crs
 
 # Get the geometry of the elvis request in this CRS
 polygon = gpd.read_file(filename_bbox)
 bbox = polygon.loc[0, 'geometry'].bounds
 bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
 roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
+filename = f'/scratch/xe2/cb8590/tmp/roi_geom_{final_crs}.gpkg'
+roi_geom.to_file(filename)
+print(filename)
 
 # Find the tiles that are outside this transformed bbox
-gdf_transformed = gdf_dedup.to_crs(tiff_crs)
-gdf_dedup["in_roi"] = gdf_transformed.intersects(roi_geom.iloc[0])
-
-print(f'Removing tiles not inside the projected bounds:', sum(~gdf_dedup['in_roi']))
-gdf_dedup = gdf_dedup[gdf_dedup["in_roi"]]
-
+# gdf_transformed = gdf.to_crs(tiff_crs)

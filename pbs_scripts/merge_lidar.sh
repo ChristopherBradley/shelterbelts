@@ -3,11 +3,11 @@
 
 
 ## Run merge_lidar.pbs on a single folder
-# stub=DATA_587060
+# stub=DATA_587060, DATA_587065
 # qsub -v stub="$stub" merge_lidar.pbs
 
 ## Run it on all the folders
-stubs=(DATA_587065 DATA_587068 DATA_587081 DATA_587083 DATA_587085 \
+stubs=(DATA_587068 DATA_587081 DATA_587083 DATA_587085 \
        DATA_587109 DATA_587116 DATA_587122 DATA_587124 DATA_587133 \
        DATA_587116 DATA_587120 DATA_587127)
 
