@@ -154,42 +154,43 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     # # !gdaladdo {outpath} 2 4 8 16 32 64 
     # Seems like earth engine already does the tiling by default, so I shouldn't need to do it myself if that's the main use case.
 
+
 # +
-# import argparse
+import argparse
 
-# def parse_arguments():
-#     """Parse command line arguments with default values."""
-#     parser = argparse.ArgumentParser()
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
     
-#     parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
-#     parser.add_argument('--filename_bbox', required=True, help='GeoJSON file of the bounding box used as input into ELVIS')
-#     parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
-#     parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
-#     parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
+    parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
+    parser.add_argument('--filename_bbox', required=True, help='GeoJSON file of the bounding box used as input into ELVIS')
+    parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
+    parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
+    parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
 
-#     return parser.parse_args()
+    return parser.parse_args()
 
 
-# if __name__ == '__main__':
-#     args = parse_arguments()
+if __name__ == '__main__':
+    args = parse_arguments()
     
-#     merge_lidar(
-#         base_dir=args.base_dir,
-#         filename_bbox=args.filename_bbox,
-#         tmpdir=args.tmpdir,
-#         suffix=args.suffix,
-#         subdir=args.subdir
-#     )
-# -
+    merge_lidar(
+        base_dir=args.base_dir,
+        filename_bbox=args.filename_bbox,
+        tmpdir=args.tmpdir,
+        suffix=args.suffix,
+        subdir=args.subdir
+    )
 
 
-# # %%time
-stub = 'DATA_587068'
-base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
-filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
-gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
-merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
-# # # Took 4 mins first time, 1 min after that.
+# +
+# # # %%time
+# stub = 'DATA_587083'
+# base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
+# filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
+# gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
+# merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
+# # # # Took 4 mins first time, 1 min after that.
 
 # +
 # filename = '/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/Taralga201611-LID2-C3-AHD_7526194_55_0002_0002_percentcover_res10_height2m_uint8.tif'

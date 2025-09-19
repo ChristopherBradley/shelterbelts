@@ -65,7 +65,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     
     for i, tile in enumerate(relevant_tiles):
         if i % 100 == 0:
-            print(f"Working on {i}/{len(relevant_tiles)}", tile)
+            print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
             
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')  # I've been formatting the id_column in different ways in the past, so this should make them consistent
@@ -92,12 +92,12 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
             window = from_bounds(*intersection_bounds, transform=src.transform)
 
-            print("tile", tile)
-            print("tiff_bounds", tiff_bounds)
-            print("tiff_crs", tiff_crs)
-            print('bbox', bbox)
-            print("roi_bounds", roi_bounds)
-            print()
+            # print("tile", tile)
+            # print("tiff_bounds", tiff_bounds)
+            # print("tiff_crs", tiff_crs)
+            # print('bbox', bbox)
+            # print("roi_bounds", roi_bounds)
+            # print()
             
             # Read data within the window
             out_image = src.read(window=window)
