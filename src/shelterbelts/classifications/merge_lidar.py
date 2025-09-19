@@ -191,11 +191,11 @@ gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentco
 merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
 # # # Took 4 mins first time, 1 min after that.
 
-filename = '/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/Taralga201611-LID2-C3-AHD_7526194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-# da = da.rio.reproject('EPSG:7844') 
-
-gdf = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/uint8_percentcover_res10_height2m_footprints.gpkg')
+# +
+# filename = '/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/Taralga201611-LID2-C3-AHD_7526194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+# da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+# # da = da.rio.reproject('EPSG:7844') 
+# gdf = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/uint8_percentcover_res10_height2m_footprints.gpkg')
 
 # +
 # filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
@@ -205,17 +205,17 @@ gdf = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_re
 # print(utm_crs.to_epsg())
 
 # +
-final_crs = 'EPSG:32755'
-tiff_crs = final_crs
+# final_crs = 'EPSG:32755'
+# tiff_crs = final_crs
 
-# Get the geometry of the elvis request in this CRS
-polygon = gpd.read_file(filename_bbox)
-bbox = polygon.loc[0, 'geometry'].bounds
-bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
-roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
-filename = f'/scratch/xe2/cb8590/tmp/roi_geom_{final_crs}.gpkg'
-roi_geom.to_file(filename)
-print(filename)
+# # Get the geometry of the elvis request in this CRS
+# polygon = gpd.read_file(filename_bbox)
+# bbox = polygon.loc[0, 'geometry'].bounds
+# bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
+# roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
+# filename = f'/scratch/xe2/cb8590/tmp/roi_geom_{final_crs}.gpkg'
+# roi_geom.to_file(filename)
+# print(filename)
 
-# Find the tiles that are outside this transformed bbox
-# gdf_transformed = gdf.to_crs(tiff_crs)
+# # Find the tiles that are outside this transformed bbox
+# # gdf_transformed = gdf.to_crs(tiff_crs)
