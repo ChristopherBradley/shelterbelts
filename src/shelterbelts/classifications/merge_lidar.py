@@ -54,15 +54,14 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     """
     suffix_stub = suffix.split('.')[0]
     outdir = os.path.join(base_dir, f'uint8{suffix_stub}')
+    
+    # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
+    glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
+    filenames = glob.glob(glob_path)
+    
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     
-        # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
-        glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
-        filenames = glob.glob(glob_path)
-        # print('glob_path:', glob_path)
-        # print('len filenames', len(filenames))
-        
         for i, filename in enumerate(filenames):
             da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
             da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
@@ -106,6 +105,25 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
         .last()
     )
     gdf_dedup.crs = gdf.crs
+
+    # Get the 2D CRS of one of the tifs
+    sample_file = os.path.join(outdir, f"{filenames[0].split('/')[-1].split('.')[0]}_uint8.tif")
+    da = rxr.open_rasterio(sample_file).isel(band=0).drop_vars('band')
+    tiff_crs = PyprojCRS(da.rio.crs).to_2d()
+    
+    # Get the geometry of the elvis request in this CRS
+    polygon = gpd.read_file(filename_bbox)
+    bbox = polygon.loc[0, 'geometry'].bounds
+    bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
+    roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
+    
+    # Find the tiles that are outside this transformed bbox
+    gdf_transformed = gdf_dedup.to_crs(tiff_crs)
+    gdf_dedup["in_roi"] = gdf_transformed.intersects(roi_geom.iloc[0])
+    
+    print(f'Removing tiles not inside the projected bounds:', sum(~gdf_dedup['in_roi']))
+    gdf_dedup = gdf_dedup[gdf_dedup["in_roi"]]
+        
     filename_dedup = os.path.join(outdir, 'footprints_unique_002.gpkg')
     gdf_dedup.to_file(filename_dedup)
     print("Saved:", filename_dedup)
@@ -181,50 +199,31 @@ from shelterbelts.apis.canopy_height import transform_bbox
 stub = 'DATA_587065'
 base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
 filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
+gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
 
 # # # Took 4 mins
 # -
 
+# %%time
 merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
 
 
+# +
+# Get the 2D CRS of one of the tifs
+sample_file = os.path.join(outdir, f"{filenames[0].split('/')[-1].split('.')[0]}_uint8.tif")
+da = rxr.open_rasterio(sample_file).isel(band=0).drop_vars('band')
+tiff_crs = PyprojCRS(da.rio.crs).to_2d()
+
+# Get the geometry of the elvis request in this CRS
 polygon = gpd.read_file(filename_bbox)
 bbox = polygon.loc[0, 'geometry'].bounds
-bbox
+bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
+roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
 
-veg_tif = '/scratch/xe2//cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/Gunning201503-PHO3-C0-AHD_7126178_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars('band')
+# Find the tiles that are outside this transformed bbox
+gdf_transformed = gdf_dedup.to_crs(tiff_crs)
+gdf_dedup["in_roi"] = gdf_transformed.intersects(roi_geom.iloc[0])
 
-tiff_crs = da.rio.crs
-tiff_crs = PyprojCRS(tiff_crs).to_2d()
-tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
-tiff_crs
+print(f'Removing tiles not inside the projected bounds:', sum(~gdf_dedup['in_roi']))
+gdf_dedup = gdf_dedup[gdf_dedup["in_roi"]]
 
-bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
-roi_coords_3857 = box(*bbox_3857)
-roi_polygon_3857 = Polygon(roi_coords_3857)
-roi_bounds = roi_polygon_3857.bounds
-roi_bounds
-
-# +
-gdf = gpd.read_file('/scratch/xe2//cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
-
-len(gdf)
-
-# +
-# Make bounding box geometries
-bbox_geom = gpd.GeoSeries([box(*bbox)], crs="EPSG:4326")
-roi_geom = gpd.GeoSeries([box(*roi_bounds)], crs="EPSG:28355")  # GDA94 / MGA zone 55
-
-# --- 1. Check against bbox in EPSG:4326 ---
-gdf_4326 = gdf.to_crs("EPSG:4326")
-gdf["in_bbox"] = gdf_4326.intersects(bbox_geom.iloc[0])
-
-# --- 2. Check against ROI in GDA94 (EPSG:28355) ---
-gdf_28355 = gdf.to_crs("EPSG:28355")
-gdf["in_roi"] = gdf_28355.intersects(roi_geom.iloc[0])
-# -
-
-sum(~gdf['in_bbox'])
-
-sum(~gdf['in_roi'])
