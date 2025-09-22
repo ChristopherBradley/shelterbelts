@@ -117,9 +117,11 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')
         tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')
-        if os.path.exists(tiff_file):  # I haven't looked in detail into why this cropped tiff file might not exist.
-            src = rasterio.open(tiff_file)
-            src_files_to_mosaic.append(src)
+        
+        # if os.path.exists(tiff_file):  # Hackfix, creates a tif with holes in it
+        
+        src = rasterio.open(tiff_file)
+        src_files_to_mosaic.append(src)
     
     # This assumes the the crs of all the input geotifs is the same
     print(f"Merging {len(src_files_to_mosaic)} tiles")

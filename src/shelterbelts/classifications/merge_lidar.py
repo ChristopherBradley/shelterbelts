@@ -182,6 +182,84 @@ suffix='_percentcover_res10_height2m.tif'
 merge_lidar(base_dir, filename_bbox, subdir=subdir, suffix=suffix)
 # # # Took 4 mins first time, 1 min after that.
 
+/scratch/xe2/cb8590/tmp2/uint8_percentcover_res10_height2m_Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8_cropped.tif
+
+base_dir
+
+# !ls /scratch/xe2/cb8590/lidar/DATA_709828/chm/Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m.tif
+
+
+# !ls /scratch/xe2/cb8590/lidar/DATA_709828/uint8_percentcover_res10_height2m/Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8.tif
+
+# !ls /scratch/xe2/cb8590/tmp2/*7506168*
+
+# # !ls /scratch/xe2/cb8590/tmp2/*Goulburn201312*.tif
+
+
+filename = '/scratch/xe2/cb8590/lidar/DATA_709828/uint8_percentcover_res10_height2m/Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+da = rxr.open_rasterio(filename).isel()
+
+
+gdf_bbox = gpd.read_file(filename_bbox)
+bbox = gdf_bbox.loc[0, 'geometry'].bounds
+
+bbox_transformed = transform_bbox(bbox, outputEPSG=da.rio.crs)
+roi_box = box(*bbox_transformed)
+intersection_bounds = box(*da.rio.bounds()).intersection(roi_box).bounds
+intersection_bounds
+
+import rasterio
+
+
+
+with rasterio.open(filename) as src:
+    # Get bounds of the TIFF file
+    tiff_bounds = src.bounds
+    tiff_crs = src.crs
+    transform = src.transform
+    window = from_bounds(*intersection_bounds, transform=src.transform)
+    out_image = src.read(window=window)
+    out_transform = src.window_transform(window)
+    out_meta = src.meta.copy()
+
+from rasterio.windows import from_bounds
+
+
+
+
+outdir = '/scratch/xe2/cb8590/tmp2'
+tile = 'Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8'
+
+# Save cropped image
+cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
+
+out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
+
+
+with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
+    dest.write(out_image)
+
+cropped_tiff_filename
+
+
+    
+        with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
+            dest.write(out_image)
+
+
+            
+            # Read data within the window
+            out_image = src.read(window=window)
+            out_transform = src.window_transform(window)
+            out_meta = src.meta.copy()
+    
+        # Save cropped image
+        cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
+        out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
+    
+        with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
+            dest.write(out_image)
+
 # +
 # filename = '/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/Taralga201611-LID2-C3-AHD_7526194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
 # da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
