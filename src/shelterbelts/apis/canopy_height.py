@@ -29,9 +29,11 @@ from matplotlib import colors
 def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], canopy_height_dir=".", footprints_geojson='tiles_global.geojson', id_column='tile'):
     """Find the tiles that overlap with the region of interest"""
     
-    # This assumes the crs is EPSG:4326, because the aws tiles.geojson is also in EPSG:4326
-    roi_coords = box(*bbox)
-    roi_polygon = Polygon(roi_coords)
+    # Convert the bbox to the same crs as the footprints file
+    # footprints_crs = gpd.read_file(footprints_geojson).crs
+    # bbox_transformed = transform_bbox(bbox, outputEPSG=footprints_crs)
+    # roi_polygon = box(*bbox_transformed)
+    roi_polygon = box(*bbox)
     
     # Download the 'tiles_global.geojson' to this folder if we haven't already
     filename = os.path.join(canopy_height_dir, footprints_geojson)
@@ -51,7 +53,7 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     relevant_tiles = []
     for idx, row in gdf.iterrows():
         tile_polygon = row['geometry']
-        if tile_polygon.intersects(roi_polygon):
+        if tile_polygon.intersects(roi_polygon):  
             relevant_tiles.append(row[id_column])
             
     return relevant_tiles
@@ -66,7 +68,8 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     for i, tile in enumerate(relevant_tiles):
         if i % 100 == 0:
             print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
-            
+
+        original_tilename = tile
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')  # I've been formatting the id_column in different ways in the past, so this should make them consistent
         tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
@@ -77,26 +80,23 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             tiff_bounds = src.bounds
             tiff_crs = src.crs
 
-            # # Remove vertical component of the crs. Otherwise this messes up merging in the latest versions of gdal.
-            tiff_crs = PyprojCRS(tiff_crs).to_2d()
-            tiff_crs = rasterio.crs.CRS.from_wkt(tiff_crs.to_wkt())
+            bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
+            roi_box = box(*bbox_transformed)
+            intersection_bounds = box(*tiff_bounds).intersection(roi_box).bounds
+
+            # If there is no intersection then don't save a cropped image, and remove this from the relevant tiles. 
+            if all(np.isnan(x) for x in intersection_bounds):
+                print(f"Tif not in region bounds: {tile}")
+                relevant_tiles.remove(original_tilename)
+                continue
             
-            # if str(src.crs) != 'EPSG:4326':
-            # Change the bbox to match the tif crs
-            bbox_3857 = transform_bbox(bbox, outputEPSG=tiff_crs)
-            roi_coords_3857 = box(*bbox_3857)
-            roi_polygon_3857 = Polygon(roi_coords_3857)
-            roi_bounds = roi_polygon_3857.bounds
-            # else:
-            #     roi_bounds = bbox
-            intersection_bounds = box(*tiff_bounds).intersection(box(*roi_bounds)).bounds
             window = from_bounds(*intersection_bounds, transform=src.transform)
 
-            # print("tile", tile)
+            print("tile", tile)
             # print("tiff_bounds", tiff_bounds)
             # print("tiff_crs", tiff_crs)
             # print('bbox', bbox)
-            # print("roi_bounds", roi_bounds)
+            # print('bbox_transformed', bbox_transformed)
             # print()
             
             # Read data within the window
@@ -117,10 +117,12 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')
         tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')
-        src = rasterio.open(tiff_file)
-        src_files_to_mosaic.append(src)
+        if os.path.exists(tiff_file):  # I haven't looked in detail into why this cropped tiff file might not exist.
+            src = rasterio.open(tiff_file)
+            src_files_to_mosaic.append(src)
     
     # This assumes the the crs of all the input geotifs is the same
+    print(f"Merging {len(src_files_to_mosaic)} tiles")
     mosaic, out_trans = merge(src_files_to_mosaic)
     out_meta = src_files_to_mosaic[0].meta.copy()
 

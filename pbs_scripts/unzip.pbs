@@ -13,8 +13,8 @@ echo "Starting unzip job"
 cd /scratch/xe2/cb8590/lidar
 
 for f in *.zip; do
-    name="${f%.zip}"       # strip .zip extension
-    outdir="$name/laz"     # make subfolder with /chm inside
+    name="${f%.zip}"  
+    outdir="$name/laz_files"  
     mkdir -p "$outdir"
     echo "Unzipping $f -> $outdir"
     unzip -q "$f" -d "$outdir"

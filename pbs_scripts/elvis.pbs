@@ -21,7 +21,8 @@ cd /scratch/xe2/cb8590/lidar
 # file=https://elvis-downloads.s3.amazonaws.com/DATA_587130.zip
 # file=https://elvis-downloads.s3.amazonaws.com/DATA_587120.zip
 # file=https://elvis-downloads.s3.amazonaws.com/DATA_587116.zip
-file=https://elvis-downloads.s3.amazonaws.com/DATA_587127.zip
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_587127.zip
+file=https://elvis-downloads.s3.amazonaws.com/DATA_709828.zip
 
 
 echo $file

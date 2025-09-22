@@ -11,7 +11,7 @@ from shapely.geometry import box
 
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds, transform_bbox
+from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds, transform_bbox, identify_relevant_tiles_bbox
 
 
 def extract_year(name):
@@ -75,10 +75,6 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
         da = da.rio.write_nodata(255)
         da = da.astype('uint8')
         
-        # Remove vertical component of the crs. I should probably just explicitly convert everything to gda2020
-        # horizontal_crs = PyprojCRS(da.rio.crs).to_2d()
-        # da = da.rio.write_crs(horizontal_crs)
-        
         da = da.rio.reproject(final_crs) 
 
         outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
@@ -113,25 +109,17 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     )
     gdf_dedup.crs = gdf.crs
 
-    # Get the 2D CRS of one of the tifs
-    # sample_file = os.path.join(outdir, f"{filenames[0].split('/')[-1].split('.')[0]}_uint8.tif")
-    # da = rxr.open_rasterio(sample_file).isel(band=0).drop_vars('band')
-    # tiff_crs = PyprojCRS(da.rio.crs).to_2d()
-    
-    # Get the geometry of the elvis request
-    tiff_crs = final_crs
-    bbox = polygon.loc[0, 'geometry'].bounds
-    bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
-    roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
-    
-    # Find the tiles that are outside this transformed bbox
-    gdf_transformed = gdf_dedup.to_crs(tiff_crs)
-    gdf_dedup["in_roi"] = gdf_transformed.intersects(roi_geom.iloc[0])
-    
-    print(f'Removing tiles not inside the projected bounds:', sum(~gdf_dedup['in_roi']))
-    gdf_dedup = gdf_dedup[gdf_dedup["in_roi"]]
+    # Find tiles that are outside this transformed bbox. This isn't fully reliable, even when using transform_bbox instead of gdf_dedup.to_crs(tiff_crs), so we need to also handle this inside canopy_height.merge_tiles_bbox
+    # tiff_crs = final_crs
+    # bbox = polygon.loc[0, 'geometry'].bounds
+    # bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
+    # roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
+    # gdf_dedup = gdf_dedup.to_crs(tiff_crs)   # This transforms points inside the geometry, but not the entire geometry
+    # gdf_dedup["in_roi"] = gdf_dedup.intersects(roi_geom.iloc[0])
+    # print(f'Removing tiles not inside the projected bounds:', sum(~gdf_dedup['in_roi']))
+    # gdf_dedup = gdf_dedup[gdf_dedup["in_roi"]]
         
-    filename_dedup = os.path.join(outdir, 'footprints_unique_002.gpkg')
+    filename_dedup = os.path.join(outdir, 'footprints_unique.gpkg')
     gdf_dedup.to_file(filename_dedup)
     print("Saved:", filename_dedup)
 
@@ -139,9 +127,10 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     stub = outdir.split('/')[-1]
     mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # I'm deliberately inverting the outdir and tmpdir so cropped files go to tmp
     ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
-    da = ds[suffix_stub].rio.reproject(tiff_crs)  # GDA2020. This reprojecting also cleans up the nan values on the edge
+    da = ds[suffix_stub].rio.reproject(final_crs)  # This reprojecting should clean up the nan values on the edge
 
-    outpath = os.path.join(base_dir, f'merged{suffix}')
+    stub = base_dir.split('/')[-1]
+    outpath = os.path.join(base_dir, f'{stub}_merged{suffix}')
     da.rio.to_raster(outpath, compress="lzw")  # 200MB for the resulting 1m raster in a 50km x 50km area
     print(f"Saved: {outpath}", flush=True)
 
@@ -154,43 +143,44 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     # # !gdaladdo {outpath} 2 4 8 16 32 64 
     # Seems like earth engine already does the tiling by default, so I shouldn't need to do it myself if that's the main use case.
 
-
 # +
-import argparse
+# import argparse
 
-def parse_arguments():
-    """Parse command line arguments with default values."""
-    parser = argparse.ArgumentParser()
+# def parse_arguments():
+#     """Parse command line arguments with default values."""
+#     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
-    parser.add_argument('--filename_bbox', required=True, help='GeoJSON file of the bounding box used as input into ELVIS')
-    parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
-    parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
-    parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
+#     parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
+#     parser.add_argument('--filename_bbox', required=True, help='GeoJSON file of the bounding box used as input into ELVIS')
+#     parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
+#     parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
+#     parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
 
-    return parser.parse_args()
+#     return parser.parse_args()
 
 
-if __name__ == '__main__':
-    args = parse_arguments()
+# if __name__ == '__main__':
+#     args = parse_arguments()
     
-    merge_lidar(
-        base_dir=args.base_dir,
-        filename_bbox=args.filename_bbox,
-        tmpdir=args.tmpdir,
-        suffix=args.suffix,
-        subdir=args.subdir
-    )
+#     merge_lidar(
+#         base_dir=args.base_dir,
+#         filename_bbox=args.filename_bbox,
+#         tmpdir=args.tmpdir,
+#         suffix=args.suffix,
+#         subdir=args.subdir
+#     )
+# -
 
 
-# +
-# # # %%time
-# stub = 'DATA_587083'
-# base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
-# filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
-# gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
-# merge_lidar(base_dir, filename_bbox, subdir='chm', suffix='_percentcover_res10_height2m.tif')
-# # # # Took 4 mins first time, 1 min after that.
+# %%time
+stub = 'DATA_709828'
+base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
+filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
+gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
+subdir='chm'
+suffix='_percentcover_res10_height2m.tif'
+merge_lidar(base_dir, filename_bbox, subdir=subdir, suffix=suffix)
+# # # Took 4 mins first time, 1 min after that.
 
 # +
 # filename = '/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/Taralga201611-LID2-C3-AHD_7526194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
@@ -199,24 +189,21 @@ if __name__ == '__main__':
 # gdf = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/uint8_percentcover_res10_height2m_footprints.gpkg')
 
 # +
-# filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
-# polygon = gpd.read_file(filename_bbox)
-# # polygon.loc[0, 'geometry'].bounds
-# utm_crs = polygon.estimate_utm_crs()
-# print(utm_crs.to_epsg())
+# # Quick way to save bounds as a gpkg for viewing in QGIS
+# from shapely.geometry import Polygon, box      
+# da_bbox = da.rio.bounds()
+# filename = f'/scratch/xe2/cb8590/tmp/da_bbox.gpkg'
+# gpd.GeoSeries(box(*da_bbox), crs=da.rio.crs).to_file(filename)
 
 # +
-# final_crs = 'EPSG:32755'
-# tiff_crs = final_crs
-
-# # Get the geometry of the elvis request in this CRS
+# # Quick way to transform a bbox back and forth between projections
 # polygon = gpd.read_file(filename_bbox)
 # bbox = polygon.loc[0, 'geometry'].bounds
 # bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
 # roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
-# filename = f'/scratch/xe2/cb8590/tmp/roi_geom_{final_crs}.gpkg'
+# filename = f'/scratch/xe2/cb8590/tmp/roi_geom_{tiff_crs}.gpkg'
 # roi_geom.to_file(filename)
 # print(filename)
+# -
 
-# # Find the tiles that are outside this transformed bbox
-# # gdf_transformed = gdf.to_crs(tiff_crs)
+
