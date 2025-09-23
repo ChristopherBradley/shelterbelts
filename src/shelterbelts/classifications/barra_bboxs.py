@@ -146,56 +146,47 @@ def half_degree_geopackage():
     grid.to_file(f"nsw_tiles_half_degree.gpkg", layer="tiles", driver="GPKG")
 
 
-def geopackage_km(polygon, km=30, crs='EPSG:4326'):
+# +
+def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=30000, crs=7855, outdir='/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/'):
     """Create a geopackage of bounding boxes of a given size covering a given area"""
+    gdf2 = gpd.read_file(filename_state_boundaries)
+    nsw = gdf2.loc[gdf2['STE_NAME21'] == state].to_crs(crs)
+    
+    minx, miny, maxx, maxy = nsw.total_bounds
+    if state == 'New South Wales':
+        minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states
+    xs = np.arange(minx, maxx, tile_size)
+    ys = np.arange(miny, maxy, tile_size)
+    
+    tiles = [box(x, y, x + tile_size, y + tile_size) for x in xs for y in ys]
+    grid = gpd.GeoDataFrame(geometry=tiles, crs=nsw.crs)
+    
+    # Keep only tiles that intersect NSW
+    geom = nsw.union_all()
+    geom_prep = prep(geom)
+    mask = grid.geometry.map(geom_prep.intersects)
+    grid_in_nsw = grid[mask]
+    print("Number of tiles:", len(grid_in_nsw))
+    
+    outdir_geojsons = os.path.join(outdir, f"geojsons_{tile_size}")
+    os.makedirs(outdir_geojsons, exist_ok=True)
+    
+    filenames = []
+    grid_in_nsw = grid_in_nsw.reset_index(drop=True)
+    for idx, row in grid_in_nsw.iterrows():
+        centroid = row.geometry.centroid
+        cx, cy = map(int, (centroid.x, centroid.y))  # round or cast to int for filenames
+        filename = f"{outdir_geojsons}/tile{idx}_{cx}_{cy}.geojson"
+        filenames.append(filename)
+        gdf = gpd.GeoDataFrame([row], crs=grid_in_nsw.crs)    
+        gdf.to_file(filename, driver="GeoJSON")
+        if idx % 100 == 0:
+            print('Saved:', filename)
+    
+    grid_in_nsw["filename"] = filenames
+    filename = os.path.join(outdir, f'tiles_{tile_size}_{state.replace(" ", "_")}.gpkg')
+    grid_in_nsw.to_file(filename, driver="GPKG")
+    print('Saved:', filename)
 
-
-
-# +
-filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-gdf2 = gpd.read_file(filename_state_boundaries)
-nsw_geom = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales', 'geometry']
-
-tile_size = 40000
-nsw = nsw_geom.to_crs(7855)
-minx, miny, maxx, maxy = nsw.total_bounds
-xs = np.arange(minx, maxx, tile_size)
-ys = np.arange(miny, maxy, tile_size)
-tiles = []
-for x in xs:
-    for y in ys:
-        tiles.append(box(x, y, x + tile_size, y + tile_size))
-grid = gpd.GeoDataFrame(geometry=tiles, crs=nsw.crs)
-
-filename = f'/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/nsw_tiles_{tile_size}.gpkg'
-grid.to_file(filename)
-print(filename)
-
-# +
-# Use GeoDataFrame, not GeoSeries
-nsw = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales'].to_crs(7855)
-
-tile_size = 30000
-# minx, miny, maxx, maxy = nsw.total_bounds
-minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000
-xs = np.arange(minx, maxx, tile_size)
-ys = np.arange(miny, maxy, tile_size)
-
-tiles = [box(x, y, x + tile_size, y + tile_size) for x in xs for y in ys]
-grid = gpd.GeoDataFrame(geometry=tiles, crs=nsw.crs)
-
-# Keep only tiles that intersect NSW
-geom = nsw.union_all()
-geom_prep = prep(geom)
-mask = grid.geometry.map(geom_prep.intersects)
-grid_in_nsw = grid[mask]
-print(len(grid_in_nsw))
-
-filename = f'/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/nsw_tiles_{tile_size}_nsw.gpkg'
-grid_in_nsw.to_file(filename, driver="GPKG")
-print(filename)
-
-# -
-
-
-
+# filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
+# geopackage_km(filename_state_boundaries)

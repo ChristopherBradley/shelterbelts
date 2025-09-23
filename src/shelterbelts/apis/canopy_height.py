@@ -64,21 +64,12 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     
     canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
-    # import pdb; pdb.set_trace()
-    for i, tile in enumerate(relevant_tiles):
-        if i % 100 == 0:
-            print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
-        if tile == 'Goulburn201312-PHO3-C0-AHD_7486166_55_0002_0002_percentcover_res10_height2m_uint8.tif':
-            print(f'{i}: found the tile in a basic loop!')
-            import pdb; pdb.set_trace()
 
     new_relevant_tiles = []
     for i, tile in enumerate(relevant_tiles):
         if i % 100 == 0:
             print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
-        if tile == 'Goulburn201312-PHO3-C0-AHD_7486166_55_0002_0002_percentcover_res10_height2m_uint8.tif':
-            print(f'{i}: found the tile in a more complex loop!')
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
             
         original_tilename = tile
         if tile.endswith('.tif'):
@@ -98,7 +89,6 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             # If there is no intersection then don't save a cropped image, and remove this from the relevant tiles. 
             if all(np.isnan(x) for x in intersection_bounds):
                 print(f"{i}: Tif not in region bounds: {tile}")
-                # relevant_tiles.remove(original_tilename)
                 continue
             new_relevant_tiles.append(original_tilename)
             
@@ -121,10 +111,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     for tile in new_relevant_tiles:
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')
-        tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')
-        
-        # if os.path.exists(tiff_file):  # Hackfix, creates a tif with holes in it
-        
+        tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')        
         src = rasterio.open(tiff_file)
         src_files_to_mosaic.append(src)
     
