@@ -64,11 +64,22 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     
     canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
-    
+    # import pdb; pdb.set_trace()
     for i, tile in enumerate(relevant_tiles):
         if i % 100 == 0:
             print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
+        if tile == 'Goulburn201312-PHO3-C0-AHD_7486166_55_0002_0002_percentcover_res10_height2m_uint8.tif':
+            print(f'{i}: found the tile in a basic loop!')
+            import pdb; pdb.set_trace()
 
+    new_relevant_tiles = []
+    for i, tile in enumerate(relevant_tiles):
+        if i % 100 == 0:
+            print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
+        if tile == 'Goulburn201312-PHO3-C0-AHD_7486166_55_0002_0002_percentcover_res10_height2m_uint8.tif':
+            print(f'{i}: found the tile in a more complex loop!')
+            import pdb; pdb.set_trace()
+            
         original_tilename = tile
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')  # I've been formatting the id_column in different ways in the past, so this should make them consistent
@@ -86,18 +97,12 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
 
             # If there is no intersection then don't save a cropped image, and remove this from the relevant tiles. 
             if all(np.isnan(x) for x in intersection_bounds):
-                print(f"Tif not in region bounds: {tile}")
-                relevant_tiles.remove(original_tilename)
+                print(f"{i}: Tif not in region bounds: {tile}")
+                # relevant_tiles.remove(original_tilename)
                 continue
+            new_relevant_tiles.append(original_tilename)
             
             window = from_bounds(*intersection_bounds, transform=src.transform)
-
-            print("tile", tile)
-            # print("tiff_bounds", tiff_bounds)
-            # print("tiff_crs", tiff_crs)
-            # print('bbox', bbox)
-            # print('bbox_transformed', bbox_transformed)
-            # print()
             
             # Read data within the window
             out_image = src.read(window=window)
@@ -107,13 +112,13 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         # Save cropped image
         cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
         out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
-    
+
         with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
             dest.write(out_image)
             
     # Merge the cropped tiffs
     src_files_to_mosaic = []
-    for tile in relevant_tiles:
+    for tile in new_relevant_tiles:
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')
         tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')

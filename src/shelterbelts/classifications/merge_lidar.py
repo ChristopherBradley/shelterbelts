@@ -68,20 +68,20 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     
-    for i, filename in enumerate(filenames):
-        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-        da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
-        da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
-        da = da.rio.write_nodata(255)
-        da = da.astype('uint8')
-        
-        da = da.rio.reproject(final_crs) 
-
-        outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
-        outpath = os.path.join(outdir, outfile)
-        da.rio.to_raster(outpath, compress="lzw")
-        if i%100 == 0:
-            print(f"Saved {i}/{len(filenames)}:", outpath)
+        for i, filename in enumerate(filenames):
+            da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+            da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
+            da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
+            da = da.rio.write_nodata(255)
+            da = da.astype('uint8')
+            
+            da = da.rio.reproject(final_crs) 
+    
+            outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
+            outpath = os.path.join(outdir, outfile)
+            da.rio.to_raster(outpath, compress="lzw")
+            if i%100 == 0:
+                print(f"Saved {i}/{len(filenames)}:", outpath)
 
     # This gives extra info like number of pixels in each category, but we only care about the filename and geometry
     gdf = bounding_boxes(outdir)
@@ -172,93 +172,100 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
 # -
 
 
+# !ls /scratch/xe2/cb8590/tmp2/uint8_percentcover_res10_height2m_Goulburn201312-PHO3-C0-AHD_7486164_55_0002_0002_percentcover_res10_height2m_uint8_cropped.tif
+
+# !ls /scratch/xe2/cb8590/tmp2/uint8_percentcover_res10_height2m_Goulburn201312-PHO3-C0-AHD_7426164_55_0002_0002_percentcover_res10_height2m_uint8_cropped.tif
+
 # %%time
 stub = 'DATA_709828'
 base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
 filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
-gdf_dedup = gpd.read_file('/scratch/xe2/cb8590/lidar/DATA_587065/uint8_percentcover_res10_height2m/footprints_unique_002.gpkg')
 subdir='chm'
 suffix='_percentcover_res10_height2m.tif'
 merge_lidar(base_dir, filename_bbox, subdir=subdir, suffix=suffix)
 # # # Took 4 mins first time, 1 min after that.
 
-/scratch/xe2/cb8590/tmp2/uint8_percentcover_res10_height2m_Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8_cropped.tif
+relevant_tiles
 
-base_dir
-
-# !ls /scratch/xe2/cb8590/lidar/DATA_709828/chm/Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m.tif
+RasterioIOError: /scratch/xe2/cb8590/tmp2/uint8_percentcover_res10_height2m_Goulburn201312-PHO3-C0-AHD_7526160_55_0002_0002_percentcover_res10_height2m_uint8_cropped.tif: No such file or directory
 
 
-# !ls /scratch/xe2/cb8590/lidar/DATA_709828/uint8_percentcover_res10_height2m/Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8.tif
+# !ls /scratch/xe2/cb8590/lidar/DATA_709828/uint8_percentcover_res10_height2m/*Goulburn201312-PHO3-C0-AHD_7486166*
 
-# !ls /scratch/xe2/cb8590/tmp2/*7506168*
+# !ls /scratch/xe2/cb8590/tmp2/*Goulburn201312-PHO3-C0-AHD_7486166*
 
-# # !ls /scratch/xe2/cb8590/tmp2/*Goulburn201312*.tif
+'7486166' in 'Goulburn201312-PHO3-C0-AHD_7486166_55_0002_0002_percentcover_res10_height2m_uint8.tif'
 
-
-filename = '/scratch/xe2/cb8590/lidar/DATA_709828/uint8_percentcover_res10_height2m/Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-da = rxr.open_rasterio(filename).isel()
-
-
-gdf_bbox = gpd.read_file(filename_bbox)
-bbox = gdf_bbox.loc[0, 'geometry'].bounds
-
-bbox_transformed = transform_bbox(bbox, outputEPSG=da.rio.crs)
-roi_box = box(*bbox_transformed)
-intersection_bounds = box(*da.rio.bounds()).intersection(roi_box).bounds
-intersection_bounds
-
+# +
 import rasterio
+from rasterio.windows import from_bounds
+
+# tile = 'Goulburn201312-PHO3-C0-AHD_7526160_55_0002_0002_percentcover_res10_height2m_uint8'
+tile = 'Goulburn201611-LID2-C3-AHD_7426178_55_0002_0002_percentcover_res10_height2m_uint8'
+suffix_stub = suffix.split('.')[0]
+stub = 'DATA_709828'
+base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
+canopy_height_dir = f'/scratch/xe2/cb8590/lidar/{stub}/uint8_percentcover_res10_height2m/'
+id_column = 'filename'
+footprints_geojson = '/scratch/xe2/cb8590/lidar/DATA_709828/uint8_percentcover_res10_height2m/footprints_unique.gpkg'
+
+outdir = os.path.join(base_dir, f'uint8{suffix_stub}')
+stub = outdir.split('/')[-1]
+outdir = '/scratch/xe2/cb8590/tmp2'
+
+polygon = gpd.read_file(filename_bbox)
+bbox = polygon.loc[0, 'geometry'].bounds
+
+original_tilename = tile
+if tile.endswith('.tif'):
+    tile = tile.strip('.tif')  # I've been formatting the id_column in different ways in the past, so this should make them consistent
+tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
+
+# -
 
 
+relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
 
-with rasterio.open(filename) as src:
+
+relevant_tiles
+
+# +
+
+# Get intersection of the tiff file and the region of interest. (any area outside this tiff file should be covered by another)
+with rasterio.open(tiff_file) as src:
     # Get bounds of the TIFF file
     tiff_bounds = src.bounds
     tiff_crs = src.crs
-    transform = src.transform
+
+    bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
+    roi_box = box(*bbox_transformed)
+    intersection_bounds = box(*tiff_bounds).intersection(roi_box).bounds
+
+    # If there is no intersection then don't save a cropped image, and remove this from the relevant tiles. 
+    if all(np.isnan(x) for x in intersection_bounds):
+        print(f"Tif not in region bounds: {tile}")
+        relevant_tiles.remove(original_tilename)
+        print("BREAKING")
+    
     window = from_bounds(*intersection_bounds, transform=src.transform)
+    print("tile", tile)
+    
+    # Read data within the window
     out_image = src.read(window=window)
     out_transform = src.window_transform(window)
     out_meta = src.meta.copy()
 
-from rasterio.windows import from_bounds
-
-
-
-
-outdir = '/scratch/xe2/cb8590/tmp2'
-tile = 'Goulburn201312-PHO3-C0-AHD_7506168_55_0002_0002_percentcover_res10_height2m_uint8'
-
 # Save cropped image
 cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
-
 out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
-
 
 with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
     dest.write(out_image)
 
-cropped_tiff_filename
+print("Wrote", cropped_tiff_filename)
+# -
 
 
-    
-        with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
-            dest.write(out_image)
-
-
-            
-            # Read data within the window
-            out_image = src.read(window=window)
-            out_transform = src.window_transform(window)
-            out_meta = src.meta.copy()
-    
-        # Save cropped image
-        cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
-        out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
-    
-        with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
-            dest.write(out_image)
 
 # +
 # filename = '/scratch/xe2/cb8590/lidar/DATA_587068/uint8_percentcover_res10_height2m/Taralga201611-LID2-C3-AHD_7526194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
@@ -282,6 +289,8 @@ cropped_tiff_filename
 # filename = f'/scratch/xe2/cb8590/tmp/roi_geom_{tiff_crs}.gpkg'
 # roi_geom.to_file(filename)
 # print(filename)
-# -
+# +
+
+mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # I'm deliberately inverting the outdir and tmpdir so cropped files go to tmp
 
 
