@@ -6,24 +6,18 @@
 
 cd /scratch/xe2/cb8590/lidar
 
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587000.zip # 300MB
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_586204.zip  # 128GB  R1C1
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587068.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587065.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587083.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587085.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587060.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587109.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587081.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587124.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587122.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587133.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587130.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587120.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587116.zip
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_587127.zip
-file=https://elvis-downloads.s3.amazonaws.com/DATA_709828.zip
+
+# NSW_folders=(DATA_717827 DATA_717837 DATA_717833 DATA_717831 DATA_717829 DATA_717843 DATA_717840 DATA_717850 DATA_717847 \
+#              DATA_717859 DATA_717863 
+NSW_folders=(DATA_717865 DATA_717856 DATA_717861 DATA_717867 DATA_717871)
+
+base_url="https://elvis-downloads.s3.amazonaws.com"
+
+for f in "${NSW_folders[@]}"; do
+    wget --no-verbose "${base_url}/${f}.zip"
+done
 
 
-echo $file
-wget -q $file   # Supposedly -q should make this quiet so it doesn't create a massive .e file.
+# file=https://elvis-downloads.s3.amazonaws.com/DATA_709828.zip
+# echo $file
+# wget -q $file   # Supposedly -q should make this quiet so it doesn't create a massive .e file.

@@ -1,23 +1,32 @@
 #!/bin/bash
 
-# Usage: ./distribute.sh <folder> <n_subfolders>
+# Usage: ./distribute.sh <folder> <max_files_per_subfolder>
 
 FOLDER="$1"
-N="$2"
+MAX="$2"
+
+# Skip if distribution already exists
+if [ -d "$FOLDER/subfolder_1" ]; then
+    echo "Distribution already exists in $FOLDER, skipping..."
+    exit 0
+fi
 
 # Get list of files (excluding directories)
 FILES=("$FOLDER"/*)
 TOTAL=${#FILES[@]}
 
-# Create subfolders
-for i in $(seq 1 "$N"); do
-  mkdir -p "$FOLDER/subfolder_$i"
-done
-
-# Distribute files
+# Distribute files into subfolders with up to MAX files each
 i=0
+folder_idx=1
+mkdir -p "$FOLDER/subfolder_$folder_idx"
+
 for file in "${FILES[@]}"; do
-  folder_num=$(( (i % N) + 1 ))
-  mv "$file" "$FOLDER/subfolder_$folder_num/"
+  mv "$file" "$FOLDER/subfolder_$folder_idx/"
   ((i++))
+
+  if (( i >= MAX )); then
+    ((folder_idx++))
+    mkdir -p "$FOLDER/subfolder_$folder_idx"
+    i=0
+  fi
 done

@@ -158,7 +158,7 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     xs = np.arange(minx, maxx, tile_size)
     ys = np.arange(miny, maxy, tile_size)
     
-    tiles = [box(x, y, x + tile_size, y + tile_size) for x in xs for y in ys]
+    tiles = [box(x, y, x + tile_size, y + tile_size) for y in ys for x in xs]
     grid = gpd.GeoDataFrame(geometry=tiles, crs=nsw.crs)
     
     # Keep only tiles that intersect NSW
@@ -177,8 +177,8 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
         centroid = row.geometry.centroid
         cx, cy = map(int, (centroid.x, centroid.y))  # round or cast to int for filenames
         filename = f"{outdir_geojsons}/tile{idx}_{cx}_{cy}.geojson"
-        filenames.append(filename)
-        gdf = gpd.GeoDataFrame([row], crs=grid_in_nsw.crs)    
+        filenames.append(f'tile{idx}_{cx}_{cy}')
+        gdf = gpd.GeoDataFrame([row], crs=grid_in_nsw.crs).to_crs(4326)
         gdf.to_file(filename, driver="GeoJSON")
         if idx % 100 == 0:
             print('Saved:', filename)
@@ -188,5 +188,8 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     grid_in_nsw.to_file(filename, driver="GPKG")
     print('Saved:', filename)
 
-# filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-# geopackage_km(filename_state_boundaries)
+filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
+geopackage_km(filename_state_boundaries, tile_size=60000)
+# -
+
+

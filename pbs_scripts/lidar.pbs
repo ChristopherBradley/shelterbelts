@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N lidar
-#PBS -l mem=16GB
+#PBS -l mem=8GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
