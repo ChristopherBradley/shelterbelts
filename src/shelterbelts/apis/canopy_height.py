@@ -233,7 +233,7 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
         output_tiff_filename = os.path.join(outdir, f'{stub}_canopy_height.tif')
         with rasterio.open(output_tiff_filename, "w", **out_meta) as dest:
             dest.write(mosaic)
-        print("Saved:", output_tiff_filename)
+        print("Saved:", output_tiff_filename)  # I should make a function that combines just merge_tiles_bbox and this saving
         
     ds = merged_ds(mosaic, out_meta)
     if plot:

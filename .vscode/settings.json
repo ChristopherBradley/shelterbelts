@@ -4,5 +4,7 @@
     "remote.SSH.showLoginTerminal": true,
     "python-envs.defaultEnvManager": "ms-python.python:conda",
     "python-envs.defaultPackageManager": "ms-python.python:conda",
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+    "explorer.autoReveal": false,
+    "explorer.autoRevealDelay": 5000,
 }
