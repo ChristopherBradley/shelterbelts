@@ -154,7 +154,9 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     
     minx, miny, maxx, maxy = nsw.total_bounds
     if state == 'New South Wales':
-        minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states. They are however offset by 1km compared to the actual NSW lidar tiles, I'm undecided whether that's good or if it would be preferable to line up exactly.
+        # minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states. 
+        minx, miny, maxx, maxy = -84000, 5844000, 1250000, 6870000  # Exactly matching up with the 2kmx2km NSW grid
+
     xs = np.arange(minx, maxx, tile_size)
     ys = np.arange(miny, maxy, tile_size)
     
@@ -189,7 +191,7 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     print('Saved:', filename)
 
 filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-geopackage_km(filename_state_boundaries, tile_size=60000)
+geopackage_km(filename_state_boundaries, tile_size=30000)
 # -
 
 

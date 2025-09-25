@@ -69,7 +69,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     new_relevant_tiles = []
     for i, tile in enumerate(relevant_tiles):
         if i % 100 == 0:
-            print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
+            print(f"Working on {i}/{len(relevant_tiles)}: {tile}", flush=True)
             # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
 
         original_tilename = tile

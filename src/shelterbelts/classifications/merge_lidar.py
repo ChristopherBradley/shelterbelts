@@ -34,13 +34,12 @@ def cluster_bounds(bounds, tol=0.02):
     return groups
 
 
-def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif', subdir='chm'):
+def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif', subdir='chm'):
     """Take a folder of tif files and merge them into a single uint8 raster
 
     Parameters
     ----------
         base_dir: The directory with all of the tif files to be merged
-        filename_bbox: A geojson of the bounding box that was used as an input into ELVIS
         tmpdir: Directory where files can be happily deleted
         suffix: The suffix of the files to be merged
         subdir: The directory inside basedir that contains the files to be merged
@@ -54,17 +53,17 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
         merged.tif: A geotif of the da
         
     """
-    # Decide on a crs for the merged output raster
-    polygon = gpd.read_file(filename_bbox)
-    final_crs = polygon.estimate_utm_crs()  # Could also use polygon.crs, now that I've improved bounding_boxes.py to have the right one
-    
     suffix_stub = suffix.split('.')[0]
     outdir = os.path.join(base_dir, f'uint8{suffix_stub}')
     
     # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
     glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
     filenames = glob.glob(glob_path)
-    
+
+    # Use the middle filename to choose a crs. 
+    da = rxr.open_rasterio(filenames[len(filenames)//2]).isel(band=0).drop_vars("band")  
+    final_crs = da.rio.estimate_utm_crs()
+
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     
@@ -84,11 +83,13 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
                 print(f"Saved {i}/{len(filenames)}:", outpath)
 
     # This gives extra info like number of pixels in each category, but we only care about the filename and geometry
-    gdf = bounding_boxes(outdir)
+    gdf = bounding_boxes(outdir, crs=final_crs)
 
     # This is the bounding box that I used to make the initial request from ELVIS
-    gdf_bbox = gpd.read_file(filename_bbox)
-    bbox = gdf_bbox.loc[0, 'geometry'].bounds
+    full_bounds =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
+    bbox = full_bounds
+    # gds_full_bounds = gpd.GeoSeries([box(*full_bounds)], crs=gdf.crs)
+    # gds_full_bounds.to_file('/scratch/xe2/cb8590/tmp/DATA_717827_full_bounds.geojson')
 
     # This should work for ACT and NSW naming conventions (just for string ordering, not extracting the exact date)
     dates = [extract_year(filename) for filename in gdf['filename']]
@@ -143,51 +144,40 @@ def merge_lidar(base_dir, filename_bbox, tmpdir='/scratch/xe2/cb8590/tmp2', suff
     # # !gdaladdo {outpath} 2 4 8 16 32 64 
     # Seems like earth engine already does the tiling by default, so I shouldn't need to do it myself if that's the main use case.
 
-# +
-# import argparse
-
-# def parse_arguments():
-#     """Parse command line arguments with default values."""
-#     parser = argparse.ArgumentParser()
-    
-#     parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
-#     parser.add_argument('--filename_bbox', required=True, help='GeoJSON file of the bounding box used as input into ELVIS')
-#     parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
-#     parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
-#     parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
-
-#     return parser.parse_args()
-
-
-# if __name__ == '__main__':
-#     args = parse_arguments()
-    
-#     merge_lidar(
-#         base_dir=args.base_dir,
-#         filename_bbox=args.filename_bbox,
-#         tmpdir=args.tmpdir,
-#         suffix=args.suffix,
-#         subdir=args.subdir
-#     )
-
 
 # +
-# # # %debug
-# stub = 'DATA_709828'
+import argparse
+
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
+    parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
+    parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
+    parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    
+    merge_lidar(
+        base_dir=args.base_dir,
+        tmpdir=args.tmpdir,
+        suffix=args.suffix,
+        subdir=args.subdir
+    )
+
+
+# +
+# # # %%time
+# stub = 'DATA_717827'
 # base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
-# filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
 # subdir='chm'
 # suffix='_percentcover_res10_height2m.tif'
-# merge_lidar(base_dir, filename_bbox, subdir=subdir, suffix=suffix)
-# # # # Took 4 mins first time, 1 min after that.
+# merge_lidar(base_dir, subdir=subdir, suffix=suffix)
+# # # # # Took 4 mins first time, 1 min after that.
 # -
-# %%time
-stub = 'DATA_717827'
-base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
-# filename_bbox = f'/scratch/xe2/cb8590/lidar/polygons/{stub}.geojson'
-filename_bbox = '/scratch/xe2/cb8590/tmp/DATA_717827_full_bounds.geojson'
-subdir='chm'
-suffix='_percentcover_res10_height2m.tif'
-merge_lidar(base_dir, filename_bbox, subdir=subdir, suffix=suffix)
-# # # Took 4 mins first time, 1 min after that.
 

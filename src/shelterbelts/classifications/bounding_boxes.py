@@ -24,6 +24,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
             - Only applies if it isn't already a binary tif
         remove: Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)
         crs: The resulting crs of the gpkg. Originally the default was EPSG:4326, but currently the default is a sample tif inside the folder.
+            - EPSG:4326 is what's expected by the sentinel_download scripts
 
     Downloads
     ---------
@@ -40,12 +41,12 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
         
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
 
-    # Choose the crs of the first tif to be the crs of the overall gdf
+    # Choose the crs for the overall gdf
     if crs is None:
         da = rxr.open_rasterio(veg_tifs[len(veg_tifs)//2]).isel(band=0).drop_vars("band")  # Using the center tiles crs in an attempt to be the most representative
-        crs = da.rio.crs
         if da.rio.crs is None:
             da = da.rio.write_crs('EPSG:28355')
+        crs = da.rio.crs
 
     # Create a geopackage of the attributes of each tif
     records = []
@@ -53,9 +54,8 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
         original_crs = str(da.rio.crs)
 
-        # Convert to EPSG:4326, because this is what's expected by the sentinel_download scripts
         if da.rio.crs is None:
-            da = da.rio.write_crs('EPSG:28355')
+            da = da.rio.write_crs('EPSG:28355') # ACT 2015 tifs are missing the crs
 
         da = da.rio.reproject(crs)
         
@@ -169,28 +169,4 @@ if __name__ == '__main__':
 
 # +
 # # %%time
-# folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Tas_tifs'
-# gdf = tif_cleanup(folder)
-
-# +
-# filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
-# gdf = gpd.read_file(filename)
-# gdf
-
-# +
-# filename = '/g/data/xe2/cb8590/Nick_outlines/nick_bbox_year_crs.csv'
-# gdf = gpd.read_file(filename)
-# gdf
-# -
-# %%time
-gdf = bounding_boxes('/scratch/xe2/cb8590/lidar/DATA_717827/uint8_percentcover_res10_height2m', crs=None)
-
-gdf.bounds
-
-full_bounds =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-
-gds_full_bounds = gpd.GeoSeries([box(*full_bounds)], crs=gdf.crs)
-
-gds_full_bounds.to_file('/scratch/xe2/cb8590/tmp/DATA_717827_full_bounds.geojson')
-
-
+# gdf = bounding_boxes('/scratch/xe2/cb8590/lidar/DATA_717827/uint8_percentcover_res10_height2m', crs=None)

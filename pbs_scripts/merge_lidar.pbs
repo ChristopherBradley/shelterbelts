@@ -19,5 +19,5 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --filename_bbox /scratch/xe2/cb8590/lidar/polygons/$stub.geojson --suffix _percentcover_res10_height2m.tif
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --filename_bbox /scratch/xe2/cb8590/lidar/polygons/r1_c2.geojson --suffix _percentcover_res10_height2m.tif
