@@ -191,7 +191,8 @@ df_years_2017_2022.sample(n=100, random_state=0).to_csv(filename)
 filename ='/g/data/xe2/cb8590/Nick_outlines/gdf_2017_2022.csv'
 df_years_2017_2022.to_csv(filename)
 
-%%time
+
+# %%time
 # Should move this code into Nick_polygons.py
 def extract_bbox_year():
     """I used this code to extract the bbox and year for each of Nick's tiles"""
@@ -215,7 +216,7 @@ def extract_bbox_year():
     print("Saved", filename_bbox_year)
 
     # Took 3 mins
-    
+
 # Create rows for each of the 7k bbox's for tiffs Nick provided after 2017
 def prep_rows_Nick():   
     indir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
@@ -242,3 +243,11 @@ def prep_rows_Nick():
 
     rows = df_new[['tif', 'year', 'bbox', 'crs']].values.tolist()
     return rows
+
+
+# Creating a gpkg with all the sentinel years for each of Nick's tiffs.
+filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+gdf = gpd.read_file(filename)
+gdf
+
+gdf[gdf['year'] > 2017]

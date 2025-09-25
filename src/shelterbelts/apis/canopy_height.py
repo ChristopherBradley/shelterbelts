@@ -64,13 +64,14 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     
     canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
+    footprints_crs = gpd.read_file(footprints_geojson).crs
 
     new_relevant_tiles = []
     for i, tile in enumerate(relevant_tiles):
         if i % 100 == 0:
             print(f"Working on {i}/{len(relevant_tiles)}: tile", flush=True)
             # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
-            
+
         original_tilename = tile
         if tile.endswith('.tif'):
             tile = tile.strip('.tif')  # I've been formatting the id_column in different ways in the past, so this should make them consistent
@@ -82,7 +83,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             tiff_bounds = src.bounds
             tiff_crs = src.crs
 
-            bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
+            bbox_transformed = transform_bbox(bbox, inputEPSG=footprints_crs, outputEPSG=tiff_crs)  
             roi_box = box(*bbox_transformed)
             intersection_bounds = box(*tiff_bounds).intersection(roi_box).bounds
 
@@ -169,11 +170,23 @@ def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
                     shutil.copyfileobj(stream.raw, file)
             print(f"Downloaded {filename}")
 
-def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputEPSG="EPSG:4326", outputEPSG="EPSG:3857"):
-    transformer = Transformer.from_crs(inputEPSG, outputEPSG)
-    x1,y1 = transformer.transform(bbox[1], bbox[0])
-    x2,y2 = transformer.transform(bbox[3], bbox[2])
+# def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputEPSG="EPSG:4326", outputEPSG="EPSG:3857"):
+#     transformer = Transformer.from_crs(inputEPSG, outputEPSG)
+#     x1,y1 = transformer.transform(bbox[1], bbox[0])
+#     x2,y2 = transformer.transform(bbox[3], bbox[2])
+#     return (x1, y1, x2, y2)
+
+def transform_bbox(
+    bbox=[148.464499, -34.394042, 148.474499, -34.384042],
+    inputEPSG="EPSG:4326",
+    outputEPSG="EPSG:3857"
+):
+    transformer = Transformer.from_crs(inputEPSG, outputEPSG, always_xy=True)  # This fixes the issue of EPSG:4326 and EPSG:3857 having lat/lon and easting/northing flipped, whereas transforming between projected crs' needs to preserve the ordering.
+    # bbox = (minx, miny, maxx, maxy)
+    x1, y1 = transformer.transform(bbox[0], bbox[1])
+    x2, y2 = transformer.transform(bbox[2], bbox[3])
     return (x1, y1, x2, y2)
+
 
 def visualise_canopy_height(ds, filename=None):
     """Pretty visualisation of the canopy height"""
