@@ -10,7 +10,7 @@ import rioxarray as rxr
 import numpy as np
 
 
-def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=10, pixel_cover_threshold=None, remove=False, filetype='.tif'):
+def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=10, pixel_cover_threshold=None, remove=False, filetype='.tif', crs=None):
     """Create a geopackage of tif bboxs and remove tifs that don't meet the size or cover threshold
     
     Parameters
@@ -23,6 +23,8 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
         pixel_cover_threshold: The threshold to convert percent_cover pixels into binary pixels
             - Only applies if it isn't already a binary tif
         remove: Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)
+        crs: The resulting crs of the gpkg. Originally the default was EPSG:4326, but currently the default is a sample tif inside the folder.
+            - EPSG:4326 is what's expected by the sentinel_download scripts
 
     Downloads
     ---------
@@ -34,20 +36,28 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     if outdir is None:
         outdir = folder
     if stub is None:
-        stub = folder.split('/')[-1].split('.')[0]  # The filename without the path or the suffix
+        # stub = folder.split('/')[-1].split('.')[0]  # The filename without the path or the suffix
+        stub = '_'.join(folder.split('/')[-2:]).split('.')[0]  # The filename and one folder above
         
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
+
+    # Choose the crs for the overall gdf
+    if crs is None:
+        da = rxr.open_rasterio(veg_tifs[len(veg_tifs)//2]).isel(band=0).drop_vars("band")  # Using the center tiles crs in an attempt to be the most representative
+        if da.rio.crs is None:
+            da = da.rio.write_crs('EPSG:28355')
+        crs = da.rio.crs
 
     # Create a geopackage of the attributes of each tif
     records = []
     for veg_tif in veg_tifs:
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
+        original_crs = str(da.rio.crs)
 
-        # Convert to EPSG:4326, because this is what's expected by the sentinel_download scripts
         if da.rio.crs is None:
-            da = da.rio.write_crs('EPSG:28355')
-            
-        da = da.rio.reproject("EPSG:4326")
+            da = da.rio.write_crs('EPSG:28355') # ACT 2015 tifs are missing the crs
+
+        da = da.rio.reproject(crs)
         
         height, width = da.shape
         bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
@@ -67,6 +77,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
             "width": width,
             "pixels_0": category_counts.get(0, 0),
             "pixels_1": category_counts.get(1, 0),
+            "crs":original_crs,
             "geometry": box(minx, miny, maxx, maxy),
             # "year":year,  
         }
@@ -102,6 +113,9 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     return gdf
 
 
+
+
+# +
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
@@ -132,6 +146,10 @@ if __name__ == '__main__':
         args.filetype)
 
 # +
+# # %%time
+# gdf = bounding_boxes('/g/data/xe2/cb8590/Nick_Aus_treecover_10m', filetype='.tiff')
+
+# +
 # filepath = "/Users/christopherbradley/Documents/PHD/Data/Worldcover_Australia"
 # stub = "worldcover"
 # outdir = "../../../outdir"
@@ -151,5 +169,4 @@ if __name__ == '__main__':
 
 # +
 # # %%time
-# folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Tas_tifs'
-# gdf = tif_cleanup(folder)
+# gdf = bounding_boxes('/scratch/xe2/cb8590/lidar/DATA_717827/uint8_percentcover_res10_height2m', crs=None)

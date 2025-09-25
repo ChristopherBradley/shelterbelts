@@ -187,7 +187,7 @@ if __name__ == '__main__':
 # download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir=".")
 # # 10 secs using the NCI datacube compared to 5 mins using the DEA STAC API
 # -
-folder = '/scratch/xe2/tmp/tif_folder'
+# folder = '/scratch/xe2/tmp/tif_folder'
 
 
 

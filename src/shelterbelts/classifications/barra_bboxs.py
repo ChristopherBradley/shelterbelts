@@ -145,3 +145,53 @@ def half_degree_geopackage():
     # Step 5: save to gpkg
     grid.to_file(f"nsw_tiles_half_degree.gpkg", layer="tiles", driver="GPKG")
 
+
+# +
+def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=30000, crs=7855, outdir='/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/'):
+    """Create a geopackage of bounding boxes of a given size covering a given area"""
+    gdf2 = gpd.read_file(filename_state_boundaries)
+    nsw = gdf2.loc[gdf2['STE_NAME21'] == state].to_crs(crs)
+    
+    minx, miny, maxx, maxy = nsw.total_bounds
+    if state == 'New South Wales':
+        # minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states. 
+        minx, miny, maxx, maxy = -84000, 5844000, 1250000, 6870000  # Exactly matching up with the 2kmx2km NSW grid
+
+    xs = np.arange(minx, maxx, tile_size)
+    ys = np.arange(miny, maxy, tile_size)
+    
+    tiles = [box(x, y, x + tile_size, y + tile_size) for y in ys for x in xs]
+    grid = gpd.GeoDataFrame(geometry=tiles, crs=nsw.crs)
+    
+    # Keep only tiles that intersect NSW
+    geom = nsw.union_all()
+    geom_prep = prep(geom)
+    mask = grid.geometry.map(geom_prep.intersects)
+    grid_in_nsw = grid[mask]
+    print("Number of tiles:", len(grid_in_nsw))
+    
+    outdir_geojsons = os.path.join(outdir, f"geojsons_{tile_size}")
+    os.makedirs(outdir_geojsons, exist_ok=True)
+    
+    filenames = []
+    grid_in_nsw = grid_in_nsw.reset_index(drop=True)
+    for idx, row in grid_in_nsw.iterrows():
+        centroid = row.geometry.centroid
+        cx, cy = map(int, (centroid.x, centroid.y))  # round or cast to int for filenames
+        filename = f"{outdir_geojsons}/tile{idx}_{cx}_{cy}.geojson"
+        filenames.append(f'tile{idx}_{cx}_{cy}')
+        gdf = gpd.GeoDataFrame([row], crs=grid_in_nsw.crs).to_crs(4326)
+        gdf.to_file(filename, driver="GeoJSON")
+        if idx % 100 == 0:
+            print('Saved:', filename)
+    
+    grid_in_nsw["filename"] = filenames
+    filename = os.path.join(outdir, f'tiles_{tile_size}_{state.replace(" ", "_")}.gpkg')
+    grid_in_nsw.to_file(filename, driver="GPKG")
+    print('Saved:', filename)
+
+filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
+geopackage_km(filename_state_boundaries, tile_size=30000)
+# -
+
+

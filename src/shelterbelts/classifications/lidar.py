@@ -188,11 +188,11 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
     if limit is not None:
         laz_files = laz_files[:int(limit)]
     for laz_file in laz_files:
+        if os.path.getsize(laz_file) == 0:
+            continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = laz_file.split('/')[-1].split('.')[0]
-        # lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm)
-        # Seeing if this helps resolve the memory accumulation issue. If not, I might have to move this to a separate python script that launches a new worker each time.
         chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm)
-        del chm, da
+        del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
 def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False, just_chm=False):

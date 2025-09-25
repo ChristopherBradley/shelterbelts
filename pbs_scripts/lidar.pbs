@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N lidar
-#PBS -l mem=8GB
+#PBS -l mem=16GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
@@ -8,10 +8,12 @@
 #PBS -l storage=gdata/xe2
 #PBS -q normal
 
+# The ACT LiDAR needs 16GB, whereas the NSW LiDAR is fine with 8GB
+
 # Print out input variables to the error log
 # SUBFOLDER="/scratch/xe2/cb8590/lidar/DATA_587060/NSW Government - Spatial Services/Point Clouds/AHD/subfolder_1"
 echo "Starting lidar.pbs for LAZ_FOLDER $LAZ_FOLDER CHM_FOLDER $CHM_FOLDER"
-mkdir "$CHM_FOLDER"
+mkdir -p "$CHM_FOLDER"  # Create the folder if it doesn't already exist
 
 # Change working directory
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
