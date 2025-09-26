@@ -172,12 +172,12 @@ if __name__ == '__main__':
 # -
 
 
-# # %%time
-stub = 'DATA_717827'
-base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
-subdir='chm'
-# suffix='_percentcover_res10_height2m.tif'
-suffix='_chm_res1.tif'
-merge_lidar(base_dir, subdir=subdir, suffix=suffix)
-# # # # Took 4 mins first time, 1 min after that.
+# # # %%time
+# stub = 'DATA_717827'
+# base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
+# subdir='chm'
+# # suffix='_percentcover_res10_height2m.tif'
+# suffix='_chm_res1.tif'
+# merge_lidar(base_dir, subdir=subdir, suffix=suffix)
+# # # # # Took 4 mins first time, 1 min after that.
 

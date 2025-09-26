@@ -245,9 +245,39 @@ def prep_rows_Nick():
     return rows
 
 
-# Creating a gpkg with all the sentinel years for each of Nick's tiffs.
+# +
+# Creating a gpkg with all the sentinel years for each of Nick's tiffs. This initial gpkg was missing info on percentage 1's and 0's, and the shape of each tif
 filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
-gdf = gpd.read_file(filename)
-gdf
+gdf_years = gpd.read_file(filename)
 
-gdf[gdf['year'] > 2017]
+# I don't trust the geometry of the current gdf_percent because it was using a utm crs, when the tiles span many utms. 
+gdf_percent = gpd.read_file('/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg')
+
+# Taking the useful features from both gpkgs
+gdf_good = gdf_percent[['filename', 'crs']][~gdf_percent['bad_tif']]
+gdf_recent = gdf_years[gdf_years['year'] > 2017]
+gdf_merged = gdf_good.merge(gdf_recent, how='inner')
+# -
+
+gdf = gdf_merged
+
+# +
+years = list(range(2017, 2025))  # 2017–2024
+
+# Create a column with the full list of years
+gdf['year_list'] = [years] * len(gdf)
+# -
+
+# Explode the list so each geometry gets a row per year, so I can download sentinel imagery for lots of years per tile
+gdf_expanded = gdf.explode('year_list', ignore_index=True)
+gdf_expanded = gdf_expanded.rename(columns={'year':'lidar_year', 'year_list': 'sentinel_year'})
+gdf_expanded['start_date'] = [f'{year}_01_01' for year in gdf_expanded['sentinel_year']]
+gdf_expanded['end_date'] = [f'{year}_12_31' for year in gdf_expanded['sentinel_year']]
+
+gdf_expanded
+
+filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_exploded_2017-2024.gpkg'
+gdf_expanded = gpd.GeoDataFrame(gdf_expanded, geometry="geometry", crs=gdf_years.crs)
+gdf_expanded.to_file(filename)
+
+

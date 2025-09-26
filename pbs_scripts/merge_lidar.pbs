@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N merge_lidar
-#PBS -l mem=8GB
+#PBS -l mem=16GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
@@ -22,4 +22,6 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_res1 --suffix .tif --subdir ''
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _percentcover_res10_height2m.tif --subdir ''  # Can't believe this only took 8 mins. Too easy
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _chm_res1.tif --subdir ''

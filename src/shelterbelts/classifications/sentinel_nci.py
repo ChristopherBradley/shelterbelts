@@ -129,10 +129,10 @@ def run_download_gdf(gdf, outdir, start_date='2020-01-01', end_date='2021-01-01'
     """
     for i, row in gdf.iterrows():
         filename = row['filename']  # Using the filename as the stub
-        stub = filename.split('.')[0]
         if 'start_date' in gdf.columns and 'end_date' in gdf.columns:
-            start_date = row[start_date]  # Preference the start date and end dates in the gdf if they exist
-            end_date = row[end_date]      # The old method only allowed specifying a full year of data: start_date = f'{year}-01-01'
+            start_date = row['start_date']  # Preference the start date and end dates in the gdf if they exist
+            end_date = row['end_date']      # The old method only allowed specifying a full year of data: start_date = f'{year}-01-01'
+        stub = filename.split('.')[0] + '_' + start_date[:4] # I need to add the year to the stub if I want to download multiple years per geometry
         bounds = row['geometry'].bounds
         
         # crs = row['crs'] if 'crs' in gdf.columns else gdf.crs. Assuming epsg:4326 since that's what the sentinel download needs to work properly

@@ -50,7 +50,9 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
 
     # Create a geopackage of the attributes of each tif
     records = []
-    for veg_tif in veg_tifs:
+    for i, veg_tif in enumerate(veg_tifs):
+        if i%100 == 0:
+            print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
         original_crs = str(da.rio.crs)
 
@@ -132,6 +134,7 @@ def parse_arguments():
     parser.add_argument('--pixel_cover_threshold', type=int, default=None, help="The threshold to convert percent_cover pixels into binary pixels. Doesn't apply to tifs that are already binary.")
     parser.add_argument('--filetype', type=str, default=".tif", help='Suffix of the tif files. Probably .tif or .tiff')
     parser.add_argument('--remove', action="store_true", help="Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)")
+    parser.add_argument('--crs', type=str, default=None, help="The crs of the resulting gpkg. If not provided, then a random tif is chosen and the crs estimated from that.")
 
     return parser.parse_args()
 
@@ -147,7 +150,8 @@ if __name__ == '__main__':
         args.tif_cover_threshold, 
         args.pixel_cover_threshold, 
         args.remove, 
-        args.filetype)
+        args.filetype,
+        args.crs)
 
 # +
 # # %%time

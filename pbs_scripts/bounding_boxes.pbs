@@ -4,7 +4,7 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=04:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
@@ -21,4 +21,5 @@ module load dea/20231204
 
 # Run the script
 # python3 src/shelterbelts/classifications/bounding_boxes.py /scratch/xe2/tmp/tif_folder
-python3 src/shelterbelts/classifications/bounding_boxes.py '/g/data/xe2/cb8590/Nick_Aus_treecover_10m' --filetype '.tiff'
+python3 src/shelterbelts/classifications/bounding_boxes.py '/g/data/xe2/cb8590/Nick_Aus_treecover_10m' --filetype '.tiff' --crs 'EPSG:4326'
+# python3 src/shelterbelts/classifications/bounding_boxes.py '/scratch/xe2/cb8590/lidar_merged/'

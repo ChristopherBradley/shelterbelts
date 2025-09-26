@@ -22,6 +22,6 @@ module load dea/20231204
 # Run the script
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/Tas_tifs/tas_lidar_tif_attributes.gpkg --outdir /scratch/xe2/cb8590/Tas_sentinel
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/practice/tmp/tif_folder/tif_folder_footprints.gpkg --outdir /scratch/xe2/cb8590/tmp/
-python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/ACT_tifs/ACT_tifs_footprints.gpkg --outdir /scratch/xe2/cb8590/ACT_tifs_sentinel
+# python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/ACT_tifs/ACT_tifs_footprints.gpkg --outdir /scratch/xe2/cb8590/ACT_tifs_sentinel
+python3 sentinel_nci.py --gpkg /g/data/xe2/cb8590/Nick_outlines/tiff_footprints_exploded_2017-2024.gpkg --outdir /scratch/xe2/cb8590/Nick_sentinel2 --limit 4
 
-# Accidentally saved a bunch of tifs to /scratch/xe2/cb8590/tmp/ACT_tifs_sentinel
