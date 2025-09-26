@@ -3,6 +3,7 @@ outdir
 pbs_outputs
 pbs_success
 pbs_errors
+pbs_saving
 .DS_Store
 *.nc
 *.tif*

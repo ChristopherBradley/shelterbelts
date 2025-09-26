@@ -1,12 +1,14 @@
 #!/bin/bash
 #PBS -N merge_lidar
-#PBS -l mem=4GB
+#PBS -l mem=8GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=02:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
+
+# Only needs 4GB memory when merging the 10m tiles in a 30km x 30km area, but needs at least 8GB when merging the 1m tiles
 
 # stub=DATA_587060
 echo "Starting elvis_geojsons.pbs for stub $stub"
@@ -19,5 +21,5 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --filename_bbox /scratch/xe2/cb8590/lidar/polygons/r1_c2.geojson --suffix _percentcover_res10_height2m.tif
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif

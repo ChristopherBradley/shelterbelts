@@ -1,23 +1,22 @@
 #!/bin/bash
 #PBS -P xe2
 #PBS -q copyq
-#PBS -l walltime=4:00:00,ncpus=1,mem=2GB,jobfs=1GB
+#PBS -l walltime=4:00:00
+#PBS -l ncpus=1
+#PBS -l mem=2GB
+#PBS -l jobfs=1GB
 #PBS -l storage=scratch/xe2
 
 cd /scratch/xe2/cb8590/lidar
 
+echo "Downloading ${BASEURL}/${FILE}.zip"
+wget --no-verbose "${BASEURL}/${FILE}.zip"
 
+
+# # The old way doing it all in 1 job, but I think it's just better to submit lots of jobs
 # NSW_folders=(DATA_717827 DATA_717837 DATA_717833 DATA_717831 DATA_717829 DATA_717843 DATA_717840 DATA_717850 DATA_717847 \
-#              DATA_717859 DATA_717863 
-NSW_folders=(DATA_717865 DATA_717856 DATA_717861 DATA_717867 DATA_717871)
-
-base_url="https://elvis-downloads.s3.amazonaws.com"
-
-for f in "${NSW_folders[@]}"; do
-    wget --no-verbose "${base_url}/${f}.zip"
-done
-
-
-# file=https://elvis-downloads.s3.amazonaws.com/DATA_709828.zip
-# echo $file
-# wget -q $file   # Supposedly -q should make this quiet so it doesn't create a massive .e file.
+#              DATA_717859 DATA_717863 DATA_717865 DATA_717856 DATA_717861 DATA_717867 DATA_717871)  # 4x4 test area
+# base_url="https://elvis-downloads.s3.amazonaws.com"
+# for f in "${NSW_folders[@]}"; do
+#     wget --no-verbose "${base_url}/${f}.zip"
+# done

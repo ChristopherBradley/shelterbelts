@@ -94,6 +94,10 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
     centroid_gpkg = f"{outdir}/{stub}_centroids.gpkg"
         
+    
+    if os.path.exists(footprint_gpkg):  # Odd error where sometimes it's fine to override the file and sometimes it isn't?
+        os.remove(footprint_gpkg)
+
     gdf.to_file(footprint_gpkg)
     print("Saved:", footprint_gpkg)
 
