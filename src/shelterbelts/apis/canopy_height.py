@@ -37,6 +37,7 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     
     # Download the 'tiles_global.geojson' to this folder if we haven't already
     filename = os.path.join(canopy_height_dir, footprints_geojson)
+    # filename = os.path.join(footprints_geojson)  # Now expecting the full filepath to this geojson.
     
     if not os.path.exists(filename):
         assert footprints_geojson == 'tiles_global.geojson', 'Please provide footprints for the tifs in this directory'
@@ -64,7 +65,8 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     
     canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
-    footprints_crs = gpd.read_file(footprints_geojson).crs
+    # footprints_crs = gpd.read_file(footprints_geojson).crs
+    footprints_crs = gpd.read_file(os.path.join(canopy_height_dir, footprints_geojson)).crs
 
     new_relevant_tiles = []
     for i, tile in enumerate(relevant_tiles):
