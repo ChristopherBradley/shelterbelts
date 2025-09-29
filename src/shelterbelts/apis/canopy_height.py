@@ -118,7 +118,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         src_files_to_mosaic.append(src)
     
     # This assumes the the crs of all the input geotifs is the same
-    print(f"Merging {len(src_files_to_mosaic)} tiles")
+    # print(f"Merging {len(src_files_to_mosaic)} tiles")
     mosaic, out_trans = merge(src_files_to_mosaic)
     out_meta = src_files_to_mosaic[0].meta.copy()
 
