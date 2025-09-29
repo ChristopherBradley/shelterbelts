@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N merge_lidar
-#PBS -l mem=16GB
+#PBS -l mem=8GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
@@ -8,7 +8,10 @@
 #PBS -l storage=gdata/xe2
 #PBS -q normal
 
-# Only needs 4GB memory when merging the 10m tiles in a 30km x 30km area, but needs at least 8GB when merging the 1m tiles
+# Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 
+# 8GB for NSW 1m 
+# 16GB for ACT 10m
+# 64GB for ACT 1m
 
 # stub=DATA_587060
 echo "Starting elvis_geojsons.pbs for stub $stub"
@@ -22,6 +25,7 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_res1 --suffix .tif --subdir ''
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _percentcover_res10_height2m.tif --subdir ''  # Can't believe this only took 8 mins. Too easy
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _chm_res1.tif --subdir ''
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _chm_res1.tif --subdir ''
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_res1 --suffix .tif --subdir ''  # Re-merging 30km tiles into 120km

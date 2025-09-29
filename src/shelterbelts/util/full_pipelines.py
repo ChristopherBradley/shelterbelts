@@ -3,21 +3,8 @@ import os
 
 import geopandas as gpd
 import rasterio
-
-# # Change directory to this repo - this should work on gadi or locally via python or jupyter.
-import os, sys
-repo_name = "shelterbelts"
-if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
-    repo_dir = os.path.dirname(os.getcwd())       
-else:                                             # Already running from root of this repo. 
-    repo_dir = os.getcwd()
-src_dir = os.path.join(repo_dir, 'src')
-os.chdir(src_dir)
-sys.path.append(src_dir)
-# print(src_dir)
-
+import rioxarray as rxr
+from shapely.geometry import box      
 
 from shelterbelts.classifications.binary_trees import worldcover_trees, canopy_height_trees
 from shelterbelts.apis.worldcover import worldcover_bbox
@@ -33,9 +20,9 @@ from shelterbelts.indices.shelter_metrics import class_metrics, patch_metrics
 
 
 # +
-worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
-hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
+worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'  # Should move these to gdata so they don't disappear.
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
+hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
 
 def run_pipeline(bbox, outdir, stub):
     """Starting from a bbox, go through the whole pipeline"""
@@ -61,36 +48,73 @@ def run_pipeline(bbox, outdir, stub):
 
 # -
 
-def run_gdf(func, gdf, limit=None):
-    """Run the function on every row in the dataframe
-    Need to make sure the order of argments in the function are the same as in the dataframe.
-    """
-    pass
-
-
-# +
-filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
-outdir = '/scratch/xe2/cb8590/tmp4'
-gdf_barra_bboxs = gpd.read_file(filename)
-
-# Choose a bbox
-bbox_polygon = gdf_barra_bboxs.iloc[0]
-bbox = bbox_polygon['geometry'].bounds
-
-# Create a stub
-centroid = bbox_polygon.geometry.centroid
-stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
-
-# +
-# %%time
-for i, row in gdf_barra_bboxs.iterrows():
-    bbox = row['geometry'].bounds
-    centroid = row['geometry'].centroid
+def example_pipeline():
+    # An old example of running the pipeline from the command line
+    filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+    outdir = '/scratch/xe2/cb8590/tmp4'
+    gdf_barra_bboxs = gpd.read_file(filename)
+    
+    # Choose a bbox
+    bbox_polygon = gdf_barra_bboxs.iloc[0]
+    bbox = bbox_polygon['geometry'].bounds
+    
+    # Create a stub
+    centroid = bbox_polygon.geometry.centroid
     stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
-    run_pipeline(bbox, outdir, stub) 
+    
+    for i, row in gdf_barra_bboxs.iterrows():
+        bbox = row['geometry'].bounds
+        centroid = row['geometry'].centroid
+        stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
+        run_pipeline(bbox, outdir, stub) 
+    
+    # Takes about 4 secs per tile
+    # So should take about an hour per 1000 tiles. 
 
-# Takes about 4 secs per tile
-# So should take about an hour per 1000 tiles. 
+
+# +
+def run_pipeline_percent_tif(percent_tif, threshold=10, outdir='/scratch/xe2/cb8590', stub=None):
+    """Starting from a percent_cover tif, go through the whole pipeline"""
+    
+
 # -
 
+
+percent_tif = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/DATA_717827_merged_percentcover_res10_height2m.tif'
+threshold = 10
+outdir='/scratch/xe2/cb8590'
+stub = None
+
+
+
+if stub is None:
+    stub = percent_tif.split('/')[-1].split('.')[0]  # Base filename without the extension
+    
+
+da = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
+
+# Creating a bounding box for worldcover
+gs_bounds = gpd.GeoSeries([box(*da.rio.bounds())], crs=da.rio.crs)
+bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
+bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
+
+worldcover_footprints = '/scratch/xe2/cb8590/Worldcover_Australia/Worldcover_Australia_footprints.gpkg'
+
+# %%time
+mosaic, out_meta = merge_tiles_bbox(bbox, outdir, stub, worldcover_dir, worldcover_footprints, 'filename')
+ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
+
+
+ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
+da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
+ds_canopy_height = canopy_height_bbox(bbox, outdir=outdir, stub=stub, tmpdir=canopy_height_dir, save_tif=False, plot=False, footprints_geojson='tiles_global.geojson')
+gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", savetif=False, save_gpkg=False, da=da_worldcover)
+
+
+canopy_height_footprints = '/scratch/xe2/cb8590/Global_Canopy_Height/tiles_global.geojson'
+
+# !ls {canopy_height_footprints}
+
+# %%time
+ds_canopy_height = canopy_height_bbox(bbox_4326, outdir=outdir, stub=stub, tmpdir=canopy_height_dir, save_tif=False, plot=False, footprints_geojson='tiles_global.geojson')
 

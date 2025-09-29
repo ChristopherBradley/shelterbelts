@@ -125,13 +125,13 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
     print("Saved:", filename_dedup)
 
     # Finally merge the relevant tiles
-    stub = outdir.split('/')[-1]
+    base_stub = base_dir.split('/')[-1]
+    stub = base_stub + '_' + outdir.split('/')[-1]  # Need to include the base stub so cropped filenames are unique, so rasterio doesn't die when submitting multiple jobs at once.
     mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # I'm deliberately inverting the outdir and tmpdir so cropped files go to tmp
     ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
     da = ds[suffix_stub].rio.reproject(final_crs)  # This reprojecting should clean up the nan values on the edge
 
-    stub = base_dir.split('/')[-1]
-    outpath = os.path.join(base_dir, f'{stub}_merged{suffix}')
+    outpath = os.path.join(base_dir, f'{base_stub}_merged{suffix}')
     da.rio.to_raster(outpath, compress="lzw")  # 200MB for the resulting 1m raster in a 50km x 50km area
     print(f"Saved: {outpath}", flush=True)
 
@@ -143,7 +143,6 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
     # da.rio.to_raster(outpath, compress="lzw", blocksize=512)  # 200MB for the resulting 1m raster in a 50km x 50km area
     # # !gdaladdo {outpath} 2 4 8 16 32 64 
     # Seems like earth engine already does the tiling by default, so I shouldn't need to do it myself if that's the main use case.
-
 
 # +
 import argparse
@@ -169,15 +168,14 @@ if __name__ == '__main__':
         suffix=args.suffix,
         subdir=args.subdir
     )
-# -
 
 
 # # # %%time
-# stub = 'DATA_717827'
+# stub = 'DATA_722660'
 # base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
 # subdir='chm'
-# # suffix='_percentcover_res10_height2m.tif'
-# suffix='_chm_res1.tif'
+# suffix='_percentcover_res10_height2m.tif'
+# # suffix='_chm_res1.tif'
 # merge_lidar(base_dir, subdir=subdir, suffix=suffix)
 # # # # # Took 4 mins first time, 1 min after that.
 

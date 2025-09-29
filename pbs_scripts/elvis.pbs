@@ -1,11 +1,13 @@
 #!/bin/bash
 #PBS -P xe2
 #PBS -q copyq
-#PBS -l walltime=4:00:00
+#PBS -l walltime=2:00:00
 #PBS -l ncpus=1
 #PBS -l mem=2GB
 #PBS -l jobfs=1GB
 #PBS -l storage=scratch/xe2
+
+# Downloading 260GB took about 1 hour 30 mins.
 
 cd /scratch/xe2/cb8590/lidar
 

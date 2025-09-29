@@ -246,6 +246,8 @@ def prep_rows_Nick():
 
 
 # +
+# I should compare these two in QGIS to see if there really is any difference between them.
+
 # Creating a gpkg with all the sentinel years for each of Nick's tiffs. This initial gpkg was missing info on percentage 1's and 0's, and the shape of each tif
 filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
 gdf_years = gpd.read_file(filename)
@@ -257,27 +259,38 @@ gdf_percent = gpd.read_file('/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Ni
 gdf_good = gdf_percent[['filename', 'crs']][~gdf_percent['bad_tif']]
 gdf_recent = gdf_years[gdf_years['year'] > 2017]
 gdf_merged = gdf_good.merge(gdf_recent, how='inner')
-# -
-
 gdf = gdf_merged
-
-# +
-years = list(range(2017, 2025))  # 2017–2024
-
-# Create a column with the full list of years
-gdf['year_list'] = [years] * len(gdf)
 # -
 
 # Explode the list so each geometry gets a row per year, so I can download sentinel imagery for lots of years per tile
+years = list(range(2017, 2025))  # 2017–2024
+gdf['year_list'] = [years] * len(gdf)
 gdf_expanded = gdf.explode('year_list', ignore_index=True)
 gdf_expanded = gdf_expanded.rename(columns={'year':'lidar_year', 'year_list': 'sentinel_year'})
-gdf_expanded['start_date'] = [f'{year}_01_01' for year in gdf_expanded['sentinel_year']]
-gdf_expanded['end_date'] = [f'{year}_12_31' for year in gdf_expanded['sentinel_year']]
-
-gdf_expanded
-
-filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_exploded_2017-2024.gpkg'
+gdf_expanded['start_date'] = [f'{year}-01-01' for year in gdf_expanded['sentinel_year']]
+gdf_expanded['end_date'] = [f'{year}-12-31' for year in gdf_expanded['sentinel_year']]
 gdf_expanded = gpd.GeoDataFrame(gdf_expanded, geometry="geometry", crs=gdf_years.crs)
-gdf_expanded.to_file(filename)
+gdf_4326 = gdf_expanded.to_crs('4326')
+gdf_4326.to_file('/g/data/xe2/cb8590/Nick_outlines/tiff_footprints4326_exploded_2017-2024.gpkg')
+
+# Create smaller gpkgs so I can run the sentinel downloads in parallel
+gdf = gpd.read_file('/g/data/xe2/cb8590/Nick_outlines/tiff_footprints4326_exploded_2017-2024.gpkg')
+
+import math
+
+# +
+# Split into chunks of 500 rows
+chunk_size = 500
+n_chunks = math.ceil(len(gdf) / chunk_size)
+
+for i in range(n_chunks):
+    start = i * chunk_size
+    end = (i + 1) * chunk_size
+    gdf_chunk = gdf.iloc[start:end]
+
+    outpath = f"/scratch/xe2/cb8590/Nick_sentinel/chunks/tiff_footprints_chunk_{i+1}.gpkg"
+    gdf_chunk.to_file(outpath)
+    print(outpath)
+# -
 
 

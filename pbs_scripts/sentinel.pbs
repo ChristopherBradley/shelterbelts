@@ -1,15 +1,15 @@
 #!/bin/bash
-#PBS -N sentinel
+#PBS -N sentinel_sh
 #PBS -l mem=4GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=10:00:00
+#PBS -l walltime=20:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
 # Print out input variables to the error log
-echo "Starting sentinel.pbs"
+echo "Starting sentinel.pbs for $filename"
 
 # Change working directory
 wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
@@ -20,8 +20,7 @@ module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
 # Run the script
+python3 sentinel_nci.py --gpkg "$filename" --outdir /scratch/xe2/cb8590/Nick_sentinel2
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/Tas_tifs/tas_lidar_tif_attributes.gpkg --outdir /scratch/xe2/cb8590/Tas_sentinel
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/practice/tmp/tif_folder/tif_folder_footprints.gpkg --outdir /scratch/xe2/cb8590/tmp/
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/ACT_tifs/ACT_tifs_footprints.gpkg --outdir /scratch/xe2/cb8590/ACT_tifs_sentinel
-python3 sentinel_nci.py --gpkg /g/data/xe2/cb8590/Nick_outlines/tiff_footprints_exploded_2017-2024.gpkg --outdir /scratch/xe2/cb8590/Nick_sentinel2 --limit 4
-
