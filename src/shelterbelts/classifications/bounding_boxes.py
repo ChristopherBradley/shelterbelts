@@ -10,7 +10,7 @@ import rioxarray as rxr
 import numpy as np
 
 
-def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=10, pixel_cover_threshold=None, remove=False, filetype='.tif', crs=None):
+def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=None, pixel_cover_threshold=None, remove=False, filetype='.tif', crs=None, save_centroids=False, limit=None):
     """Create a geopackage of tif bboxs and remove tifs that don't meet the size or cover threshold
     
     Parameters
@@ -41,6 +41,9 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
         
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
 
+    if limit is not None:
+        veg_tifs = veg_tifs[:limit]
+    
     # Choose the crs for the overall gdf
     if crs is None:
         da = rxr.open_rasterio(veg_tifs[len(veg_tifs)//2]).isel(band=0).drop_vars("band")  # Using the center tiles crs in an attempt to be the most representative
@@ -58,8 +61,8 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
 
         if da.rio.crs is None:
             da = da.rio.write_crs('EPSG:28355') # ACT 2015 tifs are missing the crs
-
-        da = da.rio.reproject(crs)
+        elif da.rio.crs != crs:
+            da = da.rio.reproject(crs)
         
         height, width = da.shape
         bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
@@ -68,46 +71,48 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
         if pixel_cover_threshold:
             da = (da > pixel_cover_threshold).astype('uint8')
 
-        unique, counts = np.unique(da.values, return_counts=True)
-        category_counts = dict(zip(unique.tolist(), counts.tolist()))
-        
         # year = veg_tif.split('-')[0][-4:] # I don't think there's a generalisable way to figure out the year per tile, since the filenames are all bespoke formats
         
         rec = {
             "filename": os.path.basename(veg_tif),
             "height": height,
             "width": width,
-            "pixels_0": category_counts.get(0, 0),
-            "pixels_1": category_counts.get(1, 0),
             "crs":original_crs,
             "geometry": box(minx, miny, maxx, maxy),
             # "year":year,  
         }
+        
+        if tif_cover_threshold:
+            unique, counts = np.unique(da.values, return_counts=True)
+            category_counts = dict(zip(unique.tolist(), counts.tolist()))
+            rec["pixels_0"] = category_counts.get(0, 0)
+            rec["pixels_1"] = category_counts.get(1, 0)
         records.append(rec)
+        
     gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
 
     # Calculate which tifs don't meet our thresholds
-    gdf['percent_trees'] = 100 * gdf['pixels_1'] / (gdf['pixels_1'] + gdf['pixels_0']) 
-    bad_tifs = ((gdf['height'] < size_threshold) | (gdf['width'] < size_threshold) 
-    | (gdf['percent_trees'] > 100 - tif_cover_threshold) | (gdf['percent_trees'] < tif_cover_threshold))
-    gdf['bad_tif'] = ~bad_tifs  # I'm not sure why this needs to be inverted.
+    gdf['bad_tif'] = (gdf['height'] < size_threshold) | (gdf['width'] < size_threshold)
+    if tif_cover_threshold is not None:
+        gdf['percent_trees'] = 100 * gdf['pixels_1'] / (gdf['pixels_1'] + gdf['pixels_0']) 
+        gdf['bad_tif'] = gdf['bad_tif'] | (gdf['percent_trees'] > 100 - tif_cover_threshold) | (gdf['percent_trees'] < tif_cover_threshold) # Need to double check I have the < > the right way around
 
     # Save geopackages
     footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
     centroid_gpkg = f"{outdir}/{stub}_centroids.gpkg"
         
-    
     if os.path.exists(footprint_gpkg):  # Odd error where sometimes it's fine to override the file and sometimes it isn't?
         os.remove(footprint_gpkg)
 
     gdf.to_file(footprint_gpkg)
     print("Saved:", footprint_gpkg)
 
-    # The centroids are easier to view if you zoom out a lot, hence I like saving both the bounding boxes and centroids
-    gdf2 = gdf.copy()
-    gdf2["geometry"] = gdf2.to_crs("EPSG:6933").centroid.to_crs(gdf2.crs)  # Removing the centroid inaccurate warning
-    gdf2.to_file(centroid_gpkg)
-    print("Saved:", centroid_gpkg)
+    if save_centroids:
+        # The centroids are easier to view if you zoom out a lot, hence I like saving both the bounding boxes and centroids
+        gdf2 = gdf.copy()
+        gdf2["geometry"] = gdf2.to_crs("EPSG:6933").centroid.to_crs(gdf2.crs)  # Removing the centroid inaccurate warning
+        gdf2.to_file(centroid_gpkg)
+        print("Saved:", centroid_gpkg)
 
     if remove:
         # Remove tifs that are too small, or not enough variation in trees vs no trees
@@ -156,25 +161,25 @@ if __name__ == '__main__':
 # +
 # # %%time
 # gdf = bounding_boxes('/g/data/xe2/cb8590/Nick_Aus_treecover_10m', filetype='.tiff')
-
-# +
-# filepath = "/Users/christopherbradley/Documents/PHD/Data/Worldcover_Australia"
-# stub = "worldcover"
-# outdir = "../../../outdir"
-# bounding_boxes(filepath, outdir, stub)
-
-# filepath = "/scratch/xe2/cb8590/Worldcover_Australia"
-# stub = "Worldcover_Australia"
-# outdir = "/g/data/xe2/cb8590/Outlines"
-# bounding_boxes(filepath, outdir, stub)
-
-# Footprints currently aren't working with the .asc files, but centroids are for some reason.
-# filepath = '/g/data/xe2/cb8590/NSW_5m_DEMs'
-# stub = 'NSW_5m_DEMs'
-# outdir = "/g/data/xe2/cb8590/Outlines"
-# bounding_boxes(filepath, outdir, stub, filetype='.asc')
-
+# # gdf = bounding_boxes("/scratch/xe2/cb8590/Worldcover_Australia")
 
 # +
 # # %%time
-# gdf = bounding_boxes('/scratch/xe2/cb8590/lidar/DATA_717827/uint8_percentcover_res10_height2m', crs=None)
+# folder = "/scratch/xe2/cb8590/Worldcover_Australia"
+# stub = "Worldcover_Australia"
+# outdir = "/scratch/xe2/cb8590/tmp"
+# filetype = 'tif'
+# crs = None
+# pixel_cover_threshold = None
+# tif_cover_threshold = None  # Takes 10 secs so long as this is None
+# size_threshold = 80
+# remove = False
+
+# bounding_boxes(folder)
+
+# # Footprints currently aren't working with the .asc files, but centroids are for some reason.
+# # filepath = '/g/data/xe2/cb8590/NSW_5m_DEMs'
+# # stub = 'NSW_5m_DEMs'
+# # outdir = "/g/data/xe2/cb8590/Outlines"
+# # bounding_boxes(filepath, outdir, stub, filetype='.asc')
+
