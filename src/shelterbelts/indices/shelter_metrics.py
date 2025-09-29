@@ -12,6 +12,7 @@ from skimage.morphology import skeletonize, disk
 from skimage.measure import regionprops
 from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
+from scipy.ndimage import binary_erosion, binary_dilation
 
 from shelterbelts.indices.buffer_categories import buffer_categories_labels, buffer_categories_cmap
 from shelterbelts.indices.tree_categories import tree_clusters
@@ -397,7 +398,7 @@ def class_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, save_excel=True)
     df_overall = df_overall.set_index('label')
     
     # Landcover groups
-    # df_overall['landcover_group'] = df_overall['category_id'].apply(group_label)
+    df_overall['landcover_group'] = df_overall['category_id'].apply(group_label) # Not sure why this was commented out?
     df_landcover = df_overall.groupby('landcover_group')[['pixel_count', 'percentage']].sum()
     df_landcover = df_landcover.sort_values(by='percentage', ascending=False)
     df_landcover['percentage'] = df_landcover['percentage'].round(2)
