@@ -157,50 +157,124 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     return ds_linear
 
 
-def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', stub=None, cover_threshold=10,
+def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', cover_threshold=10,
                      min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=10, density_threshold=5, buffer_width=3):
-    """Starting from a percent_cover tif, go through the whole pipeline"""
+    """
+    Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
+
+    Parameters
+    ----------
+        folder: The input folder with the percent_cover.tifs.
+        outdir: The folder to save the output linear_categories.tifs.
+        tmpdir: A folder where it's ok to save temporary files to be deleted later.
+        cover_threshold: Percentage tree cover within a 10m pixel to be classified as a boolean 'tree'.
+        min_patch_size: The minimum area to be classified as a patch/corrider rather than just scattered trees.
+        edge_size: The buffer distance at the edge of a patch, with pixels inside this being the 'core area'. 
+        max_gap_size: The allowable gap between two tree clusters before considering them separate patches.
+        distance_threshold: The distance from trees that counts as sheltered.
+        density_threshold: The percentage tree cover within a radius of distance_threshold that counts as sheltered.
+        buffer_width: Number of pixels away from the feature that still counts as being within the buffer.
+
+    Downloads
+    ---------
+        merged.tif: A combined tif after applying the full pipeline to every individual tif
+    
+    
+    """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
     for percent_tif in percent_tifs:
         run_pipeline_tif(percent_tif, outdir=outdir, tmpdir=tmpdir)
+    gdf = bounding_boxes(outdir)
+    basedir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827'
+    stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
     
+    footprint_gpkg = f"{stub}_footprints.gpkg"
+    bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
+    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename')  
+    ds = merged_ds(mosaic, out_meta, 'linear_categories')
 
-
-cover_threshold=10
-min_patch_size=20
-edge_size=3
-max_gap_size=1
-distance_threshold=10
-density_threshold=5 
-buffer_width=3
-
-folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/uint8_percentcover_res10_height2m'
-outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/linear_tifs'
-tmpdir = '/scratch/xe2/cb8590/tmp'
-
-# %%time
-run_pipeline_tifs(folder, outdir, tmpdir)
-
-gdf = bounding_boxes(outdir)
-
-stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
-footprint_gpkg = f"{stub}_footprints.gpkg"
-full_bounds =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-bbox = full_bounds
-
-mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename')  
-ds = merged_ds(mosaic, out_meta, 'linear_categories')
-
-basedir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827'
-
-filename_linear = os.path.join(basedir, f'{stub}_merged.tif')
-
-
-filename_linear
-
-tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
+    basedir = os.path.dirname(folder)
+    filename_linear = os.path.join(basedir, f'{stub}_merged.tif')
+    tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
+    return ds
 
 
 
+# +
+import argparse
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Run the shelterbelt delineation pipeline on a folder of percent_cover.tifs."
+    )
+    parser.add_argument(
+        "--folder", required=True, help="Input folder containing percent_cover.tifs"
+    )
+    parser.add_argument(
+        "--outdir", default="/scratch/xe2/cb8590/tmp",
+        help="Output folder for linear_categories.tifs (default: /scratch/xe2/cb8590/tmp)"
+    )
+    parser.add_argument(
+        "--tmpdir", default="/scratch/xe2/cb8590/tmp",
+        help="Temporary working folder (default: /scratch/xe2/cb8590/tmp)"
+    )
+    parser.add_argument(
+        "--cover_threshold", type=int, default=10,
+        help="Percentage tree cover within a pixel to classify as tree (default: 10)"
+    )
+    parser.add_argument(
+        "--min_patch_size", type=int, default=20,
+        help="Minimum patch size in pixels (default: 20)"
+    )
+    parser.add_argument(
+        "--edge_size", type=int, default=3,
+        help="Buffer distance at patch edges for core area (default: 3)"
+    )
+    parser.add_argument(
+        "--max_gap_size", type=int, default=1,
+        help="Maximum gap between tree clusters (default: 1)"
+    )
+    parser.add_argument(
+        "--distance_threshold", type=int, default=10,
+        help="Distance from trees that counts as sheltered (default: 10)"
+    )
+    parser.add_argument(
+        "--density_threshold", type=int, default=5,
+        help="Tree cover % within distance_threshold that counts as sheltered (default: 5)"
+    )
+    parser.add_argument(
+        "--buffer_width", type=int, default=3,
+        help="Buffer width for sheltered area (default: 3)"
+    )
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    args = parse_arguments()
+    run_pipeline_tifs(
+        folder=args.folder,
+        outdir=args.outdir,
+        tmpdir=args.tmpdir,
+        cover_threshold=args.cover_threshold,
+        min_patch_size=args.min_patch_size,
+        edge_size=args.edge_size,
+        max_gap_size=args.max_gap_size,
+        distance_threshold=args.distance_threshold,
+        density_threshold=args.density_threshold,
+        buffer_width=args.buffer_width,
+    )
+
+# +
+# # %%time
+# cover_threshold=10
+# min_patch_size=20
+# edge_size=3
+# max_gap_size=1
+# distance_threshold=10
+# density_threshold=5 
+# buffer_width=3
+# folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/uint8_percentcover_res10_height2m'
+# outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/linear_tifs'
+# tmpdir = '/scratch/xe2/cb8590/tmp'
+# run_pipeline_tifs(folder, outdir, tmpdir)
