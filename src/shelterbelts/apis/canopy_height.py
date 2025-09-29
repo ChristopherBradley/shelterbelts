@@ -65,7 +65,6 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     
     canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
-    # footprints_crs = gpd.read_file(footprints_geojson).crs
     footprints_crs = gpd.read_file(os.path.join(canopy_height_dir, footprints_geojson)).crs
 
     new_relevant_tiles = []
