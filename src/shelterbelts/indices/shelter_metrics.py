@@ -306,7 +306,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     
     # Reclassify patches with core or edge dominant for consistency
     # Later, might be interested in the percentage of these two categories in each patch like the class metrics
-    df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)
+    df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
     
@@ -336,14 +336,15 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             mask = (assigned_labels == label_id)
             da_linear.data[mask] = new_class
             df_patch_metrics.loc[i, 'category_id'] = new_class
-            df_patch_metrics.loc[i, 'category_name'] = linear_labels[new_class]
+            df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
     
     # Reassign the remaining corridor/other pixels to the corresponding cluster's category 
     remaining_mask = (da_linear.data == 14)
-    label_ids = assigned_labels[remaining_mask]
-    label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
-    mapped_categories = np.vectorize(label_to_category.get)(label_ids)
-    da_linear.data[remaining_mask] = mapped_categories
+    if (remaining_mask.sum() > 0):
+        label_ids = assigned_labels[remaining_mask]
+        label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
+        mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+        da_linear.data[remaining_mask] = mapped_categories
     
     if plot:
         filename = os.path.join(outdir, f'{stub}_linear_categories.png')
