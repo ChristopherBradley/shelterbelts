@@ -79,6 +79,10 @@ def cover_categories(shelter_tif, worldcover_tif, outdir='.', stub='TEST', ds=No
     da = xr.where(sheltered_crop, inverted_labels["Sheltered Cropland"], da)
     da = xr.where(unsheltered_crop, inverted_labels["Unsheltered Cropland"], da)
 
+    # Re-override the water and urban areas with urban categories, because the lidar doesn't seem to be accurate in these categories.
+    da = xr.where(da_worldcover2 == 80, 80, da)
+    da = xr.where(da_worldcover2 == 50, 50, da)
+    
     ds = da.to_dataset(name='cover_categories')
 
     # Reassign the crs 

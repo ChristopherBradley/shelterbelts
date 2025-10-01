@@ -279,8 +279,8 @@ if __name__ == "__main__":
 # distance_threshold=10
 # density_threshold=5 
 # buffer_width=3
-# folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717863/uint8_percentcover_res10_height2m'
-# outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717863/linear_tifs'
+# folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/uint8_percentcover_res10_height2m'
+# outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/linear_tifs'
 # tmpdir = '/scratch/xe2/cb8590/tmp'
 # run_pipeline_tifs(folder, outdir, tmpdir)
 # -
