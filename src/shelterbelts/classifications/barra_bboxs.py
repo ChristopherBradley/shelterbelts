@@ -154,8 +154,8 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     
     minx, miny, maxx, maxy = nsw.total_bounds
     if state == 'New South Wales':
-        # minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states. 
-        minx, miny, maxx, maxy = -84000, 5844000, 1250000, 6870000  # Exactly matching up with the 2kmx2km NSW grid
+        minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states. 
+        # minx, miny, maxx, maxy = -84000, 5844000, 1250000, 6870000  # Exactly matching up with the 2kmx2km NSW grid
 
     xs = np.arange(minx, maxx, tile_size)
     ys = np.arange(miny, maxy, tile_size)

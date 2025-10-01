@@ -265,7 +265,10 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     for old, new in label_map.items():
         assigned_labels_relabelled[assigned_labels == old] = new
     assigned_labels = assigned_labels_relabelled
-    
+
+    # Find the skeleton of each cluster
+    df_widths = skeleton_stats(assigned_labels) 
+
     # Fit an ellipse around each category 
     props = regionprops(assigned_labels)
     
@@ -291,7 +294,11 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             # average height using the canopy height from earlier
             # better average width using skeletonization like in Aksoy 2009
             # Other indices like the WSI and/or SNFI from Liknes 2017, although adjust to allow any direction rather than just north/south and east/west
-    
+
+    # # Debugging
+    # if len(results) == 0:
+    #     import pdb; pdb.set_trace()
+        
     df_patch_metrics = pd.DataFrame(results)
     
     # Determine the most common category in each cluster
@@ -312,10 +319,13 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     
     # Use the length/width ratio to reassign corridor clusters to linear or non-linear
     da_linear = da_filtered.copy()
-    df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
-    
-    df_widths = skeleton_stats(assigned_labels) 
-    df_patch_metrics = df_patch_metrics.merge(df_widths)
+    if len(results) > 0:
+        df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
+        df_patch_metrics = df_patch_metrics.merge(df_widths)
+    else:
+        df_patch_metrics = df_widths
+
+    # df_patch_metrics = df_patch_metrics.merge(df_widths)
     
     if save_csv:
         filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')

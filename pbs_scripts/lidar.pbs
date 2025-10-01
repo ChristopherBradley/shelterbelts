@@ -4,7 +4,7 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=10:00:00
+#PBS -l walltime=5:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
 
@@ -23,7 +23,8 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python lidar.py "$LAZ_FOLDER" --outdir "$CHM_FOLDER"
+# python lidar.py "$LAZ_FOLDER" --outdir "$CHM_FOLDER"
+python lidar.py "$LAZ_FOLDER" --outdir "$CHM_FOLDER" --category5
 
 # python lidar.py '/scratch/xe2/cb8590/lidar/DATA_587060/NSW Government - Spatial Services/Point Clouds/AHD' --outdir /scratch/xe2/cb8590/lidar/DATA_587060/chm_1m --resolution 1 --just_chm --limit 10  # A folder of lax files
 
