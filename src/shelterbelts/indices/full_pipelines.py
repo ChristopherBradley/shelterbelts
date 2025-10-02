@@ -137,17 +137,21 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True):
     """Starting from a percent_cover tif, go through the whole pipeline"""
     if stub is None:
-        stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
+        # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
+        stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
+    data_folder = percent_tif[percent_tif.find('DATA'):percent_tif.find('DATA') + 11]
 
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
 
     gs_bounds = gpd.GeoSeries([box(*da_percent.rio.bounds())], crs=da_percent.rio.crs)
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
     worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
-    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False)
+    # import pdb; pdb.set_trace()
+    
+    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-    gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=".", stub="TEST", savetif=False, save_gpkg=False, da=da_percent)
+    gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
     
     da_trees = da_percent > cover_threshold
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
@@ -193,7 +197,6 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     for percent_tif in percent_tifs:
         run_pipeline_tif(percent_tif, outdir, tmpdir, None, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area)
     gdf = bounding_boxes(outdir)
-    basedir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827'
     stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
     
     footprint_gpkg = f"{stub}_footprints.gpkg"
@@ -271,7 +274,7 @@ if __name__ == "__main__":
     )
 
 # +
-# # %%time
+# # # %%time
 # cover_threshold=10
 # min_patch_size=20
 # edge_size=3
@@ -279,14 +282,12 @@ if __name__ == "__main__":
 # distance_threshold=10
 # density_threshold=5 
 # buffer_width=3
-# folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/uint8_percentcover_res10_height2m'
-# outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/linear_tifs'
+# # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/uint8_percentcover_res10_height2m'
+# # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/linear_tifs'
+# folder='/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m'
+# outdir='/scratch/xe2/cb8590/ACTGOV_my_processing/linear_tifs'
 # tmpdir = '/scratch/xe2/cb8590/tmp'
 # run_pipeline_tifs(folder, outdir, tmpdir)
-# -
-
-
-
-
-
-
+# +
+# percent_tif = '/scratch/xe2/cb8590/lidar/DATA_722798/uint8_percentcover_res10_height2m/Wellington201409-PHO3-C0-AHD_6666384_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+# percent_tif = '/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m/ACT-16ppm_2025_SW_679000_6099000_1k_class_AHD_percentcover_res10_height2m_uint8.tif'

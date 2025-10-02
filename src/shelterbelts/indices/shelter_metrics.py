@@ -209,6 +209,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster.
 
     """
+    print(f"Starting patch_metrics for stub: {stub}")
     if not ds:
         da = rxr.open_rasterio(buffer_tif).isel(band=0)
     else:
@@ -336,9 +337,12 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         if row["category_id"] == 14:
             label_id = row["label"]
             len_width_ratio = row["ellipse len/width"]
+            
+            # if "skeleton len/width" not in row.index:
+            #     import pdb; pdb.set_trace()
     
             # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
-            if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+            if "skeleton len/width" in row.index and row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
                 new_class = 18  # linear features
             else:
                 new_class = 19  # non-linear features

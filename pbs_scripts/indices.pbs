@@ -12,6 +12,9 @@
 # Print out input variables to the error log
 # folder='/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/uint8_percentcover_res10_height2m'
 # outdir='/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/linear_tifs'
+folder='/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m'
+outdir='/scratch/xe2/cb8590/ACTGOV_my_processing/linear_tifs'
+
 tmpdir='/scratch/xe2/cb8590/tmp'
 echo "Starting indices.pbs for folder $folder and outdir $outdir" 
 
