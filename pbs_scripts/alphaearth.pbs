@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N alphaearth
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=01:00:00
+#PBS -l storage=gdata/xe2
+#PBS -q normal
+
+# Print out input variables to the error log
+echo "Running alphaearth.pbs"
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
+cd $wd
+
+# Run the script
+python3 alpha_earth.py /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/alphaearth --limit 10

@@ -6,26 +6,8 @@ import xarray as xr
 import numpy as np
 
 
-# The code below here is uncleaned, and doesn't really belong in the pipeline yet. And I'm only using the code above in the classifications pipeline, so I think it belongs there.
-def create_index(gpkg, tmpdir):
-    """Creates a geojson from the gpkg for my tile merging function in apis.canopy_height"""
-    gdf = gpd.read_file(gpkg)
-    gdf['tile'] = [filename.split('.')[0] for filename in gdf['filename']]
-    gdf = gdf[['tile', 'geometry']]
-    gdf = gdf.to_crs('EPSG:4326')
-    filename = os.path.join(tmpdir, 'tiles_global.geojson')
-    gdf.to_file(filename)
-    print("Saved:", filename)
-    return gdf
-
-# create_index('/g/data/xe2/cb8590/Outlines/Worldcover_Australia_footprints.gpkg', '/scratch/xe2/cb8590/Worldcover_Australia')
-# create_index('/g/data/xe2/cb8590/Outlines/global_canopy_height_footprints.gpkg', '/scratch/xe2/cb8590/Global_Canopy_Height')
-# = (trying to get code to treat the above lines as commented out code instead of markdown)
-
-
 # +
 
-# # +
 def pixel_bbox(i, j, transform):
     """Get the bbox of a specific pixel"""
     x0, y0 = transform * (j, i)        # top-left corner
@@ -111,39 +93,29 @@ def crop_barra_bboxs():
     # 50k in NSW boundary
 
 
+
 # -
 
-def half_degree_geopackage():
-    """This code created a geopackage of 0.5 x 0.5 degree tiles that I clipped in QGIS and used as input in ELVIS to request ~128GB downloads each"""
-    filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-    gdf2 = gpd.read_file(filename_state_boundaries)
-    nsw_bounds = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales', 'geometry'].total_bounds
+def sub_gpkgs()
+    """Create smaller gpkgs for passing to multiple prediction jobs at once"""
+    # Input / output paths
+    input_file = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg"
+    output_dir = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_nsw"
+    os.makedirs(output_dir, exist_ok=True)
     
-    # Step 1: get bbox of NSW
-    nsw_geom = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales', 'geometry']
-    minx, miny, maxx, maxy = nsw_geom.total_bounds
+    # Load the GeoDataFrame
+    gdf = gpd.read_file(input_file)
     
-    # Step 2: snap to whole numbers (floor for min, ceil for max)
-    minx = np.floor(minx)
-    miny = np.floor(miny)
-    maxx = np.ceil(maxx)
-    maxy = np.ceil(maxy)
+    # Chunk size
+    chunk_size = 500
     
-    # Step 3: create 1° x 1° tiles
-    tiles = []
-    interval = 0.5
-    for x in np.arange(minx, maxx, interval):
-        for y in np.arange(miny, maxy, interval):
-            tiles.append(box(x, y, x+interval, y+interval))
-    
-    grid = gpd.GeoDataFrame(geometry=tiles, crs=gdf2.crs)
-    
-    # Step 4: clip to bbox (optional: only keep tiles intersecting NSW bbox)
-    bbox_poly = box(minx, miny, maxx, maxy)
-    grid = grid[grid.intersects(bbox_poly)]
-    
-    # Step 5: save to gpkg
-    grid.to_file(f"nsw_tiles_half_degree.gpkg", layer="tiles", driver="GPKG")
+    # Split into chunks and save
+    for start in range(0, len(gdf), chunk_size):
+        end = min(start + chunk_size, len(gdf))
+        chunk = gdf.iloc[start:end]
+        out_file = os.path.join(output_dir, f"BARRA_bboxs_nsw_{start}-{end}.gpkg")
+        chunk.to_file(out_file, driver="GPKG")
+        print(f"Saved {out_file}")
 
 
 # +
@@ -190,8 +162,8 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     grid_in_nsw.to_file(filename, driver="GPKG")
     print('Saved:', filename)
 
-filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-geopackage_km(filename_state_boundaries, tile_size=30000)
+# filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
+# geopackage_km(filename_state_boundaries, tile_size=30000)
 # -
 
 
