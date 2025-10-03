@@ -6,7 +6,7 @@
 #PBS -P xe2
 #PBS -l walltime=01:00:00
 #PBS -l storage=gdata/xe2
-#PBS -q normal
+#PBS -q copyq
 
 # Print out input variables to the error log
 echo "Running alphaearth.pbs"
@@ -18,4 +18,4 @@ wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 cd $wd
 
 # Run the script
-python3 alpha_earth.py /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/alphaearth --limit 10
+python3 alpha_earth.py /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/alphaearth --limit 10 --authenticate

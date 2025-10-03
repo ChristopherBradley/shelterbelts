@@ -13,14 +13,15 @@ import ee
 from shelterbelts.apis.worldcover import tif_categorical, worldcover_labels
 
 
-def download_alphaearth_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True, authenticate=False):
-    """Download alphaearth embeddings for a bbox and time period of interest."""
+def download_alphaearth_da(da, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True, authenticate=False):
+    """Download alphaearth embeddings for a DataSet and time period of interest."""
     if authenticate:
         ee.Authenticate()  # Apparently I only need to authenticate once in a notebook, then I can just use the initialise option when running pbs scripts
     
     ee.Initialize()
     
     # Prep the embeddings
+    bbox = da.rio.bounds()
     polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[1]), (bbox[0], bbox[1])]
     roi = ee.Geometry.Polygon([polygon_coords])
     collection = (
@@ -65,6 +66,7 @@ def download_alphaearth_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01
     df['tree'] = tree_flat
     
     # Save to file
+    os.makedirs(outdir, exist_ok=True)
     filename = os.path.join(outdir, f'{stub}_alpha_earth_embeddings.csv')
     df.to_csv(filename)
     print("Saved:", filename)
@@ -75,10 +77,9 @@ def download_alphaearth_tif(tif, start_date="2020-01-01", end_date="2021-01-01",
     """Download alphaearth embeddings for a tif and time period of interest."""
     da = rxr.open_rasterio(tif).isel(band=0).drop_vars('band')
     da_4326 = da.rio.reproject('EPSG:4326')
-    bbox = da_4326.rio.bounds()
     if stub is None:
         stub = tif.split('/')[-1].split('.')[0]  # The base filename
-    ds = download_alphaearth_bbox(bbox, start_date, end_date, outdir, stub, save, authenticate)
+    ds = download_alphaearth_da(da_4326, start_date, end_date, outdir, stub, save, authenticate)
     return ds
 
 
@@ -101,7 +102,7 @@ def download_alphaearth_folder(folder, start_date="2020-01-01", end_date="2021-0
         {outdir}/{stub}_alpha_earth_embeddings.csv files for each tif in the folder
     """
     if authenticate:
-        ee.Authenticate()  # Apparently I only need to authenticate once in a notebook, then I can just use the initialise option when running pbs scripts
+        ee.Authenticate()  # Haven't totally figured this out... I think I need to always include it, but it only makes me use the url the first time in the notebook?
     
     tifs = glob.glob(f'{folder}/*{suffix}')
     if limit is not None:
