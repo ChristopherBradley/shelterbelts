@@ -341,8 +341,11 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             # if "skeleton len/width" not in row.index:
             #     import pdb; pdb.set_trace()
     
+            if "skeleton len/width" not in row.index:
+                new_class = 12  # I was trying to fix the random 1kmx1km tiles in ACT forests with all '19' values, but this line had no effect. Need to debug further.
+
             # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
-            if "skeleton len/width" in row.index and row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+            elif row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
                 new_class = 18  # linear features
             else:
                 new_class = 19  # non-linear features

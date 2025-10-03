@@ -291,3 +291,9 @@ if __name__ == "__main__":
 # +
 # percent_tif = '/scratch/xe2/cb8590/lidar/DATA_722798/uint8_percentcover_res10_height2m/Wellington201409-PHO3-C0-AHD_6666384_55_0002_0002_percentcover_res10_height2m_uint8.tif'
 # percent_tif = '/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m/ACT-16ppm_2025_SW_679000_6099000_1k_class_AHD_percentcover_res10_height2m_uint8.tif'
+# -
+
+from shelterbelts.indices.shelter_metrics import linear_categories_labels
+linear_categories_labels
+
+{item[0]:item[1] for item in sorted(linear_categories_labels.items())}
