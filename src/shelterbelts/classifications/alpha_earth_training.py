@@ -3,6 +3,7 @@
 
 import pandas as pd
 from pathlib import Path
+import numpy as np
 import random
 from tqdm import tqdm
 
@@ -17,7 +18,8 @@ def sample_and_combine_csvs(
     n_samples: int = 200,
     pattern: str = "*.csv",
     random_seed: int = None,
-    limit: int = None
+    limit: int = None,
+    recent: bool = False
 ) -> pd.DataFrame:
     """
     Sample n rows from each CSV file in a folder and combine into a single DataFrame.
@@ -50,6 +52,18 @@ def sample_and_combine_csvs(
         raise ValueError(f"No CSV files found in {folder_path} matching pattern '{pattern}'")
     print(f"Found {len(csv_files)} CSV files")
 
+    if recent:
+        # Filter to just the tiles where the lidar was taken after 2017
+        footprints_percent = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg'
+        gdf_percent = gpd.read_file(footprints_percent)
+        footprints_years = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+        gdf_year = gpd.read_file(footprints_years)
+        gdf = gdf_percent.merge(gdf_year[['filename', 'year']])
+        gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2016)] 
+        recent_stubs = [stub.split(".")[0] for stub in gdf_recent['filename']]
+        matching_csvs = [p for p in csv_files if any(stub in p.name for stub in recent_stubs)]
+        csv_files = matching_csvs
+    
     # Randomly shuffle the list of CSV files
     random.shuffle(csv_files)
     
@@ -97,120 +111,64 @@ def sample_and_combine_csvs(
 
 
 # +
-# %%time
-random_seed=42
-n_samples=2000
-limit=1000
-folder_path="/scratch/xe2/cb8590/alphaearth"
-output_path=f"/scratch/xe2/cb8590/alphaearth/random_sample_{limit}x{n_samples}.feather"
+# # %%time
+# random_seed=42
+# n_samples=2000
+# limit=1000
+# folder_path="/scratch/xe2/cb8590/alphaearth"
+# output_path=f"/scratch/xe2/cb8590/alphaearth/random_sample_{limit}x{n_samples}.feather"
 
-df = sample_and_combine_csvs(
-    folder_path=folder_path,
-    output_path=output_path,
-    n_samples=n_samples,
-    random_seed=random_seed,
-    limit=limit
-)
+# df = sample_and_combine_csvs(
+#     folder_path=folder_path,
+#     output_path=output_path,
+#     n_samples=n_samples,
+#     random_seed=random_seed,
+#     limit=limit
+# )
 
-print(f"\nFinal dataset shape: {df.shape}")
-print(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
-
-# +
-# df = pd.read_csv('/scratch/xe2/cb8590/alphaearth/g2_24342_binary_tree_cover_10m_alpha_earth_embeddings.csv')
+# print(f"\nFinal dataset shape: {df.shape}")
+# print(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
 # -
+
+df_old = pd.read_feather('/scratch/xe2/cb8590/alphaearth/random_sample_1000x2000.feather')
+
+df = pd.read_feather('/scratch/xe2/cb8590/alphaearth/random_sample_recent_1000x2000.feather')
 
 df = df.drop(columns='Unnamed: 0')
 
-df_sample = df.sample(60000)
-
-df_sample = df_sample.drop(columns='source_file')
-
-filename = '/scratch/xe2/cb8590/tmp/alphaearth_60k.csv'
-df_sample.to_csv(filename)
-
-combined_df = df_sample
+len(df)
 
 # +
-# Count NaN values per column
-nan_counts = combined_df.isna().sum()
-print(nan_counts[nan_counts > 0])  # Only show columns with NaNs
-
-# Or as a percentage
-nan_percentage = (combined_df.isna().sum() / len(combined_df)) * 100
-print(nan_percentage[nan_percentage > 0])
-# -
-
-df_sample['emb_0'].min()
-
-# +
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Option 1: Filter out -inf and NaN values
-col_data = df_sample['emb_0']
-clean_data = col_data[np.isfinite(col_data)]  # Removes both inf and -inf and NaN
-
-clean_data.hist(bins=50)
-plt.title(f'Distribution of emb_0 (n={len(clean_data)})')
-plt.xlabel('Value')
-plt.ylabel('Frequency')
-plt.show()
-
-# Check how many problematic values you're excluding
-print(f"Total values: {len(col_data)}")
-print(f"Finite values: {len(clean_data)}")
-print(f"NaN values: {col_data.isna().sum()}")
-print(f"-inf values: {(col_data == -np.inf).sum()}")
-print(f"+inf values: {(col_data == np.inf).sum()}")
-
-# Option 2: Replace -inf with a specific value before plotting
-col_data_replaced = col_data.replace(-np.inf, col_data[np.isfinite(col_data)].min())
-col_data_replaced.hist(bins=50)
-plt.title('Distribution of emb_0 (with -inf replaced)')
-plt.show()
-
-# For describe() that handles inf values
-print("\nStats for finite values only:")
-print(clean_data.describe())
-# -
-
-# Comprehensive check
-print("Data Quality Report:")
-print(f"Total rows: {len(combined_df)}")
-print(f"\nRows with any NaN: {combined_df.isna().any(axis=1).sum()}")
-print(f"Rows with any -inf: {(combined_df == -np.inf).any(axis=1).sum()}")
-print(f"Rows with any +inf: {(combined_df == np.inf).any(axis=1).sum()}")
-print(f"\nColumns with NaN values: {combined_df.isna().any().sum()}")
-print(f"Columns with -inf values: {(combined_df == -np.inf).any().sum()}")
-
-# +
-import numpy as np
-
-# Find rows that contain -inf in any column
-mask = (combined_df == -np.inf).any(axis=1)
-rows_with_neg_inf = combined_df[mask]
-
-print(f"Found {len(rows_with_neg_inf)} rows with -inf values")
-print(rows_with_neg_inf)
-
-# To see which specific columns have -inf in these rows
-print("\nColumns with -inf values in these rows:")
-inf_columns = (rows_with_neg_inf == -np.inf).sum()
-print(inf_columns[inf_columns > 0])
-
-# If you want to see just a few example rows
-print("\nFirst 10 rows with -inf:")
-print(rows_with_neg_inf.head(10))
-
-# To identify which column(s) have -inf for each row
-print("\nWhich columns contain -inf for each row:")
-for idx in rows_with_neg_inf.index[:10]:  # First 10 examples
-    cols_with_inf = combined_df.columns[(combined_df.loc[idx] == -np.inf)].tolist()
-    print(f"Row {idx}: {cols_with_inf}")
-# -
-
 # %%time
-df_results = random_forest(filename, outdir="/scratch/xe2/cb8590/tmp", stub="alpha_earth", output_column='tree', drop_columns=[], stratification_columns=['tree'])
+num_samples = 1000000
+if num_samples > len(df):
+    num_samples = len(df)
+df_sample = df.sample(num_samples)
+df_sample = df_sample.drop(columns='source_file')
+df_sample = df_sample[(df_sample != -np.inf).all(axis=1)] # Some rows have -inf for every embedding
 
+filename = f'/scratch/xe2/cb8590/tmp/alphaearth_{num_samples}k.csv'
+df_sample.to_csv(filename)
+# 6 secs for 60k rows
+# 30 secs for 300k rows
+
+df_results = random_forest(filename, outdir="/scratch/xe2/cb8590/tmp", stub="alpha_earth", output_column='tree', drop_columns=[], stratification_columns=['tree'])
+# 10 secs for 60k rows
+# 1 min for 300k rows
+
+df_results
+
+# Using the old lidar data
+# 78% for 60k rows
+# 80% for 300k rows
+# 82% accuracy, 7 mins for 1 million rows
+
+# Using recent lidar (I wasn't expecting these to be worse, but I'm guessing it's to do with the fact that I removed tiles with <10% or >90% tree cover.
+# 73%, 20 secs for 60k rows, 
+# 76%, 20 secs for 300k rows, 
+# 77%, 20 secs for 1mil rows
+
+
+# -
 
 
