@@ -1,4 +1,6 @@
 import os
+import shutil
+from pathlib import Path
 import geopandas as gpd
 from shapely.prepared import prep
 from shapely.geometry import box
@@ -96,16 +98,24 @@ def crop_barra_bboxs():
 
 # -
 
-def sub_gpkgs()
+def sub_gpkgs():
     """Create smaller gpkgs for passing to multiple prediction jobs at once"""
     # Input / output paths
     input_file = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg"
     output_dir = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_nsw"
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=False)
     
     # Load the GeoDataFrame
     gdf = gpd.read_file(input_file)
-    
+    gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
+
+    # Remove tiles that have already been processed
+    proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
+    processed_stubs = {
+        f.stem.replace("_predicted", "") for f in proc_dir.glob("*_predicted.tif")
+    }
+    gdf = gdf[~gdf["stub"].isin(processed_stubs)]
+        
     # Chunk size
     chunk_size = 500
     

@@ -41,7 +41,8 @@ dependencies = [
     "dask[distributed]",
     "cql2",
     "earthengine-api",
-    "geemap"
+    "geemap",
+    "tqdm"
 ]
 
 [project.optional-dependencies]

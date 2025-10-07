@@ -45,6 +45,7 @@ sys.path.append(src_dir)
 # print(src_dir)
 
 from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
+from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
 # -
 
@@ -135,12 +136,11 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
 
 def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
     """Run the sentinel download and tree classification for a given location"""
-    from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
+    # from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
-    # ds = download_ds2_bbox(stub, year, outdir, bounds, src_crs)  # Need to update these parameters to the latest version
     start_date = f"{year}-01-01"
     end_date = f"{year}-12-31"
-    ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub) 
+    ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False) # If we do save all the sentinel pickle files, it took about 20TB for all of NSW.
 
     da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True)
 
