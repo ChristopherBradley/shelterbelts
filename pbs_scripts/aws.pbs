@@ -1,0 +1,42 @@
+#!/bin/bash
+#PBS -N aws_download_two
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l walltime=10:00:00
+#PBS -l ncpus=1
+#PBS -l mem=4GB
+#PBS -l jobfs=1GB
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -j oe
+
+# DEST=/scratch/xe2/cb8590/elvis-shelterbelts
+# folder=s3://elvis-shelterbelts/act-elvis/elevation/lidar/ahd/z55/ACT2015/ # 140GB
+# DEST=/scratch/xe2/cb8590/elvis-shelterbelts2/ACT2020
+# folder=s3://elvis-shelterbelts/act-elvis/elevation/lidar/ahd/z55/ACT2020/  # 680GB
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+# Single job at a time
+# mkdir -p "$DEST"  # Create the folder if it doesn't already exist
+# echo "Starting aws.pbs for $folder with results going to $DEST"
+# aws s3 sync $folder $DEST --exact-timestamps --only-show-errors  
+
+# Two jobs at once
+# Sync first folder
+mkdir -p "$DEST1"
+echo "Starting download for $FOLDER1 into $DEST1"
+aws s3 sync "$FOLDER1" "$DEST1" --exact-timestamps --only-show-errors
+
+# Sync second folder if provided
+if [[ -n "$FOLDER2" ]]; then
+    mkdir -p "$DEST2"
+    echo "Starting download for $FOLDER2 into $DEST2"
+    aws s3 sync "$FOLDER2" "$DEST2" --exact-timestamps --only-show-errors
+fi
+
+# Single file
+# DEST=/scratch/xe2/cb8590/elvis-shelterbelts
+# FILE=s3://elvis-shelterbelts/act-elvis/elevation/lidar/ahd/z55/ACT2020/ACT2020-12ppm-C3-AHD_6586066_55_0001_0001.laz
+# aws s3 cp "$FILE" "$folder/" --only-show-errors # Little sample job
+

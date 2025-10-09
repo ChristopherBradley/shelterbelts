@@ -42,7 +42,8 @@ dependencies = [
     "cql2",
     "earthengine-api",
     "geemap",
-    "tqdm"
+    "tqdm",
+    "awscli"
 ]
 
 [project.optional-dependencies]

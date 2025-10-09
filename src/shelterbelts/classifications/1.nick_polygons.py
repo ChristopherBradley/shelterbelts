@@ -256,11 +256,13 @@ gdf_years = gpd.read_file(filename)
 gdf_percent = gpd.read_file('/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg')
 
 # Taking the useful features from both gpkgs
-gdf_good = gdf_percent[['filename', 'crs']][~gdf_percent['bad_tif']]
+gdf_good = gdf_percent[~gdf_percent['bad_tif']].drop(columns='geometry')
 gdf_recent = gdf_years[gdf_years['year'] > 2017]
-gdf_merged = gdf_good.merge(gdf_recent, how='inner')
+gdf_merged = gdf_good.merge(gdf_recent, how='inner', on='filename')
 gdf = gdf_merged
 # -
+
+gdf
 
 # Explode the list so each geometry gets a row per year, so I can download sentinel imagery for lots of years per tile
 years = list(range(2017, 2025))  # 2017–2024
@@ -276,7 +278,13 @@ gdf_4326.to_file('/g/data/xe2/cb8590/Nick_outlines/tiff_footprints4326_exploded_
 # Create smaller gpkgs so I can run the sentinel downloads in parallel
 gdf = gpd.read_file('/g/data/xe2/cb8590/Nick_outlines/tiff_footprints4326_exploded_2017-2024.gpkg')
 
+len(gdf)
+
+len(gdf_merged)
+
 import math
+
+os.makedirs('/scratch/xe2/cb8590/Nick_sentinel/chunks')
 
 # +
 # Split into chunks of 500 rows

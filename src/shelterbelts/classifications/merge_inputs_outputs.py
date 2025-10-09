@@ -201,11 +201,34 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=True):
     return df
 
 
-def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, limit=None, double_f=False):
+def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, limit=None, double_f=False, specific_usecase=None):
     """Run tile_csv on all the tiles and report info on any errors that occur"""
     
     # Randomise the tiles so I can have a random sample before they all complete
     sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
+
+    if specific_usecase == 'lidar_year':
+        # get just the sentinel_tiles matching the year of the lidar acquisition
+        pass
+    if specific_usecase = 'lidar_year_percent':
+        # Just sentinel tiles matching the year of lidar acquisition, and with percent cover > 10% or < 90%
+        pass
+    if specific_usecase = 'previous_year':
+        # Imagery from the year before lidar was taken
+        pass
+    if specific_usecase = 'next_year':
+        # Imagery from the year before lidar was taken
+        pass
+    if specific_usecase = 'previous_2_years':
+        # Imagery from the current and previous years
+        pass
+    if specific_usecase = 'next_2_years':
+        # Imagery from the current and next year
+        pass
+    if specific_usecase = 'all_years':
+        # Imagery from all years 2017-2024
+        pass
+    
     sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
     if limit is not None:
         sentinel_randomised = sentinel_randomised[:limit]
@@ -215,6 +238,50 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
         stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-2])   # Remove the _ds2_year
         tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")  # Should probably just rename all the files to have the same suffix instead
         tile_csv(sentinel_tile, tree_file, outdir, radius, spacing)
+
+
+sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel2'
+tree_folder = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
+
+
+footprints_percent = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg'
+gdf_percent = gpd.read_file(footprints_percent)
+footprints_years = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+gdf_year = gpd.read_file(footprints_years)
+gdf = gdf_percent.merge(gdf_year[['filename', 'year']])
+gdf['stub'] = [stub.split(".")[0] for stub in gdf['filename']]
+
+
+len(sentinel_tiles)
+
+sentinel_tiles[:10]
+
+gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2016)] 
+
+
+len(gdf[gdf['bad_tif'] & (gdf['year'] > 2017)] )
+
+# +
+# %%time
+# gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2016)] 
+gdf_recent = gdf[(gdf['year'] > 2016)] 
+
+sentinel_recent = [t for t in sentinel_tiles if any(stub in t for stub in list(gdf_recent['stub']))]
+len(sentinel_recent)
+
+# +
+# %%time
+# gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2016)] 
+gdf_recent = gdf[~gdf['bad_tif']] 
+
+sentinel_recent = [t for t in sentinel_tiles if any(stub in t for stub in list(gdf_recent['stub']))]
+sentinel_recent
+# -
+
+# %%time
+sentinel_matching = [t for t in sentinel_tiles if any(stub in t for stub in list(gdf['stub']))]
+sentinel_matching
 
 
 # +
@@ -298,6 +365,7 @@ def parse_arguments():
     parser.add_argument('--spacing', type=int, default=10, help='Distance between jittered points (default: 10)')
     parser.add_argument('--outlines_gpkg', default=None, help='Optional GPKG with metadata (should contain a "filename" column)')
     parser.add_argument('--limit', type=int, default=None, help='Number of files to process (default: all)')
+    parser.add_argument('--specific_usecase', default=None, help='Specific scenarios for trying out different years with Nicks training data)
 
     return parser.parse_args()
 
