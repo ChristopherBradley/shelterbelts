@@ -10,28 +10,6 @@ import xarray as xr
 import numpy as np
 
 
-<<<<<<< HEAD
-# -
-
-# The code below here is uncleaned, and doesn't really belong in the pipeline yet. And I'm only using the code above in the classifications pipeline, so I think it belongs there.
-def create_index(gpkg, tmpdir):
-    """Creates a geojson from the gpkg for my tile merging function in apis.canopy_height"""
-    gdf = gpd.read_file(gpkg)
-    gdf['tile'] = [filename.split('.')[0] for filename in gdf['filename']]
-    gdf = gdf[['tile', 'geometry']]
-    gdf = gdf.to_crs('EPSG:4326')
-    filename = os.path.join(tmpdir, 'tiles_global.geojson')
-    gdf.to_file(filename)
-    print("Saved:", filename)
-    return gdf
-
-# create_index('/g/data/xe2/cb8590/Outlines/Worldcover_Australia_footprints.gpkg', '/scratch/xe2/cb8590/Worldcover_Australia')
-# create_index('/g/data/xe2/cb8590/Outlines/global_canopy_height_footprints.gpkg', '/scratch/xe2/cb8590/Global_Canopy_Height')
-# = (trying to get code to treat the above lines as commented out code instead of markdown)
-
-
-=======
->>>>>>> 93f0f9f34ff7b596c235cd4382ebf0fd65855e7d
 # +
 
 def pixel_bbox(i, j, transform):
