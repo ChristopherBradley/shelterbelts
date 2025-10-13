@@ -7,6 +7,8 @@
 #PBS -P xe2
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
+#PBS -j oe
+
 
 # Notes:
 # 'copyq' queue required for internet access

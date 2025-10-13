@@ -31,12 +31,21 @@ process = psutil.Process(os.getpid())
 
 # +
 # Change directory to this repo. Need to do this when using the DEA environment since I can't just pip install -e .
+import os, sys
 repo_name = "shelterbelts"
 if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}/src")
-    os.chdir(repo_dir)
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
+    repo_dir = os.path.dirname(os.getcwd())       
+else:                                             # Already running from root of this repo. 
+    repo_dir = os.getcwd()
+src_dir = os.path.join(repo_dir, 'src')
+os.chdir(src_dir)
+sys.path.append(src_dir)
+# print(src_dir)
 
 from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
+from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
 # -
 
@@ -112,7 +121,6 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
 
     return da
 
-
 def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, savetif=True):
     """Predict unknown data"""
     with open(sentinel_filename, 'rb') as file:
@@ -127,10 +135,13 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     return da
 
 def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
-    # Run the sentinel download and tree classification for a given location
-    from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
+    """Run the sentinel download and tree classification for a given location"""
+    # from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
-    ds = download_ds2_bbox(stub, year, outdir, bounds, src_crs)  # Need to update these parameters to the latest version
+    start_date = f"{year}-01-01"
+    end_date = f"{year}-12-31"
+    ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False) # If we do save all the sentinel pickle files, it took about 20TB for all of NSW.
+
     da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True)
 
     # # Trying to avoid memory accumulating with new tiles
@@ -183,7 +194,6 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models
     
     
     """
-    
     gdf = gpd.read_file(gpkg)
     crs = gdf.crs
     rows = []

@@ -6,6 +6,8 @@
 #PBS -l mem=2GB
 #PBS -l jobfs=1GB
 #PBS -l storage=scratch/xe2
+#PBS -j oe
+
 
 # Downloading 260GB took about 1 hour 30 mins.
 

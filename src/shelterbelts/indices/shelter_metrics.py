@@ -209,6 +209,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster.
 
     """
+    print(f"Starting patch_metrics for stub: {stub}")
     if not ds:
         da = rxr.open_rasterio(buffer_tif).isel(band=0)
     else:
@@ -265,7 +266,10 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     for old, new in label_map.items():
         assigned_labels_relabelled[assigned_labels == old] = new
     assigned_labels = assigned_labels_relabelled
-    
+
+    # Find the skeleton of each cluster
+    df_widths = skeleton_stats(assigned_labels) 
+
     # Fit an ellipse around each category 
     props = regionprops(assigned_labels)
     
@@ -291,7 +295,11 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             # average height using the canopy height from earlier
             # better average width using skeletonization like in Aksoy 2009
             # Other indices like the WSI and/or SNFI from Liknes 2017, although adjust to allow any direction rather than just north/south and east/west
-    
+
+    # # Debugging
+    # if len(results) == 0:
+    #     import pdb; pdb.set_trace()
+        
     df_patch_metrics = pd.DataFrame(results)
     
     # Determine the most common category in each cluster
@@ -306,16 +314,19 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     
     # Reclassify patches with core or edge dominant for consistency
     # Later, might be interested in the percentage of these two categories in each patch like the class metrics
-    df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)
+    df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
     
     # Use the length/width ratio to reassign corridor clusters to linear or non-linear
     da_linear = da_filtered.copy()
-    df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
-    
-    df_widths = skeleton_stats(assigned_labels) 
-    df_patch_metrics = df_patch_metrics.merge(df_widths)
+    if len(results) > 0:
+        df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
+        df_patch_metrics = df_patch_metrics.merge(df_widths)
+    else:
+        df_patch_metrics = df_widths
+
+    # df_patch_metrics = df_patch_metrics.merge(df_widths)
     
     if save_csv:
         filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
@@ -326,9 +337,15 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         if row["category_id"] == 14:
             label_id = row["label"]
             len_width_ratio = row["ellipse len/width"]
+            
+            # if "skeleton len/width" not in row.index:
+            #     import pdb; pdb.set_trace()
     
+            if "skeleton len/width" not in row.index:
+                new_class = 12  # I was trying to fix the random 1kmx1km tiles in ACT forests with all '19' values, but this line had no effect. Need to debug further.
+
             # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
-            if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+            elif row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
                 new_class = 18  # linear features
             else:
                 new_class = 19  # non-linear features
@@ -336,14 +353,15 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             mask = (assigned_labels == label_id)
             da_linear.data[mask] = new_class
             df_patch_metrics.loc[i, 'category_id'] = new_class
-            df_patch_metrics.loc[i, 'category_name'] = linear_labels[new_class]
+            df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
     
     # Reassign the remaining corridor/other pixels to the corresponding cluster's category 
     remaining_mask = (da_linear.data == 14)
-    label_ids = assigned_labels[remaining_mask]
-    label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
-    mapped_categories = np.vectorize(label_to_category.get)(label_ids)
-    da_linear.data[remaining_mask] = mapped_categories
+    if (remaining_mask.sum() > 0):
+        label_ids = assigned_labels[remaining_mask]
+        label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
+        mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+        da_linear.data[remaining_mask] = mapped_categories
     
     if plot:
         filename = os.path.join(outdir, f'{stub}_linear_categories.png')

@@ -60,7 +60,7 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     return relevant_tiles
 
 
-def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson', id_column='tile'):
+def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson', id_column='tile', verbose=True):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
     
     canopy_height_dir = tmpdir
@@ -69,7 +69,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
 
     new_relevant_tiles = []
     for i, tile in enumerate(relevant_tiles):
-        if i % 100 == 0:
+        if (i % 100 == 0) and verbose:
             print(f"Working on {i}/{len(relevant_tiles)}: {tile}", flush=True)
             # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
 
@@ -118,7 +118,8 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         src_files_to_mosaic.append(src)
     
     # This assumes the the crs of all the input geotifs is the same
-    print(f"Merging {len(src_files_to_mosaic)} tiles")
+    if verbose:
+        print(f"Merging {len(src_files_to_mosaic)} tiles")
     mosaic, out_trans = merge(src_files_to_mosaic)
     out_meta = src_files_to_mosaic[0].meta.copy()
 

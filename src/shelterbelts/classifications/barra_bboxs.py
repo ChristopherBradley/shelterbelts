@@ -1,5 +1,7 @@
 # +
 import os
+import shutil
+from pathlib import Path
 import geopandas as gpd
 from shapely.prepared import prep
 from shapely.geometry import box, Polygon
@@ -8,6 +10,7 @@ import xarray as xr
 import numpy as np
 
 
+<<<<<<< HEAD
 # -
 
 # The code below here is uncleaned, and doesn't really belong in the pipeline yet. And I'm only using the code above in the classifications pipeline, so I think it belongs there.
@@ -27,9 +30,10 @@ def create_index(gpkg, tmpdir):
 # = (trying to get code to treat the above lines as commented out code instead of markdown)
 
 
+=======
+>>>>>>> 93f0f9f34ff7b596c235cd4382ebf0fd65855e7d
 # +
 
-# # +
 def pixel_bbox(i, j, transform):
     """Get the bbox of a specific pixel"""
     x0, y0 = transform * (j, i)        # top-left corner
@@ -115,39 +119,37 @@ def crop_barra_bboxs():
     # 50k in NSW boundary
 
 
+
 # -
 
-def half_degree_geopackage():
-    """This code created a geopackage of 0.5 x 0.5 degree tiles that I clipped in QGIS and used as input in ELVIS to request ~128GB downloads each"""
-    filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-    gdf2 = gpd.read_file(filename_state_boundaries)
-    nsw_bounds = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales', 'geometry'].total_bounds
+def sub_gpkgs():
+    """Create smaller gpkgs for passing to multiple prediction jobs at once"""
+    # Input / output paths
+    input_file = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg"
+    output_dir = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_nsw"
+    os.makedirs(output_dir, exist_ok=False)
     
-    # Step 1: get bbox of NSW
-    nsw_geom = gdf2.loc[gdf2['STE_NAME21'] == 'New South Wales', 'geometry']
-    minx, miny, maxx, maxy = nsw_geom.total_bounds
+    # Load the GeoDataFrame
+    gdf = gpd.read_file(input_file)
+    gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
+
+    # Remove tiles that have already been processed
+    proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
+    processed_stubs = {
+        f.stem.replace("_predicted", "") for f in proc_dir.glob("*_predicted.tif")
+    }
+    gdf = gdf[~gdf["stub"].isin(processed_stubs)]
+        
+    # Chunk size
+    chunk_size = 500
     
-    # Step 2: snap to whole numbers (floor for min, ceil for max)
-    minx = np.floor(minx)
-    miny = np.floor(miny)
-    maxx = np.ceil(maxx)
-    maxy = np.ceil(maxy)
-    
-    # Step 3: create 1° x 1° tiles
-    tiles = []
-    interval = 0.5
-    for x in np.arange(minx, maxx, interval):
-        for y in np.arange(miny, maxy, interval):
-            tiles.append(box(x, y, x+interval, y+interval))
-    
-    grid = gpd.GeoDataFrame(geometry=tiles, crs=gdf2.crs)
-    
-    # Step 4: clip to bbox (optional: only keep tiles intersecting NSW bbox)
-    bbox_poly = box(minx, miny, maxx, maxy)
-    grid = grid[grid.intersects(bbox_poly)]
-    
-    # Step 5: save to gpkg
-    grid.to_file(f"nsw_tiles_half_degree.gpkg", layer="tiles", driver="GPKG")
+    # Split into chunks and save
+    for start in range(0, len(gdf), chunk_size):
+        end = min(start + chunk_size, len(gdf))
+        chunk = gdf.iloc[start:end]
+        out_file = os.path.join(output_dir, f"BARRA_bboxs_nsw_{start}-{end}.gpkg")
+        chunk.to_file(out_file, driver="GPKG")
+        print(f"Saved {out_file}")
 
 
 # +
@@ -158,8 +160,8 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     
     minx, miny, maxx, maxy = nsw.total_bounds
     if state == 'New South Wales':
-        # minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states. 
-        minx, miny, maxx, maxy = -84000, 5844000, 1250000, 6870000  # Exactly matching up with the 2kmx2km NSW grid
+        minx, miny, maxx, maxy = -85000, 5845000, 1250000, 6870000  # These are nicer boundaries for NSW. Will need to unhardcode if I want to reuse for other states. 
+        # minx, miny, maxx, maxy = -84000, 5844000, 1250000, 6870000  # Exactly matching up with the 2kmx2km NSW grid
 
     xs = np.arange(minx, maxx, tile_size)
     ys = np.arange(miny, maxy, tile_size)
@@ -194,10 +196,8 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
     grid_in_nsw.to_file(filename, driver="GPKG")
     print('Saved:', filename)
 
-filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-geopackage_km(filename_state_boundaries, tile_size=30000)
-
-
+# filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
+# geopackage_km(filename_state_boundaries, tile_size=30000)
 # -
 def single_boundary():
     """Creating a single boundary for NSW"""

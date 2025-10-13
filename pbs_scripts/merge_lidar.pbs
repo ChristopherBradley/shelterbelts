@@ -1,12 +1,14 @@
 #!/bin/bash
 #PBS -N merge_lidar
-#PBS -l mem=8GB
+#PBS -l mem=16GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
+#PBS -j oe
+
 
 # Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 
 # 8GB for NSW 1m 
@@ -25,7 +27,18 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif
+
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _percentcover_res10_height2m.tif --subdir ''  # Can't believe this only took 8 mins. Too easy
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _chm_res1.tif --subdir ''
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _res1_cat5.tif --subdir ''
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _res10_cat5.tif --subdir ''
+
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_res1 --suffix .tif --subdir ''  # Re-merging 30km tiles into 120km
+
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_percentcover --suffix _height2m.tif --subdir ''  # Re-merging 30km tiles into 120km
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_chm --suffix _res1.tif --subdir ''  # Re-merging 30km tiles into 120km
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_shelter --suffix _linear_tifs_merged.tif --subdir ''  # Re-merging 30km tiles into 120km
+
+
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_ACT_2020_percentcover --suffix .tif --subdir ''  # Re-merging ACT percentcover

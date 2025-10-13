@@ -1,4 +1,3 @@
-
 import os
 import argparse
 
@@ -54,12 +53,31 @@ def scattered_trees(trees_labelled, min_patch_size=20):
     return scattered_area
 
 
-def core_trees(woody_veg, edge_size=3, min_patch_size=20):
+# +
+def core_trees(woody_veg, edge_size=3, min_patch_size=20, strict_core_area=False):
     """Find pixels surrounded by a circle of trees in every direction with radius edge_size"""    
     y, x = np.ogrid[-edge_size:edge_size+1, -edge_size:edge_size+1]
     core_kernel = (x**2 + y**2 <= edge_size**2)
-    all_core_area = binary_erosion(woody_veg, structure=core_kernel)
-    
+
+    if strict_core_area:
+        # Erode > Dilate > Erode. This method is somewhat strict because it requires the core areas to be fully connected.
+        all_core_area = binary_erosion(woody_veg, structure=core_kernel, border_value=True)  # Just eroding is the most strict, and means you get large 'edge' circles from single pixels within a core area
+        y, x = np.ogrid[-(edge_size+1):(edge_size+1)+1, -(edge_size+1):(edge_size+1)+1]
+        core_kernel_plus_one = (x**2 + y**2 <= (edge_size+1)**2)
+        y, x = np.ogrid[-(edge_size*2):(edge_size*2)+1, -(edge_size*2):(edge_size*2)+1]
+        double_core_kernel = (x**2 + y**2 <= (edge_size*2)**2)
+        cleaned_core_area = binary_dilation(all_core_area, structure=core_kernel_plus_one) 
+        cleaned_core_area = binary_erosion(cleaned_core_area, structure=double_core_kernel, border_value=True)
+        all_core_area = all_core_area | cleaned_core_area 
+        all_core_area = all_core_area & woody_veg
+
+    else:
+        # Dilate > Erode > Erode. This is the least strict method, and allows core areas even when the trees are a bit patchy.
+        core_area = binary_dilation(woody_veg, structure=core_kernel) 
+        core_area = binary_erosion(core_area, structure=core_kernel, border_value=True)
+        core_area = binary_erosion(core_area, structure=core_kernel, border_value=True) 
+        all_core_area = core_area & woody_veg
+
     # Exclude core area's smaller than the scattered trees threshold
     labeled_cores, num_features = label(all_core_area)
     large_cores = np.flatnonzero(np.bincount(labeled_cores.ravel()) >= min_patch_size)[1:] # Drop the 0 category
@@ -67,8 +85,13 @@ def core_trees(woody_veg, edge_size=3, min_patch_size=20):
 
     return core_area, core_kernel
 
+# core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size)
+# plt.imshow(core_area)
 
-def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_size=3, max_gap_size=2, ds=None, save_tif=True, plot=True):
+
+# -
+
+def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_size=3, max_gap_size=2, strict_core_area=False, ds=None, save_tif=True, plot=True):
     """Categorise a boolean woody veg tif into scattered trees, edges, core areas, and corridors, based on the Fragstats landscape ecology approach
 
     Parameters
@@ -80,6 +103,7 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
         edge_size: The buffer distance at the edge of a patch, with pixels inside this being the 'core area'. 
             Non-scattered tree pixels outside the core area but within edge_size pixels of a core area get defined as 'edge' pixels. Otherwise they become 'corridor' pixels.
         max_gap_size: The allowable gap between two tree clusters before considering them separate patches.
+        strict_core_area: Boolean to determine whether to enforce core areas to be fully connected.
         ds: a pre-loaded xarray.DataSet with a band 'woody_veg'. This gets used instead of the woody_veg_tif when provided.
         save_tif: Boolean to determine whether to save the final result to file.
         plot: Boolean to determine whether to generate a png plot.
@@ -102,7 +126,7 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
 
     trees_labelled = tree_clusters(woody_veg, max_gap_size)
     scattered_area = scattered_trees(trees_labelled, min_patch_size)
-    core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size)
+    core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size, strict_core_area)
     edge_kernel = np.ones(core_kernel.shape, dtype=bool)
     edge_area = binary_dilation(core_area, structure=edge_kernel) & ~core_area & woody_veg
     corridor_area = woody_veg & ~(core_area | edge_area | scattered_area)
@@ -140,6 +164,7 @@ def parse_arguments():
     parser.add_argument('--min_patch_size', default=20, help='The minimum area to be classified as a patch/corrider rather than just scattered trees.')
     parser.add_argument('--edge_size', default=3, help='The buffer distance at the edge of a patch, with pixels inside this being the core area')
     parser.add_argument('--max_gap_size', default=2, help='The allowable gap between two tree clusters before considering them as separate patches.')
+    parser.add_argument('--strict_core_area', default=False, action="store_true", help="Whether to enforce core areas being fully connected.")
     parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
 
     return parser.parse_args()
@@ -157,5 +182,31 @@ if __name__ == '__main__':
     max_gap_size = int(args.max_gap_size)
     plot = args.plot
     
-    tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, plot=plot)
+    tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area, plot=plot)
+
+# # filename = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/uint8_percentcover_res10_height2m/Junee201502-PHO3-C0-AHD_5906174_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+# data_dir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+# stub = 'g2_26729_binary_tree_cover_10m'
+# filename = f'{data_dir}/{stub}.tiff'
+# outdir='/scratch/xe2/cb8590/tmp' 
+# stub=None
+# min_patch_size=20
+# max_gap_size=1
+# edge_size=3
+# strict_core_area=False
+# ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
+# visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
+
+
+# outdir='/scratch/xe2/cb8590/tmp' 
+# stub=None
+# min_patch_size=20
+# max_gap_size=1
+# edge_size=3
+# strict_core_area=True
+# ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
+# visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
+
+
+
 

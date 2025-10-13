@@ -39,7 +39,11 @@ dependencies = [
     "pyarrow",
     "tensorflow",
     "dask[distributed]",
-    "cql2"
+    "cql2",
+    "earthengine-api",
+    "geemap",
+    "tqdm",
+    "awscli"
 ]
 
 [project.optional-dependencies]

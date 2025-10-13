@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N indices
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=00:30:00
+#PBS -l storage=gdata/xe2
+#PBS -q normal
+#PBS -j oe
+
+
+
+# Print out input variables to the error log
+# folder='/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/uint8_percentcover_res10_height2m'
+# outdir='/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/linear_tifs'
+folder='/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m'
+outdir='/scratch/xe2/cb8590/ACTGOV_my_processing/linear_tifs'
+
+tmpdir='/scratch/xe2/cb8590/tmp'
+echo "Starting indices.pbs for folder $folder and outdir $outdir" 
+
+# Change working directory
+cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/indices
+
+# Load the conda environment
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+# Run the script
+python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir"
