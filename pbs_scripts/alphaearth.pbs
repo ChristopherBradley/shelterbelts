@@ -7,6 +7,8 @@
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q copyq
+#PBS -j oe
+
 
 # Print out input variables to the error log
 # subfolder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m

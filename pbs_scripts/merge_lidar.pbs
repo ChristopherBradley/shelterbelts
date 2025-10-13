@@ -7,6 +7,8 @@
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
+#PBS -j oe
+
 
 # Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 
 # 8GB for NSW 1m 

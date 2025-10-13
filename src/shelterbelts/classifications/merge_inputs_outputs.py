@@ -257,8 +257,10 @@ len(sentinel_tiles)
 
 sentinel_tiles[:10]
 
-gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2016)] 
+gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2017)] 
 
+
+len(gdf_recent)
 
 len(gdf[gdf['bad_tif'] & (gdf['year'] > 2017)] )
 
@@ -281,7 +283,13 @@ sentinel_recent
 
 # %%time
 sentinel_matching = [t for t in sentinel_tiles if any(stub in t for stub in list(gdf['stub']))]
-sentinel_matching
+
+
+len(sentinel_matching)
+
+gdf = gpd.read_file('/scratch/xe2/cb8590/Nick_sentinel/chunks/tiff_footprints_chunk_1.gpkg')
+
+gdf
 
 
 # +

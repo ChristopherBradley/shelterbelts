@@ -7,6 +7,8 @@
 #PBS -l walltime=5:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
+#PBS -j oe
+
 
 # The ACT LiDAR needs 16GB, whereas the NSW LiDAR is fine with 8GB
 

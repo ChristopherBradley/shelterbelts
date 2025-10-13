@@ -273,7 +273,7 @@ gdf_expanded['start_date'] = [f'{year}-01-01' for year in gdf_expanded['sentinel
 gdf_expanded['end_date'] = [f'{year}-12-31' for year in gdf_expanded['sentinel_year']]
 gdf_expanded = gpd.GeoDataFrame(gdf_expanded, geometry="geometry", crs=gdf_years.crs)
 gdf_4326 = gdf_expanded.to_crs('4326')
-gdf_4326.to_file('/g/data/xe2/cb8590/Nick_outlines/tiff_footprints4326_exploded_2017-2024.gpkg')
+# gdf_4326.to_file('/g/data/xe2/cb8590/Nick_outlines/tiff_footprints4326_exploded_2017-2024.gpkg')
 
 # Create smaller gpkgs so I can run the sentinel downloads in parallel
 gdf = gpd.read_file('/g/data/xe2/cb8590/Nick_outlines/tiff_footprints4326_exploded_2017-2024.gpkg')
