@@ -1,9 +1,11 @@
+# +
 import os
 import shutil
 from pathlib import Path
 import geopandas as gpd
 from shapely.prepared import prep
-from shapely.geometry import box
+from shapely.geometry import box, Polygon
+
 import xarray as xr
 import numpy as np
 
@@ -175,5 +177,17 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
 # filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
 # geopackage_km(filename_state_boundaries, tile_size=30000)
 # -
+def single_boundary():
+    """Creating a single boundary for NSW"""
+    gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Australia State Boundaries/STE_2021_AUST_GDA2020.shp')
+    multipolygon = gdf.iloc[0]['geometry']
+    largest_polygon = max(multipolygon.geoms, key=lambda p: p.area)
+    polygon_no_holes = Polygon(largest_polygon.exterior)
+    gdf_no_holes = gpd.GeoDataFrame(
+        [gdf.iloc[0].to_dict()],  # Copy all the attributes from the original row
+        geometry=[polygon_no_holes],
+        crs=gdf.crs  # Preserve the coordinate reference system
+    )
+    gdf_no_holes.to_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/NSW_Border_Largest_Polygon.shp')
 
 

@@ -11,6 +11,8 @@ from shapely.geometry import box, mapping, Point
 import fiona
 from pyproj import Transformer
 import geopandas as gpd
+from shapely.geometry import box
+import ast
 
 pd.set_option('display.max_columns', 100)
 
@@ -300,5 +302,11 @@ for i in range(n_chunks):
     gdf_chunk.to_file(outpath)
     print(outpath)
 # -
-
+# # Visualise the LiDAR years
+# df = pd.read_csv('/Users/christopherbradley/Documents/PHD/Data/Nick_outlines_archived/full_elvis_metadata.csv')
+# df['geometry'] = df['bbox'].apply(lambda b: box(*ast.literal_eval(b)))
+# gdf = gpd.GeoDataFrame(df[['start_year', 'geometry']], crs='EPSG:4326')
+# gdf_dissolved = gdf.dissolve(by='start_year', as_index=False)
+# gdf['start_year'] = gdf['start_year'].astype(int)
+# gdf_dissolved.to_file('elvis_start_years_ints_dissolved.gpkg', driver='GPKG')
 

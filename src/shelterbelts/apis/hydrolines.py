@@ -38,27 +38,24 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
     raster_bounds = da.rio.bounds()
     raster_crs = da.rio.crs
 
+    # Reproject raster bounding box to hydrolines CRS (more computationally efficient than the other way around)
+    bbox_geom = box(*raster_bounds)
+    bbox_gdf = gpd.GeoDataFrame(geometry=[bbox_geom], crs=raster_crs)
+    bbox_gdf = bbox_gdf.to_crs('EPSG:4283')  # hydrolines_crs = gdf.crs
+
     if hydrolines_gdb.endswith('.gpkg'):
         gdf = gpd.read_file(hydrolines_gdb)  # pre-cropped geopackage
     else: 
         # This file is about 2GB, but can be spatially indexed so loads really fast
-        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines', bbox=raster_bounds)
-    hydrolines_crs = gdf.crs
-
-    # Reproject raster bounding box to hydrolines CRS (more computationally efficient than the other way around)
-    bbox_geom = box(*raster_bounds)
-    bbox_gdf = gpd.GeoDataFrame(geometry=[bbox_geom], crs=raster_crs)
-    bbox_gdf = bbox_gdf.to_crs(hydrolines_crs)
-
-    gdf_cropped = gpd.clip(gdf, bbox_gdf) # 7 secs for 2kmx2km test region with 30 hydrolines
+        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines', bbox=bbox_gdf)
 
     if save_gpkg:
         cropped_path = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
-        gdf_cropped.to_file(cropped_path)
+        gdf.to_file(cropped_path)
         print("Saved", cropped_path)
 
-    gdf_cropped = gdf_cropped.to_crs(da.rio.crs)
-    shapes = [(geom, 1) for geom in gdf_cropped.geometry]
+    gdf = gdf.to_crs(da.rio.crs)
+    shapes = [(geom, 1) for geom in gdf.geometry]
     transform = da.rio.transform()
     hydro_gullies = rasterize(
         shapes,
@@ -101,9 +98,10 @@ if __name__ == '__main__':
 
 
 # +
+# # %%time
 # hydrolines_gdb = "/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/SurfaceHydrologyLinesRegional.gdb"
 # outdir = '../../../outdir/'
 # stub = 'g2_26729'
-# rasterize = True
 # geotif = f"{outdir}{stub}_categorised.tif"
 # gdf, ds = hydrolines(geotif, hydrolines_gdb)
+# ds['gullies'].plot()
