@@ -28,6 +28,7 @@ worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'  # Should move these
 # worldcover_footprints = '/scratch/xe2/cb8590/Worldcover_Australia/Worldcover_Australia_footprints.gpkg'
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
 hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
+roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 
 
 # +
@@ -151,7 +152,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-    gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
+    gdf_hydrolines, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
+    gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
     
     da_trees = da_percent > cover_threshold
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
@@ -161,7 +163,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     # ds_shelter['cover_categories'] = ds_shelter['shelter_categories']  # Skipping the worldcover for now
     ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
 
-    ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines)
+    ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
     ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False) 
     
     return ds_linear
@@ -258,6 +260,9 @@ def parse_arguments():
     )
     return parser.parse_args()
 
+
+# -
+
 if __name__ == "__main__":
     args = parse_arguments()
     run_pipeline_tifs(
@@ -272,7 +277,6 @@ if __name__ == "__main__":
         density_threshold=args.density_threshold,
         buffer_width=args.buffer_width,
     )
-# -
 
 # %%time
 cover_threshold=10
@@ -296,7 +300,7 @@ run_pipeline_tifs(folder, outdir, tmpdir)
 
 # +
 # # %%time
-# Single tif example for debugging
+# # Single tif example for debugging
 # # percent_tif = '/scratch/xe2/cb8590/lidar/DATA_722798/uint8_percentcover_res10_height2m/Wellington201409-PHO3-C0-AHD_6666384_55_0002_0002_percentcover_res10_height2m_uint8.tif'
 # # percent_tif = '/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m/ACT-16ppm_2025_SW_679000_6099000_1k_class_AHD_percentcover_res10_height2m_uint8.tif'
 # percent_tif = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/Young201709-LID1-C3-AHD_6306194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
@@ -316,7 +320,8 @@ run_pipeline_tifs(folder, outdir, tmpdir)
 # mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
 # ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
 # da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-# gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=True, save_gpkg=False, da=da_percent)
+# gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
+# gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=True, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
 
 # da_trees = da_percent > cover_threshold
 # ds_woody_veg = da_trees.to_dataset(name='woody_veg')
@@ -326,7 +331,7 @@ run_pipeline_tifs(folder, outdir, tmpdir)
 # # ds_shelter['cover_categories'] = ds_shelter['shelter_categories']  # Skipping the worldcover for now
 # ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
 
-# ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines)
+# ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
 # ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False) 
 
 
