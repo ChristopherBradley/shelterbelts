@@ -38,18 +38,21 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
     raster_bounds = da.rio.bounds()
     raster_crs = da.rio.crs
 
+    # Reproject raster bounding box to hydrolines CRS (more computationally efficient than the other way around)
+    bbox_geom = box(*raster_bounds)
+    bbox_gdf = gpd.GeoDataFrame(geometry=[bbox_geom], crs=raster_crs)
+    bbox_gdf = bbox_gdf.to_crs('EPSG:4283')  # hydrolines_crs = gdf.crs
+
     if hydrolines_gdb.endswith('.gpkg'):
         gdf = gpd.read_file(hydrolines_gdb)  # pre-cropped geopackage
     else: 
         # This file is about 2GB, but can be spatially indexed so loads really fast
-        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines', bbox=raster_bounds)
-    hydrolines_crs = gdf.crs
+        # gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines', bbox=raster_bounds)
+        # gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines')
+        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines', bbox=bbox_gdf)
 
-    # Reproject raster bounding box to hydrolines CRS (more computationally efficient than the other way around)
-    bbox_geom = box(*raster_bounds)
-    bbox_gdf = gpd.GeoDataFrame(geometry=[bbox_geom], crs=raster_crs)
-    bbox_gdf = bbox_gdf.to_crs(hydrolines_crs)
-
+    # Don't need to do the cropping because we're using the spatial indexing to load just the area of interest instead.
+    # gdf_cropped = gdf
     gdf_cropped = gpd.clip(gdf, bbox_gdf) # 7 secs for 2kmx2km test region with 30 hydrolines
 
     if save_gpkg:
@@ -73,7 +76,7 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
         filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines.tif")
         tif_categorical(ds['gullies'], filename_hydrolines, colormap=gullies_cmap)
 
-    return gdf, ds
+    return gdf_cropped, ds
 
 
 def parse_arguments():
@@ -87,23 +90,26 @@ def parse_arguments():
 
     return parser.parse_args()
 
-
-if __name__ == '__main__':
-    
-    args = parse_arguments()
-
-    geotif = args.geotif
-    hydrolines_gdb = args.hydrolines_gdb
-    outdir = args.outdir
-    stub = args.stub
-
-    gdf, ds = hydrolines(geotif, hydrolines_gdb, outdir, stub)
-
-
 # +
-# hydrolines_gdb = "/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/SurfaceHydrologyLinesRegional.gdb"
-# outdir = '../../../outdir/'
-# stub = 'g2_26729'
-# rasterize = True
-# geotif = f"{outdir}{stub}_categorised.tif"
-# gdf, ds = hydrolines(geotif, hydrolines_gdb)
+# if __name__ == '__main__':
+    
+#     args = parse_arguments()
+
+#     geotif = args.geotif
+#     hydrolines_gdb = args.hydrolines_gdb
+#     outdir = args.outdir
+#     stub = args.stub
+
+#     gdf, ds = hydrolines(geotif, hydrolines_gdb, outdir, stub)
+# -
+
+
+# %%time
+hydrolines_gdb = "/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/SurfaceHydrologyLinesRegional.gdb"
+outdir = '../../../outdir/'
+stub = 'g2_26729'
+geotif = f"{outdir}{stub}_categorised.tif"
+gdf, ds = hydrolines(geotif, hydrolines_gdb)
+ds['gullies'].plot()
+
+ds['gullies'].plot()
