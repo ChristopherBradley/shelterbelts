@@ -25,6 +25,7 @@ def test_basic():
     assert os.path.exists(f"outdir/{stub}_categorised.tif")
     assert os.path.exists(f"outdir/{stub}_categorised.png")
 
+    # Changed the "wind_ds" argument to "wind_nc" to avoid confusion with additional ds_wind argument. Still need to update the tests. 
     ds = shelter_categories(f"outdir/{stub}_categorised.tif", wind_ds=None, height_tif=None, outdir='outdir', stub=stub, wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, savetif=True, plot=True)
     assert set(ds.coords) == {'x', 'y', 'spatial_ref'}  
     assert 'shelter_categories' in set(ds.data_vars)
