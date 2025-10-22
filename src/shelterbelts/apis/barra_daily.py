@@ -287,3 +287,43 @@ if __name__ == '__main__':
 # In my experiments comparing thredds and gdata with the default arguments, these were the times taken.
 # thredds: 21 secs, then 10, 10, 10
 # gdata: 6 secs, then 4, 4, 4
+
+# +
+# # %%time
+
+# # var = 'uas'
+# # year = '2020'
+# # month = '01'
+# # url = f"/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
+
+# latitude=-34.3890427
+# longitude=148.469499
+# url = '/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_202001-202001.nc'
+# ds = xr.open_dataset(url, engine="netcdf4")
+# ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')    
+
+# url = '/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/mon/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_mon_202505-202505.nc'
+# ds_month = xr.open_dataset(url, engine="netcdf4")
+# ds_month_region = ds_month.sel(lat=[latitude], lon=[longitude], method='nearest')    
+
+# url = '/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/20min/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_20min_202505-202505.nc'
+# ds_20min = xr.open_dataset(url, engine="netcdf4")
+# ds_20min_region = ds_20min.sel(lat=[latitude], lon=[longitude], method='nearest')    
+
+# monthly = ds_month_region['uas'].values[0, 0, 0]
+# min20 = ds_20min_region['uas'].values[:, 0, 0]
+# daily = ds_region['uas'].values[:, 0, 0]  # shape (31,)
+
+# print("Monthly value:", monthly)
+
+# print("20min mean:", np.mean(min20))
+# print("20min median:", np.median(min20))
+# print("20min max:", np.max(min20))
+# print("20min min:", np.min(min20))
+# print("20min std:", np.std(min20))
+
+# print("Daily mean:", np.mean(daily))
+# print("Daily median:", np.median(daily))
+# print("Daily max:", np.max(daily))
+# print("Daily min:", np.min(daily))
+# print("Daily std:", np.std(daily))
