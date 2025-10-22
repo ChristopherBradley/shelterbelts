@@ -28,14 +28,15 @@ barra_abbreviations = {
 
 # +
 # %%time
-def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", month="01", gdata=False):
+def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", month="01", gdata=False, temporal='day'):
+    temporals = ['20min', '1hr', 'day', 'mon'] # 3hr doesn't have uas
 
     if gdata:
         # Needs to be run on NCI with access to the ob53 project
-        url = f"/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
+        url = f"/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/{temporal}/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_{temporal}_{year}{month}-{year}{month}.nc"
     else:
         # URL for NCI thredds - should work anywhere with internet access
-        url = f"https://thredds.nci.org.au/thredds/dodsC/ob53/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
+        url = f"https://thredds.nci.org.au/thredds/dodsC/ob53/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/{temporal}/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_{temporal}_{year}{month}-{year}{month}.nc"
 
     try:
         ds = xr.open_dataset(url, engine="netcdf4")
@@ -61,11 +62,11 @@ def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buf
 
 # +
 # %%time
-def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", gdata=False):
+def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", gdata=False, temporal='day'):
     months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
     dss = []
     for month in months:
-        ds_month = barra_singlemonth(var, latitude, longitude, buffer, year, month, gdata)
+        ds_month = barra_singlemonth(var, latitude, longitude, buffer, year, month, gdata, temporal)
         if ds_month:
             dss.append(ds_month)
     ds_concat = xr.concat(dss, dim='time')
@@ -76,10 +77,10 @@ def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buf
 
 
 # +
-def barra_multiyear(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, years=["2020", "2021"], gdata=False):
+def barra_multiyear(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, years=["2020", "2021"], gdata=False, temporal='day'):
     dss = []
     for year in years:
-        ds_year = barra_single_year(var, latitude, longitude, buffer, year, gdata)
+        ds_year = barra_single_year(var, latitude, longitude, buffer, year, gdata, temporal)
         if ds_year:
             dss.append(ds_year)
     ds_concat = xr.concat(dss, dim='time')
@@ -212,7 +213,7 @@ def wind_dataframe(ds):
 
 # -
 
-def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True, gdata=False):
+def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True, gdata=False, temporal='day'):
     """Download 8day variables from BARRA at 4.4km resolution for the region/time of interest
 
     Parameters
@@ -234,11 +235,13 @@ def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffe
     dss = []
     years = [str(year) for year in list(range(int(start_year), int(end_year) + 1))]
     for variable in variables:
-        ds_variable = barra_multiyear(variable, lat, lon, buffer, years, gdata)
+        ds_variable = barra_multiyear(variable, lat, lon, buffer, years, gdata, temporal)
         dss.append(ds_variable)
     ds = xr.merge(dss, compat="override")
 
-    ds = ds.drop_vars(['time_bnds', 'height', 'crs'])
+    vars_to_drop = ['time_bnds', 'height', 'crs']
+    ds = ds.drop_vars([v for v in vars_to_drop if v in ds])
+    # ds = ds.drop_vars(['time_bnds', 'height', 'crs'])
     ds = ds.rename({'lat':'latitude', 'lon':'longitude'})
 
     if save_netcdf:
@@ -287,6 +290,15 @@ if __name__ == '__main__':
 # In my experiments comparing thredds and gdata with the default arguments, these were the times taken.
 # thredds: 21 secs, then 10, 10, 10
 # gdata: 6 secs, then 4, 4, 4
+
+# +
+# # %%time
+# Performance comparison of different temporal requests
+# ds = barra_daily(gdata=True, save_netcdf=False, plot=False, temporal='mon') 
+# # For monthly: 5 secs, then 1, 1, 1
+# # For daily: 13 secs, then 3, 3, 3
+# # For 1hour: 2 mins, then 10 secs
+# # For 20min: 2 mins then error with drop_vars
 
 # +
 # # %%time
