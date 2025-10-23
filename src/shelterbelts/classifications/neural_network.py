@@ -246,6 +246,7 @@ def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_var
     filename = os.path.join(outdir, f'{stub}_metrics.csv')
     rf_metrics_table.to_csv(filename)
     print("Saved", filename)
+    print(rf_metrics_table)  # More convenient to see this directly in the pbs output than to have to open the csv file
     
     return rf_metrics_table
 
