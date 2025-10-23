@@ -272,56 +272,48 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
         tile_csv(sentinel_tile, tree_file, outdir, radius, spacing)
 
 
-# +
-# df = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/TEST_preprocessed.feather')
+def tiles_todo(sentinel_folder, csv_folder):
+    """Find all the tiles in the sentinel_folder that haven't been completed yet, and move them into a subfolder named tiles_todo"""
 
-# +
-# sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_1/g1_01071_binary_tree_cover_10m_2023_ds2_2023.pkl'
-# with open(sentinel_file, 'rb') as file:
-#     ds = pickle.load(file)
-# ds.time
+    # +
+    # df = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/TEST_preprocessed.feather')
+    
+    # +
+    # sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_1/g1_01071_binary_tree_cover_10m_2023_ds2_2023.pkl'
+    # with open(sentinel_file, 'rb') as file:
+    #     ds = pickle.load(file)
+    # ds.time
+    
+    # +
+    sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel/*.pkl'
+    csv_folder = '/scratch/xe2/cb8590/Nick_training_lidar_year/*.csv'
+    sentinel_files = glob.glob(sentinel_folder)
+    csv_files = glob.glob(csv_folder)
+    
+    sentinel_stubs = ['_'.join(sentinel_file.split('/')[-1].split('_')[:2]) for sentinel_file in sentinel_files]
+    sentinel_years = [sentinel_file.split('.')[0][-4:] for sentinel_file in sentinel_files]
+    csv_stubs = ['_'.join(csv_file.split('/')[-1].split('_')[:2]) for csv_file in csv_files]
+    csv_years = [csv_file.split('.')[0][-4:] for csv_file in csv_files]
+    
+    sentinel_pairs = set(zip(sentinel_stubs, sentinel_years))
+    csv_pairs = set(zip(csv_stubs, csv_years))
+    missing_pairs = sentinel_pairs - csv_pairs
+    missing_files = [f'/scratch/xe2/cb8590/Nick_sentinel/{missing_pair[0]}_binary_tree_cover_10m_{missing_pair[1]}_ds2_{missing_pair[1]}.pkl' for missing_pair in missing_pairs]
+    src_dir = '/scratch/xe2/cb8590/Nick_sentinel'
+    dst_dir = os.path.join(src_dir, 'tiles_todo')
+    os.makedirs(dst_dir, exist_ok=True)
+    for file in missing_files:
+        filename = os.path.basename(file)
+        src_path = os.path.join(src_dir, filename)
+        dst_path = os.path.join(dst_dir, filename)
+        if os.path.exists(src_path):
+            shutil.move(src_path, dst_path)
+        else:
+            print(f"File not found: {src_path}")
 
-# +
-# def tiles_todo(sentinel_folder, csv_folder):
-#     """Find all the tiles in the sentinel_folder that haven't been completed yet, and move them into a subfolder named tiles_todo"""
-
-# +
-sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel/*.pkl'
-csv_folder = '/scratch/xe2/cb8590/Nick_training_lidar_year/*.csv'
-sentinel_files = glob.glob(sentinel_folder)
-csv_files = glob.glob(csv_folder)
-
-sentinel_stubs = ['_'.join(sentinel_file.split('/')[-1].split('_')[:2]) for sentinel_file in sentinel_files]
-sentinel_years = [sentinel_file.split('.')[0][-4:] for sentinel_file in sentinel_files]
-csv_stubs = ['_'.join(csv_file.split('/')[-1].split('_')[:2]) for csv_file in csv_files]
-csv_years = [csv_file.split('.')[0][-4:] for csv_file in csv_files]
-
-sentinel_pairs = set(zip(sentinel_stubs, sentinel_years))
-csv_pairs = set(zip(csv_stubs, csv_years))
-missing_pairs = sentinel_pairs - csv_pairs
-missing_files = [f'/scratch/xe2/cb8590/Nick_sentinel/{missing_pair[0]}_binary_tree_cover_10m_{missing_pair[1]}_ds2_{missing_pair[1]}.pkl' for missing_pair in missing_pairs]
-
-# -
-
-len(missing_files)
-
-src_dir = '/scratch/xe2/cb8590/Nick_sentinel'
-dst_dir = os.path.join(src_dir, 'tiles_todo')
-os.makedirs(dst_dir, exist_ok=True)
-for file in missing_files:
-    filename = os.path.basename(file)
-    src_path = os.path.join(src_dir, filename)
-    dst_path = os.path.join(dst_dir, filename)
-    if os.path.exists(src_path):
-        shutil.move(src_path, dst_path)
-    else:
-        print(f"File not found: {src_path}")
-
-
-# !ls {missing_files[0]}
 
 # +
-# Haven't yet added this into the main preprocess pipeline
+# Haven't yet added this back into the main preprocess pipeline
 # def attach_koppen_classes(df):
 #     """Attach the koppen class of each tile to the relevant rows"""
 #     # This should really all happen in merge_inputs_outputs
