@@ -203,6 +203,7 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models
         
         # Maybe I should make it so that if there is a 'stub' column in the gdf then use that, otherwise create a stub automatically like this
         stub = f"{centroid.y:.2f}-{centroid.x:.2f}".replace(".", "_")[1:]
+        stub = f"{stub}_y{year}"
         rows.append([stub, year, outdir, bbox, crs])
 
     if limit:

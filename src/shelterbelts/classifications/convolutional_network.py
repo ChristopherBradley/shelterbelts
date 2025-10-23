@@ -352,43 +352,31 @@ def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
     return y_full
 
 
-
-# Applying the model to new data
-sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_ds2_2020.pkl'
-X_p, _, shape = preprocess_tile(s, None)
-
 # Should probably use this ds as input into monthly_mosaic instead of the filename, so I don't have to load file twice
+sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
 print(f"Loading {sentinel_file}")
 with open(sentinel_file, 'rb') as f:
     ds_sentinel = pickle.load(f)  # xarray.Dataset, dims: time, y, x
 
-
+# +
+# Applying the model to new data
+X_p, _, shape = preprocess_tile(s, None)
 shape = (ds_sentinel.dims['y'], ds_sentinel.dims['x'])  
-
 y_pred_prob = model.predict(X_val, batch_size=1)
-# y_pred = (y_pred_prob > 0.5).astype(np.uint8)
-
 trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
-
 trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
-
 ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
-
 ds_sentinel['trees_predicted'].plot()
 
+# Looks super blocky
+
+# +
+# sanity check that the reconstruction is working
 tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_10m.tiff'
 da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
 da_tree_reprojected = da_tree.rio.reproject_match(ds_sentinel)
-
-da_tree.shape
-
-da_tree_reprojected.plot()
-
-# sanity check
 X_p, y_p = preprocess_tile(sentinel_file, tree_file)
-
 reconstructed = reconstruct_from_patches(y_p, da_tree.shape)
+plt.imshow(reconstructed)
 
-ds_sentinel['trees_reconstructed'] = ('y', 'x'), reconstructed
-
-ds_sentinel['trees_reconstructed'].plot()
+# Looks fine

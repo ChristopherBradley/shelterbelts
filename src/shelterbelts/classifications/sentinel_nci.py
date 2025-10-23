@@ -22,10 +22,12 @@ from shapely.ops import transform
 from pyproj import Transformer
 import rasterio
 
+
+# I should get rid of all the imports that don't get used (basically everything except load_ard)
 from dea_tools.temporal import xr_phenology, temporal_statistics
 from dea_tools.datahandling import load_ard
 from dea_tools.bandindices import calculate_indices
-from dea_tools.plotting import display_map, rgb
+# from dea_tools.plotting import display_map, rgb
 # from dea_tools.dask import create_local_dask_cluster  # Not creating a dask cluster, because I'm doing parallelisation using lots of tiles
 from shapely.geometry import box
 from pyproj import CRS, Transformer
