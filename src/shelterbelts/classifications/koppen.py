@@ -56,104 +56,86 @@ polygons = polygons[polygons.intersects(australia_geom)]
 
 
 
-gdf_polygons = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Koppen/Koppen_Australia.gpkg')
-
-# +
-# Remove inner polygons and just use the outer classification
-gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Koppen/Koppen_Australia.gpkg')
-gdf['geometry'] = gdf['geometry'].buffer(0)
-def get_exterior(geom):
-    if geom.geom_type == 'Polygon':
-        return Polygon(geom.exterior)
-    elif geom.geom_type == 'MultiPolygon':
-        return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
-    else:
-        return geom
-
-gdf['geometry'] = gdf['geometry'].apply(get_exterior)
-to_drop = set()
-for i, geom_i in gdf.geometry.items():
-    for j, geom_j in gdf.geometry.items():
-        if i != j and geom_i.within(geom_j):
-            to_drop.add(i)
-            break
-
-gdf_clean = gdf.drop(index=list(to_drop)).reset_index(drop=True)
-
-# Step 4: Merge geometries and clean up (removes any residual holes)
-gdf_clean['geometry'] = gdf_clean['geometry'].apply(
-    lambda g: g.buffer(0) if g.geom_type == 'Polygon'
-    else unary_union([poly.buffer(0) for poly in g.geoms])
-)
-
-# Step 5: Save output
-gdf_clean.to_file('/Users/christopherbradley/Desktop/Koppen_Australia_noholes.gpkg', driver='GPKG')
-
-print(f"Removed {len(to_drop)} inner polygons.")
-
-# -
 
 
-
-
-
-# +
-gdf = gdf_clean.copy()
-gdf['fid'] = gdf.index
-
-# Step 1: Select the two polygons
-gdf_cfa = gdf[gdf['fid'] == 130].copy()  # CFa
-gdf_cfb = gdf[gdf['fid'] == 143].copy()  # Cfb
-
-# Step 2: Create the latitude split masks
-minx, miny, maxx, maxy = gdf.total_bounds
-south_mask = box(minx, miny, 149.5, -32.9)
-
-# Step 3: Split the CFa polygon into north/south
-cfa_geom = unary_union(gdf_cfa.geometry)
-cfa_north = cfa_geom.difference(south_mask)
-cfa_south = cfa_geom.intersection(south_mask)
-
-gdf.loc[gdf['fid'] == 130, 'geometry'] = cfa_north
-
-# Step 5: Union the southern part of CFa into fid=144 (Cfb)
-cfb_geom = unary_union(gdf_cfb.geometry)
-merged_cfb = unary_union([cfb_geom, cfa_south])
-gdf.loc[gdf['fid'] == 143, 'geometry'] = merged_cfb
-
-# Step 6: Clean and save
-gdf['geometry'] = gdf['geometry'].buffer(0)
-gdf.to_file('/Users/christopherbradley/Desktop/Koppen_Australia_noholes_split.gpkg', driver='GPKG')
-
-print("✅ Split fid=130 at -32.9° and merged southern section into fid=143.")
-# -
-
-
+def creating_Koppen_Australia_Cleaned():
+    # Remove inner polygons and just use the outer classification
+    gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Koppen/Koppen_Australia.gpkg')  # This is 'polygons' from above
+    gdf['geometry'] = gdf['geometry'].buffer(0)
+    def get_exterior(geom):
+        if geom.geom_type == 'Polygon':
+            return Polygon(geom.exterior)
+        elif geom.geom_type == 'MultiPolygon':
+            return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
+        else:
+            return geom
+    
+    gdf['geometry'] = gdf['geometry'].apply(get_exterior)
+    to_drop = set()
+    for i, geom_i in gdf.geometry.items():
+        for j, geom_j in gdf.geometry.items():
+            if i != j and geom_i.within(geom_j):
+                to_drop.add(i)
+                break
+    
+    gdf_clean = gdf.drop(index=list(to_drop)).reset_index(drop=True)
+    
+    # Step 4: Merge geometries and clean up (removes any residual holes)
+    gdf_clean['geometry'] = gdf_clean['geometry'].apply(
+        lambda g: g.buffer(0) if g.geom_type == 'Polygon'
+        else unary_union([poly.buffer(0) for poly in g.geoms])
+    )
+    
+    # Split the CFa polygon and merge the bottom left into the Cfb polygon
+    gdf = gdf_clean.copy()
+    gdf['fid'] = gdf.index
+    
+    # Step 1: Select the two polygons
+    gdf_cfa = gdf[gdf['fid'] == 130].copy()  # CFa
+    gdf_cfb = gdf[gdf['fid'] == 143].copy()  # Cfb
+    
+    # Step 2: Create the latitude split masks
+    minx, miny, maxx, maxy = gdf.total_bounds
+    south_mask = box(minx, miny, 149.5, -32.9)
+    
+    # Step 3: Split the CFa polygon into north/south
+    cfa_geom = unary_union(gdf_cfa.geometry)
+    cfa_north = cfa_geom.difference(south_mask)
+    cfa_south = cfa_geom.intersection(south_mask)
+    
+    # Step 4: Reassign polygon sections
+    gdf.loc[gdf['fid'] == 130, 'geometry'] = cfa_north
+    cfb_geom = unary_union(gdf_cfb.geometry)
+    merged_cfb = unary_union([cfb_geom, cfa_south])
+    gdf.loc[gdf['fid'] == 143, 'geometry'] = merged_cfb
+    
+    # Step 6: Clean and save
+    gdf['geometry'] = gdf['geometry'].buffer(0)
+    
+    # Reassigning little names at the top
+    gdf.loc[gdf['Name'].isin(['Cfa', 'Cwa', 'Af', 'Am']), 'Name'] = 'Aw'
+    gdf.loc[gdf['fid'].isin([113]), 'Name'] = 'Aw'
+    
+    # South WA and southwest Vic becomes Southeast NSW & Tas
+    gdf.loc[gdf['Name'].isin(['Csb']), 'Name'] = 'Cfb'
+    
+    # Mid-south categories becoming west NSW
+    gdf.loc[gdf['Name'].isin(['BWk', 'Csa', None]), 'Name'] = 'BSk'
+    
+    # Little bits in South Autralia
+    gdf.loc[gdf['fid'].isin([76, 72, 128, 75, 73, 65, 66, 67, 69, 70, 71]), 'Name'] = 'BSk'
+    
+    gdf = gdf.dissolve(by='Name', as_index=False)
+    gdf.to_file('/Users/christopherbradley/Desktop/Koppen_Australia_cleaning.gpkg', driver='GPKG')
 
 
 
-# --- Save the southern section for inspection ---
-gdf_cfa_south = gpd.GeoDataFrame(
-    {'fid': [131], 'Name': [gdf_cfa.iloc[0]['Name']], 'geometry': [merged_cfb]},
+
+# Quick method for saving a geometry to file
+gpd.GeoDataFrame(
+    {'geometry': [example_polygon]},
     crs=gdf.crs
-)
-gdf_cfa_south.to_file('/Users/christopherbradley/Desktop/merged_cfb.gpkg', driver='GPKG')
-
-# +
-
-gdf.loc[(lon < 144) & (lat < -31), 'Name'] = 'BSk'
-gdf.loc[(lon < 131), 'Name'] = 'KUN'
-gdf.loc[(lat < -24) & (lat > -29) & (lon < 143.6), 'Name'] = 'BWh'
-gdf.loc[(gdf['Name'] == 'CFa') & (lat > -32.9), 'Name'] = 'CFx'
-gdf.loc[(gdf['Name'] == 'Cfb') & (lat > -30), 'Name'] = 'CFx'
-gdf.loc[(lon > 152.5), 'Name'] = 'CFx'
-names = ['CFa', 'Cfb', 'CFx', 'BWh', 'KUN', 'BSk', 'BSh']
-gdf.loc[~gdf['Name'].isin(names), 'Name'] = 'Aw'
-# -
-
-'CFa' lat < -32.9
-
-
+).to_file('/Users/christopherbradley/Desktop/example.gpkg')
 
 joined = gpd.sjoin(polygons, points, how='left', predicate='contains')
 joined.groupby('index_right').size().value_counts()
