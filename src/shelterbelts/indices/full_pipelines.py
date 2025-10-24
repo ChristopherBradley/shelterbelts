@@ -222,7 +222,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
 
 
 # +
-# import argparse
+import argparse
 
 # def parse_arguments():
 #     parser = argparse.ArgumentParser(
@@ -280,7 +280,7 @@ def parse_arguments():
     parser.add_argument("folder", help="Input folder containing percent_cover.tifs")
     parser.add_argument("--outdir", default="/scratch/xe2/cb8590/tmp", help="Output folder for linear_categories.tifs (default: /scratch/xe2/cb8590/tmp)")
     parser.add_argument("--tmpdir", default="/scratch/xe2/cb8590/tmp", help="Temporary working folder (default: /scratch/xe2/cb8590/tmp)")
-    parser.add_argument("--param_stub", default="", help="Extra stub for the suffix of the merged tif")
+    parser.add_argument("--param_stub", default="", help="Extra stub for the suffix of the merged tif")  # Don't need this argument anymore, better to just incorporate these parameter names in the outdir
     parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
     parser.add_argument("--wind_threshold", default=15, help="Windspeed that causes damage to crops/pasture in km/hr (default: 15)")
     parser.add_argument("--cover_threshold", type=int, default=10, help="Percentage tree cover within a pixel to classify as tree (default: 10)")

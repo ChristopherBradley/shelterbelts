@@ -224,42 +224,6 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
     # Randomise the tiles so I can have a random sample before they all complete
     sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
 
-    # These specific usecases were inconvenient when trying to run things in parallel, so I didn't end up using them.
-    print("specific_usecase:", specific_usecase)
-    if specific_usecase is not None:
-        footprints_percent = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg'
-        gdf_percent = gpd.read_file(footprints_percent)
-        footprints_years = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
-        gdf_year = gpd.read_file(footprints_years)
-        gdf = gdf_percent.merge(gdf_year[['filename', 'year']])
-        gdf['stub'] = [stub.split(".")[0] for stub in gdf['filename']]
-        gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2017)]  
-    if specific_usecase == 'lidar_year':
-        # get just the sentinel_tiles matching the year of the lidar acquisition
-        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
-        assert(all(os.path.exists(f) for f in sentinel_tiles))
-    if specific_usecase == 'previous_year':
-        # Imagery from the year before lidar was taken
-        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] - 1}_ds2_{row['year'] - 1}.pkl" for i, row in gdf_recent.iterrows()]
-        assert(all(os.path.exists(f) for f in sentinel_tiles))
-    if specific_usecase == 'next_year':
-        # Imagery from the year before lidar was taken
-        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
-        assert(all(os.path.exists(f) for f in sentinel_tiles))
-    if specific_usecase == 'previous_2_years':
-        # Imagery from the current and previous years
-        sentinel_filenames = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_filenames2 = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_tiles = sentinel_filenames + sentinel_filenames2
-    if specific_usecase == 'next_2_years':
-        # Imagery from the current and next year
-        sentinel_filenames = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_filenames2 = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_tiles = sentinel_filenames + sentinel_filenames2
-    if specific_usecase == 'all_years':
-        # Imagery from all years 2017-2024
-        sentinel_tiles = glob.glob(f'{sentinel_folder}/*') # I could also try including the 'bad' tiles in /scratch/xe2/cb8590/Nick_sentinel2
-
     sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
     if limit is not None:
         sentinel_randomised = sentinel_randomised[:limit]
@@ -272,56 +236,48 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
         tile_csv(sentinel_tile, tree_file, outdir, radius, spacing)
 
 
-# +
-# df = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/TEST_preprocessed.feather')
+def tiles_todo(sentinel_folder, csv_folder):
+    """Find all the tiles in the sentinel_folder that haven't been completed yet, and move them into a subfolder named tiles_todo"""
 
-# +
-# sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_1/g1_01071_binary_tree_cover_10m_2023_ds2_2023.pkl'
-# with open(sentinel_file, 'rb') as file:
-#     ds = pickle.load(file)
-# ds.time
+    # +
+    # df = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/TEST_preprocessed.feather')
+    
+    # +
+    # sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_1/g1_01071_binary_tree_cover_10m_2023_ds2_2023.pkl'
+    # with open(sentinel_file, 'rb') as file:
+    #     ds = pickle.load(file)
+    # ds.time
+    
+    # +
+    sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel/*.pkl'
+    csv_folder = '/scratch/xe2/cb8590/Nick_training_lidar_year/*.csv'
+    sentinel_files = glob.glob(sentinel_folder)
+    csv_files = glob.glob(csv_folder)
+    
+    sentinel_stubs = ['_'.join(sentinel_file.split('/')[-1].split('_')[:2]) for sentinel_file in sentinel_files]
+    sentinel_years = [sentinel_file.split('.')[0][-4:] for sentinel_file in sentinel_files]
+    csv_stubs = ['_'.join(csv_file.split('/')[-1].split('_')[:2]) for csv_file in csv_files]
+    csv_years = [csv_file.split('.')[0][-4:] for csv_file in csv_files]
+    
+    sentinel_pairs = set(zip(sentinel_stubs, sentinel_years))
+    csv_pairs = set(zip(csv_stubs, csv_years))
+    missing_pairs = sentinel_pairs - csv_pairs
+    missing_files = [f'/scratch/xe2/cb8590/Nick_sentinel/{missing_pair[0]}_binary_tree_cover_10m_{missing_pair[1]}_ds2_{missing_pair[1]}.pkl' for missing_pair in missing_pairs]
+    src_dir = '/scratch/xe2/cb8590/Nick_sentinel'
+    dst_dir = os.path.join(src_dir, 'tiles_todo')
+    os.makedirs(dst_dir, exist_ok=True)
+    for file in missing_files:
+        filename = os.path.basename(file)
+        src_path = os.path.join(src_dir, filename)
+        dst_path = os.path.join(dst_dir, filename)
+        if os.path.exists(src_path):
+            shutil.move(src_path, dst_path)
+        else:
+            print(f"File not found: {src_path}")
 
-# +
-# def tiles_todo(sentinel_folder, csv_folder):
-#     """Find all the tiles in the sentinel_folder that haven't been completed yet, and move them into a subfolder named tiles_todo"""
-
-# +
-sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel/*.pkl'
-csv_folder = '/scratch/xe2/cb8590/Nick_training_lidar_year/*.csv'
-sentinel_files = glob.glob(sentinel_folder)
-csv_files = glob.glob(csv_folder)
-
-sentinel_stubs = ['_'.join(sentinel_file.split('/')[-1].split('_')[:2]) for sentinel_file in sentinel_files]
-sentinel_years = [sentinel_file.split('.')[0][-4:] for sentinel_file in sentinel_files]
-csv_stubs = ['_'.join(csv_file.split('/')[-1].split('_')[:2]) for csv_file in csv_files]
-csv_years = [csv_file.split('.')[0][-4:] for csv_file in csv_files]
-
-sentinel_pairs = set(zip(sentinel_stubs, sentinel_years))
-csv_pairs = set(zip(csv_stubs, csv_years))
-missing_pairs = sentinel_pairs - csv_pairs
-missing_files = [f'/scratch/xe2/cb8590/Nick_sentinel/{missing_pair[0]}_binary_tree_cover_10m_{missing_pair[1]}_ds2_{missing_pair[1]}.pkl' for missing_pair in missing_pairs]
-
-# -
-
-len(missing_files)
-
-src_dir = '/scratch/xe2/cb8590/Nick_sentinel'
-dst_dir = os.path.join(src_dir, 'tiles_todo')
-os.makedirs(dst_dir, exist_ok=True)
-for file in missing_files:
-    filename = os.path.basename(file)
-    src_path = os.path.join(src_dir, filename)
-    dst_path = os.path.join(dst_dir, filename)
-    if os.path.exists(src_path):
-        shutil.move(src_path, dst_path)
-    else:
-        print(f"File not found: {src_path}")
-
-
-# !ls {missing_files[0]}
 
 # +
-# Haven't yet added this into the main preprocess pipeline
+# Haven't yet added this back into the main preprocess pipeline
 # def attach_koppen_classes(df):
 #     """Attach the koppen class of each tile to the relevant rows"""
 #     # This should really all happen in merge_inputs_outputs
@@ -420,7 +376,7 @@ if __name__ == '__main__':
         spacing=args.spacing,
         outlines_gpkg=args.outlines_gpkg,
         limit=args.limit,
-        specific_usecase=args.specific_usecase,
+        specific_usecase=args.specific_usecase,  # Now redundant argument since I did the filtering later on instead
         double_f=args.double_f
     )
 

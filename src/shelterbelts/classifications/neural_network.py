@@ -23,6 +23,20 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Remove tensorflow logging info
 
 # Takes 1 min to load all the libraries on my mac
 
+# # Change directory to this repo - this should work on gadi or locally via python or jupyter. Need this when using the DEA environment.
+import os, sys
+repo_name = "shelterbelts"
+if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
+    repo_dir = os.path.dirname(os.getcwd())       
+else:                                             # Already running from root of this repo. 
+    repo_dir = os.getcwd()
+src_dir = os.path.join(repo_dir, 'src')
+os.chdir(src_dir)
+sys.path.append(src_dir)
+# print(src_dir)
+
 
 def my_train_test_split(df, stratification_columns=[], train_frac=0.7, random_state=0):
     """Stratified train test split"""
@@ -246,6 +260,7 @@ def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_var
     filename = os.path.join(outdir, f'{stub}_metrics.csv')
     rf_metrics_table.to_csv(filename)
     print("Saved", filename)
+    print(rf_metrics_table)  # More convenient to see this directly in the pbs output than to have to open the csv file
     
     return rf_metrics_table
 
