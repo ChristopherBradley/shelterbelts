@@ -12,14 +12,14 @@ from shelterbelts.apis.catchments import gullies_cmap
 
 # -
 
-def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gpkg=True, savetif=True):
+def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gpkg=True, savetif=True, layer='HydroLines'):
     """Crop the hydrolines to the region of interest
     
     Parameters
     ----------
         geotif: String of filename to be used for the bounding box to crop the hydrolines
         hydrolines_gdb: String of filename downloaded from here https://researchdata.edu.au/surface-hydrology-lines-regional/3409155
-        rasterize: Whether to convert to a raster or not
+            - Can also use the roads gdb downloaded from here: https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684
 
     Returns
     -------
@@ -28,8 +28,8 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
 
     Downloads
     ---------
-    hydrolines_cropped.gpkg: Cropped hydrolines for the region of interest
-    hydrolines.tif: A georeferenced tif file of the gullies based on hydrolines
+    layer_cropped.gpkg: Cropped hydrolines for the region of interest
+    layer.tif: A georeferenced tif file of the gullies based on hydrolines
 
     """
     # Use raster to get bounding box and CRS
@@ -47,10 +47,10 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
         gdf = gpd.read_file(hydrolines_gdb)  # pre-cropped geopackage
     else: 
         # This file is about 2GB, but can be spatially indexed so loads really fast
-        gdf = gpd.read_file(hydrolines_gdb, layer='HydroLines', bbox=bbox_gdf)
+        gdf = gpd.read_file(hydrolines_gdb, layer=layer, bbox=bbox_gdf)
 
     if save_gpkg:
-        cropped_path = os.path.join(outdir, f"{stub}_hydrolines_cropped.gpkg")
+        cropped_path = os.path.join(outdir, f"{stub}_{layer}_cropped.gpkg")
         gdf.to_file(cropped_path)
         print("Saved", cropped_path)
 
@@ -67,7 +67,7 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
     ds['gullies'] = (["y", "x"], hydro_gullies)
 
     if savetif:
-        filename_hydrolines = os.path.join(outdir, f"{stub}_hydrolines.tif")
+        filename_hydrolines = os.path.join(outdir, f"{stub}_{layer}.tif")
         tif_categorical(ds['gullies'], filename_hydrolines, colormap=gullies_cmap)
 
     return gdf, ds

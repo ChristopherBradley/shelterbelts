@@ -1,15 +1,21 @@
 #!/bin/bash
 #PBS -N merging
-#PBS -l mem=4GB
+#PBS -l mem=16GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=02:00:00
+#PBS -l walltime=20:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
+
+# 4GB was fine for most of the tiles, except the last 100 or so at the end. 
+
 # Print out input variables to the error log
 echo "Starting merging.pbs"
+# SENTINEL_FOLDER=/scratch/xe2/cb8590/Nick_sentinel
+# STUB=Nick_sentinel
+
 
 # Change working directory
 wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
@@ -20,5 +26,6 @@ module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
 # Run the script
-python3 merge_inputs_outputs.py --sentinel_folder /scratch/xe2/cb8590/Tas_sentinel --tree_folder /scratch/xe2/cb8590/Tas_tifs --outdir /scratch/xe2/cb8590/Tas_csv
+python3 merge_inputs_outputs.py --sentinel_folder "$SENTINEL_FOLDER" --stub "$STUB" --tree_folder /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --double_f
+# python3 merge_inputs_outputs.py --sentinel_folder "$SENTINEL_FOLDER" --tree_folder /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --double_f --specific_usecase lidar_year --limit 10
 # python3 merge_inputs_outputs.py --sentinel_folder /scratch/xe2/cb8590/Tas_sentinel --tree_folder /scratch/xe2/cb8590/Tas_tifs --outdir /scratch/xe2/cb8590/Tas_csv

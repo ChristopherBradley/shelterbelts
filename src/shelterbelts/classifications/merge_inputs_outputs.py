@@ -1,11 +1,15 @@
 # +
 # Create a training dataset with satellite imagery inputs and tree cover outputs
-# -
 
+# +
 import os
 import glob
 import pickle
 import math
+import random
+import gc
+import shutil
+
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -16,7 +20,8 @@ from scipy.signal import fftconvolve
 import rasterio
 from rasterio.transform import from_origin
 from rasterio.crs import CRS
-import random
+
+# -
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import traceback, sys
@@ -142,16 +147,7 @@ def visualise_jittered_grid(ds, spacing=10, outdir='/scratch/xe2/cb8590/tmp', st
     gdf.to_file(filename) 
     print("Saved: ", filename)
 
-def tile_csv(sentinel_file, tree_file, outdir, radius=4, spacing=10, verbose=True):
-    """Create a csv file with a subset of training pixels for this sentinel filename"""
-    with open(sentinel_file, 'rb') as file:
-        if verbose:
-            print(f"Loading {sentinel_file}")
-        ds = pickle.load(file)
-    df = tile_csv_ds(ds, tree_file, outdir, radius, spacing, verbose)
-    return df
-
-def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=True):
+def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False):
     """Create a csv file with a subset of training pixels for this sentinel xarray"""
 
     # Load the woody veg
@@ -184,20 +180,41 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=True):
     # Calculate the aggregated metrics
     ds = aggregated_metrics(ds, radius)
 
+    year = str(ds.time[0].dt.year.values)
+    start_date = str(ds.time[0].dt.date.item())
+    end_date = str(ds.time[-1].dt.date.item())
+    
     # Remove the temporal bands
     variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
-    ds_selected = ds[variables] 
+    ds = ds[variables] 
 
     # I'm currently undecided whether to use a jittered grid or random sample of points. 
     df = jittered_grid(ds, spacing)
     stub = tree_file.split('/')[-1].split('.')[0]  # filename without the path
     df["tile_id"] = stub
+    df["year"] = year
+    df["start_date"] = start_date
+    df['end_date'] = end_date
 
     # Save a copy of this dataframe just in case something messes up later
-    filename = os.path.join(outdir, f"{stub}_df_r{radius}_s{spacing}.csv")
+    filename = os.path.join(outdir, f"{stub}_df_r{radius}_s{spacing}_{year}.csv")
     df.to_csv(filename, index=False)
     print(f"Saved: {filename}")
+
+    del ds 
+    del da
+    gc.collect()
     
+    return df
+
+
+def tile_csv(sentinel_file, tree_file, outdir, radius=4, spacing=10, verbose=False):
+    """Create a csv file with a subset of training pixels for this sentinel filename"""
+    with open(sentinel_file, 'rb') as file:
+        if verbose:
+            print(f"Loading {sentinel_file}")
+        ds = pickle.load(file)
+    df = tile_csv_ds(ds, tree_file, outdir, radius, spacing, verbose)
     return df
 
 
@@ -207,90 +224,101 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
     # Randomise the tiles so I can have a random sample before they all complete
     sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
 
+    # These specific usecases were inconvenient when trying to run things in parallel, so I didn't end up using them.
+    print("specific_usecase:", specific_usecase)
+    if specific_usecase is not None:
+        footprints_percent = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg'
+        gdf_percent = gpd.read_file(footprints_percent)
+        footprints_years = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+        gdf_year = gpd.read_file(footprints_years)
+        gdf = gdf_percent.merge(gdf_year[['filename', 'year']])
+        gdf['stub'] = [stub.split(".")[0] for stub in gdf['filename']]
+        gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2017)]  
     if specific_usecase == 'lidar_year':
         # get just the sentinel_tiles matching the year of the lidar acquisition
-        pass
-    if specific_usecase = 'lidar_year_percent':
-        # Just sentinel tiles matching the year of lidar acquisition, and with percent cover > 10% or < 90%
-        pass
-    if specific_usecase = 'previous_year':
+        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
+        assert(all(os.path.exists(f) for f in sentinel_tiles))
+    if specific_usecase == 'previous_year':
         # Imagery from the year before lidar was taken
-        pass
-    if specific_usecase = 'next_year':
+        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] - 1}_ds2_{row['year'] - 1}.pkl" for i, row in gdf_recent.iterrows()]
+        assert(all(os.path.exists(f) for f in sentinel_tiles))
+    if specific_usecase == 'next_year':
         # Imagery from the year before lidar was taken
-        pass
-    if specific_usecase = 'previous_2_years':
+        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
+        assert(all(os.path.exists(f) for f in sentinel_tiles))
+    if specific_usecase == 'previous_2_years':
         # Imagery from the current and previous years
-        pass
-    if specific_usecase = 'next_2_years':
+        sentinel_filenames = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
+        sentinel_filenames2 = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
+        sentinel_tiles = sentinel_filenames + sentinel_filenames2
+    if specific_usecase == 'next_2_years':
         # Imagery from the current and next year
-        pass
-    if specific_usecase = 'all_years':
+        sentinel_filenames = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
+        sentinel_filenames2 = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
+        sentinel_tiles = sentinel_filenames + sentinel_filenames2
+    if specific_usecase == 'all_years':
         # Imagery from all years 2017-2024
-        pass
-    
+        sentinel_tiles = glob.glob(f'{sentinel_folder}/*') # I could also try including the 'bad' tiles in /scratch/xe2/cb8590/Nick_sentinel2
+
     sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
     if limit is not None:
         sentinel_randomised = sentinel_randomised[:limit]
         
-    print("About to process n tiles:", len(sentinel_tiles))
+    print("About to process n tiles:", len(sentinel_randomised))
     for sentinel_tile in sentinel_randomised:
-        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-2])   # Remove the _ds2_year
+        # stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-2])   # Remove the _ds2_year
+        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-3])   # Remove the year_ds2_year (can't remember why I have two of 'year')
         tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")  # Should probably just rename all the files to have the same suffix instead
         tile_csv(sentinel_tile, tree_file, outdir, radius, spacing)
 
 
-sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel2'
-tree_folder = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
-sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
-
-
-footprints_percent = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg'
-gdf_percent = gpd.read_file(footprints_percent)
-footprints_years = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
-gdf_year = gpd.read_file(footprints_years)
-gdf = gdf_percent.merge(gdf_year[['filename', 'year']])
-gdf['stub'] = [stub.split(".")[0] for stub in gdf['filename']]
-
-
-len(sentinel_tiles)
-
-sentinel_tiles[:10]
-
-gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2017)] 
-
-
-len(gdf_recent)
-
-len(gdf[gdf['bad_tif'] & (gdf['year'] > 2017)] )
+# +
+# df = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/TEST_preprocessed.feather')
 
 # +
-# %%time
-# gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2016)] 
-gdf_recent = gdf[(gdf['year'] > 2016)] 
-
-sentinel_recent = [t for t in sentinel_tiles if any(stub in t for stub in list(gdf_recent['stub']))]
-len(sentinel_recent)
+# sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_1/g1_01071_binary_tree_cover_10m_2023_ds2_2023.pkl'
+# with open(sentinel_file, 'rb') as file:
+#     ds = pickle.load(file)
+# ds.time
 
 # +
-# %%time
-# gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2016)] 
-gdf_recent = gdf[~gdf['bad_tif']] 
+# def tiles_todo(sentinel_folder, csv_folder):
+#     """Find all the tiles in the sentinel_folder that haven't been completed yet, and move them into a subfolder named tiles_todo"""
 
-sentinel_recent = [t for t in sentinel_tiles if any(stub in t for stub in list(gdf_recent['stub']))]
-sentinel_recent
+# +
+sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel/*.pkl'
+csv_folder = '/scratch/xe2/cb8590/Nick_training_lidar_year/*.csv'
+sentinel_files = glob.glob(sentinel_folder)
+csv_files = glob.glob(csv_folder)
+
+sentinel_stubs = ['_'.join(sentinel_file.split('/')[-1].split('_')[:2]) for sentinel_file in sentinel_files]
+sentinel_years = [sentinel_file.split('.')[0][-4:] for sentinel_file in sentinel_files]
+csv_stubs = ['_'.join(csv_file.split('/')[-1].split('_')[:2]) for csv_file in csv_files]
+csv_years = [csv_file.split('.')[0][-4:] for csv_file in csv_files]
+
+sentinel_pairs = set(zip(sentinel_stubs, sentinel_years))
+csv_pairs = set(zip(csv_stubs, csv_years))
+missing_pairs = sentinel_pairs - csv_pairs
+missing_files = [f'/scratch/xe2/cb8590/Nick_sentinel/{missing_pair[0]}_binary_tree_cover_10m_{missing_pair[1]}_ds2_{missing_pair[1]}.pkl' for missing_pair in missing_pairs]
+
 # -
 
-# %%time
-sentinel_matching = [t for t in sentinel_tiles if any(stub in t for stub in list(gdf['stub']))]
+len(missing_files)
+
+src_dir = '/scratch/xe2/cb8590/Nick_sentinel'
+dst_dir = os.path.join(src_dir, 'tiles_todo')
+os.makedirs(dst_dir, exist_ok=True)
+for file in missing_files:
+    filename = os.path.basename(file)
+    src_path = os.path.join(src_dir, filename)
+    dst_path = os.path.join(dst_dir, filename)
+    if os.path.exists(src_path):
+        shutil.move(src_path, dst_path)
+    else:
+        print(f"File not found: {src_path}")
 
 
-len(sentinel_matching)
-
-gdf = gpd.read_file('/scratch/xe2/cb8590/Nick_sentinel/chunks/tiff_footprints_chunk_1.gpkg')
-
-gdf
-
+# !ls {missing_files[0]}
 
 # +
 # Haven't yet added this into the main preprocess pipeline
@@ -315,7 +343,7 @@ gdf
 
 # -
 
-def preprocess(sentinel_folder, tree_folder=None, outdir=".", stub="TEST", radius=4, spacing=10, outlines_gpkg=None, limit=None):
+def preprocess(sentinel_folder, tree_folder=None, outdir=".", stub="TEST", radius=4, spacing=10, outlines_gpkg=None, limit=None, double_f=False, specific_usecase=None):
     """Merge the inputs and outputs for training the model
     
     Parameters
@@ -342,7 +370,7 @@ def preprocess(sentinel_folder, tree_folder=None, outdir=".", stub="TEST", radiu
     
     """
     # Create a csv of inputs and outputs for each tile
-    tile_csvs(sentinel_folder, tree_folder, outdir, radius, spacing, limit)
+    tile_csvs(sentinel_folder, tree_folder, outdir, radius, spacing, limit, double_f, specific_usecase)
 
     # Merge the results into a single feather file. 
     csv_tiles = glob.glob(os.path.join(outdir, '*.csv'))
@@ -373,7 +401,8 @@ def parse_arguments():
     parser.add_argument('--spacing', type=int, default=10, help='Distance between jittered points (default: 10)')
     parser.add_argument('--outlines_gpkg', default=None, help='Optional GPKG with metadata (should contain a "filename" column)')
     parser.add_argument('--limit', type=int, default=None, help='Number of files to process (default: all)')
-    parser.add_argument('--specific_usecase', default=None, help='Specific scenarios for trying out different years with Nicks training data)
+    parser.add_argument('--specific_usecase', default=None, help='Specific scenarios for trying out different years with Nicks training data')
+    parser.add_argument("--double_f", action="store_true", help="Don't create the binary raster. Default: False")
 
     return parser.parse_args()
 
@@ -390,7 +419,9 @@ if __name__ == '__main__':
         radius=args.radius,
         spacing=args.spacing,
         outlines_gpkg=args.outlines_gpkg,
-        limit=args.limit
+        limit=args.limit,
+        specific_usecase=args.specific_usecase,
+        double_f=args.double_f
     )
 
 

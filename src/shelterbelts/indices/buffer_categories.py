@@ -17,7 +17,7 @@ from shelterbelts.indices.cover_categories import cover_categories_cmap, cover_c
 buffer_cmap = {
     15:(29, 153, 105),
     16:(127, 168, 57),
-    17:(49, 71, 31)
+    17:(129, 146, 124) # (122, 128, 123)  # (49, 71, 31)
 }
 buffer_labels = {
     15:'Trees in Gullies',
@@ -29,7 +29,7 @@ buffer_categories_labels = cover_categories_labels | buffer_labels
 inverted_labels = {v: k for k, v in buffer_categories_labels.items()}
 
 
-def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, outdir=".", stub="TEST", buffer_width=3, savetif=True, plot=True, ds=None, ds_gullies=None):
+def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, outdir=".", stub="TEST", buffer_width=3, savetif=True, plot=True, ds=None, ds_gullies=None, ds_roads=None):
     """Reclassify relevant corridors as riparian buffers and ridge buffers.
     
     Parameters
@@ -87,8 +87,12 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, o
         da_buffered = da_buffered.where(~ridge_trees, 16)   # Assigning ridge trees label 16
         ds['ridges'] = (('y', 'x'), da_ridges_reprojected.values)
 
-    if roads_tif:
+    da_roads = None
+    if roads_tif is not None:
         da_roads = rxr.open_rasterio(roads_tif).isel(band=0)
+    elif ds_roads is not None:
+        da_roads = ds_roads['gullies'] # Hacky way to re-use the hydrolines code for roads. Should refactor hydrolines.py
+    if da_roads is not None:
         da_roads_reprojected = da_roads.rio.reproject_match(da_cover, resampling=Resampling.max)
         roads_thinned = skeletonize(da_roads_reprojected.values)
         roads_thinned = roads_thinned & ~buffered_gullies

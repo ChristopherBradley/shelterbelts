@@ -12,7 +12,8 @@ if [ -d "$FOLDER/subfolder_1" ]; then
 fi
 
 # Get list of files (excluding directories)
-FILES=("$FOLDER"/*)
+# FILES=("$FOLDER"/*)
+FILES=("$FOLDER"/*.pkl)  # Just the pickle files
 TOTAL=${#FILES[@]}
 
 # Distribute files into subfolders with up to MAX files each
