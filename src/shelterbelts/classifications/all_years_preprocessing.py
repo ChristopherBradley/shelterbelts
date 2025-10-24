@@ -97,7 +97,8 @@ df_matching = pd.concat(dfs, ignore_index=True)
 df_matching.to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_all_4326.feather')
 # -
 
-df_matching[:1000000].to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_1mil_4326.feather')
+# %%time
+df_matching.sample(2000000).to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_2mil_random.feather')
 
 # Add koppen category to each row
 gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned.gpkg')
@@ -132,7 +133,7 @@ for koppen_class in koppen_classes:
     df_class.to_feather(filename)
     print(filename)
 
-
+len(df_matching)
 
 
 
@@ -152,32 +153,32 @@ with open(model_path, 'rb') as file:
 scaler = joblib.load(scaler_path)
 
 # +
-model_filename = '/g/data/xe2/cb8590/models/nn_fft_89a_92s_85r_86p.keras'
-model = keras.models.load_model(model_filename)
+# model_filename = '/g/data/xe2/cb8590/models/nn_fft_89a_92s_85r_86p.keras'
+# scaler_filename = '/g/data/xe2/cb8590/models/scaler_fft_89a_92s_85r_86p.pkl'
+model_filename = '/g/data/xe2/cb8590/models/nn_df_4326_xy_4326.keras'
+scaler_filename = '/g/data/xe2/cb8590/models/scaler_df_4326_xy_4326.pkl'
 
-scaler_filename = '/g/data/xe2/cb8590/models/scaler_fft_89a_92s_85r_86p.pkl'
+
+model = keras.models.load_model(model_filename)
 scaler = joblib.load(scaler_filename)
 # -
 
 # %%time
 dfs_by_year = {year: group for year, group in df_all.groupby('year')}
-
-
 dfs_by_year.keys()
 
-dfs_by_year[2017]
-
-year = 2017
 
 # %%time
-for year in dfs_by_year.keys():
-    print(f"Working on year: {year}")
+dfs_by_koppen = {year: group for year, group in df_matching.groupby('Koppen')}
+
+# %%time
+for koppen in dfs_by_koppen.keys():
+    print(f"Working on koppen: {koppen}")
     outdir = '/scratch/xe2/cb8590/tmp'
-    stub = f'old_model_accuracy_{year}'
-    non_input_columns = ['tree_cover', 'spatial_ref', 'y', 'x', 'tile_id', 'year', 'start_date', 'end_date']
+    stub = f'new_model_accuracy_{koppen}'
+    non_input_columns = ['tree_cover', 'spatial_ref', 'tile_id', 'year', 'start_date', 'end_date', 'crs', 'Koppen']
     output_column = 'tree_cover'
-    df_accuracy = class_accuracies_overall(dfs_by_year[year].sample(100000, random_state=1), model, scaler, outdir, stub, non_input_columns, output_column)
-    print(df_accuracy)
+    df_accuracy = class_accuracies_overall(dfs_by_koppen[koppen].sample(100000, random_state=1), model, scaler, outdir, stub, non_input_columns, output_column)
     print()
     # Matching year: 0.819, 0.821, 0.820 - compared to 0.838 when testing on just the year of interest. 
     # 2 years: 0.822, 0.822, 0.821 - So just 0.1% better...
@@ -193,5 +194,21 @@ print()
 # Matching year: 0.819, 0.821, 0.820 - compared to 0.838 when testing on just the year of interest. 
 # 2 years: 0.822, 0.822, 0.821 - So just 0.1% better...
 # all years with my best model (89% accuracy) 0.826%
+
+# +
+# %%time
+import os
+from pathlib import Path
+
+folder = Path("/scratch/xe2/cb8590/alphaearth")
+
+for file in folder.glob("*.csv"):
+    new_name = file.with_name(file.stem + "_2020.csv")
+    file.rename(new_name)
+
+# -
+
+df = pd.read_csv('/scratch/xe2/cb8590/alphaearth/g1_01001_binary_tree_cover_10m_alpha_earth_embeddings_2020.csv')
+df
 
 

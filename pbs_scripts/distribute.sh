@@ -13,7 +13,7 @@ fi
 
 # Get list of files (excluding directories)
 # FILES=("$FOLDER"/*)
-FILES=("$FOLDER"/*.pkl)  # Just the pickle files
+FILES=("$FOLDER"/*.tiff)  # Just the pickle files
 TOTAL=${#FILES[@]}
 
 # Distribute files into subfolders with up to MAX files each

@@ -33,7 +33,7 @@ module load dea/20231204  # using this version to match my predictions.pbs (need
 # training_stub=df_matching2
 # training_stub=df_matching_4326
 # training_stub=df_matching_koppen
-training_stub=df_4326_CFa
+training_stub=df_2mil_random
 
 seed=0
 echo "dea/20231204 NN Training stub: $training_stub"

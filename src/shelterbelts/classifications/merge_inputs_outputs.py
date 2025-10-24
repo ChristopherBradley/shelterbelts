@@ -26,6 +26,11 @@ from rasterio.crs import CRS
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import traceback, sys
 
+# Monkey fix to load the new pickle files in an older version of numpy
+import sys, numpy
+sys.modules['numpy._core'] = numpy.core
+sys.modules['numpy._core.numeric'] = numpy.core.numeric
+
 np.random.seed(0)
 random.seed(0)
 
@@ -147,7 +152,7 @@ def visualise_jittered_grid(ds, spacing=10, outdir='/scratch/xe2/cb8590/tmp', st
     gdf.to_file(filename) 
     print("Saved: ", filename)
 
-def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False):
+def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alpha_folder='/scratch/xe2/cb8590/alphaearth_pickle'):
     """Create a csv file with a subset of training pixels for this sentinel xarray"""
 
     # Load the woody veg
@@ -188,6 +193,15 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False):
     start_date = str(ds.time[0].dt.date.item())
     end_date = str(ds.time[-1].dt.date.item())
     
+    # Add the alphaearth embeddings to the ds
+    stub = tree_file.split('/')[-1].split('.')[0]
+    alpha_file = os.path.join(alpha_folder, f'{stub}_alpha_earth_embeddings_{year}.pkl')
+    with open(alpha_file, 'rb') as file:
+        ds_alpha = pickle.load(file)
+    ds_alpha = ds_alpha.rio.reproject_match(ds)  
+    for i in range(ds_alpha.sizes['band']):
+        ds[f'alpha_embedding_{i+1}'] = ds_alpha.isel(band=i)
+
     # Remove the temporal bands
     variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
     ds = ds[variables] 
@@ -201,6 +215,7 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False):
     df['end_date'] = end_date
 
     # Save a copy of this dataframe just in case something messes up later
+    os.makedirs(outdir, exist_ok=True)
     filename = os.path.join(outdir, f"{stub}_df_r{radius}_s{spacing}_{year}.csv")
     df.to_csv(filename, index=False)
     print(f"Saved: {filename}")
@@ -400,6 +415,16 @@ if __name__ == '__main__':
 # tree_folder = "/scratch/xe2/cb8590/Tas_tifs"
 # outdir = f"/scratch/xe2/cb8590/Tas_csv"
 # preprocess(sentinel_folder, tree_folder, outdir, limit=1)
+# -
+
+# %%time
+sentinel_folder = "/scratch/xe2/cb8590/Nick_sentinel"
+tree_folder = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+outdir = f"/scratch/xe2/cb8590/tmp"
+preprocess(sentinel_folder, tree_folder, outdir, limit=1, double_f=True)
+
+df = pd.read_csv('/scratch/xe2/cb8590/tmp/g2_1236_binary_tree_cover_10m_df_r4_s10_2020.csv')
+df
 
 # +
 # # %%time
@@ -416,9 +441,16 @@ if __name__ == '__main__':
 # # tile_csv(sentinel_file, tree_file=tree_file, outdir=outdir, radius=4, spacing=1)
 
 # +
-# sentinel_file = '/scratch/xe2/cb8590/Tas_sentinel/NorthernMidlands2019-C1-AHD_5375370_GDA2020_55_woodyveg_res10_cat5_ds2_2019.pkl'
-# tree_file =  '/scratch/xe2/cb8590/Tas_tifs/NorthernMidlands2019-C1-AHD_5375370_GDA2020_55_woodyveg_res10_cat5.tif'
-# with open(sentinel_file, 'rb') as file:
-#     ds2 = pickle.load(file)
+# tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_26648_binary_tree_cover_10m.tiff'
 # da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
-# ds['nbart_red'].isel(time=0).rio.to_raster('/scratch/xe2/cb8590/TAS_red0.tif')
+# sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_26648_binary_tree_cover_10m_2024_ds2_2024.pkl'
+# with open(sentinel_file, 'rb') as file:
+#     ds = pickle.load(file)
+# ds = aggregated_metrics(ds, 4)
+# alpha_file = '/scratch/xe2/cb8590/alphaearth_pickle/g2_26648_binary_tree_cover_10m_alpha_earth_embeddings_2024.pkl'
+# with open(alpha_file, 'rb') as file:
+#     ds_alpha = pickle.load(file)
+    
+# ds_alpha = ds_alpha.rio.reproject_match(ds)  
+# for i in range(ds_alpha.sizes['band']):
+#     ds[f'alpha_embedding_{i+1}'] = ds_alpha.isel(band=i)

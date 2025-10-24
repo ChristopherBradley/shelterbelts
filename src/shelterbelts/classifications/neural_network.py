@@ -88,8 +88,8 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, o
     """Final prepping of data for neural network training"""
     # Normalise the input features
     scaler = StandardScaler()     # I should probably remove outliers before scaling.
-    X_train = scaler.fit_transform(df_train.drop(columns=non_input_variables))
-    X_test = scaler.transform(df_test.drop(columns=non_input_variables))
+    X_train = scaler.fit_transform(df_train.drop(columns=non_input_variables, errors='ignore'))
+    X_test = scaler.transform(df_test.drop(columns=non_input_variables, errors='ignore'))
 
     # Save the StandardScaler
     filename_scaler = os.path.join(outdir, f'{stub}_scaler.pkl')
