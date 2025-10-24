@@ -32,7 +32,8 @@ module load dea/20231204  # using this version to match my predictions.pbs (need
 # training_stub=df_previous_5years
 # training_stub=df_matching2
 # training_stub=df_matching_4326
-training_stub=df_matching_koppen
+# training_stub=df_matching_koppen
+training_stub=df_4326_CFa
 
 seed=0
 echo "dea/20231204 NN Training stub: $training_stub"
@@ -42,4 +43,4 @@ echo "dea/20231204 NN Training stub: $training_stub"
 # python3 random_forest.py /scratch/xe2/cb8590/Tas_csv/TEST_preprocessed.feather --outdir /scratch/xe2/cb8590/Tas_tifs --stub 'RF'
 
 # python3 random_forest.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub RF_${training_stub}_keepxy --random_state $seed --drop_columns spatial_ref tile_id year start_date end_date
-python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub NN_${training_stub}_koppen --drop_columns spatial_ref x y tile_id year start_date end_date crs
+python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub NN_${training_stub} --drop_columns spatial_ref tile_id year start_date end_date crs Koppen

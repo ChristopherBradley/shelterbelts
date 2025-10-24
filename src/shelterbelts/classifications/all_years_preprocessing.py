@@ -73,7 +73,10 @@ df_all = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_all_ye
 df_matching = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_matching_year.feather')
 # 84%, not bad not bad
 
+df_matching = df_all
+
 # +
+# %%time
 # Adding coordinates in EPSG:4326
 
 # Add the crs to each row
@@ -91,12 +94,15 @@ for crs, group in df_matching.groupby('crs'):
     dfs.append(group)
 
 df_matching = pd.concat(dfs, ignore_index=True)
-df_matching.to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_matching_4326.feather')
+df_matching.to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_all_4326.feather')
 # -
+
+df_matching[:1000000].to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_1mil_4326.feather')
 
 # Add koppen category to each row
 gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned.gpkg')
 
+# +
 # %%time
 # 1. Convert df_matching to GeoDataFrame
 gdf_points = gpd.GeoDataFrame(
@@ -107,11 +113,26 @@ gdf_points = gpd.GeoDataFrame(
 gdf_joined = gpd.sjoin(gdf_points, gdf_koppen, how='left', predicate='within')
 df_matching['Koppen'] = gdf_joined['Name'].values
 
+# 5 mins for 4 million points with X-Large compute
+# -
+
 
 df_encoded = pd.get_dummies(df_matching, columns=['Koppen'], prefix='Koppen')
 
 
-df_encoded.to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_matching_koppen.feather')
+df_encoded.to_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/df_all_koppen.feather')
+
+df_matching['Koppen'].value_counts()
+
+# %%time
+koppen_classes = df_matching['Koppen'].unique()
+for koppen_class in koppen_classes:
+    df_class = df_matching[df_matching['Koppen'] == koppen_class]
+    filename = f'/scratch/xe2/cb8590/Nick_training_lidar_year/df_4326_{koppen_class}.feather'
+    df_class.to_feather(filename)
+    print(filename)
+
+
 
 
 
