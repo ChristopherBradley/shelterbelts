@@ -161,7 +161,11 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False):
         da = da.rio.write_crs("EPSG:28355", inplace=True)
 
     # Match the tree tif. Reprojecting the other way round breaks if a sentinel dimension is larger thna a tree dimension
-    ds = ds.rio.reproject_match(da)  
+    try:
+        ds = ds.rio.reproject_match(da)  
+    except:
+        return None  # Seems like sometimes either the ds or da is empty, giving this error: rasterio._err.CPLE_IllegalArgError: GDALWarpOptions.Validate(): nBandCount=0, no bands configured!
+    
     for var in ds.data_vars:
         ds[var].attrs.pop("grid_mapping", None)
 
@@ -328,18 +332,21 @@ def preprocess(sentinel_folder, tree_folder=None, outdir=".", stub="TEST", radiu
     # Create a csv of inputs and outputs for each tile
     tile_csvs(sentinel_folder, tree_folder, outdir, radius, spacing, limit, double_f, specific_usecase)
 
-    # Merge the results into a single feather file. 
-    csv_tiles = glob.glob(os.path.join(outdir, '*.csv'))
-    dfs = []
-    for csv_tile in csv_tiles:
-        df = pd.read_csv(csv_tile, index_col=False)
-        dfs.append(df)
-    df_all = pd.concat(dfs)
-    filename = os.path.join(outdir, f"{stub}_preprocessed.feather")
-    df_all.to_feather(filename)
-    print("Saved", filename)
+    # # Doing this merging later instead to avoid intermediate errors
+    # # Merge the results into a single feather file. 
+    # csv_tiles = glob.glob(os.path.join(outdir, '*.csv'))
+    # dfs = []
+    # for csv_tile in csv_tiles:
+    #     df = pd.read_csv(csv_tile, index_col=False)
+    #     dfs.append(df)
+    # df_all = pd.concat(dfs)
+    # filename = os.path.join(outdir, f"{stub}_preprocessed.feather")
+    # df_all.to_feather(filename)
+    # print("Saved", filename)
                           
-    return df_all
+    # return df_all
+
+    return None
 
 
 # +
