@@ -224,42 +224,6 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
     # Randomise the tiles so I can have a random sample before they all complete
     sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
 
-    # These specific usecases were inconvenient when trying to run things in parallel, so I didn't end up using them.
-    print("specific_usecase:", specific_usecase)
-    if specific_usecase is not None:
-        footprints_percent = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg'
-        gdf_percent = gpd.read_file(footprints_percent)
-        footprints_years = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
-        gdf_year = gpd.read_file(footprints_years)
-        gdf = gdf_percent.merge(gdf_year[['filename', 'year']])
-        gdf['stub'] = [stub.split(".")[0] for stub in gdf['filename']]
-        gdf_recent = gdf[~gdf['bad_tif'] & (gdf['year'] > 2017)]  
-    if specific_usecase == 'lidar_year':
-        # get just the sentinel_tiles matching the year of the lidar acquisition
-        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
-        assert(all(os.path.exists(f) for f in sentinel_tiles))
-    if specific_usecase == 'previous_year':
-        # Imagery from the year before lidar was taken
-        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] - 1}_ds2_{row['year'] - 1}.pkl" for i, row in gdf_recent.iterrows()]
-        assert(all(os.path.exists(f) for f in sentinel_tiles))
-    if specific_usecase == 'next_year':
-        # Imagery from the year before lidar was taken
-        sentinel_tiles = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
-        assert(all(os.path.exists(f) for f in sentinel_tiles))
-    if specific_usecase == 'previous_2_years':
-        # Imagery from the current and previous years
-        sentinel_filenames = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_filenames2 = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_tiles = sentinel_filenames + sentinel_filenames2
-    if specific_usecase == 'next_2_years':
-        # Imagery from the current and next year
-        sentinel_filenames = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year']}_ds2_{row['year']}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_filenames2 = [f"/scratch/xe2/cb8590/Nick_sentinel/{row['stub']}_{row['year'] + 1}_ds2_{row['year'] + 1}.pkl" for i, row in gdf_recent.iterrows()]
-        sentinel_tiles = sentinel_filenames + sentinel_filenames2
-    if specific_usecase == 'all_years':
-        # Imagery from all years 2017-2024
-        sentinel_tiles = glob.glob(f'{sentinel_folder}/*') # I could also try including the 'bad' tiles in /scratch/xe2/cb8590/Nick_sentinel2
-
     sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
     if limit is not None:
         sentinel_randomised = sentinel_randomised[:limit]
@@ -412,7 +376,7 @@ if __name__ == '__main__':
         spacing=args.spacing,
         outlines_gpkg=args.outlines_gpkg,
         limit=args.limit,
-        specific_usecase=args.specific_usecase,
+        specific_usecase=args.specific_usecase,  # Now redundant argument since I did the filtering later on instead
         double_f=args.double_f
     )
 

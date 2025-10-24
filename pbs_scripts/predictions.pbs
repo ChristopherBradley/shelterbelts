@@ -13,17 +13,17 @@
 
 # Setup DEA environment modules for running the Python script
 module use /g/data/v10/public/modules/modulefiles
-# module load dea/20231204
+module load dea/20231204
 # module load dea/20250325
-module load dea/20240709
+# module load dea/20240709
 
 wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 cd $wd
 
-year=2017
-echo "Running predictions.pbs for gpkg: $GPKG, year $year", with module dea/20240709
+year=2024
+echo "Running predictions.pbs for gpkg: $GPKG, year $year, with module dea/20231204, stub df_all_years_dea2023"
 
 # Run the script
 # python3 predictions_batch.py --gpkg "$GPKG" --outdir "$OUTDIR" --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p
 # python3 predictions_batch.py --gpkg /g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg --outdir /scratch/xe2/cb8590/barra_trees_2020 --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p --limit 500
-python3 predictions_batch.py --gpkg /scratch/xe2/cb8590/esdale/Esdale_bbox.gpkg  --outdir /scratch/xe2/cb8590/esdale --year $year --nn_dir /g/data/xe2/cb8590/models --nn_stub df_all_years
+python3 predictions_batch.py --gpkg /scratch/xe2/cb8590/esdale/Esdale_bbox.gpkg  --outdir /scratch/xe2/cb8590/esdale --year $year --nn_dir /g/data/xe2/cb8590/models --nn_stub df_all_years_dea2023
