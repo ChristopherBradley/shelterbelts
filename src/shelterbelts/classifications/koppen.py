@@ -1,9 +1,13 @@
 import geopandas as gpd
 import fiona
 import pandas as pd
+from shapely.ops import unary_union
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import box
+
 
 # Download from here: https://people.eng.unimelb.edu.au/mpeel/koppen.html
-filename = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/World_Koppen.kml"
+filename = "/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Koppen/World_Koppen.kml"
 
 # Enable KML support which is disabled by default
 # https://gis.stackexchange.com/questions/114066/handling-kml-csv-with-geopandas-drivererror-unsupported-driver-ucsv
@@ -47,6 +51,109 @@ australia_geom = australia_gdf.geometry.iloc[0]
 # %%time
 polygons = polygons[polygons.intersects(australia_geom)]
 # Took 46 secs to clip the polygons to Australia
+
+
+
+
+
+gdf_polygons = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Koppen/Koppen_Australia.gpkg')
+
+# +
+# Remove inner polygons and just use the outer classification
+gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Koppen/Koppen_Australia.gpkg')
+gdf['geometry'] = gdf['geometry'].buffer(0)
+def get_exterior(geom):
+    if geom.geom_type == 'Polygon':
+        return Polygon(geom.exterior)
+    elif geom.geom_type == 'MultiPolygon':
+        return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
+    else:
+        return geom
+
+gdf['geometry'] = gdf['geometry'].apply(get_exterior)
+to_drop = set()
+for i, geom_i in gdf.geometry.items():
+    for j, geom_j in gdf.geometry.items():
+        if i != j and geom_i.within(geom_j):
+            to_drop.add(i)
+            break
+
+gdf_clean = gdf.drop(index=list(to_drop)).reset_index(drop=True)
+
+# Step 4: Merge geometries and clean up (removes any residual holes)
+gdf_clean['geometry'] = gdf_clean['geometry'].apply(
+    lambda g: g.buffer(0) if g.geom_type == 'Polygon'
+    else unary_union([poly.buffer(0) for poly in g.geoms])
+)
+
+# Step 5: Save output
+gdf_clean.to_file('/Users/christopherbradley/Desktop/Koppen_Australia_noholes.gpkg', driver='GPKG')
+
+print(f"Removed {len(to_drop)} inner polygons.")
+
+# -
+
+
+
+
+
+# +
+gdf = gdf_clean.copy()
+gdf['fid'] = gdf.index
+
+# Step 1: Select the two polygons
+gdf_cfa = gdf[gdf['fid'] == 130].copy()  # CFa
+gdf_cfb = gdf[gdf['fid'] == 143].copy()  # Cfb
+
+# Step 2: Create the latitude split masks
+minx, miny, maxx, maxy = gdf.total_bounds
+south_mask = box(minx, miny, 149.5, -32.9)
+
+# Step 3: Split the CFa polygon into north/south
+cfa_geom = unary_union(gdf_cfa.geometry)
+cfa_north = cfa_geom.difference(south_mask)
+cfa_south = cfa_geom.intersection(south_mask)
+
+gdf.loc[gdf['fid'] == 130, 'geometry'] = cfa_north
+
+# Step 5: Union the southern part of CFa into fid=144 (Cfb)
+cfb_geom = unary_union(gdf_cfb.geometry)
+merged_cfb = unary_union([cfb_geom, cfa_south])
+gdf.loc[gdf['fid'] == 143, 'geometry'] = merged_cfb
+
+# Step 6: Clean and save
+gdf['geometry'] = gdf['geometry'].buffer(0)
+gdf.to_file('/Users/christopherbradley/Desktop/Koppen_Australia_noholes_split.gpkg', driver='GPKG')
+
+print("✅ Split fid=130 at -32.9° and merged southern section into fid=143.")
+# -
+
+
+
+
+
+# --- Save the southern section for inspection ---
+gdf_cfa_south = gpd.GeoDataFrame(
+    {'fid': [131], 'Name': [gdf_cfa.iloc[0]['Name']], 'geometry': [merged_cfb]},
+    crs=gdf.crs
+)
+gdf_cfa_south.to_file('/Users/christopherbradley/Desktop/merged_cfb.gpkg', driver='GPKG')
+
+# +
+
+gdf.loc[(lon < 144) & (lat < -31), 'Name'] = 'BSk'
+gdf.loc[(lon < 131), 'Name'] = 'KUN'
+gdf.loc[(lat < -24) & (lat > -29) & (lon < 143.6), 'Name'] = 'BWh'
+gdf.loc[(gdf['Name'] == 'CFa') & (lat > -32.9), 'Name'] = 'CFx'
+gdf.loc[(gdf['Name'] == 'Cfb') & (lat > -30), 'Name'] = 'CFx'
+gdf.loc[(lon > 152.5), 'Name'] = 'CFx'
+names = ['CFa', 'Cfb', 'CFx', 'BWh', 'KUN', 'BSk', 'BSh']
+gdf.loc[~gdf['Name'].isin(names), 'Name'] = 'Aw'
+# -
+
+'CFa' lat < -32.9
+
+
 
 joined = gpd.sjoin(polygons, points, how='left', predicate='contains')
 joined.groupby('index_right').size().value_counts()
