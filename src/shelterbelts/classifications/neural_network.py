@@ -105,14 +105,17 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, o
     
 def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_size, outdir='TEST', stub='.'):
     """Train a neural network and save the resulting model and training plots"""
+    dropout=0.1
     model = keras.Sequential([
+        keras.layers.Dense(256, activation='relu'),    
+        keras.layers.Dropout(dropout), 
+
         keras.layers.Dense(128, activation='relu'),    
-        keras.layers.Dropout(0.3), 
+        keras.layers.Dropout(dropout), 
         
         keras.layers.Dense(64, activation='relu'),
-        keras.layers.Dropout(0.3), 
+        keras.layers.Dropout(dropout), 
         
-        keras.layers.Dense(32, activation='relu'),
         keras.layers.Dense(2, activation='softmax')
     ])
     early_stopping = EarlyStopping(
@@ -121,6 +124,8 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
         restore_best_weights=True 
     )
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    # optimizer = keras.optimizers.RMSprop(learning_rate=1e-3)
+
     model.compile(optimizer=optimizer, loss = 'CategoricalCrossentropy', metrics = ['CategoricalAccuracy'])        
 
     # Train the model
@@ -163,6 +168,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     plt.tight_layout()
     filename = os.path.join(outdir, f'{stub}_training_plots.png')
     plt.savefig(filename)
+    print("Saved", filename)
 
     return model
 
@@ -237,7 +243,7 @@ def class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_
     
 def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_variables, output_column):
     """Calculate just the overall metrics"""
-    X_test = scaler.transform(df_test.drop(columns=non_input_variables))
+    X_test = scaler.transform(df_test.drop(columns=non_input_variables, errors='ignore'))
     y_pred_percent = model.predict(X_test)
     y_pred = [percent.argmax() for percent in y_pred_percent]
     results = df_test[[output_column]].copy()
@@ -334,7 +340,7 @@ def parse_arguments():
     parser.add_argument('--drop_columns', nargs='+', default=['x', 'y', 'tile_id'], help='Columns to drop (default: x y tile_id)')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate hyperparameter (default: 0.001)')
     parser.add_argument('--epochs', type=int, default=50, help='Max number of epochs (default: 50)')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training (default: 32)')
+    parser.add_argument('--batch_size', type=int, default=256, help='Batch size for training (default: 32)')
     parser.add_argument('--random_state', type=int, default=1, help='Random seed (default: 1)')
     parser.add_argument('--stratification_columns', nargs='+', default=['tree_cover'], help='Columns to stratify samples on (default: tree_cover)')
     parser.add_argument('--train_frac', type=float, default=0.7, help='Fraction of samples to use for training (default: 0.7)')

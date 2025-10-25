@@ -165,7 +165,7 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alph
     if da.rio.crs is None:
         da = da.rio.write_crs("EPSG:28355", inplace=True)
 
-    # Match the tree tif. Reprojecting the other way round breaks if a sentinel dimension is larger thna a tree dimension
+    # Match the tree tif. Reprojecting the other way round breaks if a sentinel dimension is larger than a tree dimension
     try:
         ds = ds.rio.reproject_match(da)  
     except:
@@ -193,14 +193,15 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alph
     start_date = str(ds.time[0].dt.date.item())
     end_date = str(ds.time[-1].dt.date.item())
     
-    # Add the alphaearth embeddings to the ds
-    stub = tree_file.split('/')[-1].split('.')[0]
-    alpha_file = os.path.join(alpha_folder, f'{stub}_alpha_earth_embeddings_{year}.pkl')
-    with open(alpha_file, 'rb') as file:
-        ds_alpha = pickle.load(file)
-    ds_alpha = ds_alpha.rio.reproject_match(ds)  
-    for i in range(ds_alpha.sizes['band']):
-        ds[f'alpha_embedding_{i+1}'] = ds_alpha.isel(band=i)
+    if alpha_folder is not None:
+        # Add the alphaearth embeddings to the ds
+        stub = tree_file.split('/')[-1].split('.')[0]
+        alpha_file = os.path.join(alpha_folder, f'{stub}_alpha_earth_embeddings_{year}.pkl')
+        with open(alpha_file, 'rb') as file:
+            ds_alpha = pickle.load(file)
+        ds_alpha = ds_alpha.rio.reproject_match(ds)  
+        for i in range(ds_alpha.sizes['band']):
+            ds[f'alpha_embedding_{i+1}'] = ds_alpha.isel(band=i)
 
     # Remove the temporal bands
     variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
@@ -213,6 +214,8 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alph
     df["year"] = year
     df["start_date"] = start_date
     df['end_date'] = end_date
+    
+    df = df.drop(columns=['spatial_ref', 'band'], errors='ignore')
 
     # Save a copy of this dataframe just in case something messes up later
     os.makedirs(outdir, exist_ok=True)
@@ -415,16 +418,13 @@ if __name__ == '__main__':
 # tree_folder = "/scratch/xe2/cb8590/Tas_tifs"
 # outdir = f"/scratch/xe2/cb8590/Tas_csv"
 # preprocess(sentinel_folder, tree_folder, outdir, limit=1)
-# -
 
-# %%time
-sentinel_folder = "/scratch/xe2/cb8590/Nick_sentinel"
-tree_folder = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-outdir = f"/scratch/xe2/cb8590/tmp"
-preprocess(sentinel_folder, tree_folder, outdir, limit=1, double_f=True)
-
-df = pd.read_csv('/scratch/xe2/cb8590/tmp/g2_1236_binary_tree_cover_10m_df_r4_s10_2020.csv')
-df
+# +
+# # %%time
+# sentinel_folder = "/scratch/xe2/cb8590/Nick_sentinel"
+# tree_folder = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
+# outdir = f"/scratch/xe2/cb8590/tmp"
+# preprocess(sentinel_folder, tree_folder, outdir, limit=1, double_f=True)
 
 # +
 # # %%time
