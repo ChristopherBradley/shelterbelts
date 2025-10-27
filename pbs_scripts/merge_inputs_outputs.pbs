@@ -26,6 +26,6 @@ module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
 # Run the script
-python3 merge_inputs_outputs.py --sentinel_folder "$SENTINEL_FOLDER" --stub "$STUB" --tree_folder /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/Nick_training_allyears_alpha_s10 --double_f --spacing 10
+python3 merge_inputs_outputs.py --sentinel_folder "$SENTINEL_FOLDER" --stub "$STUB" --tree_folder /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/Nick_training_allyears_float32_s3 --double_f --spacing 3
 # python3 merge_inputs_outputs.py --sentinel_folder "$SENTINEL_FOLDER" --tree_folder /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --double_f --specific_usecase lidar_year --limit 10
 # python3 merge_inputs_outputs.py --sentinel_folder /scratch/xe2/cb8590/Tas_sentinel --tree_folder /scratch/xe2/cb8590/Tas_tifs --outdir /scratch/xe2/cb8590/Tas_csv

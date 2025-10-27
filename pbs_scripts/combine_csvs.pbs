@@ -19,12 +19,14 @@ module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
 
+# folder=Nick_training_lidar_subset
 # folder=Nick_training_lidar_noyear
 # folder=Nick_training_lidar_year
 # folder=Nick_training_allyears_s5
-folder=Nick_training_allyears_s3
+# folder=Nick_training_allyears_s3
 # folder=Nick_training_allyears_s2
 # folder=Nick_training_allyears_s1
+folder=Nick_training_allyears_float32_s3
 
 echo "Starting combine_csvs.pbs for folder $folder" 
 

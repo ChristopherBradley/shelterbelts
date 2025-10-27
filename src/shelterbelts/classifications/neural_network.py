@@ -120,7 +120,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     ])
     early_stopping = EarlyStopping(
         monitor='val_loss', 
-        patience=5,           # Stop training if val_loss doesn't improve n epochs
+        patience=30,           # For some reason the BWh training still seemed to be impatient after ~10 epochs
         restore_best_weights=True 
     )
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)

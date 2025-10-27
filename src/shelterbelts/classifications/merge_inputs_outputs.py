@@ -152,7 +152,8 @@ def visualise_jittered_grid(ds, spacing=10, outdir='/scratch/xe2/cb8590/tmp', st
     gdf.to_file(filename) 
     print("Saved: ", filename)
 
-def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alpha_folder='/scratch/xe2/cb8590/alphaearth_pickle'):
+# alpha_folder = '/scratch/xe2/cb8590/alphaearth_pickle'
+def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alpha_folder=None):
     """Create a csv file with a subset of training pixels for this sentinel xarray"""
 
     # Load the woody veg
@@ -216,6 +217,14 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alph
     df['end_date'] = end_date
     
     df = df.drop(columns=['spatial_ref', 'band'], errors='ignore')
+    
+    # Change the datatypes to make the file as small as possible
+    df = df.drop(columns=['start_date', 'end_date'], errors='ignore')
+    for col in df.select_dtypes(include=['float64']).columns:
+        # df[col] = df[col].astype(np.float16)
+        df[col] = df[col].astype(np.float32)
+    for col in df.select_dtypes(include=['int64']).columns:
+        df[col] = df[col].astype(np.int16)
 
     # Save a copy of this dataframe just in case something messes up later
     os.makedirs(outdir, exist_ok=True)

@@ -25,16 +25,21 @@ sys.path.append(src_dir)
 from shelterbelts.classifications.neural_network import my_train_test_split, inputs_outputs_split, class_accuracies_overall # Might need to adjust this to work with the random forst model
 
 
-def combine_csvs(csv_folder):
+def combine_csvs(csv_folder, limit=None):
     """Merge all of the csv files into a single .feather file and attach the coordinates in EPSG:4326 and koppen category"""
     # csv_folder = 'Nick_training_allyears_s5'
     csv_glob = f'/scratch/xe2/cb8590/{csv_folder}/g*.csv'
     files = glob.glob(csv_glob)
     
+    limit_stub = ""
+    if limit:
+        files = files[:limit]
+        limit_stub = "_" + str(limit)
+    
     dfs = [pd.read_csv(f) for f in files]
     df_all = pd.concat(dfs, ignore_index=True)
-    filename = f'/scratch/xe2/cb8590/{csv_folder}/df_all.feather'
-    df_all.to_feather(f'/scratch/xe2/cb8590/{csv_folder}/df_all.feather')
+    filename = f'/scratch/xe2/cb8590/{csv_folder}/df_all{limit_stub}.feather'
+    df_all.to_feather(filename)
     print(filename)
 
     df_crs = pd.read_csv('/g/data/xe2/cb8590/Nick_outlines/nick_bbox_year_crs.csv')
@@ -51,7 +56,7 @@ def combine_csvs(csv_folder):
         dfs.append(group)
 
     df_all = pd.concat(dfs, ignore_index=True)
-    filename = f'/scratch/xe2/cb8590/{csv_folder}/df_all_4326.feather'
+    filename = f'/scratch/xe2/cb8590/{csv_folder}/df_all_4326{limit_stub}.feather'
     df_all.to_feather(filename)
     print(filename)
     
@@ -72,9 +77,11 @@ def combine_csvs(csv_folder):
     koppen_classes = df_all['Koppen'].unique()
     for koppen_class in koppen_classes:
         df_class = df_all[df_all['Koppen'] == koppen_class]
-        filename = f'/scratch/xe2/cb8590/{csv_folder}/df_4326_{koppen_class}.feather'
+        filename = f'/scratch/xe2/cb8590/{csv_folder}/df_4326_{koppen_class}{limit_stub}.feather'
         df_class.to_feather(filename)
         print(filename)
+        
+    return df_all
 
 
 def evaluate_by_category():
@@ -113,6 +120,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("folder", help="Folder containing the csv files to combine")
+    parser.add_argument('--limit', type=int, default=None, help='Number of rows (default: all)')
     return parser.parse_args()
 
 
@@ -125,5 +133,25 @@ if __name__ == "__main__":
 
 # +
 # # %%time
-# # combine_csvs('Nick_training_allyears_s5')
-# combine_csvs('Nick_training_lidar_noyear')
+# # combine_csvs('Nick_training_subset')
+# df = combine_csvs('Nick_training_allyears_float32_s5', limit=10)
+# df
+
+# +
+# df = pd.read_feather('/scratch/xe2/cb8590/Nick_training_allyears_s5/df_all_koppen.feather')
+
+# +
+# Check on the Koppen categories
+# df = df.drop(columns=['spatial_ref', 'y', 'x', 'start_date', 'end_date', 'crs', 'Koppen'])# df = df.drop(columns=['spatial_ref', 'y', 'x', 'start_date', 'end_date', 'crs', 'Koppen'])
+
+# +
+# If they don't exist, then create a subset of df to figure out why
+
+# +
+# Remove the date columns that I don't need
+# -
+
+# Create a separate training dataset with much smaller filesizes and see if I get the same training accuracy (int16 and float16)
+
+
+

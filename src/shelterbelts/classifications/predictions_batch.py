@@ -11,6 +11,7 @@ import traceback
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+from pyproj import Transformer
 
 
 import xarray as xr
@@ -55,6 +56,9 @@ cmap = {
     1: (0, 100, 0),   # Trees are green
 }
 
+# Loading this once instead of every time in tif_prediction_ds. Could instead load once in predictions_batch and pass as an argument
+gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned.gpkg')
+
 
 # +
 
@@ -73,6 +77,7 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     # Preprocess the temporally and spatially aggregated metrics
     ds_agg = aggregated_metrics(ds)
     ds = ds_agg # I don't think this is necessary since aggregated metrics changes the ds in place
+    
     variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
     ds_selected = ds[variables] 
     ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
@@ -81,7 +86,36 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     # Normalise the inputs using the same standard scaler during training
     X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
     df_X_all = pd.DataFrame(X_all, columns=ds_selected.data_vars) # Just doing this to silence the warning about not having feature names
-    X_all_scaled = scaler.transform(df_X_all)
+    
+    # Add x, y coordinates
+    y, x = ds_stacked['z'].to_index().levels  
+    coords = pd.DataFrame(ds_stacked['z'].to_index().tolist(), columns=['y', 'x'])
+    df_X_all = pd.concat([df_X_all, coords], axis=1)
+
+    # Reproject to epsg:4326. Might have been better to have trained the model on EPSG:3857 to avoid this
+    transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+    df_X_all['x'], df_X_all['y'] = transformer.transform(df_X_all['x'].values, df_X_all['y'].values)
+
+    # Attach koppen categories
+    gdf_points = gpd.GeoDataFrame(
+        df_X_all,
+        geometry=gpd.points_from_xy(df_X_all['x'], df_X_all['y']),
+        crs="EPSG:4326"
+    )
+    gdf_joined = gpd.sjoin(gdf_points, gdf_koppen, how='left', predicate='within')
+    
+    # Use the koppen class to decide which model to use (we should load all 6 models at the start)
+    # df_X_all['Koppen'] = gdf_joined['Name'].values
+    
+    # Convert to float32 to match datatypes used when training
+    df = df_X_all
+    for col in df.select_dtypes(include=['float64']).columns:
+        # df[col] = df[col].astype(np.float16)
+        df[col] = df[col].astype(np.float32)
+    for col in df.select_dtypes(include=['int64']).columns:
+        df[col] = df[col].astype(np.int16)
+    
+    X_all_scaled = scaler.transform(df)
 
     # Make predictions and add to the xarray    
     # print("Predicting")
@@ -253,70 +287,67 @@ if __name__ == '__main__':
 
 # # 40 secs for 1 file
 # # 6 mins for 10 files
+# -
+
+sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_90/g2_2584_binary_tree_cover_10m_2021_ds2_2021.pkl'
+outdir = '/scratch/xe2/cb8590/tmp'
+model_file = '/scratch/xe2/cb8590/Nick_training_allyears_float32_s4/NN_df_4326_Cfb_float32_s4_nn.keras'
+scaler_file = '/scratch/xe2/cb8590/Nick_training_allyears_float32_s4/NN_df_4326_Cfb_float32_s4_scaler.pkl'
+
+# %%time
+da = tif_prediction(sentinel_file, outdir, model_file, scaler_file)
+
+da.plot()
 
 # +
-# # Trees for Dmitry, should move to a different file
-# filename = '/scratch/xe2/cb8590/tmp/Esdale_bbox.gpkg'
+variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
+ds_selected = ds[variables] 
+ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
 
-# gdf = gpd.read_file(filename)
-
-# year = 2020
-# stub = f"ESDALE_{year}"
-# outdir = "/scratch/xe2/cb8590/ka08_trees"
-# src_crs = gdf.crs
-# bounds = list(gdf.bounds.iloc[0])
-
-# nn_dir = '/g/data/xe2/cb8590/models'
-# nn_stub = 'fft_89a_92s_85r_86p'
-
-# filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
-# filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
-
-# # # Loading this once per worker, so they aren't sharing the same model
-# model = keras.models.load_model(filename_model)
-# scaler = joblib.load(filename_scaler)
-
-# # %%time
-# tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
-
-# # %%time
-# years = [2017, 2018, 2019, 2021, 2022, 2023, 2024]
-# for year in years:
-#     stub = f"ESDALE_{year}"
-#     tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
-
-# year = 2025
-# stub = f"ESDALE_{year}"
-# tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
-
-# from shelterbelts.apis.worldcover import worldcover_bbox, worldcover_cmap, tif_categorical
+# print("Normalising")
+# Normalise the inputs using the same standard scaler during training
+X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
+df_X_all = pd.DataFrame(X_all, columns=ds_selected.data_vars) # Just doing this to silence the warning about not having feature names
 
 
-# da = worldcover_bbox(bounds, src_crs)
+# +
+# %%time
+# Add x, y coordinates
+y, x = ds_stacked['z'].to_index().levels  
+coords = pd.DataFrame(ds_stacked['z'].to_index().tolist(), columns=['y', 'x'])
+df_X_all = pd.concat([df_X_all, coords], axis=1)
 
-# stub = "ESDALE"
-# filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
-# tif_categorical(da, filename, worldcover_cmap)
+# Reproject to epsg:4326. Might have been better to have trained the model on EPSG:3857 to avoid this
+transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+df_X_all['x'], df_X_all['y'] = transformer.transform(df_X_all['x'].values, df_X_all['y'].values)
 
-# from shelterbelts.apis.canopy_height import canopy_height_bbox
+# Attach koppen categories
+gdf_points = gpd.GeoDataFrame(
+    df_X_all,
+    geometry=gpd.points_from_xy(df_X_all['x'], df_X_all['y']),
+    crs="EPSG:4326"
+)
+gdf_joined = gpd.sjoin(gdf_points, gdf_koppen, how='left', predicate='within')
+df_X_all['Koppen'] = gdf_joined['Name'].values
+# -
 
-# # %%time
-# ds = canopy_height_bbox(bounds, outdir, stub, tmpdir='/scratch/xe2/cb8590/Global_Canopy_Height', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson')
 
-# from shelterbelts.util.binary_trees import worldcover_trees, canopy_height_trees, cmap_woody_veg, labels_woody_veg
 
-# da_canopy_height_trees = canopy_height_trees('/scratch/xe2/cb8590/ka08_trees/ESDALE_Canopy_Height_canopy_height.tif', outdir)
+# %%time
 
-# da_worldcover_trees = worldcover_trees('/scratch/xe2/cb8590/ka08_trees/ESDALE_worldcover.tif', outdir, stub)
 
-# da_2017 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2017_predicted.tif').isel(band=0).drop_vars('band')
-# da_2019 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2019_predicted.tif').isel(band=0).drop_vars('band')
-# da_2020 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2020_predicted.tif').isel(band=0).drop_vars('band')
-# da_2021 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2021_predicted.tif').isel(band=0).drop_vars('band')
-# da_2023 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2023_predicted.tif').isel(band=0).drop_vars('band')
-# da_2024 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2023_predicted.tif').isel(band=0).drop_vars('band')
+df_X_all
 
-# da_union = da_2017 | da_2020 | da_2021 | da_2023 | da_2024
+# %%time
+df_training = pd.read_feather('/scratch/xe2/cb8590/Nick_training_allyears_float32_s5/df_4326_CFa.feather')
 
-# tif_categorical(da_union, '/scratch/xe2/cb8590/ka08_trees/ESDALE_woody_veg_union2.tif', cmap_woody_veg)
+df_training
+
+# +
+
+# Assuming df_X_all already has 'x' and 'y' columns in EPSG:3857
+
+
+# -
+
 
