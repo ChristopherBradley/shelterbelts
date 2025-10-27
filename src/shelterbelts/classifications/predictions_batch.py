@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from pyproj import Transformer
+from shapely.geometry import Point
 
 
 import xarray as xr
@@ -61,8 +62,7 @@ gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned
 
 
 # +
-
-def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
+def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -87,24 +87,26 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
     df_X_all = pd.DataFrame(X_all, columns=ds_selected.data_vars) # Just doing this to silence the warning about not having feature names
     
-    # Add x, y coordinates
-    y, x = ds_stacked['z'].to_index().levels  
-    coords = pd.DataFrame(ds_stacked['z'].to_index().tolist(), columns=['y', 'x'])
-    df_X_all = pd.concat([df_X_all, coords], axis=1)
+    # The old models didn't include the xy coords, but the new ones do because it improved accuracy by around 0.5%. 
+    # Similar improvement in accuracy by adding a 1-hot encoded koppen class, but no benefit to having both xy and koppen.
+    if add_xy:
+        # Add x, y coordinates
+        y, x = ds_stacked['z'].to_index().levels  
+        coords = pd.DataFrame(ds_stacked['z'].to_index().tolist(), columns=['y', 'x'])
+        df_X_all = pd.concat([df_X_all, coords], axis=1)
 
-    # Reproject to epsg:4326. Might have been better to have trained the model on EPSG:3857 to avoid this
-    transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
-    df_X_all['x'], df_X_all['y'] = transformer.transform(df_X_all['x'].values, df_X_all['y'].values)
+        # Reproject to epsg:4326. Might have been better to have trained the model on EPSG:3857 to avoid this
+        transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+        df_X_all['x'], df_X_all['y'] = transformer.transform(df_X_all['x'].values, df_X_all['y'].values)
 
     # Attach koppen categories
-    gdf_points = gpd.GeoDataFrame(
-        df_X_all,
-        geometry=gpd.points_from_xy(df_X_all['x'], df_X_all['y']),
-        crs="EPSG:4326"
-    )
-    gdf_joined = gpd.sjoin(gdf_points, gdf_koppen, how='left', predicate='within')
-    
-    # Use the koppen class to decide which model to use (we should load all 6 models at the start)
+    # I should be able to figure out which model to use based on a single central point before we call this function
+    # gdf_points = gpd.GeoDataFrame(
+    #     df_X_all,
+    #     geometry=gpd.points_from_xy(df_X_all['x'], df_X_all['y']),
+    #     crs="EPSG:4326"
+    # )
+    # gdf_joined = gpd.sjoin(gdf_points, gdf_koppen, how='left', predicate='within')
     # df_X_all['Koppen'] = gdf_joined['Name'].values
     
     # Convert to float32 to match datatypes used when training
@@ -184,21 +186,46 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
     gc.collect()
     return None
 
-def run_worker(func, rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p'):
+def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', multi_model=False):
     """Abstracting the for loop & try except for each worker"""
     
-    # # Would be nice to not hardcode this so other people can use their own models
-    filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
-    filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
-
-    # # Loading this once per worker, so they aren't sharing the same model
-    model = keras.models.load_model(filename_model)
-    scaler = joblib.load(filename_scaler)
+    # Loading this once per worker, so they aren't sharing the same model
+    if not multi_model:
+        filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
+        filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
+        model = keras.models.load_model(filename_model)
+        scaler = joblib.load(filename_scaler)
+    else:
+        koppen_classes = gdf_koppen['Name'].unique()
+        model_dict = dict()
+        for koppen_class in koppen_classes:
+            filename_model = os.path.join(nn_dir, f'nn_{nn_stub}_{koppen_class}.keras')
+            filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}_{koppen_class}.pkl')
+            model = keras.models.load_model(filename_model)
+            scaler = joblib.load(filename_scaler)
+            model_dict[koppen_class] = (model, scaler)
+            
+            # Add the overall model once it's finished training
 
     for row in rows:
         try:
+            if multi_model:
+                # Choose which of the 6 models to use based on the center coordinate
+                bbox = row[3]
+                center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
+                point = Point(center)
+                match = gdf_koppen[gdf_koppen.contains(point)]
+                if len(match) > 0:
+                    koppen_class = match.iloc[0]['Name']
+                    model = model_dict[koppen_class][0]
+                    scaler = model_dict[koppen_class][1]
+                else:
+                    # Change this to the overall model once it's finished training
+                    model = model_dict['Cfb'][0]
+                    scaler = model_dict['Cfb'][1]
+                    
             # mem_before = process.memory_info().rss / 1e9
-            func(*row, model, scaler)
+            tif_prediction_bbox(*row, model, scaler)
             # mem_after = process.memory_info().rss / 1e9
             mem_info = process.memory_full_info()
             print(f"{row[0]}: RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
@@ -210,7 +237,7 @@ def run_worker(func, rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_
 
 # -
 
-def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', limit=None):
+def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', limit=None, multi_model=False):
     """Use the model to make tree classifications based on sentinel imagery for that year
     
     Parameters
@@ -242,11 +269,8 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models
 
     if limit:
         rows = rows[:int(limit)]
-
-    # Legacy argument, not sure when we'd want to use run_worker with another function anymore.
-    func = tif_prediction_bbox
-
-    run_worker(func, rows, nn_dir, nn_stub)
+    
+    run_worker(rows, nn_dir, nn_stub, multi_model)
 
 
 def parse_arguments():
@@ -259,6 +283,7 @@ def parse_arguments():
     parser.add_argument("--nn_dir", type=str, default='/g/data/xe2/cb8590/models', help="The stub of the neural network model and preprocessing scaler")
     parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
     parser.add_argument("--limit", type=int, default=None, help="Number of rows to process")
+    parser.add_argument("--multi_model", action="store_true", help="Use a separate model for each koppen region. Default: False")
 
     return parser.parse_args()
 
@@ -274,80 +299,28 @@ if __name__ == '__main__':
     nn_dir = args.nn_dir
     nn_stub = args.nn_stub
     limit = args.limit
+    multi_model = args.multi_model
     
-    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit)
-
-
+    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model)
 
 # +
-# # %%time
-# filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
-# outdir = '/scratch/xe2/cb8590/tmp'
-# predictions_batch(filename, outdir, limit=10)
+# %%time
+filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+outdir = '/scratch/xe2/cb8590/tmp'
+predictions_batch(filename, outdir, limit=1)
 
 # # 40 secs for 1 file
 # # 6 mins for 10 files
-# -
 
-sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_90/g2_2584_binary_tree_cover_10m_2021_ds2_2021.pkl'
+# +
+# %%time
+gpkg = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
 outdir = '/scratch/xe2/cb8590/tmp'
-model_file = '/scratch/xe2/cb8590/Nick_training_allyears_float32_s4/NN_df_4326_Cfb_float32_s4_nn.keras'
-scaler_file = '/scratch/xe2/cb8590/Nick_training_allyears_float32_s4/NN_df_4326_Cfb_float32_s4_scaler.pkl'
+nn_dir = '/g/data/xe2/cb8590/models'
+nn_stub = '4326_float32_s4'
+year = 2020
+limit = 1
+predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model=True)
 
-# %%time
-da = tif_prediction(sentinel_file, outdir, model_file, scaler_file)
-
-da.plot()
-
-# +
-variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
-ds_selected = ds[variables] 
-ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
-
-# print("Normalising")
-# Normalise the inputs using the same standard scaler during training
-X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
-df_X_all = pd.DataFrame(X_all, columns=ds_selected.data_vars) # Just doing this to silence the warning about not having feature names
-
-
-# +
-# %%time
-# Add x, y coordinates
-y, x = ds_stacked['z'].to_index().levels  
-coords = pd.DataFrame(ds_stacked['z'].to_index().tolist(), columns=['y', 'x'])
-df_X_all = pd.concat([df_X_all, coords], axis=1)
-
-# Reproject to epsg:4326. Might have been better to have trained the model on EPSG:3857 to avoid this
-transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
-df_X_all['x'], df_X_all['y'] = transformer.transform(df_X_all['x'].values, df_X_all['y'].values)
-
-# Attach koppen categories
-gdf_points = gpd.GeoDataFrame(
-    df_X_all,
-    geometry=gpd.points_from_xy(df_X_all['x'], df_X_all['y']),
-    crs="EPSG:4326"
-)
-gdf_joined = gpd.sjoin(gdf_points, gdf_koppen, how='left', predicate='within')
-df_X_all['Koppen'] = gdf_joined['Name'].values
-# -
-
-
-
-# %%time
-
-
-df_X_all
-
-# %%time
-df_training = pd.read_feather('/scratch/xe2/cb8590/Nick_training_allyears_float32_s5/df_4326_CFa.feather')
-
-df_training
-
-# +
-
-# Assuming df_X_all already has 'x' and 'y' columns in EPSG:3857
-
-
-# -
-
-
+# # 40 secs for 1 file
+# # 6 mins for 10 files
