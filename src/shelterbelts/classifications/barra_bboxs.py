@@ -1,6 +1,8 @@
 # +
 import os
 import shutil
+import re
+import math
 from pathlib import Path
 import geopandas as gpd
 from shapely.prepared import prep
@@ -98,8 +100,8 @@ def crop_barra_bboxs():
 
 
 
-# -
 
+# +
 def sub_gpkgs():
     """Create smaller gpkgs for passing to multiple prediction jobs at once"""
     # Input / output paths
@@ -111,12 +113,12 @@ def sub_gpkgs():
     gdf = gpd.read_file(input_file)
     gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
 
-    # Remove tiles that have already been processed
-    proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
-    processed_stubs = {
-        f.stem.replace("_predicted", "") for f in proc_dir.glob("*_predicted.tif")
-    }
-    gdf = gdf[~gdf["stub"].isin(processed_stubs)]
+#     # Remove tiles that have already been processed
+#     proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
+#     processed_stubs = {
+#         f.stem.replace("_predicted", "") for f in proc_dir.glob("*_predicted.tif")
+#     }
+#     gdf = gdf[~gdf["stub"].isin(processed_stubs)]
         
     # Chunk size
     chunk_size = 500
@@ -127,7 +129,55 @@ def sub_gpkgs():
         chunk = gdf.iloc[start:end]
         out_file = os.path.join(output_dir, f"BARRA_bboxs_nsw_{start}-{end}.gpkg")
         chunk.to_file(out_file, driver="GPKG")
+
         print(f"Saved {out_file}")
+
+
+# -
+
+def mosaic_subfolders():
+    """Create subfolders for mosaicking tiles"""
+    # Creating subfolders for mosaicking tiles
+    base_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
+    output_base = Path("/scratch/xe2/cb8590/barra_trees_2020/subfolders")
+
+    # Create the output base if needed
+    output_base.mkdir(exist_ok=True)
+
+    # Approx tile size (degrees): 4 km ≈ 0.036°, so 50 tiles ≈ 1.8° — round to 2°
+    block_size_deg = 2.0
+
+    # Regex to extract lat/lon from filenames like "28_21-153_54_predicted.tif"
+    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_predicted\.tif")
+    for i, tif_path in enumerate(base_dir.glob("*.tif")):
+        if i % 1000 == 0:
+            print(f"Moving tile {i}")
+        m = pattern.match(tif_path.name)
+        if not m:
+            continue
+
+        lat_str, lon_str = m.groups()
+        lat = float(lat_str.replace("_", "."))
+        lon = float(lon_str.replace("_", "."))
+
+        # Find the 2° bin indices
+        lat_bin = math.floor(lat / block_size_deg) * block_size_deg
+        lon_bin = math.floor(lon / block_size_deg) * block_size_deg
+
+        # Folder name e.g. lat_-28_lon_152
+        subfolder = output_base / f"lat_{lat_bin:.0f}_lon_{lon_bin:.0f}"
+        subfolder.mkdir(exist_ok=True)
+
+        # Move file (or use shutil.copy2 if you prefer copying)
+        shutil.move(str(tif_path), subfolder / tif_path.name)
+
+    # Took 30 secs for 50k tiles
+
+
+gdf = gpd.read_file('/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg')
+
+gdf
+
 
 
 # +
