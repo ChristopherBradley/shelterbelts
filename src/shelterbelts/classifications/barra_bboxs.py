@@ -118,11 +118,11 @@ def crop_barra_bboxs():
 
 
 # +
-def sub_gpkgs():
+def sub_gpkgs(state='actnsw'):
     """Create smaller gpkgs for passing to multiple prediction jobs at once"""
     # Input / output paths
-    input_file = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg"
-    output_dir = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_nsw3857"
+    input_file = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_{state}.gpkg"
+    output_dir = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_{state}"
     os.makedirs(output_dir, exist_ok=False)
     
     # Load the GeoDataFrame
@@ -144,17 +144,16 @@ def sub_gpkgs():
     for start in range(0, len(gdf), chunk_size):
         end = min(start + chunk_size, len(gdf))
         chunk = gdf.iloc[start:end]
-        out_file = os.path.join(output_dir, f"BARRA_bboxs_nsw3857_{start}-{end}.gpkg")
+        out_file = os.path.join(output_dir, f"BARRA_bboxs_{state}_{start}-{end}.gpkg")
         chunk.to_file(out_file, driver="GPKG")
 
         print(f"Saved {out_file}")
 
 
-# +
-def mosaic_subfolders():
+# -
+
+def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
     """Create subfolders for mosaicking tiles"""
-    # Creating subfolders for mosaicking tiles
-    base_str = '/scratch/xe2/cb8590/barra_trees_s4_2024'
     output_str = f"{base_str}/subfolders"
     base_dir = Path(base_str)
     output_base = Path(output_str)
@@ -242,7 +241,7 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
 # geopackage_km(filename_state_boundaries, tile_size=30000)
 # -
 def single_boundary():
-    """Creating a single boundary for NSW"""
+    """Creating a single boundary for NSW (missing jervis bay)"""
     gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Australia State Boundaries/STE_2021_AUST_GDA2020.shp')
     multipolygon = gdf.iloc[0]['geometry']
     largest_polygon = max(multipolygon.geoms, key=lambda p: p.area)
@@ -253,5 +252,3 @@ def single_boundary():
         crs=gdf.crs  # Preserve the coordinate reference system
     )
     gdf_no_holes.to_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/NSW_Border_Largest_Polygon.shp')
-
-
