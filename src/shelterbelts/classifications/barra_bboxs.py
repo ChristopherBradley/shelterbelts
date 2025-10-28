@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 import geopandas as gpd
 from shapely.prepared import prep
-from shapely.geometry import box, Polygon
+from shapely.geometry import box, Polygon, MultiPolygon
 
 import xarray as xr
 import numpy as np
@@ -69,9 +69,22 @@ def crop_barra_bboxs():
     }
 
     # Create a geopackage for each state
+    gdf_sindex = gdf.sindex
     for state, abbreviation in state_mapping.items():
         geom = gdf2.loc[gdf2['STE_NAME21'] == state, 'geometry'].unary_union
-        gdf_sindex = gdf.sindex
+        
+        if state == "New South Wales":
+            # Remove the hole in the middle so we also get ACT
+            multipolygon = gdf2.iloc[0]['geometry']
+            largest_polygon = max(multipolygon.geoms, key=lambda p: p.area)
+            polygon_no_holes = Polygon(largest_polygon.exterior)
+            gdf_no_holes = gpd.GeoDataFrame(
+                [gdf.iloc[0].to_dict()],  
+                geometry=[polygon_no_holes],
+                crs=gdf.crs  
+            )
+            geom = gdf_no_holes['geometry'].iloc[0]
+        
         possible_matches_index = list(gdf_sindex.intersection(geom.bounds))
         possible_matches = gdf.iloc[possible_matches_index]
         geom_prep = prep(geom)
@@ -137,22 +150,24 @@ def sub_gpkgs():
         print(f"Saved {out_file}")
 
 
-# -
-
+# +
 def mosaic_subfolders():
     """Create subfolders for mosaicking tiles"""
     # Creating subfolders for mosaicking tiles
-    base_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
-    output_base = Path("/scratch/xe2/cb8590/barra_trees_2020/subfolders")
-
+    base_str = '/scratch/xe2/cb8590/barra_trees_s4_2024'
+    output_str = f"{base_str}/subfolders"
+    base_dir = Path(base_str)
+    output_base = Path(output_str)
+    
     # Create the output base if needed
     output_base.mkdir(exist_ok=True)
 
     # Approx tile size (degrees): 4 km ≈ 0.036°, so 50 tiles ≈ 1.8° — round to 2°
     block_size_deg = 2.0
 
-    # Regex to extract lat/lon from filenames like "28_21-153_54_predicted.tif"
-    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_predicted\.tif")
+    # pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_predicted\.tif") # regex for "28_21-153_54_predicted.tif"
+    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")  # regex for 28_21-153_54_y2024_predicted.tif
+
     for i, tif_path in enumerate(base_dir.glob("*.tif")):
         if i % 1000 == 0:
             print(f"Moving tile {i}")
@@ -176,82 +191,7 @@ def mosaic_subfolders():
         shutil.move(str(tif_path), subfolder / tif_path.name)
 
     # Took 30 secs for 50k tiles
-
-
-def mosaic_subfolders_epsg3857():
-    # Redoing the subfolders with EPSG:3857 instead of EPSG:4326
-    base_dir = Path("/scratch/xe2/cb8590/barra_trees_s4_2023_3857")
-    output_base = Path("/scratch/xe2/cb8590/barra_trees_s4_2023_3857_grouped")
-    output_base.mkdir(exist_ok=True)
-
-    # Size of each grouping block in metres (200 km)
-    block_size_m = 200_000  
-
-    # Regex to extract x/y from filenames like:
-    # 3933860_48-16833733_40_y2023_predicted.tif
-    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")
-
-    for i, tif_path in enumerate(base_dir.glob("*.tif")):
-        if i % 100 == 0:
-            print(f"Moving tile {i}")
-        m = pattern.match(tif_path.name)
-        if not m:
-            continue
-
-        x_str, y_str = m.groups()
-        x = float(x_str.replace("_", "."))
-        y = float(y_str.replace("_", "."))
-
-        # Compute the 200 km bin edges
-        x_bin = math.floor(x / block_size_m) * block_size_m
-        y_bin = math.floor(y / block_size_m) * block_size_m
-
-        # Folder name, e.g. x_3800000_y_16800000
-        subfolder = output_base / f"x_{int(x_bin)}_y_{int(y_bin)}"
-        subfolder.mkdir(exist_ok=True)
-
-        # Move file (use copy2 instead if you prefer copying)
-        shutil.move(str(tif_path), subfolder / tif_path.name)
-
-
-
-
-# +
-# base_str = "/scratch/xe2/cb8590/barra_trees_s4_2023_3857"
-base_str = '/scratch/xe2/cb8590/barra_trees_s4_2023_3857/subfolders/x_3800000_y_16200000'
-output_str = f"{base_str}/subfolders"
-base_dir = Path(base_str)
-output_base = Path(output_str)
-output_base.mkdir(exist_ok=True)
-
-# Size of each grouping block in metres (200 km)
-block_size_m = 10_000  
-
-# Regex to extract x/y from filenames like:
-# 3933860_48-16833733_40_y2023_predicted.tif
-pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")
-
-for i, tif_path in enumerate(base_dir.glob("*.tif")):
-    if i % 100 == 0:
-        print(f"Moving tile {i}")
-    m = pattern.match(tif_path.name)
-    if not m:
-        continue
-
-    x_str, y_str = m.groups()
-    x = float(x_str.replace("_", "."))
-    y = float(y_str.replace("_", "."))
-
-    # Compute the 200 km bin edges
-    x_bin = math.floor(x / block_size_m) * block_size_m
-    y_bin = math.floor(y / block_size_m) * block_size_m
-
-    # Folder name, e.g. x_3800000_y_16800000
-    subfolder = output_base / f"x_{int(x_bin)}_y_{int(y_bin)}"
-    subfolder.mkdir(exist_ok=True)
-
-    # Move file (use copy2 instead if you prefer copying)
-    shutil.move(str(tif_path), subfolder / tif_path.name)
+    
 
 
 # +
