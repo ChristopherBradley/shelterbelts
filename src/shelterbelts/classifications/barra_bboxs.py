@@ -98,6 +98,9 @@ def crop_barra_bboxs():
     # 100k in the NSW bbox
     # 50k in NSW boundary
 
+    # Convert to EPSG:3857
+    # gdf = gpd.read_file('/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg')
+    # gdf_3857 = gdf.to_crs('EPSG:3857')
 
 
 
@@ -106,13 +109,14 @@ def sub_gpkgs():
     """Create smaller gpkgs for passing to multiple prediction jobs at once"""
     # Input / output paths
     input_file = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg"
-    output_dir = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_nsw"
+    output_dir = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_nsw3857"
     os.makedirs(output_dir, exist_ok=False)
     
     # Load the GeoDataFrame
     gdf = gpd.read_file(input_file)
     gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
-
+    gdf = gdf.to_crs('EPSG:3857')  # Hoping this fixes the off by 1 errors when stitching all of NSW together
+    
 #     # Remove tiles that have already been processed
 #     proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
 #     processed_stubs = {
@@ -127,7 +131,7 @@ def sub_gpkgs():
     for start in range(0, len(gdf), chunk_size):
         end = min(start + chunk_size, len(gdf))
         chunk = gdf.iloc[start:end]
-        out_file = os.path.join(output_dir, f"BARRA_bboxs_nsw_{start}-{end}.gpkg")
+        out_file = os.path.join(output_dir, f"BARRA_bboxs_nsw3857_{start}-{end}.gpkg")
         chunk.to_file(out_file, driver="GPKG")
 
         print(f"Saved {out_file}")
@@ -174,10 +178,80 @@ def mosaic_subfolders():
     # Took 30 secs for 50k tiles
 
 
-gdf = gpd.read_file('/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg')
+def mosaic_subfolders_epsg3857():
+    # Redoing the subfolders with EPSG:3857 instead of EPSG:4326
+    base_dir = Path("/scratch/xe2/cb8590/barra_trees_s4_2023_3857")
+    output_base = Path("/scratch/xe2/cb8590/barra_trees_s4_2023_3857_grouped")
+    output_base.mkdir(exist_ok=True)
 
-gdf
+    # Size of each grouping block in metres (200 km)
+    block_size_m = 200_000  
 
+    # Regex to extract x/y from filenames like:
+    # 3933860_48-16833733_40_y2023_predicted.tif
+    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")
+
+    for i, tif_path in enumerate(base_dir.glob("*.tif")):
+        if i % 100 == 0:
+            print(f"Moving tile {i}")
+        m = pattern.match(tif_path.name)
+        if not m:
+            continue
+
+        x_str, y_str = m.groups()
+        x = float(x_str.replace("_", "."))
+        y = float(y_str.replace("_", "."))
+
+        # Compute the 200 km bin edges
+        x_bin = math.floor(x / block_size_m) * block_size_m
+        y_bin = math.floor(y / block_size_m) * block_size_m
+
+        # Folder name, e.g. x_3800000_y_16800000
+        subfolder = output_base / f"x_{int(x_bin)}_y_{int(y_bin)}"
+        subfolder.mkdir(exist_ok=True)
+
+        # Move file (use copy2 instead if you prefer copying)
+        shutil.move(str(tif_path), subfolder / tif_path.name)
+
+
+
+
+# +
+# base_str = "/scratch/xe2/cb8590/barra_trees_s4_2023_3857"
+base_str = '/scratch/xe2/cb8590/barra_trees_s4_2023_3857/subfolders/x_3800000_y_16200000'
+output_str = f"{base_str}/subfolders"
+base_dir = Path(base_str)
+output_base = Path(output_str)
+output_base.mkdir(exist_ok=True)
+
+# Size of each grouping block in metres (200 km)
+block_size_m = 10_000  
+
+# Regex to extract x/y from filenames like:
+# 3933860_48-16833733_40_y2023_predicted.tif
+pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")
+
+for i, tif_path in enumerate(base_dir.glob("*.tif")):
+    if i % 100 == 0:
+        print(f"Moving tile {i}")
+    m = pattern.match(tif_path.name)
+    if not m:
+        continue
+
+    x_str, y_str = m.groups()
+    x = float(x_str.replace("_", "."))
+    y = float(y_str.replace("_", "."))
+
+    # Compute the 200 km bin edges
+    x_bin = math.floor(x / block_size_m) * block_size_m
+    y_bin = math.floor(y / block_size_m) * block_size_m
+
+    # Folder name, e.g. x_3800000_y_16800000
+    subfolder = output_base / f"x_{int(x_bin)}_y_{int(y_bin)}"
+    subfolder.mkdir(exist_ok=True)
+
+    # Move file (use copy2 instead if you prefer copying)
+    shutil.move(str(tif_path), subfolder / tif_path.name)
 
 
 # +

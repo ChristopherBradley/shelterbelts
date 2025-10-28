@@ -33,4 +33,5 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_percentcover --suffix _height2m.tif --subdir ''  # Re-merging 30km tiles into 120km
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_ACT_2020_percentcover --suffix .tif --subdir ''  # Re-merging ACT percentcover
 
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_2020/subfolders/lat_28_lon_140 --suffix _predicted.tif --subdir ''
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_2020/subfolders/lat_28_lon_140 --suffix _predicted.tif --subdir ''
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_s4_2023_3857/subfolders/x_3800000_y_16200000/subfolders/x_3870000_y_16250000 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject

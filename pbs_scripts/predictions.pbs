@@ -7,7 +7,6 @@
 #PBS -l walltime=20:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
-#PBS -j oe
 
 # Setup DEA environment modules for running the Python script
 module use /g/data/v10/public/modules/modulefiles
@@ -18,7 +17,7 @@ module load dea/20231204
 wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 cd $wd
 
-year=2024
+year=2023
 echo "Running predictions.pbs for gpkg: $GPKG, year $year, with module dea/20231204"
 
 # Run the script

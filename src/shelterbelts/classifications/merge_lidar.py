@@ -34,7 +34,7 @@ def cluster_bounds(bounds, tol=0.02):
     return groups
 
 
-def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif', subdir='chm'):
+def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif', subdir='chm', crs=None, dont_reproject=False):
     """Take a folder of tif files and merge them into a single uint8 raster
 
     Parameters
@@ -62,7 +62,11 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
 
     # Use the middle filename to choose a crs. 
     da = rxr.open_rasterio(filenames[len(filenames)//2]).isel(band=0).drop_vars("band")  
-    final_crs = da.rio.estimate_utm_crs()
+    if not crs:
+        final_crs = da.rio.estimate_utm_crs()
+    else: 
+        final_crs = crs
+    print(f"Merging with crs: {final_crs}")
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -74,7 +78,8 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
             da = da.rio.write_nodata(255)
             da = da.astype('uint8')
             
-            da = da.rio.reproject(final_crs) 
+            if not dont_reproject:
+                da = da.rio.reproject(final_crs) 
     
             outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
             outpath = os.path.join(outdir, outfile)
@@ -131,7 +136,10 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
     ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
     da = ds[suffix_stub].rio.reproject(final_crs)  # This reprojecting should clean up the nan values on the edge
 
-    outpath = os.path.join(base_dir, f'{base_stub}_merged{suffix}')
+    parent_dir = os.path.dirname(base_dir) # Best not to save the merged result in the save folder as the original data, in case you want to run the merge again
+    outpath = os.path.join(parent_dir, f'{base_stub}_merged{suffix}')
+    
+    # Might be nice to try to copy the colour scheme from one of the original tifs and add it to the merged output using rasterio
     da.rio.to_raster(outpath, compress="lzw")  # 200MB for the resulting 1m raster in a 50km x 50km area
     print(f"Saved: {outpath}", flush=True)
 
@@ -155,6 +163,8 @@ def parse_arguments():
     parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
     parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
     parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
+    parser.add_argument('--crs', default=None, help='Force the output to be in a certain EPSG. Need to format the crs in full, e.g. EPSG:3857')
+    parser.add_argument("--dont_reproject", action="store_true", help="Don't do any reprojecting. Default: False")
 
     return parser.parse_args()
 
@@ -166,7 +176,9 @@ if __name__ == '__main__':
         base_dir=args.base_dir,
         tmpdir=args.tmpdir,
         suffix=args.suffix,
-        subdir=args.subdir
+        subdir=args.subdir,
+        crs=args.crs,
+        dont_reproject=args.dont_reproject
     )
 
 

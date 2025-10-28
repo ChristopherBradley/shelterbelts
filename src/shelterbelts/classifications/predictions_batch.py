@@ -128,7 +128,8 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, con
         cmap_BrBG = plt.cm.BrBG
         norm = mcolors.Normalize(vmin=0, vmax=100)
         cmap = {i: tuple(int(c*255) for c in cmap_BrBG(norm(i))[:3]) for i in range(101)}
-        predicted_class = (preds[:,1] * 100).astype('uint8')
+        # predicted_class = (preds[:,1] * 100).astype('uint8')  # This floors the results, whereas we want to round them
+        predicted_class = np.rint(preds[:, 1] * 100).astype('uint8')
     else:
         cmap = cmap_binary
         predicted_class = np.argmax(preds, axis=1)  
