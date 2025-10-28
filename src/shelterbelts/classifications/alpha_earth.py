@@ -1,6 +1,7 @@
 # +
 import os
 import glob
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ import ee
 from shelterbelts.apis.worldcover import tif_categorical, worldcover_labels
 
 
+# +
 def download_alphaearth_da(da, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True, authenticate=False):
     """Download alphaearth embeddings for a DataSet and time period of interest."""
     if authenticate:
@@ -23,7 +25,7 @@ def download_alphaearth_da(da, start_date="2020-01-01", end_date="2021-01-01", o
     # Prep the embeddings
     bbox = da.rio.bounds()
     polygon_coords = [(bbox[0], bbox[1]), (bbox[0], bbox[3]), (bbox[2], bbox[3]), (bbox[2], bbox[1]), (bbox[0], bbox[1])]
-    roi = ee.Geometry.Polygon([polygon_coords])
+    roi = ee.Geometry.Polygon([polygon_coords]) # Should expand this by a few pixels so we don't get NaN values when reproject_matching to the sentinel imagery
     collection = (
         ee.ImageCollection("GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL")
         .filterBounds(roi)
@@ -32,7 +34,7 @@ def download_alphaearth_da(da, start_date="2020-01-01", end_date="2021-01-01", o
     image = ee.Image(collection.first())  # Just one image if we just get a single year
     
     # Download the embeddings
-    print(f"Download embeddings for stub: {stub}")
+    print(f"Downloading embeddings for stub: {stub}")
     np_array = geemap.ee_to_numpy(image, region=roi, scale=10)  # Took 20 secs for a 1km x 1km region for 2020
     
     # Create an xarray to align with the tree tif
@@ -49,28 +51,37 @@ def download_alphaearth_da(da, start_date="2020-01-01", end_date="2021-01-01", o
     ae_da = ae_da.transpose("band", "y", "x")
     ae_da_match = ae_da.rio.reproject_match(da)
     
-    # Prepare the flattened tree outputs
-    tree_array = da.values  # shape (y, x), 0/1 labels
-    lon = da['x'].values
-    lat = da['y'].values
-    xx, yy = np.meshgrid(lon, lat)
-    coords = np.column_stack([xx.ravel(), yy.ravel()])
-    tree_flat = tree_array.ravel()
-    
-    # Combine into a dataframe
-    n_bands, height, width = ae_da_match.shape
-    inputs_flat = ae_da_match.values.reshape(n_bands, -1).T 
-    tree_flat = da.values.ravel() 
-    columns = [f"emb_{i}" for i in range(n_bands)]
-    df = pd.DataFrame(inputs_flat, columns=columns)
-    df['tree'] = tree_flat
-    
-    # Save to file
-    os.makedirs(outdir, exist_ok=True)
-    filename = os.path.join(outdir, f'{stub}_alpha_earth_embeddings.csv')
-    df.to_csv(filename)
+    # Just save the pickle file so I can combine it with my sentinel imagery
+    filename = os.path.join(outdir, f'{stub}_alpha_earth_embeddings_{start_date[:4]}.pkl')
+    with open(filename, 'wb') as handle:
+        pickle.dump(ae_da_match, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print("Saved:", filename)
-        
+    
+    return ae_da_match
+    
+#     # Prepare the flattened tree outputs
+#     tree_array = da.values  # shape (y, x), 0/1 labels
+#     lon = da['x'].values
+#     lat = da['y'].values
+#     xx, yy = np.meshgrid(lon, lat)
+#     coords = np.column_stack([xx.ravel(), yy.ravel()])
+#     tree_flat = tree_array.ravel()
+    
+#     # Combine into a dataframe
+#     n_bands, height, width = ae_da_match.shape
+#     inputs_flat = ae_da_match.values.reshape(n_bands, -1).T 
+#     tree_flat = da.values.ravel() 
+#     columns = [f"emb_{i}" for i in range(n_bands)]
+#     df = pd.DataFrame(inputs_flat, columns=columns)
+#     df['tree'] = tree_flat
+    
+#     # Save to file
+#     os.makedirs(outdir, exist_ok=True)
+#     filename = os.path.join(outdir, f'{stub}_alpha_earth_embeddings_{start_date[:4]}.csv')
+#     df.to_csv(filename)
+#     print("Saved:", filename)
+# -
+
 
 
 def download_alphaearth_tif(tif, start_date="2020-01-01", end_date="2021-01-01", outdir="/scratch/xe2/cb8590/tmp", stub=None, save=True, authenticate=False):
@@ -81,7 +92,6 @@ def download_alphaearth_tif(tif, start_date="2020-01-01", end_date="2021-01-01",
         stub = tif.split('/')[-1].split('.')[0]  # The base filename
     ds = download_alphaearth_da(da_4326, start_date, end_date, outdir, stub, save, authenticate)
     return ds
-
 
 
 def download_alphaearth_folder(folder, start_date="2020-01-01", end_date="2021-01-01", outdir="/scratch/xe2/cb8590/tmp", stub=None, save=True, authenticate=False, suffix='.tiff', limit=None):
@@ -109,7 +119,6 @@ def download_alphaearth_folder(folder, start_date="2020-01-01", end_date="2021-0
         tifs = tifs[:limit]
     for tif in tifs:
         download_alphaearth_tif(tif, start_date, end_date, outdir, stub, save, authenticate=False)
-    
 
 
 # +
@@ -165,4 +174,4 @@ if __name__ == "__main__":
 # year = 2020
 # start_date = f"{year}-01-01"
 # end_date = f"{year}-12-31"
-# download_alphaearth_folder(folder, limit=2)
+# download_alphaearth_folder(folder, limit=2, authenticate=True)

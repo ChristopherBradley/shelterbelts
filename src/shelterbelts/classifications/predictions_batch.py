@@ -11,11 +11,14 @@ import traceback
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-
+from pyproj import Transformer
+from shapely.geometry import Point
 
 import xarray as xr
 import rioxarray as rxr
 import rasterio
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -50,15 +53,17 @@ from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will 
 # -
 
 # Prepare the colour scheme for the tiff files
-cmap = {
+cmap_binary = {
     0: (240, 240, 240), # Non-trees are white
     1: (0, 100, 0),   # Trees are green
 }
 
+# Loading this once instead of every time in tif_prediction_ds. Could instead load once in predictions_batch and pass as an argument
+gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned.gpkg')
+
 
 # +
-
-def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
+def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, confidence=False):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -73,6 +78,7 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     # Preprocess the temporally and spatially aggregated metrics
     ds_agg = aggregated_metrics(ds)
     ds = ds_agg # I don't think this is necessary since aggregated metrics changes the ds in place
+    
     variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
     ds_selected = ds[variables] 
     ds_stacked = ds_selected.to_array().transpose('variable', 'y', 'x').stack(z=('y', 'x'))
@@ -81,12 +87,53 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     # Normalise the inputs using the same standard scaler during training
     X_all = ds_stacked.transpose('z', 'variable').values  # shape: (n_pixels, n_features)
     df_X_all = pd.DataFrame(X_all, columns=ds_selected.data_vars) # Just doing this to silence the warning about not having feature names
-    X_all_scaled = scaler.transform(df_X_all)
+    
+    # The old models didn't include the xy coords, but the new ones do because it improved accuracy by around 0.5%. 
+    # Similar improvement in accuracy by adding a 1-hot encoded koppen class, but no benefit to having both xy and koppen.
+    if add_xy:
+        # Add x, y coordinates
+        y, x = ds_stacked['z'].to_index().levels  
+        coords = pd.DataFrame(ds_stacked['z'].to_index().tolist(), columns=['y', 'x'])
+        df_X_all = pd.concat([df_X_all, coords], axis=1)
+
+        # Reproject to epsg:4326. Might have been better to have trained the model on EPSG:3857 to avoid this
+        transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+        df_X_all['x'], df_X_all['y'] = transformer.transform(df_X_all['x'].values, df_X_all['y'].values)
+
+    # Attach koppen categories
+    # I should be able to figure out which model to use based on a single central point before we call this function
+    # gdf_points = gpd.GeoDataFrame(
+    #     df_X_all,
+    #     geometry=gpd.points_from_xy(df_X_all['x'], df_X_all['y']),
+    #     crs="EPSG:4326"
+    # )
+    # gdf_joined = gpd.sjoin(gdf_points, gdf_koppen, how='left', predicate='within')
+    # df_X_all['Koppen'] = gdf_joined['Name'].values
+    
+    # Convert to float32 to match datatypes used when training
+    df = df_X_all
+    for col in df.select_dtypes(include=['float64']).columns:
+        # df[col] = df[col].astype(np.float16)
+        df[col] = df[col].astype(np.float32)
+    for col in df.select_dtypes(include=['int64']).columns:
+        df[col] = df[col].astype(np.int16)
+    
+    X_all_scaled = scaler.transform(df)
 
     # Make predictions and add to the xarray    
     # print("Predicting")
     preds = model.predict(X_all_scaled)
-    predicted_class = np.argmax(preds, axis=1)
+    
+    if confidence:
+        cmap_BrBG = plt.cm.BrBG
+        norm = mcolors.Normalize(vmin=0, vmax=100)
+        cmap = {i: tuple(int(c*255) for c in cmap_BrBG(norm(i))[:3]) for i in range(101)}
+        # predicted_class = (preds[:,1] * 100).astype('uint8')  # This floors the results, whereas we want to round them
+        predicted_class = np.rint(preds[:, 1] * 100).astype('uint8')
+    else:
+        cmap = cmap_binary
+        predicted_class = np.argmax(preds, axis=1)  
+    
     pred_map = xr.DataArray(predicted_class.reshape(ds.sizes['y'], ds.sizes['x']),
                             coords={'y': ds.y, 'x': ds.x},
                             dims=['y', 'x'])
@@ -97,6 +144,7 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif):
     # Save the predictions as a tif file
     da = pred_map.astype('uint8')
     filename = f'{outdir}/{stub}_predicted.tif'
+    os.makedirs(outdir, exist_ok=True)
     
     # print("Importing rasterio")
     with rasterio.open(
@@ -134,15 +182,15 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     da = tif_prediction_ds(ds, outdir, tile_id, model, scaler, savetif)
     return da
 
-def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
+def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False):
     """Run the sentinel download and tree classification for a given location"""
     # from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
     start_date = f"{year}-01-01"
     end_date = f"{year}-12-31"
-    ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False) # If we do save all the sentinel pickle files, it took about 20TB for all of NSW.
+    ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False, input_crs=src_crs) # If we do save all the sentinel pickle files, it took about 20TB for all of NSW.
 
-    da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True)
+    da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True, confidence=confidence)
 
     # # Trying to avoid memory accumulating with new tiles
     del ds 
@@ -150,21 +198,44 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler):
     gc.collect()
     return None
 
-def run_worker(func, rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p'):
+def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', multi_model=False, confidence=False):
     """Abstracting the for loop & try except for each worker"""
     
-    # # Would be nice to not hardcode this so other people can use their own models
-    filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
-    filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
-
-    # # Loading this once per worker, so they aren't sharing the same model
-    model = keras.models.load_model(filename_model)
-    scaler = joblib.load(filename_scaler)
+    # Loading this once per worker, so they aren't sharing the same model
+    if not multi_model:
+        filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
+        filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
+        model = keras.models.load_model(filename_model)
+        scaler = joblib.load(filename_scaler)
+    else:
+        koppen_classes = gdf_koppen['Name'].unique()
+        koppen_classes = list(koppen_classes) + ['all'] # Add the overall model too, in case some regions don't land in a specific class
+        model_dict = dict()
+        for koppen_class in koppen_classes:
+            filename_model = os.path.join(nn_dir, f'nn_{nn_stub}_{koppen_class}.keras')
+            filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}_{koppen_class}.pkl')
+            model = keras.models.load_model(filename_model)
+            scaler = joblib.load(filename_scaler)
+            model_dict[koppen_class] = (model, scaler)
 
     for row in rows:
         try:
+            if multi_model:
+                # Choose which of the 6 models to use based on the center coordinate
+                bbox = row[3]
+                center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
+                point = Point(center)
+                match = gdf_koppen[gdf_koppen.contains(point)]
+                if len(match) > 0:
+                    koppen_class = match.iloc[0]['Name']
+                else:
+                    koppen_class = 'all'
+                model = model_dict[koppen_class][0]
+                scaler = model_dict[koppen_class][1]
+                print(f"predicting with model: {koppen_class}")
+                    
             # mem_before = process.memory_info().rss / 1e9
-            func(*row, model, scaler)
+            tif_prediction_bbox(*row, model, scaler, confidence=confidence)
             # mem_after = process.memory_info().rss / 1e9
             mem_info = process.memory_full_info()
             print(f"{row[0]}: RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
@@ -176,7 +247,7 @@ def run_worker(func, rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_
 
 # -
 
-def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', limit=None):
+def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', limit=None, multi_model=False, confidence=False):
     """Use the model to make tree classifications based on sentinel imagery for that year
     
     Parameters
@@ -191,7 +262,6 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models
     Downloads
     ---------
         A tif with tree classifications for each bbox in the gpkg
-    
     
     """
     gdf = gpd.read_file(gpkg)
@@ -208,11 +278,8 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models
 
     if limit:
         rows = rows[:int(limit)]
-
-    # Legacy argument, not sure when we'd want to use run_worker with another function anymore.
-    func = tif_prediction_bbox
-
-    run_worker(func, rows, nn_dir, nn_stub)
+    
+    run_worker(rows, nn_dir, nn_stub, multi_model, confidence)
 
 
 def parse_arguments():
@@ -225,6 +292,8 @@ def parse_arguments():
     parser.add_argument("--nn_dir", type=str, default='/g/data/xe2/cb8590/models', help="The stub of the neural network model and preprocessing scaler")
     parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
     parser.add_argument("--limit", type=int, default=None, help="Number of rows to process")
+    parser.add_argument("--multi_model", action="store_true", help="Use a separate model for each koppen region. Default: False")
+    parser.add_argument("--confidence", action="store_true", help="Output a percentage likelihood that it's a tree, instead of a binary label. Default: False")
 
     return parser.parse_args()
 
@@ -240,83 +309,28 @@ if __name__ == '__main__':
     nn_dir = args.nn_dir
     nn_stub = args.nn_stub
     limit = args.limit
+    multi_model = args.multi_model
     
-    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit)
-
-
+    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model, args.confidence)
 
 # +
 # # %%time
 # filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
 # outdir = '/scratch/xe2/cb8590/tmp'
-# predictions_batch(filename, outdir, limit=10)
+# predictions_batch(filename, outdir, limit=1)
 
-# # 40 secs for 1 file
-# # 6 mins for 10 files
+# # # 40 secs for 1 file
+# # # 6 mins for 10 files
 
 # +
-# # Trees for Dmitry, should move to a different file
-# filename = '/scratch/xe2/cb8590/tmp/Esdale_bbox.gpkg'
-
-# gdf = gpd.read_file(filename)
-
-# year = 2020
-# stub = f"ESDALE_{year}"
-# outdir = "/scratch/xe2/cb8590/ka08_trees"
-# src_crs = gdf.crs
-# bounds = list(gdf.bounds.iloc[0])
-
+# # %%time
+# gpkg = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
 # nn_dir = '/g/data/xe2/cb8590/models'
-# nn_stub = 'fft_89a_92s_85r_86p'
+# nn_stub = '4326_float32_s4'
+# year = 2020
+# limit = 1
+# predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model=True)
 
-# filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
-# filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
-
-# # # Loading this once per worker, so they aren't sharing the same model
-# model = keras.models.load_model(filename_model)
-# scaler = joblib.load(filename_scaler)
-
-# # %%time
-# tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
-
-# # %%time
-# years = [2017, 2018, 2019, 2021, 2022, 2023, 2024]
-# for year in years:
-#     stub = f"ESDALE_{year}"
-#     tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
-
-# year = 2025
-# stub = f"ESDALE_{year}"
-# tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler)
-
-# from shelterbelts.apis.worldcover import worldcover_bbox, worldcover_cmap, tif_categorical
-
-
-# da = worldcover_bbox(bounds, src_crs)
-
-# stub = "ESDALE"
-# filename = os.path.join(outdir, f"{stub}_worldcover.tif")    
-# tif_categorical(da, filename, worldcover_cmap)
-
-# from shelterbelts.apis.canopy_height import canopy_height_bbox
-
-# # %%time
-# ds = canopy_height_bbox(bounds, outdir, stub, tmpdir='/scratch/xe2/cb8590/Global_Canopy_Height', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson')
-
-# from shelterbelts.util.binary_trees import worldcover_trees, canopy_height_trees, cmap_woody_veg, labels_woody_veg
-
-# da_canopy_height_trees = canopy_height_trees('/scratch/xe2/cb8590/ka08_trees/ESDALE_Canopy_Height_canopy_height.tif', outdir)
-
-# da_worldcover_trees = worldcover_trees('/scratch/xe2/cb8590/ka08_trees/ESDALE_worldcover.tif', outdir, stub)
-
-# da_2017 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2017_predicted.tif').isel(band=0).drop_vars('band')
-# da_2019 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2019_predicted.tif').isel(band=0).drop_vars('band')
-# da_2020 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2020_predicted.tif').isel(band=0).drop_vars('band')
-# da_2021 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2021_predicted.tif').isel(band=0).drop_vars('band')
-# da_2023 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2023_predicted.tif').isel(band=0).drop_vars('band')
-# da_2024 = rxr.open_rasterio('/scratch/xe2/cb8590/ka08_trees/ESDALE_2023_predicted.tif').isel(band=0).drop_vars('band')
-
-# da_union = da_2017 | da_2020 | da_2021 | da_2023 | da_2024
-
-# tif_categorical(da_union, '/scratch/xe2/cb8590/ka08_trees/ESDALE_woody_veg_union2.tif', cmap_woody_veg)
-
+# # # 40 secs for 1 file
+# # # 6 mins for 10 files

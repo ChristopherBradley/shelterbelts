@@ -29,16 +29,10 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif
 
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _percentcover_res10_height2m.tif --subdir ''  # Can't believe this only took 8 mins. Too easy
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _chm_res1.tif --subdir ''
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _res1_cat5.tif --subdir ''
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _res10_cat5.tif --subdir ''
-
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_res1 --suffix .tif --subdir ''  # Re-merging 30km tiles into 120km
-
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _res10_cat5.tif --subdir ''
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_percentcover --suffix _height2m.tif --subdir ''  # Re-merging 30km tiles into 120km
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_chm --suffix _res1.tif --subdir ''  # Re-merging 30km tiles into 120km
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_shelter --suffix _linear_tifs_merged.tif --subdir ''  # Re-merging 30km tiles into 120km
-
-
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_ACT_2020_percentcover --suffix .tif --subdir ''  # Re-merging ACT percentcover
+
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_s4_2023_3857/subfolders/x_3800000_y_16200000/subfolders/x_3870000_y_16250000 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
+# python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_2020/subfolders/lat_28_lon_140 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
+python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_140 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject

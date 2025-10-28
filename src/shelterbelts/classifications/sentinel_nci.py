@@ -84,7 +84,7 @@ def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir="."
     return ds2
 
 
-def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True):
+def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True, input_crs='epsg:4326'):
     """
     Download sentinel imagery for the bounding box and time period of interest.
 
@@ -107,7 +107,6 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
     # print('lat_range', lat_range)
     # print('lon_range', lon_range)
     # print('time_range', time_range)
-    input_crs='epsg:4326' # I'm not sure it actually works with other crs' as input
     output_crs='EPSG:3857'  # It takes about 50% longer with EPSG:28355 or EPSG:3577.
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
@@ -191,5 +190,10 @@ if __name__ == '__main__':
 # -
 # folder = '/scratch/xe2/tmp/tif_folder'
 
+# gdf = gpd.read_file('/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg')
+# bbox = gdf.iloc[0]['geometry'].bounds
+# bbox2 = gdf.iloc[:1].to_crs('EPSG:3857').iloc[0]['geometry'].bounds
+# ds = download_ds2_bbox(bbox2, input_crs='epsg:3857')
+# ds
 
 

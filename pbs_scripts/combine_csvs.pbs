@@ -1,20 +1,13 @@
 #!/bin/bash
-#PBS -N merging
-#PBS -l mem=8GB
-#PBS -l ncpus=1
+#PBS -N combine_csvs
+#PBS -l mem=190GB
+#PBS -l ncpus=10
 #PBS -l jobfs=1GB
 #PBS -P xe2
 #PBS -l walltime=02:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
-
-
-# 4GB was fine for most of the tiles, except the last 100 or so at the end. 
-
-# Print out input variables to the error log
-echo "Starting merging.pbs"
-# SENTINEL_FOLDER=/scratch/xe2/cb8590/Nick_sentinel
-# STUB=Nick_sentinel
+#PBS -j oe
 
 
 # Change working directory
@@ -25,7 +18,20 @@ cd $wd
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
+
+# folder=Nick_training_lidar_subset
+# folder=Nick_training_lidar_noyear
+# folder=Nick_training_lidar_year
+# folder=Nick_training_allyears_s5
+# folder=Nick_training_allyears_s3
+# folder=Nick_training_allyears_s2
+# folder=Nick_training_allyears_s1
+folder=Nick_training_allyears_float32_s3
+
+echo "Starting combine_csvs.pbs for folder $folder" 
+
+
 # Run the script
-python3 merge_inputs_outputs.py --sentinel_folder "$SENTINEL_FOLDER" --stub "$STUB" --tree_folder /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/Nick_training_allyears_float32_s3 --double_f --spacing 3
+python3 combine_csvs.py $folder
 # python3 merge_inputs_outputs.py --sentinel_folder "$SENTINEL_FOLDER" --tree_folder /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --double_f --specific_usecase lidar_year --limit 10
 # python3 merge_inputs_outputs.py --sentinel_folder /scratch/xe2/cb8590/Tas_sentinel --tree_folder /scratch/xe2/cb8590/Tas_tifs --outdir /scratch/xe2/cb8590/Tas_csv

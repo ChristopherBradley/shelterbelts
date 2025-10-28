@@ -12,7 +12,6 @@
 
 # Print out input variables to the error log
 # subfolder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m
-echo "Running alphaearth.pbs with subfolder $subfolder"
 
 source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
@@ -22,4 +21,7 @@ cd $wd
 
 # Run the script
 # python3 alpha_earth.py /g/data/xe2/cb8590/Nick_Aus_treecover_10m --outdir /scratch/xe2/cb8590/alphaearth --limit 10 --authenticate
-python3 alpha_earth.py $subfolder --outdir /scratch/xe2/cb8590/alphaearth --authenticate
+year=2024
+
+echo "Running alphaearth.pbs with subfolder $subfolder for year $year"
+python3 alpha_earth.py $subfolder --outdir /scratch/xe2/cb8590/alphaearth_pickle --authenticate --start_date ${year}-01-01 --end_date $((year + 1))-01-01

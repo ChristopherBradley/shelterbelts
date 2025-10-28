@@ -33,14 +33,28 @@ module load dea/20231204  # using this version to match my predictions.pbs (need
 # training_stub=df_matching2
 # training_stub=df_matching_4326
 # training_stub=df_matching_koppen
-training_stub=df_4326_CFa
 
-seed=0
-echo "dea/20231204 NN Training stub: $training_stub"
+# training_stub=df_4326_Cfb
+# training_stub=df_4326_BSh
+# training_stub=df_4326_BSk
+# training_stub=df_4326_BWh
+# training_stub=df_4326_Aw
+# training_stub=df_4326_CFa
+training_stub=df_all_koppen
+
+training_folder=Nick_training_allyears_float32_s4
+
+echo "NN Training stub: $training_stub from folder: $training_folder"
 
 # Run the script
 # python3 neural_network.py /scratch/xe2/cb8590/Tas_csv/TEST_preprocessed.feather --outdir /scratch/xe2/cb8590/Tas_tifs
 # python3 random_forest.py /scratch/xe2/cb8590/Tas_csv/TEST_preprocessed.feather --outdir /scratch/xe2/cb8590/Tas_tifs --stub 'RF'
 
 # python3 random_forest.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub RF_${training_stub}_keepxy --random_state $seed --drop_columns spatial_ref tile_id year start_date end_date
-python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub NN_${training_stub} --drop_columns spatial_ref tile_id year start_date end_date crs Koppen
+# python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub NN_${training_stub} --drop_columns spatial_ref tile_id year start_date end_date crs Koppen
+
+# python3 neural_network.py /scratch/xe2/cb8590/Nick_training_allyears_alpha_s10/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_allyears_alpha_s10 --stub nn_${training_stub}_alpha_only --drop_columns spatial_ref tile_id year start_date end_date crs Koppen 
+# python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --random_state 0 --stub NN_${training_stub}_seed0 --drop_columns spatial_ref tile_id year start_date end_date crs Koppen
+
+# python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub NN_${training_stub}_256_128_64_seed0 --random_state 0 --drop_columns spatial_ref tile_id year start_date end_date crs Koppen
+python3 neural_network.py /scratch/xe2/cb8590/$training_folder/$training_stub.feather --outdir /scratch/xe2/cb8590/$training_folder --stub NN_${training_stub}_float32_s4_200epochs --drop_columns spatial_ref tile_id year start_date end_date crs Koppen --epochs 200

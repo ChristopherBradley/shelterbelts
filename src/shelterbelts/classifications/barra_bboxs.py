@@ -1,10 +1,12 @@
 # +
 import os
 import shutil
+import re
+import math
 from pathlib import Path
 import geopandas as gpd
 from shapely.prepared import prep
-from shapely.geometry import box, Polygon
+from shapely.geometry import box, Polygon, MultiPolygon
 
 import xarray as xr
 import numpy as np
@@ -67,9 +69,22 @@ def crop_barra_bboxs():
     }
 
     # Create a geopackage for each state
+    gdf_sindex = gdf.sindex
     for state, abbreviation in state_mapping.items():
         geom = gdf2.loc[gdf2['STE_NAME21'] == state, 'geometry'].unary_union
-        gdf_sindex = gdf.sindex
+        
+        if state == "New South Wales":
+            # Remove the hole in the middle so we also get ACT
+            multipolygon = gdf2.iloc[0]['geometry']
+            largest_polygon = max(multipolygon.geoms, key=lambda p: p.area)
+            polygon_no_holes = Polygon(largest_polygon.exterior)
+            gdf_no_holes = gpd.GeoDataFrame(
+                [gdf.iloc[0].to_dict()],  
+                geometry=[polygon_no_holes],
+                crs=gdf.crs  
+            )
+            geom = gdf_no_holes['geometry'].iloc[0]
+        
         possible_matches_index = list(gdf_sindex.intersection(geom.bounds))
         possible_matches = gdf.iloc[possible_matches_index]
         geom_prep = prep(geom)
@@ -96,27 +111,31 @@ def crop_barra_bboxs():
     # 100k in the NSW bbox
     # 50k in NSW boundary
 
+    # Convert to EPSG:3857
+    # gdf = gpd.read_file('/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg')
+    # gdf_3857 = gdf.to_crs('EPSG:3857')
 
 
-# -
 
-def sub_gpkgs():
+# +
+def sub_gpkgs(state='actnsw'):
     """Create smaller gpkgs for passing to multiple prediction jobs at once"""
     # Input / output paths
-    input_file = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg"
-    output_dir = "/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_nsw"
+    input_file = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_{state}.gpkg"
+    output_dir = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_{state}"
     os.makedirs(output_dir, exist_ok=False)
     
     # Load the GeoDataFrame
     gdf = gpd.read_file(input_file)
     gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
-
-    # Remove tiles that have already been processed
-    proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
-    processed_stubs = {
-        f.stem.replace("_predicted", "") for f in proc_dir.glob("*_predicted.tif")
-    }
-    gdf = gdf[~gdf["stub"].isin(processed_stubs)]
+    gdf = gdf.to_crs('EPSG:3857')  # Hoping this fixes the off by 1 errors when stitching all of NSW together
+    
+#     # Remove tiles that have already been processed
+#     proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
+#     processed_stubs = {
+#         f.stem.replace("_predicted", "") for f in proc_dir.glob("*_predicted.tif")
+#     }
+#     gdf = gdf[~gdf["stub"].isin(processed_stubs)]
         
     # Chunk size
     chunk_size = 500
@@ -125,9 +144,53 @@ def sub_gpkgs():
     for start in range(0, len(gdf), chunk_size):
         end = min(start + chunk_size, len(gdf))
         chunk = gdf.iloc[start:end]
-        out_file = os.path.join(output_dir, f"BARRA_bboxs_nsw_{start}-{end}.gpkg")
+        out_file = os.path.join(output_dir, f"BARRA_bboxs_{state}_{start}-{end}.gpkg")
         chunk.to_file(out_file, driver="GPKG")
+
         print(f"Saved {out_file}")
+
+
+# -
+
+def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
+    """Create subfolders for mosaicking tiles"""
+    output_str = f"{base_str}/subfolders"
+    base_dir = Path(base_str)
+    output_base = Path(output_str)
+    
+    # Create the output base if needed
+    output_base.mkdir(exist_ok=True)
+
+    # Approx tile size (degrees): 4 km ≈ 0.036°, so 50 tiles ≈ 1.8° — round to 2°
+    block_size_deg = 2.0
+
+    # pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_predicted\.tif") # regex for "28_21-153_54_predicted.tif"
+    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")  # regex for 28_21-153_54_y2024_predicted.tif
+
+    for i, tif_path in enumerate(base_dir.glob("*.tif")):
+        if i % 1000 == 0:
+            print(f"Moving tile {i}")
+        m = pattern.match(tif_path.name)
+        if not m:
+            continue
+
+        lat_str, lon_str = m.groups()
+        lat = float(lat_str.replace("_", "."))
+        lon = float(lon_str.replace("_", "."))
+
+        # Find the 2° bin indices
+        lat_bin = math.floor(lat / block_size_deg) * block_size_deg
+        lon_bin = math.floor(lon / block_size_deg) * block_size_deg
+
+        # Folder name e.g. lat_-28_lon_152
+        subfolder = output_base / f"lat_{lat_bin:.0f}_lon_{lon_bin:.0f}"
+        subfolder.mkdir(exist_ok=True)
+
+        # Move file (or use shutil.copy2 if you prefer copying)
+        shutil.move(str(tif_path), subfolder / tif_path.name)
+
+    # Took 30 secs for 50k tiles
+    
 
 
 # +
@@ -178,7 +241,7 @@ def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=
 # geopackage_km(filename_state_boundaries, tile_size=30000)
 # -
 def single_boundary():
-    """Creating a single boundary for NSW"""
+    """Creating a single boundary for NSW (missing jervis bay)"""
     gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Australia State Boundaries/STE_2021_AUST_GDA2020.shp')
     multipolygon = gdf.iloc[0]['geometry']
     largest_polygon = max(multipolygon.geoms, key=lambda p: p.area)
@@ -189,5 +252,3 @@ def single_boundary():
         crs=gdf.crs  # Preserve the coordinate reference system
     )
     gdf_no_holes.to_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/NSW_Border_Largest_Polygon.shp')
-
-

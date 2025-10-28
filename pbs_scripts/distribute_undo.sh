@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FOLDER=/scratch/xe2/cb8590/Nick_sentinel/tiles_todo
+FOLDER=/scratch/xe2/cb8590/Nick_sentinel
 
 # Move all files back up one level
 find "$FOLDER" -type f -path "$FOLDER/subfolder_*/*" -exec mv {} "$FOLDER" \;
