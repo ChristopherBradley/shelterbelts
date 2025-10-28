@@ -70,6 +70,11 @@ for track in media_info.tracks:
         print("Tagged date:", track.tagged_date)
         print("Encoded date:", track.encoded_date)
 
-# -
 
+# +
+# Slowing down the video
+ffmpeg -i input.mp4 -filter:v "setpts=14.985*PTS" -r 2 output_2fps.mp4
+
+# Recreating the video as a slower speed
+ffmpeg -framerate 2 -pattern_type glob -i '*.jpg' -c:v libx264 -pix_fmt yuv420p output_2fps.mp4
 
