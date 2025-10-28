@@ -162,50 +162,46 @@ def parse_arguments():
 
 
 
-if __name__ == "__main__":
-    args = parse_arguments()
-    run_pipeline_tifs(
-        folder=args.folder,
-        outdir=args.outdir,
-        tmpdir=args.tmpdir,
-        param_stub=args.param_stub,
-        wind_method=args.wind_method,
-        wind_threshold=args.wind_threshold,
-        cover_threshold=args.cover_threshold,
-        min_patch_size=args.min_patch_size,
-        edge_size=args.edge_size,
-        max_gap_size=args.max_gap_size,
-        distance_threshold=args.distance_threshold,
-        density_threshold=args.density_threshold,
-        buffer_width=args.buffer_width,
-        strict_core_area=args.strict_core_area
-    )
-
 # +
-# # %%time
-# cover_threshold=10
-# min_patch_size=20
-# edge_size=3
-# max_gap_size=1
-# distance_threshold=10
-# density_threshold=5 
-# buffer_width=3
-# strict_core_area=False
-# param_stub = ""
-# wind_method=None
-# wind_threshold=15
-# # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/uint8_percentcover_res10_height2m'
-# # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717871/linear_tifs'
-# # folder='/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m'
-# # outdir='/scratch/xe2/cb8590/ACTGOV_my_processing/linear_tifs'
-# folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
-# outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
-# tmpdir = '/scratch/xe2/cb8590/tmp'
+# if __name__ == "__main__":
+#     args = parse_arguments()
+#     run_pipeline_tifs(
+#         folder=args.folder,
+#         outdir=args.outdir,
+#         tmpdir=args.tmpdir,
+#         param_stub=args.param_stub,
+#         wind_method=args.wind_method,
+#         wind_threshold=args.wind_threshold,
+#         cover_threshold=args.cover_threshold,
+#         min_patch_size=args.min_patch_size,
+#         edge_size=args.edge_size,
+#         max_gap_size=args.max_gap_size,
+#         distance_threshold=args.distance_threshold,
+#         density_threshold=args.density_threshold,
+#         buffer_width=args.buffer_width,
+#         strict_core_area=args.strict_core_area
+#     )
+# -
+
+# %%time
+cover_threshold=0
+min_patch_size=20
+edge_size=3
+max_gap_size=1
+distance_threshold=10
+density_threshold=5 
+buffer_width=3
+strict_core_area=False
+param_stub = ""
+wind_method=None
+wind_threshold=15
+folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
+outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
+tmpdir = '/scratch/xe2/cb8590/tmp'
 
 
-# +
-# # %%time
-# run_pipeline_tifs(folder, outdir, tmpdir, param_stub='e3_strict', strict_core_area=True)
+# %%time
+run_pipeline_tifs(folder, outdir, tmpdir, param_stub='riparian_doubleoverride')
 # +
 # # %%time
 # # Single tif example for debugging

@@ -1,6 +1,8 @@
 # +
 import os
 import argparse
+
+import numpy as np
 import geopandas as gpd
 import rioxarray as rxr
 from rasterio.features import rasterize
@@ -8,8 +10,12 @@ from rasterio.features import rasterize
 from shapely.geometry import box
 
 from shelterbelts.apis.worldcover import tif_categorical
-from shelterbelts.apis.catchments import gullies_cmap
+# from shelterbelts.apis.catchments import gullies_cmap  # This won't work with the DEA environment, since it needs DAESIM_preprocess to be pip installed
 
+gullies_cmap = {
+    0: (255, 255, 255),
+    1: (0, 0, 255),
+}
 # -
 
 def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gpkg=True, savetif=True, layer='HydroLines'):
@@ -57,13 +63,16 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
     gdf = gdf.to_crs(da.rio.crs)
     shapes = [(geom, 1) for geom in gdf.geometry]
     transform = da.rio.transform()
-    hydro_gullies = rasterize(
-        shapes,
-        out_shape=da.shape,
-        transform=transform,
-        fill=0
-    )
-    ds = da.to_dataset(name='terrain')
+    if not shapes:
+        hydro_gullies = np.zeros(da.shape, dtype=np.uint8)
+    else:
+        hydro_gullies = rasterize(
+            shapes,
+            out_shape=da.shape,
+            transform=transform,
+            fill=0
+        )
+    ds = da.to_dataset(name='input')
     ds['gullies'] = (["y", "x"], hydro_gullies)
 
     if savetif:

@@ -16,7 +16,6 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import box
 import matplotlib.pyplot as plt
-from windrose import WindroseAxes
 
 # -
 
@@ -94,6 +93,8 @@ def barra_multiyear(var="uas", latitude=-34.3890427, longitude=148.469499, buffe
 # Requires the 'pip install windrose' library
 def wind_rose(ds, filename=None):
     """Uses the output from barra_daily to create a wind rose plot"""
+    from windrose import WindroseAxes  # Putting this inside the function so the rest of the file can still be used even if windrose hasn't been installed
+
     ds = ds.median(dim=['latitude', 'longitude'])
     ds = ds[['uas', 'vas']]
     speed = np.sqrt(ds["uas"]**2 + ds["vas"]**2)
