@@ -92,22 +92,30 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             if all(np.isnan(x) for x in intersection_bounds):
                 print(f"{i}: Tif not in region bounds: {tile}")
                 continue
-            new_relevant_tiles.append(original_tilename)
             
             window = from_bounds(*intersection_bounds, transform=src.transform)
             
             # Read data within the window
             out_image = src.read(window=window)
+            
+            # Attempting to solve the 0x418 error. I might need to remove the tile from the candidates if it has 0 pixels after cropping
+            if out_image.size == 0 or out_image.shape[1] == 0 or out_image.shape[2] == 0:
+                print(f"{i}: Intersection too small (zero-size) for {tile}")
+                continue
+    
             out_transform = src.window_transform(window)
             out_meta = src.meta.copy()
-    
+            
+            new_relevant_tiles.append(original_tilename)
+
         # Save cropped image
         cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
         out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
 
         with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
             dest.write(out_image)
-            
+
+    
     # Merge the cropped tiffs
     src_files_to_mosaic = []
     for tile in new_relevant_tiles:

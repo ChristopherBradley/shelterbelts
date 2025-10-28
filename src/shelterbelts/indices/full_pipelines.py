@@ -1,4 +1,3 @@
-# +
 # # +
 # Change directory to this repo. Need to do this when using the DEA environment since I can't just pip install -e .
 import os, sys
@@ -13,9 +12,6 @@ src_dir = os.path.join(repo_dir, 'src')
 os.chdir(src_dir)
 sys.path.append(src_dir)
 # print(src_dir)
-
-from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
-from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
 
 # +
@@ -70,6 +66,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
     # import pdb; pdb.set_trace()
     
+    print("Getting worldcover for tif:", percent_tif)
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
@@ -163,51 +160,58 @@ def parse_arguments():
 
 
 # +
-# if __name__ == "__main__":
-#     args = parse_arguments()
-#     run_pipeline_tifs(
-#         folder=args.folder,
-#         outdir=args.outdir,
-#         tmpdir=args.tmpdir,
-#         param_stub=args.param_stub,
-#         wind_method=args.wind_method,
-#         wind_threshold=args.wind_threshold,
-#         cover_threshold=args.cover_threshold,
-#         min_patch_size=args.min_patch_size,
-#         edge_size=args.edge_size,
-#         max_gap_size=args.max_gap_size,
-#         distance_threshold=args.distance_threshold,
-#         density_threshold=args.density_threshold,
-#         buffer_width=args.buffer_width,
-#         strict_core_area=args.strict_core_area
-#     )
-# -
+if __name__ == "__main__":
+    args = parse_arguments()
+    run_pipeline_tifs(
+        folder=args.folder,
+        outdir=args.outdir,
+        tmpdir=args.tmpdir,
+        param_stub=args.param_stub,
+        wind_method=args.wind_method,
+        wind_threshold=args.wind_threshold,
+        cover_threshold=args.cover_threshold,
+        min_patch_size=args.min_patch_size,
+        edge_size=args.edge_size,
+        max_gap_size=args.max_gap_size,
+        distance_threshold=args.distance_threshold,
+        density_threshold=args.density_threshold,
+        buffer_width=args.buffer_width,
+        strict_core_area=args.strict_core_area
+    )
 
-# %%time
-cover_threshold=0
-min_patch_size=20
-edge_size=3
-max_gap_size=1
-distance_threshold=10
-density_threshold=5 
-buffer_width=3
-strict_core_area=False
-param_stub = ""
-wind_method=None
-wind_threshold=15
-folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
-outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
-tmpdir = '/scratch/xe2/cb8590/tmp'
+# # +
+# # %%time
+# cover_threshold=0
+# min_patch_size=20
+# edge_size=3
+# max_gap_size=1
+# distance_threshold=10
+# density_threshold=5 
+# buffer_width=3
+# strict_core_area=False
+# param_stub = ""
+# wind_method=None
+# wind_threshold=15
+# # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
+# # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
+
+# folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142'
+# outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_lat_28_lon_142'
+# tmpdir = '/scratch/xe2/cb8590/tmp'
+# # -
 
 
-# %%time
-run_pipeline_tifs(folder, outdir, tmpdir, param_stub='riparian_doubleoverride')
+# # %%time
+# run_pipeline_tifs(folder, outdir, tmpdir, param_stub='riparian_doubleoverride')
+
+
 # +
 # # %%time
 # # Single tif example for debugging
 # # percent_tif = '/scratch/xe2/cb8590/lidar/DATA_722798/uint8_percentcover_res10_height2m/Wellington201409-PHO3-C0-AHD_6666384_55_0002_0002_percentcover_res10_height2m_uint8.tif'
 # # percent_tif = '/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m/ACT-16ppm_2025_SW_679000_6099000_1k_class_AHD_percentcover_res10_height2m_uint8.tif'
-# percent_tif = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/Young201709-LID1-C3-AHD_6306194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+# # percent_tif = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/Young201709-LID1-C3-AHD_6306194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142/29_21-143_98_y2024_predicted.tif'
 # stub = None
 # if stub is None:
 #     # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
@@ -220,8 +224,13 @@ run_pipeline_tifs(folder, outdir, tmpdir, param_stub='riparian_doubleoverride')
 # bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
 # worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
 # # import pdb; pdb.set_trace()
+# -
+
 
 # mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
+
+
+# +
 # ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
 # da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
 # gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
@@ -241,7 +250,6 @@ run_pipeline_tifs(folder, outdir, tmpdir, param_stub='riparian_doubleoverride')
 
 # ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
 # ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False) 
-
 
 # +
 # from shelterbelts.indices.shelter_metrics import linear_categories_labels
