@@ -332,7 +332,11 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     
     # Remove any rows where the area is smaller than the min_patch_size. Necessary since I'm using small buffer groups to reassign "Other" classes.
     # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
-    df_patch_metrics_large = df_patch_metrics[df_patch_metrics['area'] > min_patch_size] 
+    
+    if len(df_patch_metrics) > 0 and 'area' in df_patch_metrics.columns:
+        df_patch_metrics_large = df_patch_metrics[df_patch_metrics['area'] > min_patch_size] 
+    else:
+        df_patch_metrics_large = df_patch_metrics  # Probably an empty list because there are no trees in the region
     
     if save_csv:
         filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
@@ -366,12 +370,12 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
         mapped_categories = np.vectorize(label_to_category.get)(label_ids)
         
-        # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
-
         da_linear.data[remaining_mask] = mapped_categories
 
     if plot:
         filename = os.path.join(outdir, f'{stub}_linear_categories.png')
+        
+        # I should also remove the really small patches from this plot and corresponding tif file for easier visualisation
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")
     
     ds = da_linear.to_dataset(name="linear_categories")
@@ -381,7 +385,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')
         tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
     
-        if save_labels:
+        if save_labels:            
             filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
             ds['labelled_categories'].rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
             print("Saved:", filename_labelled)

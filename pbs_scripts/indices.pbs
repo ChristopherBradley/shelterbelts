@@ -27,7 +27,7 @@
 # folder='/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
 # outdir="/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs_$param_stub"
 folder=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/$param_stub
-outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_${param_stub}_confidence50
+outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_${param_stub}_confidence50_fixedlabels
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/$param_stub/linear_tifs_$param_stub
 
 tmpdir='/scratch/xe2/cb8590/tmp'
