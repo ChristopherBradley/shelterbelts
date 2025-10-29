@@ -185,7 +185,7 @@ def skeleton_stats(assigned_labels):
     return pd.DataFrame(results)
 
 
-def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True):
+def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True, min_patch_size=20):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
     Parameters
@@ -209,7 +209,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         labelled_categories.png: A png for visualising the cluster id's and an ellipse around each cluster.
 
     """
-    print(f"Starting patch_metrics for stub: {stub}")
+    # print(f"Starting patch_metrics for stub: {stub}")
     if not ds:
         da = rxr.open_rasterio(buffer_tif).isel(band=0)
     else:
@@ -234,8 +234,16 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     assigned_labels[arr == 13] = nearest_core_labels[arr == 13]
     assigned_labels[arr == 12] = core_labels[arr == 12]
     
+    # Assign cluster ids for all the buffer groups (including small ones), since we're no longer converting these buffer categories.
+    buffer_codes = [15, 16, 17]
+    for buffer_code in buffer_codes:
+        mask = (arr == buffer_code)
+        labels, num_labels = ndimage.label(mask)
+        assigned_labels[arr == buffer_code] = labels[arr == buffer_code]
+    
     # Assign ids to the rest of the patch types
-    buffer_category_ids = [14, 15, 16, 17]
+    # buffer_category_ids = [14, 15, 16, 17]  # Clean up all of the buffer categories. This runs into an issue if there aren't any large enough clusters nearby.
+    buffer_category_ids = [14]  # Only clean up the "Other" category
     for category_id in buffer_category_ids:
         da_category = (da_filtered == category_id)
         labelled_category = tree_clusters(da_category, max_gap_size=1)
@@ -246,16 +254,18 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     
     # Cluster-wise majority filter to reassign categories that have too few pixels
     labels, counts = np.unique(assigned_labels, return_counts=True)
-    min_patch_size = 20
     small_labels = labels[counts < min_patch_size]
     small_mask = np.isin(assigned_labels, small_labels)
-    valid_mask = (~small_mask) & (assigned_labels != 0)
+    # valid_mask = (~small_mask) & (assigned_labels != 0)
+    valid_mask = ((~small_mask) & (assigned_labels != 0)) | np.isin(arr, [15, 16, 17])  # Allow small buffer categories
     distance, (inds_y, inds_x) = ndimage.distance_transform_edt(
         ~valid_mask,
         return_indices=True
     )
     nearest_labels = assigned_labels[inds_y, inds_x]
     assigned_labels[small_mask] = nearest_labels[small_mask]
+    
+    # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
     
     # Re-label the patches so they are consecutive integers
     unique_labels = np.unique(assigned_labels)
@@ -296,10 +306,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             # better average width using skeletonization like in Aksoy 2009
             # Other indices like the WSI and/or SNFI from Liknes 2017, although adjust to allow any direction rather than just north/south and east/west
 
-    # # Debugging
-    # if len(results) == 0:
-    #     import pdb; pdb.set_trace()
-        
     df_patch_metrics = pd.DataFrame(results)
     
     # Determine the most common category in each cluster
@@ -317,7 +323,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
-    
+        
     # Use the length/width ratio to reassign corridor clusters to linear or non-linear
     da_linear = da_filtered.copy()
     if len(results) > 0:
@@ -327,6 +333,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         df_patch_metrics = df_widths
 
     # df_patch_metrics = df_patch_metrics.merge(df_widths)
+    
+    # Should remove any rows where the area is smaller than the min_patch_size
     
     if save_csv:
         filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
@@ -359,6 +367,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     remaining_mask = (da_linear.data == 14)
     if (remaining_mask.sum() > 0):
         label_ids = assigned_labels[remaining_mask]
+        
         label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
         mapped_categories = np.vectorize(label_to_category.get)(label_ids)
         da_linear.data[remaining_mask] = mapped_categories

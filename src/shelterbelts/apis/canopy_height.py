@@ -90,7 +90,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
 
             # If there is no intersection then don't save a cropped image, and remove this from the relevant tiles. 
             if all(np.isnan(x) for x in intersection_bounds):
-                print(f"{i}: Tif not in region bounds: {tile}")
+                # print(f"{i}: Tif not in region bounds: {tile}")
                 continue
             
             window = from_bounds(*intersection_bounds, transform=src.transform)
@@ -100,7 +100,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
             
             # Attempting to solve the 0x418 error. I might need to remove the tile from the candidates if it has 0 pixels after cropping
             if out_image.size == 0 or out_image.shape[1] == 0 or out_image.shape[2] == 0:
-                print(f"{i}: Intersection too small (zero-size) for {tile}")
+                # print(f"{i}: Intersection too small (zero-size) for {tile}")
                 continue
     
             out_transform = src.window_transform(window)

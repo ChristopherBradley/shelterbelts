@@ -118,17 +118,17 @@ def crop_barra_bboxs():
 
 
 # +
-def sub_gpkgs(state='actnsw'):
+def sub_gpkgs(state='actnsw', stub='actnsw_4326'):
     """Create smaller gpkgs for passing to multiple prediction jobs at once"""
     # Input / output paths
     input_file = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_{state}.gpkg"
-    output_dir = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_{state}"
+    output_dir = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_{stub}"
     os.makedirs(output_dir, exist_ok=False)
     
     # Load the GeoDataFrame
     gdf = gpd.read_file(input_file)
     gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
-    gdf = gdf.to_crs('EPSG:3857')  # Hoping this fixes the off by 1 errors when stitching all of NSW together
+    # gdf = gdf.to_crs('EPSG:3857')  # Thought this might fix the off by 1 errors, but turns out it was a different error. Then this meant that the model selection code didn't work so I was prediciting using the general model instead of region specific :(
     
 #     # Remove tiles that have already been processed
 #     proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
@@ -144,13 +144,17 @@ def sub_gpkgs(state='actnsw'):
     for start in range(0, len(gdf), chunk_size):
         end = min(start + chunk_size, len(gdf))
         chunk = gdf.iloc[start:end]
-        out_file = os.path.join(output_dir, f"BARRA_bboxs_{state}_{start}-{end}.gpkg")
+        out_file = os.path.join(output_dir, f"BARRA_bboxs_{stub}_{start}-{end}.gpkg")
         chunk.to_file(out_file, driver="GPKG")
 
         print(f"Saved {out_file}")
 
 
 # -
+
+# %%time
+sub_gpkgs()
+
 
 def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
     """Create subfolders for mosaicking tiles"""
@@ -190,7 +194,7 @@ def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
         shutil.move(str(tif_path), subfolder / tif_path.name)
 
     # Took 30 secs for 50k tiles
-    
+
 
 
 # +

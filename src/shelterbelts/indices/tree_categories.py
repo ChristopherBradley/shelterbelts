@@ -1,3 +1,5 @@
+
+
 import os
 import argparse
 
@@ -131,12 +133,12 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
     edge_area = binary_dilation(core_area, structure=edge_kernel) & ~core_area & woody_veg
     corridor_area = woody_veg & ~(core_area | edge_area | scattered_area)
 
-    tree_categories = np.zeros_like(woody_veg, dtype=np.uint8)
-    tree_categories[scattered_area] = inverted_labels['Scattered Trees']
-    tree_categories[core_area]      = inverted_labels['Patch Core']
-    tree_categories[edge_area]      = inverted_labels['Patch Edge']
-    tree_categories[corridor_area]  = inverted_labels['Other Trees']
-    ds['tree_categories'] = (('y', 'x'), tree_categories)
+    tree_categories_array = np.zeros_like(woody_veg, dtype=np.uint8)
+    tree_categories_array[scattered_area] = inverted_labels['Scattered Trees']
+    tree_categories_array[core_area]      = inverted_labels['Patch Core']
+    tree_categories_array[edge_area]      = inverted_labels['Patch Edge']
+    tree_categories_array[corridor_area]  = inverted_labels['Other Trees']
+    ds['tree_categories'] = (('y', 'x'), tree_categories_array)
     # ds = ds.rename({'x':'longitude', 'y': 'latitude'})
 
     if not stub:
@@ -184,6 +186,21 @@ if __name__ == '__main__':
     
     tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area, plot=plot)
 
+# # # +
+# # Change directory to this repo. Need to do this when using the DEA environment since I can't just pip install -e .
+# import os, sys
+# repo_name = "shelterbelts"
+# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+# elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
+#     repo_dir = os.path.dirname(os.getcwd())       
+# else:                                             # Already running from root of this repo. 
+#     repo_dir = os.getcwd()
+# src_dir = os.path.join(repo_dir, 'src')
+# os.chdir(src_dir)
+# sys.path.append(src_dir)
+# # print(src_dir)
+
 # # filename = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717827/uint8_percentcover_res10_height2m/Junee201502-PHO3-C0-AHD_5906174_55_0002_0002_percentcover_res10_height2m_uint8.tif'
 # data_dir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
 # stub = 'g2_26729_binary_tree_cover_10m'
@@ -194,18 +211,102 @@ if __name__ == '__main__':
 # max_gap_size=1
 # edge_size=3
 # strict_core_area=False
-# ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
-# visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
 
+# # !rm ./Test_categorised.png
 
-# outdir='/scratch/xe2/cb8590/tmp' 
-# stub=None
+# tree_categories(None, outdir='/scratch/xe2/cb8590/tmp', stub='Test', ds=ds)
+
+# # + endofcell="--"
+# # %%time
+# cover_threshold=50
 # min_patch_size=20
-# max_gap_size=1
 # edge_size=3
-# strict_core_area=True
-# ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
-# visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
+# max_gap_size=1
+# strict_core_area=False
+
+# # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
+# # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
+
+# folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_158'
+# outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_lat_30_lon_158'
+# tmpdir = '/scratch/xe2/cb8590/tmp'
+# # -
+
+# # run_pipeline_tifs(folder, outdir, tmpdir)
+# # --
+
+# outdir='/scratch/xe2/cb8590/tmp'
+# stub='Test'
+
+# ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, save_tif=True, plot=False, ds=ds_woody_veg)
+
+
+# cover_threshold=50
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_142/uint8_predicted/30_05-143_82_y2024_predicted_uint8.tif'
+# da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
+# da_trees = da_percent > cover_threshold
+# da_trees = da_trees.astype('uint8')
+# ds = da_trees.to_dataset(name='woody_veg')
+
+
+# da_trees.rio.to_raster('/scratch/xe2/cb8590/tmp/TESTING_30_05-143_82_y2024_binary_trees.tif')
+
+# woody_veg = da_trees.values.astype(bool)
+
+
+# trees_labelled = tree_clusters(woody_veg, max_gap_size=0)
+
+
+# scattered_area = scattered_trees(trees_labelled, min_patch_size)
+
+
+# core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size, strict_core_area)
+
+
+# core_area.sum()
+
+# woody_veg.sum()
+
+# edge_kernel = np.ones(core_kernel.shape, dtype=bool)
+# edge_area = binary_dilation(core_area, structure=edge_kernel) & ~core_area & woody_veg
+
+# corridor_area = woody_veg & ~(core_area | edge_area | scattered_area)
+
+
+# corridor_area.sum()
+
+# tree_categories = np.zeros_like(woody_veg, dtype=np.uint8)
+
+
+# # +
+
+# tree_categories_array = np.zeros_like(woody_veg, dtype=np.uint8)
+# tree_categories_array[scattered_area] = inverted_labels['Scattered Trees']
+# tree_categories_array[core_area]      = inverted_labels['Patch Core']
+# tree_categories_array[edge_area]      = inverted_labels['Patch Edge']
+# tree_categories_array[corridor_area]  = inverted_labels['Other Trees']
+# ds['tree_categories'] = (('y', 'x'), tree_categories_array)
+# # ds = ds.rename({'x':'longitude', 'y': 'latitude'})
+# # -
+
+# tif_categorical(ds['tree_categories'], '/scratch/xe2/cb8590/tmp/TESTING_30_05-143_82_y2024_categorical_trees.tif', tree_categories_cmap)
+
+# # +
+
+# # ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
+# # visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
+
+
+# # +
+# # outdir='/scratch/xe2/cb8590/tmp' 
+# # stub=None
+# # min_patch_size=20
+# # max_gap_size=1
+# # edge_size=3
+# # strict_core_area=True
+# # ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
+# # visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
+# # -
 
 
 

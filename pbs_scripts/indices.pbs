@@ -4,11 +4,9 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=00:30:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/ob53
 #PBS -q normal
-#PBS -j oe
-
 
 # Print out input variables to the error log
 # param_stub='pbs'
@@ -29,7 +27,7 @@
 # folder='/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
 # outdir="/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs_$param_stub"
 folder=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/$param_stub
-outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_$param_stub
+outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_${param_stub}_confidence50
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/$param_stub/linear_tifs_$param_stub
 
 tmpdir='/scratch/xe2/cb8590/tmp'
@@ -43,7 +41,7 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir"
+python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --density_threshold $density_threshold
 
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --wind_method $wind_method --distance_threshold $distance_threshold --wind_threshold $wind_threshold

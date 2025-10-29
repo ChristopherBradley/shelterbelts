@@ -54,6 +54,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True):
     """Starting from a percent_cover tif, go through the whole pipeline"""
+    print("Working on tif:", percent_tif)
+
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
         stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
@@ -66,7 +68,6 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
     # import pdb; pdb.set_trace()
     
-    print("Getting worldcover for tif:", percent_tif)
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
@@ -157,99 +158,98 @@ def parse_arguments():
 
     return parser.parse_args()
 
+# +
+# if __name__ == "__main__":
+#     args = parse_arguments()
+#     run_pipeline_tifs(
+#         folder=args.folder,
+#         outdir=args.outdir,
+#         tmpdir=args.tmpdir,
+#         param_stub=args.param_stub,
+#         wind_method=args.wind_method,
+#         wind_threshold=args.wind_threshold,
+#         cover_threshold=args.cover_threshold,
+#         min_patch_size=args.min_patch_size,
+#         edge_size=args.edge_size,
+#         max_gap_size=args.max_gap_size,
+#         distance_threshold=args.distance_threshold,
+#         density_threshold=args.density_threshold,
+#         buffer_width=args.buffer_width,
+#         strict_core_area=args.strict_core_area
+#     )
 
+
+
+
+# + endofcell="--"
+# %%time
+cover_threshold=50
+min_patch_size=20
+edge_size=3
+max_gap_size=1
+distance_threshold=10
+density_threshold=5 
+buffer_width=3
+strict_core_area=False
+param_stub = ""
+wind_method=None
+wind_threshold=15
+# folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
+# outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
+
+folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_158'
+outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_lat_30_lon_158'
+tmpdir = '/scratch/xe2/cb8590/tmp'
+# -
+
+# # run_pipeline_tifs(folder, outdir, tmpdir)
+# --
 
 # +
-if __name__ == "__main__":
-    args = parse_arguments()
-    run_pipeline_tifs(
-        folder=args.folder,
-        outdir=args.outdir,
-        tmpdir=args.tmpdir,
-        param_stub=args.param_stub,
-        wind_method=args.wind_method,
-        wind_threshold=args.wind_threshold,
-        cover_threshold=args.cover_threshold,
-        min_patch_size=args.min_patch_size,
-        edge_size=args.edge_size,
-        max_gap_size=args.max_gap_size,
-        distance_threshold=args.distance_threshold,
-        density_threshold=args.density_threshold,
-        buffer_width=args.buffer_width,
-        strict_core_area=args.strict_core_area
-    )
+# %%time
+# Single tif example for debugging
+# percent_tif = '/scratch/xe2/cb8590/lidar/DATA_722798/uint8_percentcover_res10_height2m/Wellington201409-PHO3-C0-AHD_6666384_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+# percent_tif = '/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m/ACT-16ppm_2025_SW_679000_6099000_1k_class_AHD_percentcover_res10_height2m_uint8.tif'
+# percent_tif = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/Young201709-LID1-C3-AHD_6306194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
+percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142/29_13-142_14_y2024_predicted.tif'
+stub = None
+if stub is None:
+    # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
+    stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
+data_folder = percent_tif[percent_tif.find('DATA'):percent_tif.find('DATA') + 11]
 
-# # +
-# # %%time
-# cover_threshold=0
-# min_patch_size=20
-# edge_size=3
-# max_gap_size=1
-# distance_threshold=10
-# density_threshold=5 
-# buffer_width=3
-# strict_core_area=False
-# param_stub = ""
-# wind_method=None
-# wind_threshold=15
-# # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
-# # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
+da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
 
-# folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142'
-# outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_lat_28_lon_142'
-# tmpdir = '/scratch/xe2/cb8590/tmp'
-# # -
-
-
-# # %%time
-# run_pipeline_tifs(folder, outdir, tmpdir, param_stub='riparian_doubleoverride')
-
-
-# +
-# # %%time
-# # Single tif example for debugging
-# # percent_tif = '/scratch/xe2/cb8590/lidar/DATA_722798/uint8_percentcover_res10_height2m/Wellington201409-PHO3-C0-AHD_6666384_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-# # percent_tif = '/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m/ACT-16ppm_2025_SW_679000_6099000_1k_class_AHD_percentcover_res10_height2m_uint8.tif'
-# # percent_tif = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/Young201709-LID1-C3-AHD_6306194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142/29_21-143_98_y2024_predicted.tif'
-# stub = None
-# if stub is None:
-#     # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
-#     stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
-# data_folder = percent_tif[percent_tif.find('DATA'):percent_tif.find('DATA') + 11]
-
-# da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
-
-# gs_bounds = gpd.GeoSeries([box(*da_percent.rio.bounds())], crs=da_percent.rio.crs)
-# bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
-# worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
-# # import pdb; pdb.set_trace()
+gs_bounds = gpd.GeoSeries([box(*da_percent.rio.bounds())], crs=da_percent.rio.crs)
+bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
+worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
+# import pdb; pdb.set_trace()
 # -
 
 
-# mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
+mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
 
 
 # +
-# ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
-# da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-# gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
-# gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=True, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
+ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
+da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
+gdf, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
+gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=True, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
 
-# lat = (bbox_4326[1] + bbox_4326[3])/2
-# lon = (bbox_4326[0] + bbox_4326[2])/2
-# ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=True, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
+lat = (bbox_4326[1] + bbox_4326[3])/2
+lon = (bbox_4326[0] + bbox_4326[2])/2
+ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=True, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
 
-# da_trees = da_percent > cover_threshold
-# ds_woody_veg = da_trees.to_dataset(name='woody_veg')
-# ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, save_tif=False, plot=False, ds=ds_woody_veg)
-# # ds_shelter = shelter_categories(None, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories)  # percent treecover method
-# ds_shelter = shelter_categories(None, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories, ds_wind=ds_wind)
+da_trees = da_percent > cover_threshold
+ds_woody_veg = da_trees.to_dataset(name='woody_veg')
+ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, save_tif=True, plot=False, ds=ds_woody_veg)
+# ds_shelter = shelter_categories(None, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories)  # percent treecover method
+ds_shelter = shelter_categories(None, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_tree_categories, ds_wind=ds_wind)
 
-# ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
+ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=True, plot=False, da_worldcover=da_worldcover)
 
-# ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
-# ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False) 
+ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
+ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, min_patch_size=min_patch_size) 
 
 # +
 # from shelterbelts.indices.shelter_metrics import linear_categories_labels
