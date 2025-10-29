@@ -264,9 +264,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     )
     nearest_labels = assigned_labels[inds_y, inds_x]
     assigned_labels[small_mask] = nearest_labels[small_mask]
-    
-    # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
-    
+        
     # Re-label the patches so they are consecutive integers
     unique_labels = np.unique(assigned_labels)
     unique_labels = unique_labels[unique_labels != 0]
@@ -331,14 +329,14 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         df_patch_metrics = df_patch_metrics.merge(df_widths)
     else:
         df_patch_metrics = df_widths
-
-    # df_patch_metrics = df_patch_metrics.merge(df_widths)
     
-    # Should remove any rows where the area is smaller than the min_patch_size
+    # Remove any rows where the area is smaller than the min_patch_size. Necessary since I'm using small buffer groups to reassign "Other" classes.
+    # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
+    df_patch_metrics_large = df_patch_metrics[df_patch_metrics['area'] > min_patch_size] 
     
     if save_csv:
         filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
-        df_patch_metrics.to_csv(filename, index=False)
+        df_patch_metrics_large.to_csv(filename, index=False)
         print("Saved:", filename)
     
     for i, row in df_patch_metrics.iterrows():
@@ -346,9 +344,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             label_id = row["label"]
             len_width_ratio = row["ellipse len/width"]
             
-            # if "skeleton len/width" not in row.index:
-            #     import pdb; pdb.set_trace()
-    
             if "skeleton len/width" not in row.index:
                 new_class = 12  # I was trying to fix the random 1kmx1km tiles in ACT forests with all '19' values, but this line had no effect. Need to debug further.
 
@@ -363,15 +358,18 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             df_patch_metrics.loc[i, 'category_id'] = new_class
             df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
     
+
     # Reassign the remaining corridor/other pixels to the corresponding cluster's category 
     remaining_mask = (da_linear.data == 14)
     if (remaining_mask.sum() > 0):
         label_ids = assigned_labels[remaining_mask]
-        
         label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
         mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+        
+        # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
+
         da_linear.data[remaining_mask] = mapped_categories
-    
+
     if plot:
         filename = os.path.join(outdir, f'{stub}_linear_categories.png')
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")

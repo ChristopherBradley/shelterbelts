@@ -196,14 +196,17 @@ wind_method=None
 wind_threshold=15
 # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
 # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
-
-folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_158'
-outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_lat_30_lon_158'
+# 
+folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142'
+outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_lat_28_lon_142'
 tmpdir = '/scratch/xe2/cb8590/tmp'
 # -
 
-# # run_pipeline_tifs(folder, outdir, tmpdir)
+
 # --
+
+# +
+# run_pipeline_tifs(folder, outdir, tmpdir)
 
 # +
 # %%time
@@ -211,7 +214,8 @@ tmpdir = '/scratch/xe2/cb8590/tmp'
 # percent_tif = '/scratch/xe2/cb8590/lidar/DATA_722798/uint8_percentcover_res10_height2m/Wellington201409-PHO3-C0-AHD_6666384_55_0002_0002_percentcover_res10_height2m_uint8.tif'
 # percent_tif = '/scratch/xe2/cb8590/ACTGOV_my_processing/uint8_percentcover_res10_height2m/ACT-16ppm_2025_SW_679000_6099000_1k_class_AHD_percentcover_res10_height2m_uint8.tif'
 # percent_tif = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/Young201709-LID1-C3-AHD_6306194_55_0002_0002_percentcover_res10_height2m_uint8.tif'
-percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142/29_13-142_14_y2024_predicted.tif'
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142/29_13-142_14_y2024_predicted.tif'
+percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142/29_37-142_30_y2024_predicted.tif'
 stub = None
 if stub is None:
     # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
