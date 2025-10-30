@@ -92,7 +92,7 @@ def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, 
     return distances
 
 
-def computer_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_adjacencies=False):
+def compute_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_adjacencies=False):
     """Using a boolean tree mask, assign a percentage density to each pixel within the given distance"""
     tree_mask = tree_percent > 0
     
@@ -215,6 +215,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
                 masked_stack = xr.concat(distance_rasters, dim="stack")
                 min_distances = masked_stack.min(dim="stack", skipna=True)
                 sheltered = min_distances > 0
+                distances = min_distances  # Renaming to match the convention from the 'MAX' and 'MOST_COMMON' methods
                 
         elif wind_method == 'ANY':
             wind_directions = list(direction_map.keys())
@@ -225,9 +226,23 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
             masked_stack = xr.concat(distance_rasters, dim="stack")
             min_distances = masked_stack.min(dim="stack", skipna=True)
             sheltered = min_distances > 0
+            distances = min_distances 
+
     else:
-        da_percent_trees = computer_tree_densities(tree_percent)
+        da_percent_trees = compute_tree_densities(tree_percent)
         sheltered = da_percent_trees >= density_threshold
+
+    if ds_wind:
+        # Save the distances as a tif output
+        filename_distances = os.path.join(outdir,f"{stub}_shelter_distances.tif")
+        distances.astype('uint8').rio.to_raster(filename_distances)  # Both trees and unsheltered grassland are NaN, which gets converted to 0
+        print(f"Saved: {filename_distances}")
+    else:        
+        # Save the percent_trees as a tif output
+        da_percent_trees = da_percent_trees.rio.write_crs(da_categories.rio.crs)  # Not sure where we lose the crs
+        filename_densities = os.path.join(outdir,f"{stub}_shelter_densities.tif")
+        da_percent_trees.astype('uint8').rio.to_raster(filename_densities)
+        print(f"Saved: {filename_densities}")
 
     # Assigning sheltered pixels a new label
     da_shelter_categories = da_categories.where(~sheltered, inverted_labels['Sheltered'])
@@ -289,7 +304,7 @@ if __name__ == '__main__':
 # stub = 'g2_26729'
 # category_tif = f"{outdir}{stub}_categorised.tif"
 # height_tif = f"{outdir}{stub}_canopy_height.tif"
-# wind_ds = f"{outdir}{stub}_barra_daily.nc"
+# wind_nc = f"{outdir}{stub}_barra_daily.nc"
 # wind_method = 'MOST_COMMON'
 # wind_threshold = 25
 # distance_threshold = 20
@@ -299,10 +314,6 @@ if __name__ == '__main__':
 # density_threshold=10
 
 # +
-# outdir = '/scratch/xe2/cb8590/tmp4'
-
-# +
-# ds_shelter = shelter_categories('/scratch/xe2/cb8590/tmp4/34_37-148_42_categorised.tif', outdir=outdir)
-# -
-
-
+# # %%time
+# # distances = shelter_categories(category_tif, wind_nc)
+# da = shelter_categories(category_tif)
