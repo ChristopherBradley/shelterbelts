@@ -35,6 +35,7 @@ direction_map = {
     'SE': (1, -1),
     'SW': (1, 1),
 }
+inverted_direction_map = {v: k for k, v in direction_map.items()}
 def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, multi_heights=True):
     """Compute the distance from each pixel.
        shelter_heights is an array of tree heights, with non-trees being np.nan.
@@ -201,6 +202,29 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
             primary_wind_direction, _ = dominant_wind_direction(ds_wind, wind_threshold)
             distances = compute_distance_to_tree_TH(shelter_heights, primary_wind_direction, distance_threshold)      
             sheltered = distances > 0
+
+        elif wind_method == 'WINDWARD':
+            # Leeward distances
+            primary_wind_direction, _ = dominant_wind_direction(ds_wind, wind_threshold)
+            distances1 = compute_distance_to_tree_TH(shelter_heights, primary_wind_direction, distance_threshold)      
+            
+            # Windward distances
+            windward_scaling_factor = 0.5
+            opposite_wind_direction = inverted_direction_map[tuple(np.array(direction_map[primary_wind_direction]) * - 1 )]
+            windward_distance_threshold = int(distance_threshold * windward_scaling_factor)
+            distances2 = compute_distance_to_tree_TH(shelter_heights, opposite_wind_direction, windward_distance_threshold)  
+            
+            # Merge the leeward and windward distances
+            distances1 = distances1.fillna(0).clip(0, 255).astype('uint8')
+            distances2 = distances2.fillna(0).clip(0, 255).astype('uint8')
+            min_both = xr.apply_ufunc(np.minimum, distances1, distances2)
+            max_either = xr.apply_ufunc(np.maximum, distances1, distances2)
+            distances = xr.where(  
+                (distances1 > 0) & (distances2 > 0),
+                min_both,
+                max_either
+            ) # This loses the crs, so need to reattach later
+            sheltered = distances > 0
     
         elif wind_method == 'HAPPENED':
             _, df_wind = dominant_wind_direction(ds_wind, wind_threshold)
@@ -234,6 +258,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
 
     if ds_wind:
         # Save the distances as a tif output
+        distances = distances.rio.write_crs(da_categories.rio.crs)
         filename_distances = os.path.join(outdir,f"{stub}_shelter_distances.tif")
         distances.astype('uint8').rio.to_raster(filename_distances)  # Both trees and unsheltered grassland are NaN, which gets converted to 0
         print(f"Saved: {filename_distances}")
@@ -306,7 +331,7 @@ if __name__ == '__main__':
 # height_tif = f"{outdir}{stub}_canopy_height.tif"
 # wind_nc = f"{outdir}{stub}_barra_daily.nc"
 # wind_method = 'MOST_COMMON'
-# wind_threshold = 25
+# wind_threshold = 15
 # distance_threshold = 20
 # minimum_height = 1
 # wind_dir='E'
@@ -314,6 +339,6 @@ if __name__ == '__main__':
 # density_threshold=10
 
 # +
-# # %%time
-# # distances = shelter_categories(category_tif, wind_nc)
-# da = shelter_categories(category_tif)
+# # # %%time
+# distances = shelter_categories(category_tif, wind_nc, wind_method='WINDWARD')
+# # da = shelter_categories(category_tif)
