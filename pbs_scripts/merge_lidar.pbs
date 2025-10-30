@@ -9,16 +9,9 @@
 #PBS -q normal
 #PBS -j oe
 
+# base_dir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_140
 
-# Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 
-# 8GB for NSW 1m 
-# 16GB for ACT 10m
-# 64GB for ACT 1m
-
-# stub=DATA_587060
 echo "Starting elvis_geojsons.pbs for stub $stub"
-
-# Change working directory
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 
 # Load the conda environment
@@ -26,13 +19,14 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
+python merge_lidar.py --base_dir $base_dir --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
+
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif
-
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/ACTGOV_my_processing --suffix _res10_cat5.tif --subdir ''
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_percentcover --suffix _height2m.tif --subdir ''  # Re-merging 30km tiles into 120km
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_ACT_2020_percentcover --suffix .tif --subdir ''  # Re-merging ACT percentcover
-
 # python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_s4_2023_3857/subfolders/x_3800000_y_16200000/subfolders/x_3870000_y_16250000 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_2020/subfolders/lat_28_lon_140 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
-python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_140 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
+
+# Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 
+# 8GB for NSW 1m 
+# 16GB for ACT 10m
+# 64GB for ACT 1m

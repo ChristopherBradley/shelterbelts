@@ -17,7 +17,7 @@ module load dea/20231204
 wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 cd $wd
 
-year=2022
+# year=2017
 echo "Running predictions.pbs for gpkg: $GPKG, year $year, with module dea/20231204"
 
 # Run the script

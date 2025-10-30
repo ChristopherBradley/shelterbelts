@@ -195,11 +195,17 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
             _, _, direction_max_speed = wind_dataframe(ds_wind)
             primary_wind_direction = direction_max_speed
             distances = compute_distance_to_tree_TH(shelter_heights, primary_wind_direction, distance_threshold)
+            
+            # I want an option to save the distances as a tif output
+
             sheltered = distances > 0
         
         elif wind_method == 'MOST_COMMON':
             primary_wind_direction, _ = dominant_wind_direction(ds_wind, wind_threshold)
             distances = compute_distance_to_tree_TH(shelter_heights, primary_wind_direction, distance_threshold)
+            
+            # I want an option to save the distances as a tif output
+            
             sheltered = distances > 0
     
         elif wind_method == 'HAPPENED':
@@ -214,6 +220,9 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
             else:
                 masked_stack = xr.concat(distance_rasters, dim="stack")
                 min_distances = masked_stack.min(dim="stack", skipna=True)
+                
+                # I want an option to save the min_distances as a tif output
+                
                 sheltered = min_distances > 0
                 distances = min_distances  # Renaming to match the convention from the 'MAX' and 'MOST_COMMON' methods
                 
@@ -225,6 +234,9 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
                 distance_rasters.append(distances)
             masked_stack = xr.concat(distance_rasters, dim="stack")
             min_distances = masked_stack.min(dim="stack", skipna=True)
+            
+            # I want an option to save the min_distances as a tif output here
+
             sheltered = min_distances > 0
             distances = min_distances 
 

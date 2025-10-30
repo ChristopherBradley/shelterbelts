@@ -13,6 +13,7 @@ import pandas as pd
 import geopandas as gpd
 from pyproj import Transformer
 from shapely.geometry import Point
+from shapely.ops import nearest_points
 
 import xarray as xr
 import rioxarray as rxr
@@ -118,6 +119,11 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, con
     for col in df.select_dtypes(include=['int64']).columns:
         df[col] = df[col].astype(np.int16)
     
+    # This happens when there's no good data for that location (e.g. always clouds, or always in a dark shadow from a north-south ridgeline)
+    bad = ~np.isfinite(df.to_numpy())
+    df = df.replace([np.inf, -np.inf], np.nan)  
+    df = df.fillna(0) # not sure what value is appropriate for missing data here, maybe infinity or an average would be better?
+
     X_all_scaled = scaler.transform(df)
 
     # Make predictions and add to the xarray    
@@ -225,11 +231,16 @@ def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85
                 bbox = row[3]
                 center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
                 point = Point(center)
-                match = gdf_koppen[gdf_koppen.contains(point)]
+
+                # Using the nearest polygon instead of contains because the koppen boundaries miss quite a bit of landmass near the coastlines
+                # match = gdf_koppen[gdf_koppen.contains(point)]
+                nearest_geom = min(gdf_koppen.geometry, key=lambda g: point.distance(g))
+                match = gdf_koppen[gdf_koppen.geometry == nearest_geom]
+
                 if len(match) > 0:
                     koppen_class = match.iloc[0]['Name']
                 else:
-                    koppen_class = 'all'
+                    koppen_class = 'all'  # There should always be a match now that I'm using the nearest polygon
                 model = model_dict[koppen_class][0]
                 scaler = model_dict[koppen_class][1]
                 print(f"predicting with model: {koppen_class}")
