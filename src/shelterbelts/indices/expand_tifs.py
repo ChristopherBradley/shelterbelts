@@ -38,13 +38,14 @@ def expand_tif(filename, folder_merged, outdir, tmpdir='/scratch/xe2/cb8590/tmp'
     # gpd.GeoDataFrame({'geometry': [box(*expanded_bounds)]}, crs='EPSG:3857').to_file('/scratch/xe2/cb8590/tmp/expanded_bounds.gpkg')  # For visualising the expanded bounds in QGIS
 
     gpkg = os.path.join(folder_merged, f'{Path(folder_merged).parent.stem}_{Path(folder_merged).stem}_footprints.gpkg') # I think this is cleaner than the way I wrote it in bounding_boxes.py, but should give the same result
+    stub = f'{Path(filename).stem}_expanded'
     if not os.path.exists(gpkg):
+        print(f"Creating bounding boxes for: {folder_merged}, because of filename: {filename}")
         bounding_boxes(folder_merged, crs='EPSG:3857')
-    stub = Path(filename).stem
     mosaic, out_meta = merge_tiles_bbox(expanded_bounds, tmpdir, stub, folder_merged, gpkg, 'filename', verbose=False)
     ds_expanded = merged_ds(mosaic, out_meta, 'expanded')
 
-    outpath = os.path.join(outdir, f'{stub}_expanded{num_pixels}.tif')
+    outpath = os.path.join(outdir, f'{stub}{num_pixels}.tif')
     ds_expanded['expanded'].rio.to_raster(outpath)
     print(f'Saved: {outpath}')
     
@@ -56,6 +57,7 @@ def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None):
     """Run expand_tif on all subfolders in folder_to_expand, preserving the folder structure when writing to outdir"""
     filenames = glob.glob(f'{folder_to_expand}/*')
     filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
+    filenames = [f for f in filenames if not 'merged' in f]
     sub_outdir = os.path.join(outdir, Path(folder_to_expand).stem)
     os.makedirs(sub_outdir, exist_ok=True)
 
@@ -125,3 +127,6 @@ if __name__ == "__main__":
 # # %%time
 # expand_tifs(folder_to_expand, folder_merged, outdir, limit=10)
 # # 7 secs for 10, means about 30 mins per folder
+# -
+
+

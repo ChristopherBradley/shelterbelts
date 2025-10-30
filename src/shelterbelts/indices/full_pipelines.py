@@ -52,7 +52,8 @@ roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', stub=None, 
                      wind_method=None, wind_threshold=15,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
-                     distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True):
+                     distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True,
+                     crop_pixels=0):
     """Starting from a percent_cover tif, go through the whole pipeline"""
     print("Working on tif:", percent_tif)
 
@@ -89,7 +90,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
 
     ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
-    ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False) 
+    ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, crop_pixels=crop_pixels) 
     
     return ds_linear
 
@@ -97,7 +98,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
 def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', param_stub='', 
                       wind_method=None, wind_threshold=15,
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
-                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=False):
+                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=False,
+                      crop_pixels=0):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 
@@ -123,7 +125,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
     for percent_tif in percent_tifs:
-        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area)
+        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
     gdf = bounding_boxes(outdir)
     stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
     
@@ -154,12 +156,12 @@ def parse_arguments():
     parser.add_argument("--distance_threshold", type=int, default=10, help="Distance from trees that counts as sheltered (default: 10)")
     parser.add_argument("--density_threshold", type=int, default=5, help="Tree cover %% within distance_threshold that counts as sheltered (default: 5)")
     parser.add_argument("--buffer_width", type=int, default=3, help="Buffer width for sheltered area (default: 3)")
+    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
     parser.add_argument("--strict_core_area", default=False, action="store_true", help="Boolean to determine whether to enforce core areas to be fully connected.")
 
     return parser.parse_args()
 
 
-# +
 if __name__ == "__main__":
     args = parse_arguments()
     run_pipeline_tifs(
@@ -176,13 +178,12 @@ if __name__ == "__main__":
         distance_threshold=args.distance_threshold,
         density_threshold=args.density_threshold,
         buffer_width=args.buffer_width,
-        strict_core_area=args.strict_core_area
+        strict_core_area=args.strict_core_area,
+        crop_pixels=args.crop_pixels
     )
 
 
-# -
-
-
+# +
 # # %%time
 # cover_threshold=50
 # min_patch_size=20
@@ -195,13 +196,16 @@ if __name__ == "__main__":
 # param_stub = ""
 # wind_method=None
 # wind_threshold=15
+# crop_pixels = 20
 # # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
 # # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
 # # 
 # folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142'
-# outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_lat_28_lon_142'
 # tmpdir = '/scratch/xe2/cb8590/tmp'
+# outdir=tmpdir
+
 # # -
+# -
 
 
 
@@ -214,7 +218,8 @@ if __name__ == "__main__":
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_01-141_30_y2024_predicted.tif'
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_150/35_73-150_30_y2024_predicted.tif'  # Failing because a small tree group gets cutoff by water
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be a fine one
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because a small tree group gets cutoff by water
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because a small tree group gets cutoff by water
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/lat_32_lon_142/32_25-143_50_y2024_predicted_expanded_expanded20.tif'
 
 # stub = None
 # if stub is None:
@@ -253,8 +258,4 @@ if __name__ == "__main__":
 # ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=True, plot=False, da_worldcover=da_worldcover)
 
 # ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
-# ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, min_patch_size=min_patch_size) 
-
-# +
-# from shelterbelts.indices.shelter_metrics import linear_categories_labels
-# {item[0]:item[1] for item in sorted(linear_categories_labels.items())}
+# ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, min_patch_size=min_patch_size, crop_pixels=crop_pixels) 

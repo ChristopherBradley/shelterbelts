@@ -185,7 +185,7 @@ def skeleton_stats(assigned_labels):
     return pd.DataFrame(results)
 
 
-def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True, min_patch_size=20):
+def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True, min_patch_size=20, crop_pixels=None):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
     Parameters
@@ -379,7 +379,9 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         da_linear.data[remaining_mask] = mapped_categories
 
     # Maybe I should add an assert that there aren't any 14 labels left, since I'm not confident I've covered every scenario.
-        
+
+    # crop da_linear by n pixels on every side
+    
     if plot:
         filename = os.path.join(outdir, f'{stub}_linear_categories.png')
         
@@ -388,6 +390,12 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     
     ds = da_linear.to_dataset(name="linear_categories")
     ds['labelled_categories'] = (["y", "x"], assigned_labels)
+
+    if crop_pixels is not None:
+        ds = ds.isel(
+            x=slice(crop_pixels, -crop_pixels),
+            y=slice(crop_pixels, -crop_pixels)
+        )
     
     if save_tif:
         filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')

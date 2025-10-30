@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Directory containing the split gpkg files
-year=2019
-GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_actnsw_4326_${year}attempt2"
+year=2024
+# GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_actnsw_4326_${year}attempt3"
+GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_actnsw_4326"
 OUTDIR="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326"
 
 # Loop through each gpkg and submit a PBS job
