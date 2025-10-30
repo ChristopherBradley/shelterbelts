@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import glob
+import argparse
 
 import rioxarray as rxr
 from shapely.geometry import box
@@ -36,9 +37,9 @@ def expand_tif(filename, folder_merged, outdir, tmpdir='/scratch/xe2/cb8590/tmp'
     expanded_bounds = (minx - buffer, miny - buffer, maxx + buffer, maxy + buffer)
     # gpd.GeoDataFrame({'geometry': [box(*expanded_bounds)]}, crs='EPSG:3857').to_file('/scratch/xe2/cb8590/tmp/expanded_bounds.gpkg')  # For visualising the expanded bounds in QGIS
 
-    gpkg = f'{Path(merged_folder).parent.stem}_{Path(merged_folder).stem}_footprints.gpkg' # I think this is cleaner than the way I wrote it in bounding_boxes.py, but should give the same result
+    gpkg = os.path.join(folder_merged, f'{Path(folder_merged).parent.stem}_{Path(folder_merged).stem}_footprints.gpkg') # I think this is cleaner than the way I wrote it in bounding_boxes.py, but should give the same result
     if not os.path.exists(gpkg):
-        bounding_boxes(merged_folder, crs='EPSG:3857')
+        bounding_boxes(folder_merged, crs='EPSG:3857')
     stub = Path(filename).stem
     mosaic, out_meta = merge_tiles_bbox(expanded_bounds, tmpdir, stub, folder_merged, gpkg, 'filename', verbose=False)
     ds_expanded = merged_ds(mosaic, out_meta, 'expanded')
@@ -50,44 +51,77 @@ def expand_tif(filename, folder_merged, outdir, tmpdir='/scratch/xe2/cb8590/tmp'
     return ds_expanded
 
 
-def expand_tifs(folder_to_expand, folder_merged, outdir, suffix='', non_suffixes=[''], non_contains=[''], limit=None):
+# +
+def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None):
     """Run expand_tif on all subfolders in folder_to_expand, preserving the folder structure when writing to outdir"""
-    folders = glob.glob(f'{folder_to_expand}/*')
+    filenames = glob.glob(f'{folder_to_expand}/*')
+    filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
+    sub_outdir = os.path.join(outdir, Path(folder_to_expand).stem)
+    os.makedirs(sub_outdir, exist_ok=True)
 
+    if limit:
+        filenames = filenames[:limit]
+    for filename in filenames:
+        expand_tif(filename, folder_merged, sub_outdir)
+
+# Takes ~15 mins per folder
+
+
+# -
+
+# I run this function in a notebook to prep the sh file that does the qsubs in parallel
+non_suffixes=['_confidence50', '_confidence50_fixedlabels', '_corebugfix']
+non_contains = ['linear_tifs', 'merged_predicted']
+def get_subfolders(non_suffixes, non_contains):
+    """Find all the original subfoldes in the larger folder"""
+    folder_with_subfolders = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders'
+    folders = glob.glob(f'{folder_with_subfolders}/*')
+    
     # I should have better folder management so I don't need to jump through all these hurdles
-    folders = [f for f in folders if f.endswith(suffix) 
-             and os.path.isdir(f)
+    folders = [f for f in folders if 
+             os.path.isdir(f)
              and not any(f.endswith(non_suffix) for non_suffix in non_suffixes)
              and not any(non_contain in f for non_contain in non_contains)
             ]
-
-    if limit:
-        folders = folders[:limit]
-    for folder in folders:
-        filenames = glob.glob(f'{folder}/*')
-        sub_outdir = os.path.join(outdir, Path(folder).stem)
-        os.makedirs(sub_outdir, exist_ok=True)
-
-        if limit:
-            filenames = filenames[:limit]
-        for filename in filenames:
-            expand_tif(filename, folder_merged, sub_outdir)
+    stems = [Path(folder).stem for folder in folders]
+    stems_string = " ".join(stems)
+    return stems_string
 
 
-filename = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_148/34_93-148_90_y2024_predicted.tif'
-folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted'
-outdir = '/scratch/xe2/cb8590/tmp'
-ds = expand_tif(filename, folder_merged, outdir)
-
-folder_to_expand = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders'
-folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted'
-outdir = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded'
-
-suffix=''
-non_suffixes=['_confidence50', '_confidence50_fixedlabels', '_corebugfix', '.tif']
-non_contains = ['linear_tifs', 'merged_predicted']
-
-# %%time
-expand_tifs(folder_to_expand, folder_merged, outdir, suffix, non_suffixes, non_contains)
+def parse_arguments():
+    """Parse command line arguments for expand_tifs."""
+    parser = argparse.ArgumentParser(description="Expand a collection of TIFs in subfolders to reduce edge effects.")
+    parser.add_argument("--folder_to_expand", required=True, help="Root folder containing subfolders of TIF files to expand.")
+    parser.add_argument("--folder_merged", required=True, help="Folder containing wall-to-wall merged TIFs for context.")
+    parser.add_argument("--outdir", required=True, help="Output directory to save expanded TIFs (folder structure will be preserved).")
+    parser.add_argument("--limit", type=int, default=None, help="Optional limit on the number of subfolders to process.")
+    return parser.parse_args()
 
 
+
+if __name__ == "__main__":
+    args = parse_arguments()
+    expand_tifs(folder_to_expand=args.folder_to_expand, 
+                folder_merged=args.folder_merged, 
+                outdir=args.outdir,
+                limit=args.limit
+               )
+
+# +
+# filename = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_148/34_93-148_90_y2024_predicted.tif'
+# folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted'
+# outdir = '/scratch/xe2/cb8590/tmp'
+
+# +
+# ds = expand_tif(filename, folder_merged, outdir)
+
+# +
+# # %%time
+# folder_to_expand = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_144'
+# folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted'
+# outdir = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded'
+
+# +
+# # %%time
+# expand_tifs(folder_to_expand, folder_merged, outdir, limit=10)
+# # 7 secs for 10, means about 30 mins per folder

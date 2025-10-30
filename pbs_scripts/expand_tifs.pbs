@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N expand_tifs
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/xe2+gdata/ob53
+#PBS -q normal
+
+# stub=lat_34_lon_144
+
+folder_to_expand=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/$stub
+folder_merged=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted
+outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/expanded
+
+echo "Starting expand_tif.pbs for folder_to_expand $folder_to_expand, outdir $outdir"
+
+# Change working directory
+cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/indices
+
+# Load the conda environment
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+# Run the script
+python expand_tifs.py --folder_to_expand $folder_to_expand --folder_merged $folder_merged --outdir $outdir

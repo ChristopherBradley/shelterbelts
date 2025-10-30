@@ -151,7 +151,7 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
             print(f"Saved {out_file}")
 
 
-year = 2020
+year = 2024
 sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt2', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
 
 
