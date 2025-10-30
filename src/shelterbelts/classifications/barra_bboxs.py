@@ -117,43 +117,42 @@ def crop_barra_bboxs():
 
 
 
-# +
-def sub_gpkgs(state='actnsw', stub='actnsw_4326'):
+# -
+
+def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_folder="/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326", save_gpkg=True):
     """Create smaller gpkgs for passing to multiple prediction jobs at once"""
     # Input / output paths
     input_file = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_{state}.gpkg"
     output_dir = f"/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_{stub}"
-    os.makedirs(output_dir, exist_ok=False)
     
     # Load the GeoDataFrame
     gdf = gpd.read_file(input_file)
     gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
     # gdf = gdf.to_crs('EPSG:3857')  # Thought this might fix the off by 1 errors, but turns out it was a different error. Then this meant that the model selection code didn't work so I was prediciting using the general model instead of region specific :(
+    print(f"Original length of gdf: {len(gdf)}")
     
-#     # Remove tiles that have already been processed
-#     proc_dir = Path("/scratch/xe2/cb8590/barra_trees_2020")
-#     processed_stubs = {
-#         f.stem.replace("_predicted", "") for f in proc_dir.glob("*_predicted.tif")
-#     }
-#     gdf = gdf[~gdf["stub"].isin(processed_stubs)]
-        
-    # Chunk size
-    chunk_size = 500
+    # Remove tiles that have already been processed
+    processed_filenames = Path(processed_folder).glob("*_predicted.tif")
+    processed_stubs = {
+        f.stem[:len('28_97-152_94')] for f in processed_filenames
+    }
+    gdf = gdf[~gdf["stub"].isin(processed_stubs)]
+    print(f"Filtered length of gdf: {len(gdf)}")
+
+    if save_gpkg:
+        os.makedirs(output_dir, exist_ok=False)
+        # Split into chunks and save
+        for start in range(0, len(gdf), chunk_size):
+            end = min(start + chunk_size, len(gdf))
+            chunk = gdf.iloc[start:end]
+            out_file = os.path.join(output_dir, f"BARRA_bboxs_{stub}_{start}-{end}.gpkg")
+            chunk.to_file(out_file, driver="GPKG")
     
-    # Split into chunks and save
-    for start in range(0, len(gdf), chunk_size):
-        end = min(start + chunk_size, len(gdf))
-        chunk = gdf.iloc[start:end]
-        out_file = os.path.join(output_dir, f"BARRA_bboxs_{stub}_{start}-{end}.gpkg")
-        chunk.to_file(out_file, driver="GPKG")
-
-        print(f"Saved {out_file}")
+            print(f"Saved {out_file}")
 
 
-# -
-
-# %%time
-sub_gpkgs()
+year = 2020
+sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt2', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
 
 
 def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
@@ -194,7 +193,6 @@ def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
         shutil.move(str(tif_path), subfolder / tif_path.name)
 
     # Took 30 secs for 50k tiles
-
 
 
 # +
