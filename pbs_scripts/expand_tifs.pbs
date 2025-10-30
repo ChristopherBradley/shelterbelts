@@ -9,10 +9,11 @@
 #PBS -q normal
 
 # stub=lat_34_lon_144
+# folder_year=barra_trees_s4_2024
 
-folder_to_expand=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/$stub
-folder_merged=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted
-outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/expanded
+folder_to_expand=/scratch/xe2/cb8590/$folder_year/subfolders/$stub
+folder_merged=/scratch/xe2/cb8590/$folder_year/subfolders/merged_predicted
+outdir=/scratch/xe2/cb8590/$folder_year/expanded
 
 echo "Starting expand_tif.pbs for folder_to_expand $folder_to_expand, outdir $outdir"
 

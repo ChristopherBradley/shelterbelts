@@ -71,25 +71,6 @@ def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None):
 
 # -
 
-# I run this function in a notebook to prep the sh file that does the qsubs in parallel
-non_suffixes=['_confidence50', '_confidence50_fixedlabels', '_corebugfix']
-non_contains = ['linear_tifs', 'merged_predicted']
-def get_subfolders(non_suffixes, non_contains):
-    """Find all the original subfoldes in the larger folder"""
-    folder_with_subfolders = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders'
-    folders = glob.glob(f'{folder_with_subfolders}/*')
-    
-    # I should have better folder management so I don't need to jump through all these hurdles
-    folders = [f for f in folders if 
-             os.path.isdir(f)
-             and not any(f.endswith(non_suffix) for non_suffix in non_suffixes)
-             and not any(non_contain in f for non_contain in non_contains)
-            ]
-    stems = [Path(folder).stem for folder in folders]
-    stems_string = " ".join(stems)
-    return stems_string
-
-
 def parse_arguments():
     """Parse command line arguments for expand_tifs."""
     parser = argparse.ArgumentParser(description="Expand a collection of TIFs in subfolders to reduce edge effects.")
