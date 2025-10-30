@@ -361,17 +361,25 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             da_linear.data[mask] = new_class
             df_patch_metrics.loc[i, 'category_id'] = new_class
             df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
-    
+
 
     # Reassign the remaining corridor/other pixels to the corresponding cluster's category 
     remaining_mask = (da_linear.data == 14)
     if (remaining_mask.sum() > 0):
         label_ids = assigned_labels[remaining_mask]
-        label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))
-        mapped_categories = np.vectorize(label_to_category.get)(label_ids)
-        
+
+        if 'label' not in df_patch_metrics.columns:
+            mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
+        else:
+            label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # There might be a case where df_patch_metrics['category_id'] is None? In which case I should also set to 11 for scattered trees.
+            mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+
+        # import pdb; pdb.set_trace() # Useful for debugging in a jupyter notebook
+
         da_linear.data[remaining_mask] = mapped_categories
 
+    # Maybe I should add an assert that there aren't any 14 labels left, since I'm not confident I've covered every scenario.
+        
     if plot:
         filename = os.path.join(outdir, f'{stub}_linear_categories.png')
         
