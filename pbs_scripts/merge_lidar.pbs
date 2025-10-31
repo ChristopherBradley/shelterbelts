@@ -7,7 +7,6 @@
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2
 #PBS -q normal
-#PBS -j oe
 
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_140
 

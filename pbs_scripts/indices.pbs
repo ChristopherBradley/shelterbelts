@@ -16,7 +16,7 @@ tmpdir='/scratch/xe2/cb8590/tmp'
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_${param_stub}_corebugfix
 
 folder=/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/$param_stub
-outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/linear_tifs_${param_stub}_cropfix
+outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/linear_tifs_${param_stub}_windward
 
 
 echo "Starting indices.pbs for folder $folder, outdir $outdir"
@@ -29,7 +29,7 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20
+python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --density_threshold $density_threshold
 
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --wind_method $wind_method --distance_threshold $distance_threshold --wind_threshold $wind_threshold

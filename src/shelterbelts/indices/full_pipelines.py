@@ -205,21 +205,17 @@ if __name__ == "__main__":
 # outdir=tmpdir
 
 # # -
-# -
-
-
-
 # +
 # run_pipeline_tifs(folder, outdir, tmpdir)
 
 # +
 # # %%time
 # # Single tif example for debugging
-# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_01-141_30_y2024_predicted.tif'
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_01-141_30_y2024_predicted.tif'  # Failing because no trees in middle of lake
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_150/35_73-150_30_y2024_predicted.tif'  # Failing because a small tree group gets cutoff by water
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be a fine one
-# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because a small tree group gets cutoff by water
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/lat_32_lon_142/32_25-143_50_y2024_predicted_expanded_expanded20.tif'
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/lat_32_lon_142/32_25-143_50_y2024_predicted_expanded_expanded20.tif'
 
 # stub = None
 # if stub is None:
