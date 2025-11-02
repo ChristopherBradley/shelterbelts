@@ -86,7 +86,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     da_trees = da_percent > cover_threshold
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
     ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False, ds=ds_woody_veg)
-    ds_shelter = shelter_categories(None, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories, ds_wind=ds_wind)
+    ds_shelter = shelter_categories(None, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories, ds_wind=ds_wind, crop_pixels=crop_pixels)
     ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
 
     ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
@@ -120,7 +120,6 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     ---------
         merged.tif: A combined tif after applying the full pipeline to every individual tif
     
-    
     """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
@@ -128,8 +127,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         percent_tifs = percent_tifs[:limit]
     for percent_tif in percent_tifs:
         run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
-    # gdf = bounding_boxes(outdir)
-    gdf = bounding_boxes(outdir, filetype='linear_categories.tif')  # Exclude the shelter_distances.tif from the merging. Still need to crop them too.
+    gdf = bounding_boxes(outdir, filetype='linear_categories.tif')  # Exclude the shelter_distances.tif from the merging.
     stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
     
     footprint_gpkg = f"{stub}_footprints.gpkg"

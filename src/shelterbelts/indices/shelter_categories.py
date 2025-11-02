@@ -127,7 +127,7 @@ def compute_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_a
     return da_percent_trees
 
 
-def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', stub='TEST', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, ds=None, ds_wind=None, savetif=True, plot=True):
+def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', stub='TEST', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, ds=None, ds_wind=None, savetif=True, plot=True, crop_pixels=None):
     """Define sheltered and unsheltered pixels
     
     Parameters
@@ -151,8 +151,9 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
             - Only applies if the wind_ds is not provided.
         minimum_height: Assume that all tree pixels are at least this tall. 
             - Only applies if a the height_tif is provided. 
-        ds: Used instead of the category_tif when provided to avoid writing and reading lots of data.
-            
+        ds: Used instead of the category_tif to avoid writing and reading lots of data.
+        crop_pixels: Number of pixels to be cropped on each edge
+
     Returns
     -------
         ds: an xarray with a band 'shelter_categories', where the integers represent the categories defined in 'shelter_category_labels'.
@@ -256,18 +257,26 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
         da_percent_trees = compute_tree_densities(tree_percent)
         sheltered = da_percent_trees >= density_threshold
 
+    # Prep filename for intermediate output
     if ds_wind:
-        # Save the distances as a tif output
-        distances = distances.rio.write_crs(da_categories.rio.crs)
-        filename_distances = os.path.join(outdir,f"{stub}_shelter_distances.tif")
-        distances.astype('uint8').rio.to_raster(filename_distances)  # Both trees and unsheltered grassland are NaN, which gets converted to 0
-        print(f"Saved: {filename_distances}")
+        filename = os.path.join(outdir,f"{stub}_shelter_distances.tif")
+        da_distance_or_percent = distances
     else:        
-        # Save the percent_trees as a tif output
-        da_percent_trees = da_percent_trees.rio.write_crs(da_categories.rio.crs)  # Not sure where we lose the crs
-        filename_densities = os.path.join(outdir,f"{stub}_shelter_densities.tif")
-        da_percent_trees.astype('uint8').rio.to_raster(filename_densities)
-        print(f"Saved: {filename_densities}")
+        filename = os.path.join(outdir,f"{stub}_shelter_densities.tif")
+        da_distance_or_percent = da_percent_trees
+
+    da_distance_or_percent = da_distance_or_percent.rio.write_crs(da_categories.rio.crs)  # Some of the earlier methods lose the crs
+
+    # Crop the output if it was expanded before the pipeline started
+    if crop_pixels is not None:
+        da_distance_or_percent = da_distance_or_percent.isel(
+            x=slice(crop_pixels, -crop_pixels),
+            y=slice(crop_pixels, -crop_pixels)
+        )
+
+    # Save the distance or density as an intermediate tif
+    da_distance_or_percent.astype('uint8').rio.to_raster(filename)
+    print(f"Saved: {filename}")
 
     # Assigning sheltered pixels a new label
     da_shelter_categories = da_categories.where(~sheltered, inverted_labels['Sheltered'])
