@@ -203,7 +203,7 @@ if __name__ == '__main__':
 # outdir='/scratch/xe2/cb8590/tmp'
 # stub='Test'
 
-# cover_threshold=50
+# cover_threshold=-1
 # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
 # da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')

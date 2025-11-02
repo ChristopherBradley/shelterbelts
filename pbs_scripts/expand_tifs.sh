@@ -9,7 +9,8 @@
 
 # stubs=(lat_34_lon_144 lat_34_lon_142)
 
-folder_year=barra_trees_s4_2018_actnsw_4326
+year=2017
+folder_year=barra_trees_s4_${year}_actnsw_4326
 stubs=(lat_34_lon_144 lat_34_lon_142 lat_28_lon_148 lat_28_lon_142 lat_32_lon_142 lat_28_lon_150 lat_30_lon_148 
 lat_30_lon_140 lat_36_lon_148 lat_28_lon_144 lat_32_lon_144 lat_32_lon_146 lat_32_lon_150 
 lat_36_lon_150 lat_28_lon_146 lat_32_lon_148 lat_28_lon_152 lat_36_lon_144 lat_34_lon_150 

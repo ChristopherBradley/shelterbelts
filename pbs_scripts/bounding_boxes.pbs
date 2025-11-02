@@ -10,8 +10,6 @@
 #PBS -j oe
 
 
-# Print out input variables to the error log
-echo "Starting bounding_boxes.pbs"
 
 # Change working directory
 wd=/home/147/cb8590/Projects/shelterbelts
@@ -21,8 +19,13 @@ cd $wd
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
+# folder='/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+year=2024
+folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/subfolders"
+
+# Print out input variables to the error log
+echo "Starting bounding_boxes.pbs"
+
 # Run the script
-# python3 src/shelterbelts/classifications/bounding_boxes.py /scratch/xe2/tmp/tif_folder
-# python3 src/shelterbelts/classifications/bounding_boxes.py '/scratch/xe2/cb8590/Worldcover_Australia'  
-python3 src/shelterbelts/classifications/bounding_boxes.py '/g/data/xe2/cb8590/Nick_Aus_treecover_10m' --filetype '.tiff'  # This one took over 4 hours and timed out.
-# python3 src/shelterbelts/classifications/bounding_boxes.py '/scratch/xe2/cb8590/lidar_merged/'
+# python3 src/shelterbelts/classifications/bounding_boxes.py $folder --filetype '.tiff'
+python3 src/shelterbelts/classifications/bounding_boxes.py $folder --crs EPSG:3857

@@ -99,7 +99,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
                       wind_method=None, wind_threshold=15,
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=False,
-                      crop_pixels=0):
+                      crop_pixels=0, limit=None):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 
@@ -124,9 +124,12 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
+    if limit:
+        percent_tifs = percent_tifs[:limit]
     for percent_tif in percent_tifs:
         run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
-    gdf = bounding_boxes(outdir)
+    # gdf = bounding_boxes(outdir)
+    gdf = bounding_boxes(outdir, filetype='linear_categories.tif')  # Exclude the shelter_distances.tif from the merging. Still need to crop them too.
     stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
     
     footprint_gpkg = f"{stub}_footprints.gpkg"
@@ -158,6 +161,7 @@ def parse_arguments():
     parser.add_argument("--buffer_width", type=int, default=3, help="Buffer width for sheltered area (default: 3)")
     parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
     parser.add_argument("--strict_core_area", default=False, action="store_true", help="Boolean to determine whether to enforce core areas to be fully connected.")
+    parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
 
     return parser.parse_args()
 
@@ -179,7 +183,8 @@ if __name__ == "__main__":
         density_threshold=args.density_threshold,
         buffer_width=args.buffer_width,
         strict_core_area=args.strict_core_area,
-        crop_pixels=args.crop_pixels
+        crop_pixels=args.crop_pixels,
+        limit=args.limit
     )
 
 
@@ -196,13 +201,14 @@ if __name__ == "__main__":
 # param_stub = ""
 # wind_method=None
 # wind_threshold=15
-# crop_pixels = 20
+# # crop_pixels = 20
+# crop_pixels = 0
 # # folder = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/uint8_percentcover_res10_height2m/'
 # # outdir = '/scratch/xe2/cb8590/lidar_30km_old/DATA_717840/linear_tifs'
 # # 
 # folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142'
 # tmpdir = '/scratch/xe2/cb8590/tmp'
-# outdir=tmpdir
+# outdir='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142_corebugfix2'
 
 # # -
 # +
@@ -214,8 +220,9 @@ if __name__ == "__main__":
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_01-141_30_y2024_predicted.tif'  # Failing because no trees in middle of lake
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_150/35_73-150_30_y2024_predicted.tif'  # Failing because a small tree group gets cutoff by water
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be a fine one
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/lat_32_lon_142/32_25-143_50_y2024_predicted_expanded_expanded20.tif'
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_142/29_37-142_30_y2024_predicted.tif'  # Working as a single tif, but not as a folder
 
 # stub = None
 # if stub is None:
@@ -255,3 +262,6 @@ if __name__ == "__main__":
 
 # ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=True, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
 # ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, min_patch_size=min_patch_size, crop_pixels=crop_pixels) 
+# -
+
+

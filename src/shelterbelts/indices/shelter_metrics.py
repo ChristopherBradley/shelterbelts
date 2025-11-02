@@ -374,8 +374,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # There might be a case where df_patch_metrics['category_id'] is None? In which case I should also set to 11 for scattered trees.
             mapped_categories = np.vectorize(label_to_category.get)(label_ids)
 
-        # import pdb; pdb.set_trace() # Useful for debugging in a jupyter notebook
-
         da_linear.data[remaining_mask] = mapped_categories
 
     # Maybe I should add an assert that there aren't any 14 labels left, since I'm not confident I've covered every scenario.
@@ -398,6 +396,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         )
     
     if save_tif:
+
         filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')
         tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
     
