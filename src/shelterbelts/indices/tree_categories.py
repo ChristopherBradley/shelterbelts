@@ -7,6 +7,8 @@ from scipy.ndimage import label, binary_erosion, binary_dilation
 
 from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 
+import matplotlib.pyplot as plt
+
 # Create a single array with all the layers
 tree_categories_cmap = {
     0:(255, 255, 255),
@@ -80,8 +82,11 @@ def core_trees(woody_veg, edge_size=3, min_patch_size=20, strict_core_area=False
 
     # Exclude core area's smaller than the scattered trees threshold
     labeled_cores, num_features = label(all_core_area)
-    # large_cores = np.flatnonzero(np.bincount(labeled_cores.ravel()) >= min_patch_size)[1:] # Drop the 0 category
+    
     large_cores = np.flatnonzero(np.bincount(labeled_cores.ravel()) >= min_patch_size)
+    if (~woody_veg).sum() > 0:
+        # large_cores = large_cores[1:]  # This doesn't work if there aren't any 0 categories larger than the min_patch_size because they got removed from the last step, so we end up losing a core area instead
+        large_cores = large_cores[large_cores != 0]  # Drop the 0 category for non-trees
     core_area = np.isin(labeled_cores, large_cores) & woody_veg
 
     return core_area, core_kernel
@@ -167,41 +172,25 @@ def parse_arguments():
     parser.add_argument('--max_gap_size', default=2, help='The allowable gap between two tree clusters before considering them as separate patches.')
     parser.add_argument('--strict_core_area', default=False, action="store_true", help="Whether to enforce core areas being fully connected.")
     parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
-
+ 
     return parser.parse_args()
 
 
+if __name__ == '__main__':
+
+    args = parse_arguments()
+    
+    filename = args.filename
+    outdir = args.outdir
+    stub = args.stub
+    min_patch_size = int(args.min_patch_size)
+    edge_size = int(args.edge_size)
+    max_gap_size = int(args.max_gap_size)
+    plot = args.plot
+    
+    tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area, plot=plot)
+
 # +
-# if __name__ == '__main__':
-
-#     args = parse_arguments()
-    
-#     filename = args.filename
-#     outdir = args.outdir
-#     stub = args.stub
-#     min_patch_size = int(args.min_patch_size)
-#     edge_size = int(args.edge_size)
-#     max_gap_size = int(args.max_gap_size)
-#     plot = args.plot
-    
-#     tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area, plot=plot)
-# -
-
-# # # # +
-# # Change directory to this repo. Need to do this when using the DEA environment since I can't just pip install -e .
-# import os, sys
-# repo_name = "shelterbelts"
-# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-# elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
-#     repo_dir = os.path.dirname(os.getcwd())       
-# else:                                             # Already running from root of this repo. 
-#     repo_dir = os.getcwd()
-# src_dir = os.path.join(repo_dir, 'src')
-# os.chdir(src_dir)
-# sys.path.append(src_dir)
-# # print(src_dir)
-
 # # %%time
 # cover_threshold=50
 # min_patch_size=20
@@ -214,61 +203,13 @@ def parse_arguments():
 # outdir='/scratch/xe2/cb8590/tmp'
 # stub='Test'
 
-# cover_threshold=50
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because a small tree group gets cutoff by water
+# cover_threshold=-1
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
 # da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
 # da_trees = da_percent > cover_threshold
 # da_trees = da_trees.astype('uint8')
-# ds = da_trees.to_dataset(name='woody_veg')
+# ds_woody_veg = da_trees.to_dataset(name='woody_veg')
 
-
-# da_trees.rio.to_raster('/scratch/xe2/cb8590/tmp/TESTING_34_13-141_90_y2024_binary_trees.tif')
-
-# woody_veg = da_trees.values.astype(bool)
-
-
-# trees_labelled = tree_clusters(woody_veg, max_gap_size=0)
-
-
-# scattered_area = scattered_trees(trees_labelled, min_patch_size)
-
-
-# core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size, strict_core_area)
-
-
-# tree_categories_array = np.zeros_like(woody_veg, dtype=np.uint8)
-# tree_categories_array[scattered_area] = inverted_labels['Scattered Trees']
-# tree_categories_array[core_area]      = inverted_labels['Patch Core']
-# tree_categories_array[edge_area]      = inverted_labels['Patch Edge']
-# tree_categories_array[corridor_area]  = inverted_labels['Other Trees']
-# ds['tree_categories'] = (('y', 'x'), tree_categories_array)
-# # ds = ds.rename({'x':'longitude', 'y': 'latitude'})
-# # -
-
-# tif_categorical(ds['tree_categories'], '/scratch/xe2/cb8590/tmp/TESTING_30_05-143_82_y2024_categorical_trees.tif', tree_categories_cmap)
-
-# # +
-# # # +
-
-# # +
-# # ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
-# # visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
-
-
-# # + endofcell="--"
-# # # +
-# # outdir='/scratch/xe2/cb8590/tmp' 
-# # stub=None
-# # min_patch_size=20
-# # max_gap_size=1
-# # edge_size=3
-# # strict_core_area=True
-# # ds = tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area)
-# # visualise_categories(ds['tree_categories'], None, tree_categories_cmap, tree_categories_labels, "Tree Categories")
-# # -
-# # --
-
-
-
-
+# +
+# ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, save_tif=True, plot=False, ds=ds_woody_veg)

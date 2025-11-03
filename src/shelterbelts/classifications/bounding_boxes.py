@@ -40,6 +40,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
         stub = '_'.join(folder.split('/')[-2:]).split('.')[0]  # The filename and one folder above
         
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
+    veg_tifs = [f for f in veg_tifs if not os.path.isdir(f)]  # The filetype should handle this, but just in case
 
     if limit is not None:
         veg_tifs = veg_tifs[:limit]

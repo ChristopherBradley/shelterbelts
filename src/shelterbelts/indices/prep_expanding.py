@@ -56,8 +56,13 @@ def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
 
     # Took 30 secs for 50k tiles
 
-# %%time
-# mosaic_subfolders('/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326')
+# +
+# # %%time
+# year = 2017
+# years = [2019,2020, 2021, 2022, 2023, 2024]
+# for year in years:
+#     mosaic_subfolders(f'/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326')
+# -
 
 # I run this function in a notebook to prep the sh file that does the qsubs in parallel
 non_suffixes=['_confidence50', '_confidence50_fixedlabels', '_corebugfix']

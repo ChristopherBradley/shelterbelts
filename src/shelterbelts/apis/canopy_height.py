@@ -68,6 +68,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     footprints_crs = gpd.read_file(os.path.join(canopy_height_dir, footprints_geojson)).crs
 
     new_relevant_tiles = []
+    cropped_tif_filenames = []
     for i, tile in enumerate(relevant_tiles):
         if (i % 100 == 0) and verbose:
             print(f"Working on {i}/{len(relevant_tiles)}: {tile}", flush=True)
@@ -114,8 +115,10 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
 
         with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
             dest.write(out_image)
+        
+        # Save this cropped_tif_filename to a list to be deleted later
+        cropped_tif_filenames.append(cropped_tiff_filename)
 
-    
     # Merge the cropped tiffs
     src_files_to_mosaic = []
     for tile in new_relevant_tiles:
@@ -134,10 +137,9 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     for src in src_files_to_mosaic:
         src.close()
 
-    # # From visual inspection, it looks like the canopy height map is offset by about 10m south. This is meant to correct that.
-    # # My hypothesis is this is due to Australia being in the southern hemisphere so shadows point south at midday, whereas the model was trained in the United States where shadows point north at midday
-    # original_transform = out_meta['transform']
-    # new_transform = original_transform * Affine.translation(0, -10)
+    # Remove the cropped_tif_filenames so they don't clog up the tmpdir and make us go over the iLimit of 7 million files on xe2/scratch
+    for filename in cropped_tiff_filenames:
+        os.remove(filename)    
 
     out_meta.update({
         "height": mosaic.shape[1],

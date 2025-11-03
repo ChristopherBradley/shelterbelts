@@ -40,8 +40,11 @@ def expand_tif(filename, folder_merged, outdir, tmpdir='/scratch/xe2/cb8590/tmp'
     gpkg = os.path.join(folder_merged, f'{Path(folder_merged).parent.stem}_{Path(folder_merged).stem}_footprints.gpkg') # I think this is cleaner than the way I wrote it in bounding_boxes.py, but should give the same result
     stub = f'{Path(filename).stem}_expanded'
     if not os.path.exists(gpkg):
-        print(f"Creating bounding boxes for: {folder_merged}, because of filename: {filename}")
-        bounding_boxes(folder_merged, crs='EPSG:3857')
+        # Just do this once before running these in parallel, that way you don't run into parallel issues of multiple jobs trying to create the gpkg at the same time.
+        print(f"Footprints gpkg doesn't exist. Please run bounding_boxes.py first! {gpkg}")
+        return None
+        # print(f"Creating bounding boxes for: {folder_merged}, because of filename: {filename}")
+        # bounding_boxes(folder_merged, crs='EPSG:3857')  
     mosaic, out_meta = merge_tiles_bbox(expanded_bounds, tmpdir, stub, folder_merged, gpkg, 'filename', verbose=False)
     ds_expanded = merged_ds(mosaic, out_meta, 'expanded')
 
