@@ -21,9 +21,10 @@ from shelterbelts.apis.worldcover import visualise_categories, tif_categorical
 
 
 linear_cmap = {
-    18:  (168, 131, 50),  
-    19: (91, 153, 75)  
+    18:  [190, 160, 60], # // Light brown: Linear patches (168, 131, 50),  
+    19:  [165, 195, 45] # // Bright olive green: Non-linear patches (91, 153, 75)  
 }
+
 linear_labels = {
     18: "Linear Patches",
     19: "Non-linear Patches"
