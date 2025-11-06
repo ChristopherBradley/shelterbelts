@@ -267,8 +267,7 @@ def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85
 
                 # Assign weightings based on how close to the polygon this pixel is
                 remaining_percentage = 100
-                # model_weightings = dict()
-                model_weightings = dict()  # name: (model, scaler, weighting)
+                model_weightings = dict()  # {stub: (model, scaler, weighting)}
                 for i, chosen_row in chosen_models.iterrows():
                     koppen_class = chosen_row['Name']
                     if i == n_classes - 1:
@@ -343,21 +342,20 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# +
-# # %%time
-# if __name__ == '__main__':
+# %%time
+if __name__ == '__main__':
 
-#     args = parse_arguments()
+    args = parse_arguments()
     
-#     gpkg = args.gpkg
-#     outdir = args.outdir
-#     year = int(args.year)
-#     nn_dir = args.nn_dir
-#     nn_stub = args.nn_stub
-#     limit = args.limit
-#     multi_model = args.multi_model
+    gpkg = args.gpkg
+    outdir = args.outdir
+    year = int(args.year)
+    nn_dir = args.nn_dir
+    nn_stub = args.nn_stub
+    limit = args.limit
+    multi_model = args.multi_model
     
-#     predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model, args.confidence)
+    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model, args.confidence)
 
 # +
 # # %%time
@@ -375,7 +373,7 @@ def parse_arguments():
 # nn_dir = '/g/data/xe2/cb8590/models'
 # nn_stub = '4326_float32_s4'
 # year = 2020
-# limit = 1
+# limit = 10
 # predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model=True)
 
 # # # 40 secs for 1 file
@@ -391,13 +389,13 @@ def parse_arguments():
 # # # 6 mins for 10 files
 
 # +
-# %%time
-filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
-outdir = '/scratch/xe2/cb8590/tmp'
-predictions_batch(filename, outdir, nn_stub='4326_float32_s4', confidence=True, year=2018, multi_model=True)
+# # %%time
+# filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# predictions_batch(filename, outdir, nn_stub='4326_float32_s4', confidence=True, year=2018, multi_model=True)
 
-# # 40 secs for 1 file
-# # 6 mins for 10 files
+# # # 40 secs for 1 file
+# # # 6 mins for 10 files
 
 # +
 # filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'

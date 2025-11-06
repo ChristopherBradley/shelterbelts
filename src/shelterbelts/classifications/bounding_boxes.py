@@ -4,6 +4,7 @@ import argparse
 import glob
 
 from shapely.geometry import box
+from pyproj import Transformer
 
 import geopandas as gpd
 import rioxarray as rxr
@@ -55,20 +56,33 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     # Create a geopackage of the attributes of each tif
     records = []
     for i, veg_tif in enumerate(veg_tifs):
-        if i%100 == 0:
-            print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
+        # if i%100 == 0:
+        print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
         original_crs = str(da.rio.crs)
 
         if da.rio.crs is None:
             da = da.rio.write_crs('EPSG:28355') # ACT 2015 tifs are missing the crs
+            height, width = da.shape
+            bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
+            minx, miny, maxx, maxy = bounds
         elif da.rio.crs != crs:
-            da = da.rio.reproject(crs)
-        
-        height, width = da.shape
-        bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
-        minx, miny, maxx, maxy = bounds
+            # da = da.rio.reproject(crs)
+            # height, width = da.shape
+            # bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
+            # minx, miny, maxx, maxy = bounds
 
+            # Trying to just reproject the bounds instead of the whole raster to speed things up.
+            height, width = da.shape
+            bounds = da.rio.bounds()  
+            minx, miny, maxx, maxy = bounds
+            transformer = Transformer.from_crs(da.rio.crs, crs, always_xy=True)
+            xs, ys = transformer.transform(
+                [minx, maxx, maxx, minx],
+                [miny, miny, maxy, maxy]
+            )
+            minx, miny, maxx, maxy = min(xs), min(ys), max(xs),  max(ys)
+            
         if pixel_cover_threshold:
             da = (da > pixel_cover_threshold).astype('uint8')
 
@@ -165,22 +179,40 @@ if __name__ == '__main__':
 # # gdf = bounding_boxes("/scratch/xe2/cb8590/Worldcover_Australia")
 
 # +
-# # %%time
-# folder = "/scratch/xe2/cb8590/Worldcover_Australia"
-# stub = "Worldcover_Australia"
-# outdir = "/scratch/xe2/cb8590/tmp"
-# filetype = 'tif'
-# crs = None
-# pixel_cover_threshold = None
-# tif_cover_threshold = None  # Takes 10 secs so long as this is None
-# size_threshold = 80
-# remove = False
+# # # %%time
+# # folder = "/scratch/xe2/cb8590/Worldcover_Australia"
+# # stub = "Worldcover_Australia"
+# # outdir = "/scratch/xe2/cb8590/tmp"
+# # filetype = 'tif'
+# # crs = None
+# # pixel_cover_threshold = None
+# # tif_cover_threshold = None  # Takes 10 secs so long as this is None
+# # size_threshold = 80
+# # remove = False
 
-# bounding_boxes(folder)
+# # bounding_boxes(folder)
 
 # # Footprints currently aren't working with the .asc files, but centroids are for some reason.
-# # filepath = '/g/data/xe2/cb8590/NSW_5m_DEMs'
-# # stub = 'NSW_5m_DEMs'
-# # outdir = "/g/data/xe2/cb8590/Outlines"
-# # bounding_boxes(filepath, outdir, stub, filetype='.asc')
+# folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'
+# stub = 'NSW_5m_DEMs'
+# outdir = "/g/data/xe2/cb8590/Outlines"
 
+# -
+
+# # %%time
+# bounding_boxes(filepath, outdir, stub, filetype='.asc', limit=10)
+
+
+# +
+# # %%time
+# gdf = bounding_boxes(filepath, outdir, stub, filetype='.asc', crs='EPSG:4326')
+
+# +
+# size_threshold=80
+# tif_cover_threshold=None
+# pixel_cover_threshold=None
+# remove=False
+# filetype='.asc'
+# crs=None
+# save_centroids=False
+# limit=None

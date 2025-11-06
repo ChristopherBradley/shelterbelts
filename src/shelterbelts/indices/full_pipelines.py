@@ -63,6 +63,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     data_folder = percent_tif[percent_tif.find('DATA'):percent_tif.find('DATA') + 11]
 
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
+    da_trees = da_percent > cover_threshold
 
     gs_bounds = gpd.GeoSeries([box(*da_percent.rio.bounds())], crs=da_percent.rio.crs)
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
@@ -84,7 +85,6 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
         # if no wind_method provided than the percent_cover method without wind gets used
         ds_wind = None
 
-    da_trees = da_percent > cover_threshold
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
     ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False, ds=ds_woody_veg)
     ds_shelter = shelter_categories(None, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories, ds_wind=ds_wind, crop_pixels=crop_pixels)
