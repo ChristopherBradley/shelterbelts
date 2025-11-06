@@ -138,7 +138,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
         src.close()
 
     # Remove the cropped_tif_filenames so they don't clog up the tmpdir and make us go over the iLimit of 7 million files on xe2/scratch
-    for filename in cropped_tiff_filenames:
+    for filename in cropped_tif_filenames:
         os.remove(filename)    
 
     out_meta.update({

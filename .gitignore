@@ -4,6 +4,8 @@ pbs_outputs
 pbs_success
 pbs_errors
 pbs_saving
+pbs_results
+pbs_predictions
 .DS_Store
 *.nc
 *.tif*

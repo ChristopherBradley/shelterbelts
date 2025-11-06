@@ -17,6 +17,7 @@ tmpdir='/scratch/xe2/cb8590/tmp'
 
 year=2018
 folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/$param_stub
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_percentcover
 outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_windward
 
 echo "Starting indices.pbs for folder $folder, outdir $outdir"

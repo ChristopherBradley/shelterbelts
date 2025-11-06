@@ -69,7 +69,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
     worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
     # import pdb; pdb.set_trace()
     
-    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, f'{data_folder}_{stub}', worldcover_dir, worldcover_geojson, 'filename', verbose=False)     # Need to include the DATA... in the stub so we don't get rasterio merge conflicts
+    worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
+    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
     gdf_hydrolines, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)

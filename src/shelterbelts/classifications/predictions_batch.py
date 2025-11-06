@@ -60,7 +60,7 @@ cmap_binary = {
 }
 
 # Loading this once instead of every time in tif_prediction_ds. Could instead load once in predictions_batch and pass as an argument
-gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned.gpkg')
+gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg')
 
 
 # +
@@ -309,20 +309,21 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# %%time
-if __name__ == '__main__':
+# +
+# # %%time
+# if __name__ == '__main__':
 
-    args = parse_arguments()
+#     args = parse_arguments()
     
-    gpkg = args.gpkg
-    outdir = args.outdir
-    year = int(args.year)
-    nn_dir = args.nn_dir
-    nn_stub = args.nn_stub
-    limit = args.limit
-    multi_model = args.multi_model
+#     gpkg = args.gpkg
+#     outdir = args.outdir
+#     year = int(args.year)
+#     nn_dir = args.nn_dir
+#     nn_stub = args.nn_stub
+#     limit = args.limit
+#     multi_model = args.multi_model
     
-    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model, args.confidence)
+#     predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model, args.confidence)
 
 # +
 # # %%time
@@ -345,3 +346,59 @@ if __name__ == '__main__':
 
 # # # 40 secs for 1 file
 # # # 6 mins for 10 files
+
+# +
+# # %%time
+# filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# predictions_batch(filename, outdir, nn_stub='4326_float32_s4_all', confidence=True, year=2018)
+
+# # # 40 secs for 1 file
+# # # 6 mins for 10 files
+
+# +
+# # %%time
+# filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# predictions_batch(filename, outdir, nn_stub='4326_float32_s4', confidence=True, year=2018, multi_model=True)
+
+# # # 40 secs for 1 file
+# # # 6 mins for 10 files
+# -
+
+filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
+
+gdf = gpd.read_file(filename)
+row = gdf.iloc[0]
+bbox = row['geometry'].bounds
+
+# +
+
+center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
+point = Point(center)
+
+# -
+
+gdf_koppen["distance"] = gdf_koppen.geometry.distance(point)
+gdf_koppen
+
+# +
+# Find which models are within a given distance of this pixel
+distance_degree = 1
+distance_km = distance_degree * 100   # Rough conversion of 1 degree = 100km
+chosen_models = gdf_koppen[gdf_koppen['distance'] < distance_degree]  # Only using models if the point is within 1 degree of that polygon
+chosen_models = chosen_models[['Name', 'distance']].sort_values("distance", ascending=False).reset_index()
+n_classes = len(chosen_models)
+
+# Assign weightings based on how close to the polygon this pixel is
+remaining_percentage = 100
+model_weightings = dict()
+for i, row in chosen_models.iterrows():
+    if i == n_classes - 1:
+        print('assigning remaing weighting')
+        model_weightings[row['Name']] = remaining_percentage
+    else:
+        print('calculating weighting')
+        weighting = (100/n_classes) - (row['distance'] * distance_km)/n_classes  
+        model_weightings[row['Name']] = weighting
+        remaining_percentage = remaining_percentage - weighting
