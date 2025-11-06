@@ -1,5 +1,4 @@
 # +
-
 import numpy as np
 import rioxarray as rxr
 import geopandas as gpd
@@ -37,7 +36,7 @@ def opportunities(da_trees, da_roads, da_gullies, da_ridges, da_worldcover, outd
     ---------
         opportunities.tif: A tif file of the 'opportunities' band in ds, with colours embedded.
     """
-    
+
 
 
 # +
@@ -80,7 +79,8 @@ road_opportunities = buffered_roads & grass_crops & ~da_trees & ~gully_opportuni
 # Create a layer that combines these opportunities
 
 # -
-
+# (Quickly) load the dem for this area. 
+dem_dir = 
 
 
 plt.imshow(road_opportunities)

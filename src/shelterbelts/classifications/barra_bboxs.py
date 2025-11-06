@@ -213,12 +213,47 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
             chunk.to_file(out_file, driver="GPKG")
     
             print(f"Saved {out_file}")
+# year = 2019
+# sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt3', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
 
+# year = 2021
+# sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt2', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
 
-year = 2019
-sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt3', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
+# # %%time
+# Just putting this in barra_boxs because it's a file that we only run once at the start
 
-year = 2021
-sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt2', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
+asc_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'
+out_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
+
+def asc_folder_to_tif(asc_folder, out_folder, dst_crs="EPSG:3857"):
+    """Convert all the files to tifs and reproject to EPSG:3857 for faster stitching later"""
+    
+    os.makedirs(out_folder, exist_ok=True)
+    asc_files = sorted(glob.glob(os.path.join(asc_folder, "*.asc")))
+
+    # Remove files that have already been done
+    tif_files = sorted(glob.glob(os.path.join(out_folder, "*.tif")))
+    asc_stems  = [Path(asc_file).stem for asc_file in  asc_files]
+    tif_stems = set(Path(tif_file).stem for tif_file in  tif_files)
+    asc_files = [asc_file for asc_file, asc_stem in zip(asc_files, asc_stems) if asc_stem not in tif_stems]
+
+    for i, asc_path in enumerate(asc_files, 1):
+        base = os.path.splitext(os.path.basename(asc_path))[0]
+        print(f"Working on {i}/{len(asc_files)}: {base}")
+        out_path = os.path.join(out_folder, f"{base}.tif")
+
+        da = rxr.open_rasterio(asc_path, masked=True)
+        da = da.squeeze()
+        da = da.rio.reproject(dst_crs)
+
+        da.rio.to_raster(
+            out_path,
+            compress="LZW",
+            tiled=True,
+            BIGTIFF="IF_SAFER"
+        )
+    print(f"\n Finished converting {len(asc_files)} tiles → {out_folder}")
+
+# asc_folder_to_tif(asc_folder, out_folder) # Going to take about 4 hours.
 
 
