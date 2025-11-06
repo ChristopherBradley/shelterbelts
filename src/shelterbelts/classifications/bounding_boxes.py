@@ -9,6 +9,8 @@ from pyproj import Transformer
 import geopandas as gpd
 import rioxarray as rxr
 import numpy as np
+import xarray as xr
+
 
 
 def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=None, pixel_cover_threshold=None, remove=False, filetype='.tif', crs=None, save_centroids=False, limit=None):
@@ -56,8 +58,8 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     # Create a geopackage of the attributes of each tif
     records = []
     for i, veg_tif in enumerate(veg_tifs):
-        # if i%100 == 0:
-        print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
+        if i%10 == 0:
+            print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
         original_crs = str(da.rio.crs)
 
@@ -104,8 +106,9 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
             rec["pixels_1"] = category_counts.get(1, 0)
         records.append(rec)
         
-    gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
-
+    # gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
+    gdf = gpd.GeoDataFrame(records, crs=crs)
+    
     # Calculate which tifs don't meet our thresholds
     gdf['bad_tif'] = (gdf['height'] < size_threshold) | (gdf['width'] < size_threshold)
     if tif_cover_threshold is not None:
@@ -142,36 +145,36 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
 
 
 # +
-def parse_arguments():
-    """Parse command line arguments with default values."""
-    parser = argparse.ArgumentParser()
+# def parse_arguments():
+#     """Parse command line arguments with default values."""
+#     parser = argparse.ArgumentParser()
     
-    parser.add_argument('folder', type=str, help='Folder containing lots of tifs that we want to extract the bounding box from')
-    parser.add_argument('--outdir', type=str, default=None, help='The output directory to save the results. By default it gets saved in the same directory as the tifs.')
-    parser.add_argument('--stub', type=str, default=None, help='Prefix for output file. By default it gets the same name as the folder.')
-    parser.add_argument('--size_threshold', type=int, default=80, help='The number of pixels wide and long the tif should be.')
-    parser.add_argument('--tif_cover_threshold', type=int, default=10, help='The minimum percentage cover for tree or no tree pixels that the tif needs to have.')
-    parser.add_argument('--pixel_cover_threshold', type=int, default=None, help="The threshold to convert percent_cover pixels into binary pixels. Doesn't apply to tifs that are already binary.")
-    parser.add_argument('--filetype', type=str, default=".tif", help='Suffix of the tif files. Probably .tif or .tiff')
-    parser.add_argument('--remove', action="store_true", help="Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)")
-    parser.add_argument('--crs', type=str, default=None, help="The crs of the resulting gpkg. If not provided, then a random tif is chosen and the crs estimated from that.")
+#     parser.add_argument('folder', type=str, help='Folder containing lots of tifs that we want to extract the bounding box from')
+#     parser.add_argument('--outdir', type=str, default=None, help='The output directory to save the results. By default it gets saved in the same directory as the tifs.')
+#     parser.add_argument('--stub', type=str, default=None, help='Prefix for output file. By default it gets the same name as the folder.')
+#     parser.add_argument('--size_threshold', type=int, default=80, help='The number of pixels wide and long the tif should be.')
+#     parser.add_argument('--tif_cover_threshold', type=int, default=10, help='The minimum percentage cover for tree or no tree pixels that the tif needs to have.')
+#     parser.add_argument('--pixel_cover_threshold', type=int, default=None, help="The threshold to convert percent_cover pixels into binary pixels. Doesn't apply to tifs that are already binary.")
+#     parser.add_argument('--filetype', type=str, default=".tif", help='Suffix of the tif files. Probably .tif or .tiff')
+#     parser.add_argument('--remove', action="store_true", help="Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)")
+#     parser.add_argument('--crs', type=str, default=None, help="The crs of the resulting gpkg. If not provided, then a random tif is chosen and the crs estimated from that.")
 
-    return parser.parse_args()
+#     return parser.parse_args()
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     
-    args = parse_arguments()
-    bounding_boxes(
-        args.folder, 
-        args.outdir, 
-        args.stub,
-        args.size_threshold, 
-        args.tif_cover_threshold, 
-        args.pixel_cover_threshold, 
-        args.remove, 
-        args.filetype,
-        args.crs)
+#     args = parse_arguments()
+#     bounding_boxes(
+#         args.folder, 
+#         args.outdir, 
+#         args.stub,
+#         args.size_threshold, 
+#         args.tif_cover_threshold, 
+#         args.pixel_cover_threshold, 
+#         args.remove, 
+#         args.filetype,
+#         args.crs)
 
 # +
 # # %%time
@@ -203,9 +206,12 @@ if __name__ == '__main__':
 # bounding_boxes(filepath, outdir, stub, filetype='.asc', limit=10)
 
 
+
+
 # +
-# # %%time
-# gdf = bounding_boxes(filepath, outdir, stub, filetype='.asc', crs='EPSG:4326')
+# # # %%time
+# gdf = bounding_boxes(filepath, outdir, stub, filetype='.asc', crs='EPSG:4326', limit=10)
+# gdf.crs
 
 # +
 # size_threshold=80
@@ -216,3 +222,56 @@ if __name__ == '__main__':
 # crs=None
 # save_centroids=False
 # limit=None
+# -
+
+# # %%time
+percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024_actnsw_4326/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
+asc_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'
+out_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
+
+# +
+
+
+def asc_folder_to_tif(asc_folder, out_folder, dst_crs="EPSG:3857"):
+    """Convert all the files to tifs and reproject to EPSG:3857 for faster stitching later"""
+    
+    os.makedirs(out_folder, exist_ok=True)
+    asc_files = sorted(glob.glob(os.path.join(asc_folder, "*.asc")))
+
+    # Remove files that have already been done
+    tif_files = sorted(glob.glob(os.path.join(out_folder, "*.tif")))
+    asc_stems  = [Path(asc_file).stem for asc_file in  asc_files]
+    tif_stems = set(Path(tif_file).stem for tif_file in  tif_files)
+    asc_files = [asc_file for asc_file, asc_stem in zip(asc_files, asc_stems) if asc_stem not in tif_stems]
+
+    for i, asc_path in enumerate(asc_files, 1):
+        base = os.path.splitext(os.path.basename(asc_path))[0]
+        print(f"Working on {i}/{len(asc_files)}: {base}")
+        out_path = os.path.join(out_folder, f"{base}.tif")
+
+        da = rxr.open_rasterio(asc_path, masked=True)
+        da = da.squeeze()
+        da = da.rio.reproject(dst_crs)
+
+        da.rio.to_raster(
+            out_path,
+            compress="LZW",
+            tiled=True,
+            BIGTIFF="IF_SAFER"
+        )
+    print(f"\n Finished converting {len(asc_files)} tiles → {out_folder}")
+
+asc_folder_to_tif(asc_folder, out_folder) # Going to take about 4 hours.
+# -
+tif_files[:1]
+
+asc_stems[:1]
+
+tif_files = sorted(glob.glob(os.path.join(out_folder, "*.tif")))
+asc_stems  = [Path(asc_file).stem for asc_file in  asc_files]
+tif_stems = [Path(tif_file).stem for tif_file in  tif_files]
+todo = [asc_file for asc_file, asc_stem in zip(asc_files, asc_stems) if asc_stem not in set(tif_stems)]
+
+
+
+todo
