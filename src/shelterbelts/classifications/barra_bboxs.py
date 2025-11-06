@@ -222,8 +222,8 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
 # # %%time
 # Just putting this in barra_boxs because it's a file that we only run once at the start
 
-asc_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'
-out_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
+asc_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'        # 265GB - Should convert to tif files but keep in the original EPSG
+out_folder = '/scratch/xe2/cb8590/NSW_5m_DEMs_3857'  # 95GB - Should move these to scratch and maybe should be using an Aus crs instead of global
 
 def asc_folder_to_tif(asc_folder, out_folder, dst_crs="EPSG:3857"):
     """Convert all the files to tifs and reproject to EPSG:3857 for faster stitching later"""

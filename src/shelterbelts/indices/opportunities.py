@@ -77,12 +77,23 @@ buffered_roads = binary_dilation(da_roads.values, structure=gap_kernel)
 road_opportunities = buffered_roads & grass_crops & ~da_trees & ~gully_opportunities  # Prioritising gullies over roads
 
 # Create a layer that combines these opportunities
-
+plt.imshow(road_opportunities)
 # -
 # (Quickly) load the dem for this area. 
-dem_dir = 
+dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
+dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
 
 
-plt.imshow(road_opportunities)
+# +
+# from shelterbelts.classifications.bounding_boxes import bounding_boxes
+# gdf = bounding_boxes(dem_dir, crs='EPSG:3857') # Took 30 secs
+# -
+
+# %%time
+dem_stub = 'TEST'
+bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
+mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, dem_stub, dem_dir, dem_gpkg, 'filename', verbose=True) 
+ds_dem = merged_ds(mosaic, out_meta, 'dem')
 
 
+ds_dem['dem'].plot()
