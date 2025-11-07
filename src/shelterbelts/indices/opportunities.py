@@ -101,14 +101,18 @@ da_hydrolines.plot()
 
 river_mask = da_hydrolines.values
 
+river_mask = skeletonize(da_hydrolines.values)
+
+
 import networkx as nx
 from collections import Counter
 from skimage.measure import label
+from skimage.morphology import skeletonize
 
 
 # +
 # %%time
-# River segmentation algorithm
+# River segmentation algorithm (entirely ChatGPT)
 
 # Get indices of river pixels
 river_pixels = np.argwhere(river_mask == 1)
@@ -166,36 +170,23 @@ print(f"Number of river branches: {num_branches}")
 
 # -
 
+# Create a raster
 branch_labels = np.zeros_like(river_mask, dtype=np.int32)
 for i, branch in enumerate(branches, 1):
     for (y, x) in branch:
         branch_labels[y, x] = i
 
 
-branch_sizes = Counter(branch_labels.ravel())
-del branch_sizes[0]  # remove background
-
-
+# +
 min_length = 10  # pixel threshold
+
+branch_sizes = Counter(branch_labels.ravel())
+del branch_sizes[0] 
 branch_labels_new = branch_labels.copy()
 small_branches = [bid for bid, size in branch_sizes.items() if size < min_length]
-large_branches = [bid for bid, size in branch_sizes.items() if size > min_length]
+large_branches = [bid for bid, size in branch_sizes.items() if size > min_length] 
 
-
-# +
-# Dilate to find neighboring branches. This was kinda working, but had an issue with missing later small branches
-# mask = branch_labels == bid
-# dilated = ndimage.binary_dilation(mask, structure=np.ones((3, 3)))
-# neighbors = np.unique(branch_labels[dilated & (branch_labels != bid) & (branch_labels != 0)])
-
-# if len(neighbors) == 0:
-#     continue
-# # Pick the largest neighboring branch
-# largest_neighbor = max(neighbors, key=lambda n: branch_sizes[n])
-# # Merge into that branch
-# branch_labels_new[mask] = largest_neighbor
-# -
-
+# Merge small branches into the larger ones
 while True:
     branch_sizes = Counter(branch_labels_new.ravel())
     branch_sizes.pop(0, None)  # remove background
@@ -226,13 +217,12 @@ while True:
     if not merged_this_round:
         break  # no merges possible this round
 
+# -
 
-
-
-plt.imshow(branch_labels_final)
+plt.imshow(branch_labels_new)
 
 ds_woody_veg['branch_labels_new'] = ('y', 'x'), branch_labels_new
-ds_woody_veg['branch_labels_new'].rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_new.tif')
+ds_woody_veg['branch_labels_new'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_new.tif')
 
 
 
