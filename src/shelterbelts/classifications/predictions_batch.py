@@ -119,10 +119,13 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, con
     for col in df.select_dtypes(include=['int64']).columns:
         df[col] = df[col].astype(np.int16)
     
+    # import pdb; pdb.set_trace()
+    
     # This happens when there's no good data for that location (e.g. always clouds, or always in a dark shadow from a north-south ridgeline)
-    bad = ~np.isfinite(df.to_numpy())
+    # bad = ~np.isfinite(df.to_numpy())
     df = df.replace([np.inf, -np.inf], np.nan)  
-    df = df.fillna(0) # not sure what value is appropriate for missing data here, maybe infinity or an average would be better?
+    df = df.fillna(df.median())  # Fixes the blue mountains bug
+    df = df.fillna(0)  # Sometimes the focal_std is all NaN. If we fill with 1 or 100 then all the predictions become 0. Filling with 0 seems to work nicely.
 
     if model_weightings:
         # Make a bunch of predictions from the ensemble of models and take a weighted average.
@@ -368,13 +371,13 @@ if __name__ == '__main__':
 
 # +
 # # %%time
-# gpkg = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+# filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
 # outdir = '/scratch/xe2/cb8590/tmp'
 # nn_dir = '/g/data/xe2/cb8590/models'
 # nn_stub = '4326_float32_s4'
 # year = 2020
 # limit = 10
-# predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model=True)
+# predictions_batch(filename, outdir, year, nn_dir, nn_stub, limit, multi_model=True)
 
 # # # 40 secs for 1 file
 # # # 6 mins for 10 files
@@ -383,7 +386,7 @@ if __name__ == '__main__':
 # # %%time
 # filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
 # outdir = '/scratch/xe2/cb8590/tmp'
-# predictions_batch(filename, outdir, nn_stub='4326_float32_s4_all', confidence=True, year=2018)
+# predictions_batch(filename, outdir, nn_stub='4326_float32_s4_all', confidence=True, year=2018, limit=1)
 
 # # # 40 secs for 1 file
 # # # 6 mins for 10 files
@@ -398,32 +401,11 @@ if __name__ == '__main__':
 # # # 6 mins for 10 files
 
 # +
-# filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
-# gdf = gpd.read_file(filename)
-# row = gdf.iloc[0]
-# bbox = row['geometry'].bounds
-
-# center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
-# point = Point(center)
-
-# +
-# # Find which models are within a given distance of this pixel
-# gdf_koppen["distance"] = gdf_koppen.geometry.distance(point)
-# distance_degree_threshold = 1
-# distance_km = distance_degree_threshold * 100   # Rough conversion of 1 degree = 100km
-# chosen_models = gdf_koppen[gdf_koppen['distance'] < distance_degree]  # Only using models if the point is within 1 degree of that polygon
-# chosen_models = chosen_models[['Name', 'distance']].sort_values("distance", ascending=False).reset_index()
-# n_classes = len(chosen_models)
-
-# # Assign weightings based on how close to the polygon this pixel is
-# remaining_percentage = 100
-# model_weightings = dict()
-# for i, row in chosen_models.iterrows():
-#     if i == n_classes - 1:
-#         print('assigning remaing weighting')
-#         model_weightings[row['Name']] = remaining_percentage
-#     else:
-#         print('calculating weighting')
-#         weighting = (100/n_classes) - (row['distance'] * distance_km)/n_classes  
-#         model_weightings[row['Name']] = weighting
-#         remaining_percentage = remaining_percentage - weighting
+# pd.set_option('display.max_rows', 100)
+# pd.set_option('display.max_columns', 100)
+# df = pd.read_csv('/scratch/xe2/cb8590/tmp/blue_mountains_bad.csv')
+# df2 = pd.read_csv('/scratch/xe2/cb8590/tmp/df_barra_bboxs_sample.csv')
+# df.describe()
+# df.isna().sum().to_frame('NaN_count').assign(
+#     NaN_percent=lambda x: 100 * x['NaN_count'] / len(df)
+# )
