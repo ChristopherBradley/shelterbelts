@@ -271,7 +271,7 @@ def contours_interval(Z, interval=10):
     dict_Contours = dict()
     for height in contours:
         contours_at_height = find_contours(Z, height)
-        # dict_Contours[str(height)] = contours_at_height
+
         dict_Contours[f"{height:.2f}"] = contours_at_height
     
     grid = dict_to_grid(Z, dict_Contours, contours)
@@ -282,18 +282,22 @@ def contours_interval(Z, interval=10):
 
 # -
 
-def contours_equal_area(Z, num_trenches):
+def contours_equal_area(Z, num_contours=4, min_contour_length=100):
     """Creates a binary raster with contour intervals that split the landscape into equal-area bands."""
     Z = np.array(Z, dtype=float)
     Z_flat = Z.flatten()
 
     # Compute elevation thresholds that divide the data into equal-area (equal pixel count) bands
-    percentiles = np.linspace(0, 100, num_trenches + 2)[1:-1]  # exclude 0 and 100
+    percentiles = np.linspace(0, 100, num_contours + 2)[1:-1]  # exclude 0 and 100
     contour_heights = np.percentile(Z_flat, percentiles)
 
     dict_Contours = {}
     for h in contour_heights:
         contours_at_height = find_contours(Z, h)
+
+        # Filter out small contours
+        contours_at_height = [c for c in contours_at_height if len(c) >= min_contour_length]
+
         dict_Contours[f"{h:.2f}"] = contours_at_height
 
     grid = dict_to_grid(Z, dict_Contours, contour_heights)
@@ -306,7 +310,7 @@ contour_heights
 Z = ds_dem['dem']
 interval = 10
 
-grid = contours_equal_area(Z, 2)
+grid = contours_equal_area(Z, 2, 1000)
 plt.imshow(grid)
 
 # +
@@ -320,4 +324,7 @@ plt.imshow(trench_array)
 Z = np.array(np.round(ds_dem['dem']), dtype=np.uint64)
 contours_at_height = find_contours(Z, 30)
 
-contours_at_height
+ds_catchments['contours'] = (["y", "x"], grid)  # Might have to reproject_match to the woody_veg at some point
+ds_catchments['contours'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/contours_evenly_spaced.tif')
+
+
