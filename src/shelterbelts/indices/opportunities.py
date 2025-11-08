@@ -5,6 +5,11 @@ import geopandas as gpd
 from shapely.geometry import box      
 from scipy.ndimage import binary_dilation
 
+import networkx as nx
+from collections import Counter
+from skimage.measure import label
+from skimage.morphology import skeletonize
+
 import matplotlib.pyplot as plt
 
 # from shelterbelts.apis.worldcover import worldcover_bbox, tif_categorical
@@ -14,6 +19,111 @@ from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 # -
 
 from shelterbelts.indices.full_pipelines import worldcover_dir, hydrolines_gdb, roads_gdb
+
+
+def segmentation(da, min_branch_length=10):
+    """Converts a binary skeletonized da into an integer segmented da"""
+    # River segmentation algorithm (entirely ChatGPT)
+
+    # Get indices of river pixels
+    river_pixels = np.argwhere(river_mask == 1)
+    
+    # Create graph where each river pixel is a node
+    G = nx.Graph()
+    
+    for y, x in river_pixels:
+        G.add_node((y, x))
+        # Check 8-connectivity neighbors
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy == dx == 0:
+                    continue
+                ny, nx_ = y + dy, x + dx
+                if 0 <= ny < river_mask.shape[0] and 0 <= nx_ < river_mask.shape[1]:
+                    if river_mask[ny, nx_] == 1:
+                        G.add_edge((y, x), (ny, nx_))
+    
+    # Identify junctions (>=3 neighbors) and endpoints (==1 neighbor)
+    junctions = {n for n, d in G.degree() if d >= 3}
+    endpoints = {n for n, d in G.degree() if d == 1}
+    
+    # Extract branches: paths between junctions and endpoints
+    branches = []
+    visited_edges = set()
+    
+    for start in endpoints | junctions:
+        for neighbor in G.neighbors(start):
+            edge = frozenset([start, neighbor])
+            if edge in visited_edges:
+                continue
+    
+            branch = [start, neighbor]
+            visited_edges.add(edge)
+            prev, current = start, neighbor
+    
+            # Walk until we hit a junction or endpoint
+            while current not in (endpoints | junctions):
+                next_nodes = [n for n in G.neighbors(current) if n != prev]
+                if not next_nodes:
+                    break
+                next_node = next_nodes[0]
+                edge = frozenset([current, next_node])
+                if edge in visited_edges:
+                    break
+                branch.append(next_node)
+                visited_edges.add(edge)
+                prev, current = current, next_node
+    
+            branches.append(branch)
+    
+    # num_branches = len(branches)
+    # print(f"Number of river branches: {num_branches}")
+
+    # Create a raster
+    branch_labels = np.zeros_like(river_mask, dtype=np.int32)
+    for i, branch in enumerate(branches, 1):
+        for (y, x) in branch:
+            branch_labels[y, x] = i
+
+    # Find the small branches that aren't really branches
+    branch_sizes = Counter(branch_labels.ravel())
+    del branch_sizes[0] 
+    branch_labels_new = branch_labels.copy()
+    small_branches = [bid for bid, size in branch_sizes.items() if size < min_branch_length]
+    
+    # Merge small branches into the larger ones
+    while True:
+        branch_sizes = Counter(branch_labels_new.ravel())
+        branch_sizes.pop(0, None)  # remove background
+    
+        small_branches = [bid for bid, size in branch_sizes.items() if size < min_branch_length]
+        if not small_branches:
+            break  # already merged all the branches
+    
+        merged_this_round = False
+    
+        for bid in small_branches:
+            mask = branch_labels_new == bid
+            if not np.any(mask):
+                continue  # already merged this branch
+    
+            # Find neighboring branches
+            dilated = binary_dilation(mask, structure=np.ones((3, 3)))
+            neighbors = np.unique(branch_labels_new[dilated & (branch_labels_new != bid) & (branch_labels_new != 0)])
+    
+            if len(neighbors) == 0:
+                continue
+    
+            # Merge into largest neighboring branch
+            largest_neighbor = max(neighbors, key=lambda n: branch_sizes.get(n, 0))
+            branch_labels_new[mask] = largest_neighbor
+            merged_this_round = True
+    
+        if not merged_this_round:
+            break  # already merged all the branches
+
+    return branch_labels_new
+
 
 
 def opportunities(da_trees, da_roads, da_gullies, da_ridges, da_worldcover, outdir='.', stub='TEST', tmpdir='.', width=3, contour_spacing=30):
@@ -36,7 +146,6 @@ def opportunities(da_trees, da_roads, da_gullies, da_ridges, da_worldcover, outd
     ---------
         opportunities.tif: A tif file of the 'opportunities' band in ds, with colours embedded.
     """
-
 
 
 # +
@@ -104,126 +213,12 @@ river_mask = da_hydrolines.values
 river_mask = skeletonize(da_hydrolines.values)
 
 
-import networkx as nx
-from collections import Counter
-from skimage.measure import label
-from skimage.morphology import skeletonize
-
-
-# +
 # %%time
-# River segmentation algorithm (entirely ChatGPT)
+branch_labels_new = segmentation(river_mask)
 
-# Get indices of river pixels
-river_pixels = np.argwhere(river_mask == 1)
-
-# Create graph where each river pixel is a node
-G = nx.Graph()
-
-for y, x in river_pixels:
-    G.add_node((y, x))
-    # Check 8-connectivity neighbors
-    for dy in (-1, 0, 1):
-        for dx in (-1, 0, 1):
-            if dy == dx == 0:
-                continue
-            ny, nx_ = y + dy, x + dx
-            if 0 <= ny < river_mask.shape[0] and 0 <= nx_ < river_mask.shape[1]:
-                if river_mask[ny, nx_] == 1:
-                    G.add_edge((y, x), (ny, nx_))
-
-# Identify junctions (>=3 neighbors) and endpoints (==1 neighbor)
-junctions = {n for n, d in G.degree() if d >= 3}
-endpoints = {n for n, d in G.degree() if d == 1}
-
-# Extract branches: paths between junctions and endpoints
-branches = []
-visited_edges = set()
-
-for start in endpoints | junctions:
-    for neighbor in G.neighbors(start):
-        edge = frozenset([start, neighbor])
-        if edge in visited_edges:
-            continue
-
-        branch = [start, neighbor]
-        visited_edges.add(edge)
-        prev, current = start, neighbor
-
-        # Walk until we hit a junction or endpoint
-        while current not in (endpoints | junctions):
-            next_nodes = [n for n in G.neighbors(current) if n != prev]
-            if not next_nodes:
-                break
-            next_node = next_nodes[0]
-            edge = frozenset([current, next_node])
-            if edge in visited_edges:
-                break
-            branch.append(next_node)
-            visited_edges.add(edge)
-            prev, current = current, next_node
-
-        branches.append(branch)
-
-num_branches = len(branches)
-print(f"Number of river branches: {num_branches}")
-
-# -
-
-# Create a raster
-branch_labels = np.zeros_like(river_mask, dtype=np.int32)
-for i, branch in enumerate(branches, 1):
-    for (y, x) in branch:
-        branch_labels[y, x] = i
-
-
-# +
-min_length = 10  # pixel threshold
-
-branch_sizes = Counter(branch_labels.ravel())
-del branch_sizes[0] 
-branch_labels_new = branch_labels.copy()
-small_branches = [bid for bid, size in branch_sizes.items() if size < min_length]
-large_branches = [bid for bid, size in branch_sizes.items() if size > min_length] 
-
-# Merge small branches into the larger ones
-while True:
-    branch_sizes = Counter(branch_labels_new.ravel())
-    branch_sizes.pop(0, None)  # remove background
-
-    small_branches = [bid for bid, size in branch_sizes.items() if size < min_length]
-    if not small_branches:
-        break  # done merging
-
-    merged_this_round = False
-
-    for bid in small_branches:
-        mask = branch_labels_new == bid
-        if not np.any(mask):
-            continue  # already merged away
-
-        # Find neighboring branches
-        dilated = ndimage.binary_dilation(mask, structure=np.ones((3, 3)))
-        neighbors = np.unique(branch_labels_new[dilated & (branch_labels_new != bid) & (branch_labels_new != 0)])
-
-        if len(neighbors) == 0:
-            continue
-
-        # Merge into largest neighboring branch
-        largest_neighbor = max(neighbors, key=lambda n: branch_sizes.get(n, 0))
-        branch_labels_new[mask] = largest_neighbor
-        merged_this_round = True
-
-    if not merged_this_round:
-        break  # no merges possible this round
-
-# -
 
 plt.imshow(branch_labels_new)
 
 ds_woody_veg['branch_labels_new'] = ('y', 'x'), branch_labels_new
 ds_woody_veg['branch_labels_new'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_new.tif')
-
-
-
 
