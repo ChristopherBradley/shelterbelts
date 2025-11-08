@@ -244,18 +244,15 @@ ds_hydrolines['gullies'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/hy
 
 
 
-
-
 # +
 import numpy as np
 from skimage.measure import find_contours
 
 # Code by Yasar
-def extract_contours(Grid):
-    Z = Grid.astype(np.uint64)
+def extract_contours(Z):
     dict_Contours = dict()
-    for height in range(Z.min(), Z.max()):
-        contours_at_height = find_contours(Grid, height)
+    for height in range(Z.min(), Z.max()):  # Could improve efficiency by including the 'contours' list as an argument, and only finding contours for those ones we care about
+        contours_at_height = find_contours(Z, height)
         dict_Contours[str(height)] = contours_at_height
     return dict_Contours
 
@@ -269,9 +266,9 @@ def dict_to_grid(Z, dict_Contours, contours):
             Binary_Grid[id_x, id_y] = True
     return Binary_Grid
 
-def trench_plan(Z, num_trenches):
+def evenly_spaced_trench_plan(Z, num_trenches):
     """Evenly distributes trenches on contours"""
-    Z = np.array(np.round(Z), dtype=int)
+    Z = np.array(np.round(Z), dtype=np.uint64)
     minZ = int(np.min(Z))
     maxZ = int(np.max(Z))
     spacing = (maxZ-minZ)//num_trenches
@@ -280,19 +277,37 @@ def trench_plan(Z, num_trenches):
     grid = dict_to_grid(Z, dict_Contours, contours)
     return grid
 
+def equal_area_trench_plan(Z, num_trenches):
+    """Creates even area divisions of trenches, as contours"""
+    total = len(Z)*len(Z[0])
+    spacing = total/(num_trenches+1)
+    Z = np.array(np.round(Z), dtype=int)
+    all_heights = []
+    for col in Z:
+        for cell in col:
+            all_heights.append(cell)
+    all_heights.sort()
+    contours = []
+    for i in range(1, num_trenches+1, 1):
+        contours.append(all_heights[int(i*spacing)])
+    dict_Contours = extract_contours(Z)
+    grid = dict_to_grid(Z, dict_Contours, contours)
+    return grid
 
 
-# -
 
-num_trenches = 10
-dem = mosaic
-
-Z = np.array(np.round(dem), dtype=np.uint64)
-minZ = int(np.min(Z))
-maxZ = int(np.max(Z))
-spacing = (maxZ-minZ)//num_trenches
-contours = range(minZ + spacing//2, maxZ, spacing)
-
-trench_array = trench_plan(ds_dem['dem'], 4)
+# +
+trench_array = evenly_spaced_trench_plan(ds_dem['dem'], 4)
 plt.imshow(trench_array)
 
+trench_array = equal_area_trench_plan(ds_dem['dem'], 4)
+plt.imshow(trench_array)
+
+# For consistency across tiles, and ease of explanation, might be better to just have contours at every 10m elevation (or 5 or 20).
+# To do that, I could reuse the evenly_spaced_trench_plan but explicitly make the chosen contours multiples of 10. 
+# -
+
+Z = np.array(np.round(ds_dem['dem']), dtype=np.uint64)
+contours_at_height = find_contours(Z, 30)
+
+contours_at_height
