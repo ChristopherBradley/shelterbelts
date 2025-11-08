@@ -225,7 +225,6 @@ ds_woody_veg['branch_labels'] = ('y', 'x'), branch_labels
 num_segments = len(np.unique(branch_labels))
 num_catchments = num_segments * 2/3  # Each intersection in segmentation has 3 segments, whereas in catchments it has 2.
 
-
 # %%time
 ds_catchments = catchments(dem_tif, outdir=tmpdir, stub="TEST", tmpdir=tmpdir, num_catchments=num_catchments, savetif=True, plot=True) 
 # 8 secs, 2, 2, 2
@@ -243,4 +242,57 @@ ds_hydrolines['gullies'].plot()
 ds_catchments['gullies'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/catchment_gullies.tif')
 ds_hydrolines['gullies'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/hydroline_gullies.tif')
 
+
+
+
+
+# +
+import numpy as np
+from skimage.measure import find_contours
+
+# Code by Yasar
+def extract_contours(Grid):
+    Z = Grid.astype(np.uint64)
+    dict_Contours = dict()
+    for height in range(Z.min(), Z.max()):
+        contours_at_height = find_contours(Grid, height)
+        dict_Contours[str(height)] = contours_at_height
+    return dict_Contours
+
+def dict_to_grid(Z, dict_Contours, contours):
+    Binary_Grid = np.zeros_like(Z)
+    for height in contours:
+        height_Contours = dict_Contours[str(height)]
+        for height_Contour in height_Contours:
+            id_x = height_Contour[:,0].astype(np.uint64)
+            id_y = height_Contour[:,1].astype(np.uint64)
+            Binary_Grid[id_x, id_y] = True
+    return Binary_Grid
+
+def trench_plan(Z, num_trenches):
+    """Evenly distributes trenches on contours"""
+    Z = np.array(np.round(Z), dtype=int)
+    minZ = int(np.min(Z))
+    maxZ = int(np.max(Z))
+    spacing = (maxZ-minZ)//num_trenches
+    contours = range(minZ + spacing//2, maxZ, spacing)
+    dict_Contours = extract_contours(Z)
+    grid = dict_to_grid(Z, dict_Contours, contours)
+    return grid
+
+
+
+# -
+
+num_trenches = 10
+dem = mosaic
+
+Z = np.array(np.round(dem), dtype=np.uint64)
+minZ = int(np.min(Z))
+maxZ = int(np.max(Z))
+spacing = (maxZ-minZ)//num_trenches
+contours = range(minZ + spacing//2, maxZ, spacing)
+
+trench_array = trench_plan(ds_dem['dem'], 4)
+plt.imshow(trench_array)
 
