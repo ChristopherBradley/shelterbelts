@@ -15,14 +15,15 @@ import matplotlib.pyplot as plt
 # from shelterbelts.apis.worldcover import worldcover_bbox, tif_categorical
 from shelterbelts.apis.hydrolines import hydrolines
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.apis.catchments import catchments  # This takes a while to import
 
 # -
 
 from shelterbelts.indices.full_pipelines import worldcover_dir, hydrolines_gdb, roads_gdb
 
 
-def segmentation(da, min_branch_length=10):
-    """Converts a binary skeletonized da into an integer segmented da"""
+def segmentation(river_pixels, min_branch_length=10):
+    """Converts a binary skeletonized array into an integer segmented array"""
     # River segmentation algorithm (entirely ChatGPT)
 
     # Get indices of river pixels
@@ -122,7 +123,11 @@ def segmentation(da, min_branch_length=10):
         if not merged_this_round:
             break  # already merged all the branches
 
-    return branch_labels_new
+    # Make the branch id's consecutive
+    unique_vals, branch_labels_consecutive = np.unique(branch_labels_new, return_inverse=True)
+    branch_labels_consecutive = branch_labels_consecutive.reshape(branch_labels_new.shape)
+    
+    return branch_labels_consecutive
 
 
 
@@ -204,21 +209,38 @@ dem_stub = 'TEST'
 bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
 mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, dem_stub, dem_dir, dem_gpkg, 'filename', verbose=True) 
 ds_dem = merged_ds(mosaic, out_meta, 'dem')
-ds_dem['dem'].plot()
 
-da_hydrolines.plot()
-
-river_mask = da_hydrolines.values
+dem_tif = f'/scratch/xe2/cb8590/tmp/{dem_stub}_dem.tif'
+ds_dem['dem'].astype('float64').rio.to_raster(filename)
+print(f"Saved: {dem_tif}")
 
 river_mask = skeletonize(da_hydrolines.values)
+branch_labels = segmentation(river_mask)
+
+
+ds_woody_veg['branch_labels'] = ('y', 'x'), branch_labels
+# ds_woody_veg['branch_labels'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_consecutive.tif')
+
+
+num_segments = len(np.unique(branch_labels))
+num_catchments = num_segments * 2/3  # Each intersection in segmentation has 3 segments, whereas in catchments it has 2.
 
 
 # %%time
-branch_labels_new = segmentation(river_mask)
+ds_catchments = catchments(dem_tif, outdir=tmpdir, stub="TEST", tmpdir=tmpdir, num_catchments=num_catchments, savetif=True, plot=True) 
+# 8 secs, 2, 2, 2
 
+# %%time
+ds_catchments = catchments(dem_tif, outdir=tmpdir, stub="TEST", tmpdir=tmpdir, num_catchments=num_catchments, savetif=False, plot=False) 
+# 1.6, 1.6, 2.6
 
-plt.imshow(branch_labels_new)
+# Looks like too many. Maybe I should just use a fixed number of catchments per tile area instead of based on the number of hydooline branches. 
+# ideally I would also expand the tile more before calculating catchments, but that's going to increase the computational cost even more.
+ds_catchments['gullies'].plot()
 
-ds_woody_veg['branch_labels_new'] = ('y', 'x'), branch_labels_new
-ds_woody_veg['branch_labels_new'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_new.tif')
+ds_hydrolines['gullies'].plot()
+
+ds_catchments['gullies'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/catchment_gullies.tif')
+ds_hydrolines['gullies'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/hydroline_gullies.tif')
+
 
