@@ -249,58 +249,68 @@ import numpy as np
 from skimage.measure import find_contours
 
 # Code by Yasar
-def extract_contours(Z):
-    dict_Contours = dict()
-    for height in range(Z.min(), Z.max()):  # Could improve efficiency by including the 'contours' list as an argument, and only finding contours for those ones we care about
-        contours_at_height = find_contours(Z, height)
-        dict_Contours[str(height)] = contours_at_height
-    return dict_Contours
-
 def dict_to_grid(Z, dict_Contours, contours):
     Binary_Grid = np.zeros_like(Z)
     for height in contours:
-        height_Contours = dict_Contours[str(height)]
+        # height_Contours = dict_Contours[str(height)]
+        height_Contours = dict_Contours[f"{height:.2f}"]
         for height_Contour in height_Contours:
             id_x = height_Contour[:,0].astype(np.uint64)
             id_y = height_Contour[:,1].astype(np.uint64)
             Binary_Grid[id_x, id_y] = True
     return Binary_Grid
 
-def evenly_spaced_trench_plan(Z, num_trenches):
-    """Evenly distributes trenches on contours"""
-    Z = np.array(np.round(Z), dtype=np.uint64)
-    minZ = int(np.min(Z))
-    maxZ = int(np.max(Z))
-    spacing = (maxZ-minZ)//num_trenches
-    contours = range(minZ + spacing//2, maxZ, spacing)
-    dict_Contours = extract_contours(Z)
-    grid = dict_to_grid(Z, dict_Contours, contours)
-    return grid
+def contours_interval(Z, interval=10):
+    """Create a binary raster along specific contours, for consistency when running across multiple tiles"""
+    Z = np.array(np.round(Z))
+    minZ, maxZ = int(np.min(Z)), int(np.max(Z))
 
-def equal_area_trench_plan(Z, num_trenches):
-    """Creates even area divisions of trenches, as contours"""
-    total = len(Z)*len(Z[0])
-    spacing = total/(num_trenches+1)
-    Z = np.array(np.round(Z), dtype=int)
-    all_heights = []
-    for col in Z:
-        for cell in col:
-            all_heights.append(cell)
-    all_heights.sort()
-    contours = []
-    for i in range(1, num_trenches+1, 1):
-        contours.append(all_heights[int(i*spacing)])
-    dict_Contours = extract_contours(Z)
+    # I could add a parameter 'consistent' to use this version or the other one to reduce code duplication.
+    contours = [height for height in range(minZ, maxZ) if height % interval == 0]
+    
+    dict_Contours = dict()
+    for height in contours:
+        contours_at_height = find_contours(Z, height)
+        # dict_Contours[str(height)] = contours_at_height
+        dict_Contours[f"{height:.2f}"] = contours_at_height
+    
     grid = dict_to_grid(Z, dict_Contours, contours)
+    
     return grid
 
 
+
+# -
+
+def contours_equal_area(Z, num_trenches):
+    """Creates a binary raster with contour intervals that split the landscape into equal-area bands."""
+    Z = np.array(Z, dtype=float)
+    Z_flat = Z.flatten()
+
+    # Compute elevation thresholds that divide the data into equal-area (equal pixel count) bands
+    percentiles = np.linspace(0, 100, num_trenches + 2)[1:-1]  # exclude 0 and 100
+    contour_heights = np.percentile(Z_flat, percentiles)
+
+    dict_Contours = {}
+    for h in contour_heights:
+        contours_at_height = find_contours(Z, h)
+        dict_Contours[f"{h:.2f}"] = contours_at_height
+
+    grid = dict_to_grid(Z, dict_Contours, contour_heights)
+    return grid
+
+
+
+contour_heights
+
+Z = ds_dem['dem']
+interval = 10
+
+grid = contours_equal_area(Z, 2)
+plt.imshow(grid)
 
 # +
-trench_array = evenly_spaced_trench_plan(ds_dem['dem'], 4)
-plt.imshow(trench_array)
-
-trench_array = equal_area_trench_plan(ds_dem['dem'], 4)
+trench_array = contours_interval(ds_dem['dem'], 5)
 plt.imshow(trench_array)
 
 # For consistency across tiles, and ease of explanation, might be better to just have contours at every 10m elevation (or 5 or 20).
