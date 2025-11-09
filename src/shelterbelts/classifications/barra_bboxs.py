@@ -216,13 +216,9 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
 # year = 2019
 # sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt3', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
 
-# +
 # %%time
 year = 2020
 sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_weightings_median_{year}_attempt2', chunk_size=20, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326_weightings_median")
-
-
-# -
 
 asc_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'        # 265GB - Should convert to tif files but keep in the original EPSG
 out_folder = '/scratch/xe2/cb8590/NSW_5m_DEMs_3857'  # 95GB - Should move these to scratch and maybe should be using an Aus crs instead of global

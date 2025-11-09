@@ -43,6 +43,7 @@ from shelterbelts.indices.shelter_metrics import class_metrics, patch_metrics, l
 
 
 worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'  # Should move these to gdata so they don't disappear.
+worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
 # worldcover_footprints = '/scratch/xe2/cb8590/Worldcover_Australia/Worldcover_Australia_footprints.gpkg'
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
 hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
@@ -67,7 +68,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scr
 
     gs_bounds = gpd.GeoSeries([box(*da_percent.rio.bounds())], crs=da_percent.rio.crs)
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
-    worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
+    
     # import pdb; pdb.set_trace()
     
     worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
