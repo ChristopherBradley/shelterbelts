@@ -127,7 +127,7 @@ def compute_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_a
     return da_percent_trees
 
 
-def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', stub='TEST', wind_method='MOST_COMMON', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, ds=None, ds_wind=None, savetif=True, plot=True, crop_pixels=None):
+def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, ds=None, ds_wind=None, savetif=True, plot=True, crop_pixels=None):
     """Define sheltered and unsheltered pixels
     
     Parameters

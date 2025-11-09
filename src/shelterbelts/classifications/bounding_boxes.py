@@ -45,6 +45,10 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
     veg_tifs = [f for f in veg_tifs if not os.path.isdir(f)]  # The filetype should handle this, but just in case
 
+    if len(veg_tifs) == 0:
+        print("No files found, perhaps you used the wrong folder?")
+        return None
+            
     if limit is not None:
         veg_tifs = veg_tifs[:limit]
     
@@ -178,20 +182,20 @@ if __name__ == '__main__':
 # # gdf = bounding_boxes("/scratch/xe2/cb8590/Worldcover_Australia")
 
 # +
-# # # %%time
-# # folder = "/scratch/xe2/cb8590/Worldcover_Australia"
-# # stub = "Worldcover_Australia"
-# # outdir = "/scratch/xe2/cb8590/tmp"
-# # filetype = 'tif'
-# # crs = None
-# # pixel_cover_threshold = None
-# # tif_cover_threshold = None  # Takes 10 secs so long as this is None
-# # size_threshold = 80
-# # remove = False
+# # %%time
+# folder = "/scratch/xe2/cb8590/Worldcover_Australia"
+# stub = "Worldcover_Australia"
+# outdir = "/scratch/xe2/cb8590/tmp"
+# filetype = 'tif'
+# crs = None
+# pixel_cover_threshold = None
+# tif_cover_threshold = None  # Takes 10 secs so long as this is None
+# size_threshold = 80
+# remove = False
 
-# # bounding_boxes(folder)
+# bounding_boxes(folder)
 
-# # Footprints currently aren't working with the .asc files, but centroids are for some reason.
+# Footprints currently aren't working with the .asc files, but centroids are for some reason.
 # folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'
 # stub = 'NSW_5m_DEMs'
 # outdir = "/g/data/xe2/cb8590/Outlines"
@@ -202,7 +206,7 @@ if __name__ == '__main__':
 # bounding_boxes(filepath, outdir, stub, filetype='.asc', limit=10)
 
 # +
-# # # %%time
+# # %%time
 # gdf = bounding_boxes(filepath, outdir, stub, filetype='.asc', crs='EPSG:4326', limit=10)
 # gdf.crs
 
