@@ -389,14 +389,13 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     ds = da_linear.to_dataset(name="linear_categories")
     ds['labelled_categories'] = (["y", "x"], assigned_labels)
 
-    if crop_pixels is not None:
+    if crop_pixels is not None and crop_pixels != 0:
         ds = ds.isel(
             x=slice(crop_pixels, -crop_pixels),
             y=slice(crop_pixels, -crop_pixels)
         )
     
     if save_tif:
-
         filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')
         tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
     
