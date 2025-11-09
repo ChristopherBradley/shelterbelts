@@ -58,7 +58,7 @@ def hydrolines(geotif, hydrolines_gdb, outdir=".", stub="TEST", da=None, save_gp
     if save_gpkg:
         cropped_path = os.path.join(outdir, f"{stub}_{layer}_cropped.gpkg")
         gdf.to_file(cropped_path)
-        print("Saved", cropped_path)
+        print("Saved:", cropped_path)
 
     gdf = gdf.to_crs(da.rio.crs)
     shapes = [(geom, 1) for geom in gdf.geometry]

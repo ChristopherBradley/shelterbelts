@@ -124,7 +124,7 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, con
     # This happens when there's no good data for that location (e.g. always clouds, or always in a dark shadow from a north-south ridgeline)
     # bad = ~np.isfinite(df.to_numpy())
     df = df.replace([np.inf, -np.inf], np.nan)  
-    df = df.fillna(df.median())  # Fixes the blue mountains bug
+    df = df.fillna(df.median())  # Makes the blue mountains bug not quite as bad, but still bad.
     df = df.fillna(0)  # Sometimes the focal_std is all NaN. If we fill with 1 or 100 then all the predictions become 0. Filling with 0 seems to work nicely.
 
     if model_weightings:

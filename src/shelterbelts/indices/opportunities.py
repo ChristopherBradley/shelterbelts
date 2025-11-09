@@ -1,4 +1,6 @@
 # +
+import os
+
 import numpy as np
 import rioxarray as rxr
 import geopandas as gpd
@@ -13,7 +15,7 @@ from skimage.measure import find_contours
 
 import matplotlib.pyplot as plt
 
-# from shelterbelts.apis.worldcover import worldcover_bbox, tif_categorical
+from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 from shelterbelts.apis.hydrolines import hydrolines
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 from shelterbelts.apis.catchments import catchments  # This takes a while to import
@@ -26,8 +28,22 @@ from shelterbelts.indices.full_pipelines import worldcover_dir, worldcover_geojs
 nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
 nsw_dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
 
-# Used this to prepare the nsw_dem_dir for quick merging (took 30 secs)
-# from shelterbelts.classifications.bounding_boxes import bounding_boxes
+opportunity_cmap = {  # Should refactor to make this plural for consistency
+    0:(255, 255, 255),
+    5:(29, 153, 105),
+    6:(127, 168, 57),
+    7:(129, 146, 124),
+    8:(190, 160, 60)
+}
+opportunity_labels = {
+    0:'',
+    5:'Opportunities in Gullies',
+    6:'Opportunities on Ridges',
+    7:'Opportunities next to Roads',
+    8:'Opportunities along Contours'
+}
+inverted_labels = {v: k for k, v in opportunity_labels.items()}
+
 
 # +
 def segmentation(river_pixels, min_branch_length=10):
@@ -187,10 +203,12 @@ def contours_equal_area(Z, num_contours=4, min_contour_length=100):
     return grid
 
 
-# +
+# -
+
 def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_worldcover, outdir='.', stub='TEST', tmpdir='.', 
-                     width=3):
-    """
+                     width=3, savetif=True, plot=False):
+    """Suggest opportunities for new trees based on gullies, roads, ridges and contours - in that order of priority (bit arbitrary).
+    
     Parameters
     ----------
         da_trees, da_roads, da_gullies, da_ridges, da_contours: binary xarrays 
@@ -208,27 +226,62 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
     ---------
         opportunities.tif: A tif file of the 'opportunities' band in ds, with colours embedded.
     """
-    # Find options for buffered gullies and roads that currently cropland or grassland
-    grass_crops = (da_worldcover2 == 30) | (da_worldcover2 == 40)
+    grass_crops = (da_worldcover == 30) | (da_worldcover == 40)  # Either grass pixels or crop pixels
     
-    y, x = np.ogrid[-buffer_width:buffer_width+1, -buffer_width:buffer_width+1]
-    gap_kernel = (x**2 + y**2 <= buffer_width**2)
-    buffered_gullies = binary_dilation(da_hydrolines.values, structure=gap_kernel)
+    # Setup the buffer kernel
+    y, x = np.ogrid[-width:width+1, -width:width+1]
+    gap_kernel = (x**2 + y**2 <= width**2)
+    
+    # Buffered gullies
+    buffered_gullies = binary_dilation(da_gullies.values, structure=gap_kernel)
     gully_opportunities = buffered_gullies & grass_crops & ~da_trees
     
+    # Buffered roads
     buffered_roads = binary_dilation(da_roads.values, structure=gap_kernel)
-    road_opportunities = buffered_roads & grass_crops & ~da_trees & ~gully_opportunities  # Prioritising gullies over roads
+    road_opportunities = buffered_roads & grass_crops & ~da_trees & ~gully_opportunities
     
-    # Create a layer that combines these opportunities
-    plt.imshow(road_opportunities)
+    # Buffered ridges
+    if da_ridges is not None:
+        buffered_ridges = binary_dilation(da_ridges.values, structure=gap_kernel)
+        ridge_opportunities = buffered_ridges & grass_crops & ~da_trees & ~gully_opportunities & ~buffered_roads
+    else:
+        buffered_ridges = ridge_opportunities = np.zeros_like(da_trees, dtype=np.uint8)
+    
+    # Buffered contours
+    buffered_contours = binary_dilation(da_contours.values, structure=gap_kernel)
+    contour_opportunities = buffered_contours & grass_crops & ~da_trees & ~gully_opportunities & ~buffered_roads & ~buffered_ridges  # Could just override a single numpy array as we go.
+    
+    # There should be no overlaps, so the order of assigning shouldn't matter
+    opportunities = np.zeros_like(da_trees, dtype=np.uint8)
+    opportunities[gully_opportunities.astype(bool)] = 5   
+    opportunities[ridge_opportunities.astype(bool)] = 6
+    opportunities[road_opportunities.astype(bool)] = 7
+    opportunities[contour_opportunities.astype(bool)] = 8
+    
+    # Creating the xarray
+    ds = da_trees.to_dataset(name='woody_veg')
+    ds['opportunities'] = ('y', 'x'), opportunities
+    
+    if savetif:
+        filename = os.path.join(outdir,f"{stub}_opportunities.tif")
+        tif_categorical(ds['opportunities'], filename, opportunity_cmap)
 
-    
+    if plot:
+        # filename_png = os.path.join(outdir, f"{stub}_opportunities.png")
+        # visualise_categories(ds['opportunities'], filename_png, opportunity_cmap, opportunity_labels, "Opportunities")
+        visualise_categories(ds['opportunities'], None, opportunity_cmap, opportunity_labels, "Opportunities")
+
+    return ds
+        
+
 
 # +
-def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_threshold=0
+def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
-                  contour_spacing=10, min_contour_length=100, equal_area=False):
-    """
+                  contour_spacing=10, min_contour_length=100, equal_area=False, 
+                  savetif=True, plot=False):
+    """Suggest opportunities for new trees based on ridges, gullies and contours.
+    
     Parameters
     ----------
         percent_tif: Percentage cover tree tif file
@@ -260,15 +313,15 @@ def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_thresh
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
     da_trees = da_percent > cover_threshold
     da_trees = da_trees.astype('uint8')
-    ds_woody_veg = da_trees.to_dataset(name='woody_veg')
+    ds = da_trees.to_dataset(name='woody_veg')
 
     # Load hydrolines
-    if not ridges or num_catchments is None
-        gdf_hydrolines, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=True, save_gpkg=True, da=da_percent)
+    if not ridges or num_catchments is None:
+        gdf_hydrolines, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
         da_hydrolines = ds_hydrolines['gullies']
         
     # Load roads
-    gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=True, save_gpkg=True, da=da_percent, layer='NationalRoads_2025_09')
+    gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
     da_roads = ds_roads['gullies']  # dodgy string hardcoding of 'gullies' in hydrolines that I should fix 
 
     # Prepare the bboxs for cropping/stitching
@@ -277,22 +330,23 @@ def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_thresh
     bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
 
     # Load worldcover 
-    worldcover_stub = f'{stub}_worldcover_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}   # Need to make unique for parallelisation
+    worldcover_stub = f'{stub}_worldcover_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
     da_worldcover2 = da_worldcover.rio.reproject_match(da_trees) # Should do this within full_pipelines so it doesn't need to happen twice
 
     # Create a cropped/stitching dem for the region of interest
-    dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}   # Need to make unique for parallelisation
-    mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, dem_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=True) 
+    dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
+    
+    # Need to check if the region is inside NSW, and use the Australia version or terrain tiles if not.
+    mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, dem_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=False) 
     ds_dem = merged_ds(mosaic, out_meta, 'dem')   # This is a 5m dem, as opposed to the 10m tree raster
-
-    # Should reproject_match the tree_tif before saving. Then also use this reprojected version for the contours too.
+    ds_dem = ds_dem.rio.reproject_match(ds)
 
     dem_tif = os.path.join(tmpdir, f'{dem_stub}_dem.tif')    
-    ds_dem['dem'].astype('float64').rio.to_raster(filename)  # Needs to be float64 for catchments.py to work efficiently
-    print(f"Saved: {dem_tif}")
+    ds_dem['dem'].astype('float64').rio.to_raster(dem_tif)  # Needs to be float64 for catchments.py to work efficiently
+    # print(f"Saved: {dem_tif}")
 
     # Use the hydrolines to determine the relevant number of catchments
     if num_catchments is None:
@@ -302,36 +356,102 @@ def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_thresh
         num_catchments = num_segments * 2/3  # Each intersection in segmentation has 3 segments, whereas in catchments it has 2.    
 
         # Saving the branches for debugging. Will probably want to do something like this for my shelterbelts too.
-        # ds_woody_veg['branch_labels'] = ('y', 'x'), branch_labels
-        # ds_woody_veg['branch_labels'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_consecutive.tif')
+        # ds['branch_labels'] = ('y', 'x'), branch_labels
+        # ds['branch_labels'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_consecutive.tif')
 
-    # Generate the gullies and ridges
+    # Generate the gullies and ridges. 
     ds_catchments = catchments(dem_tif, outdir=tmpdir, stub="TEST", tmpdir=tmpdir, num_catchments=num_catchments, savetif=False, plot=False) 
+    
+    # Might want to remove really small gullies and ridges like I do with the contours.
 
+    # Generate the contours
     if equal_area:
         contours_array = contours_equal_area(ds_dem['dem'], num_contours=contour_spacing, min_contour_length=min_contour_length)
     else:
         contours_array = contours_interval(ds_dem['dem'], contour_spacing, min_contour_length)
         
     # Create a single xarray with all the layers
+    ds['roads'] = da_roads
+    if ridges:
+        ds['gullies'] = ds_catchments['gullies']
+        ds['ridges'] = ds_catchments['ridges']
+    else:
+        ds['gullies'] = da_hydrolines
+        ds['ridges'] = None
+    ds['contours'] = (["y", "x"], contours_array)  
+    ds['worldcover'] = da_worldcover2 
 
-    # ds_catchments['contours'] = (["y", "x"], grid)  # Might have to reproject_match to the woody_veg at some point
-    # ds_catchments['contours'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/contours_evenly_spaced.tif')
-
-
-# -
-
-if __name__ == '__main__':
+    ds_opportunities = opportunities_da(ds['woody_veg'], ds['roads'], ds['gullies'], ds['ridges'], ds['contours'], ds['worldcover'],
+                                       outdir, stub, tmpdir, width, savetif, plot)
     
-    opportunities(percent_tif)
+    return ds_opportunities
+
 
 
 # +
-# %%time
-percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024_actnsw_4326/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
-tmpdir = '/scratch/xe2/cb8590/'
-stub='TEST'
-buffer_width=3
-cover_threshold=50
+# Would be slightly more computationally efficient to generate the opportunities from within full_pipelines than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
+import argparse
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Suggest opportunities for new trees based on ridges, gullies, and contours."
+    )
 
-opportunities(percent_tif, tmpdir, stub, tmpdir, cover_threshold)
+    parser.add_argument("percent_tif", help="Input percentage cover tree tif file")
+    parser.add_argument("--outdir", default=".", help="Output directory for results (default: current directory)")
+    parser.add_argument("--stub", default="TEST", help="Prefix for output files (default: TEST)")
+    parser.add_argument("--tmpdir", default=".", help="Temporary working directory (default: current directory)")
+    parser.add_argument("--cover_threshold", type=int, default=0, help="Tree cover threshold percentage (default: 0)")
+    parser.add_argument("--width", type=int, default=3, help="Buffer width in pixels (default: 3)")
+    parser.add_argument("--ridges", action="store_true", help="Include opportunities on ridges (default: False)")
+    parser.add_argument("--num_catchments", type=int, default=10, help="Number of catchments for ridges/gullies (default: 10)")
+    parser.add_argument("--min_branch_length", type=int, default=10, help="Minimum branch length for hydrolines (default: 10)")
+    parser.add_argument("--contour_spacing", type=int, default=10, help="Pixel spacing between contours (default: 10)")
+    parser.add_argument("--min_contour_length", type=int, default=100, help="Minimum contour length to consider (default: 100)")
+    parser.add_argument("--equal_area", action="store_true", help="Use equal-area contours instead of fixed elevation spacing (default: False)")
+    parser.add_argument("--savetif", action="store_true", help="Save output GeoTIFFs (default: False)")
+    parser.add_argument("--plot", action="store_true", help="Show diagnostic plots (default: False)")
+
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    opportunities(
+        percent_tif=args.percent_tif,
+        outdir=args.outdir,
+        stub=args.stub,
+        tmpdir=args.tmpdir,
+        cover_threshold=args.cover_threshold,
+        width=args.width,
+        ridges=args.ridges,
+        num_catchments=args.num_catchments,
+        min_branch_length=args.min_branch_length,
+        contour_spacing=args.contour_spacing,
+        min_contour_length=args.min_contour_length,
+        equal_area=args.equal_area,
+        savetif=args.savetif,
+        plot=args.plot
+    )
+
+
+# +
+# # %%time
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024_actnsw_4326/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
+# tmpdir = '/scratch/xe2/cb8590/'
+# stub='TEST'
+# cover_threshold=50
+# width=3
+# ridges=False
+# num_catchments=10
+# min_branch_length=10
+# contour_spacing=2
+# min_contour_length=1000
+# equal_area=True
+
+# ds = opportunities(percent_tif, tmpdir, stub, tmpdir, cover_threshold, 
+#                    contour_spacing=contour_spacing, min_contour_length=min_contour_length, equal_area=equal_area,
+#                   ridges=True, plot=True) # less than 1 second yay
+# -
+
+
