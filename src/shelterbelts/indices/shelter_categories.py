@@ -268,7 +268,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
     da_distance_or_percent = da_distance_or_percent.rio.write_crs(da_categories.rio.crs)  # Some of the earlier methods lose the crs
 
     # Crop the output if it was expanded before the pipeline started
-    if crop_pixels is not None:
+    if crop_pixels is not None and crop_pixels != 0:
         da_distance_or_percent = da_distance_or_percent.isel(
             x=slice(crop_pixels, -crop_pixels),
             y=slice(crop_pixels, -crop_pixels)

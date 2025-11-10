@@ -198,7 +198,7 @@ def parse_arguments():
 cover_threshold=50
 min_patch_size=20
 min_core_size=200
-edge_size=3
+edge_size=10
 max_gap_size=1
 strict_core_area=False
 
@@ -217,7 +217,7 @@ da_trees = da_trees.astype('uint8')
 ds_woody_veg = da_trees.to_dataset(name='woody_veg')
 # -
 
-ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, min_core_size=600, edge_size=edge_size, max_gap_size=max_gap_size, save_tif=True, plot=True, ds=ds_woody_veg)
+ds_tree_categories = tree_categories(None, outdir, stub, min_core_size=1000, edge_size=10, strict_core_area=True, min_patch_size=min_patch_size, max_gap_size=max_gap_size, save_tif=True, plot=True, ds=ds_woody_veg)
 
 
 
