@@ -369,7 +369,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     # Reassign edges so they get merged with their corresponding cores in the output csv
     df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
-    df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 12
+    df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
         
     # Add ellipse stats to the skeleton stats
     da_linear = da_filtered.copy()
@@ -420,7 +420,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
         else:
             label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # There might be a case where df_patch_metrics['category_id'] is None? In which case I should also set to 11 for scattered trees.
-            # mapped_categories = np.vectorize(label_to_category.get)(label_ids)
             mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
 
         da_linear.data[remaining_mask] = mapped_categories
@@ -567,107 +566,3 @@ save_csv=True
 patch_metrics(buffer_tif, outdir=outdir, plot=True)
 
 #
-
-# +
-da = rxr.open_rasterio(buffer_tif).isel(band=0)
-
-# Pixel-wise majority filter to cleanup straggler pixels. Changes the da directly.
-da_filtered = pixel_majority_filter(da)
-
-# Assign labels and a cluster-wise majority filter on the labels (but doesn't change the da yet)
-assigned_labels = assign_labels(da_filtered, min_patch_size)
-
-
-# +
-# Find the skeleton of each cluster
-df_widths = skeleton_stats(assigned_labels) 
-
-# Fit an ellipse around each cluster 
-props = regionprops(assigned_labels)
-
-# Create the patch metrics
-results = []
-for region in props:
-    label_id = assigned_labels[region.coords[0][0], region.coords[0][1]]
-    results.append({
-        'label': label_id,
-        'ellipse_length': region.major_axis_length,
-        'ellipse_width': region.minor_axis_length,
-        'perimeter': region.perimeter,
-        'area': region.area,
-        'orientation_degrees': np.degrees(region.orientation)
-    })
-df_patch_metrics = pd.DataFrame(results)
-
-# Determine the most common category for each row in the patch metrics
-dominant_categories = []
-for region in props:
-    coords = region.coords
-    cat_values = da_filtered.data[coords[:, 0], coords[:, 1]]
-    most_common = mode(cat_values, axis=None, keepdims=False).mode
-    dominant_categories.append(most_common)
-df_patch_metrics["category_id"] = dominant_categories
-
-# # Reassign edges so they get merged with their corresponding cores in the output csv
-# df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
-# df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
-# df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
-    
-# Add ellipse stats to the skeleton stats
-da_linear = da_filtered.copy()
-if len(results) > 0:
-    df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
-    df_patch_metrics = df_patch_metrics.merge(df_widths)
-else:
-    df_patch_metrics = df_widths
-
-# Remove any rows where the area is smaller than the min_patch_size. Necessary since I'm using small buffer groups to reassign "Other" classes.
-if len(df_patch_metrics) > 0 and 'area' in df_patch_metrics.columns:
-    df_patch_metrics_large = df_patch_metrics[df_patch_metrics['area'] > min_patch_size] 
-else:
-    df_patch_metrics_large = df_patch_metrics  # It's probably an empty list because there are no trees in the region
-
-# Save the patch metrics
-if save_csv:
-    filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
-    df_patch_metrics_large.to_csv(filename, index=False)
-    print("Saved:", filename)
-
-# Assign linear and non-linear categories
-for i, row in df_patch_metrics.iterrows():
-    if row["category_id"] == 14:
-        label_id = row["label"]
-        len_width_ratio = row["ellipse len/width"]
-        
-        if "skeleton len/width" not in row.index:
-            new_class = 12  # The whole tile is one big core area
-
-        # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
-        if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
-            new_class = 18  # linear features
-        else:
-            new_class = 19  # non-linear features
-
-        mask = (assigned_labels == label_id)
-        da_linear.data[mask] = new_class
-        df_patch_metrics.loc[i, 'category_id'] = new_class
-        df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
-
-
-# -
-
-# Reassign the remaining corridor/other pixels to the corresponding cluster's category 
-remaining_mask = (da_linear.data == 14)
-if (remaining_mask.sum() > 0):
-    label_ids = assigned_labels[remaining_mask]
-
-    if 'label' not in df_patch_metrics.columns:
-        mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
-    else:
-        label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # There might be a case where df_patch_metrics['category_id'] is None? In which case I should also set to 11 for scattered trees.
-        # mapped_categories = np.vectorize(label_to_category.get)(label_ids)
-        mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
-
-    da_linear.data[remaining_mask] = mapped_categories
-
-df_patch_metrics
