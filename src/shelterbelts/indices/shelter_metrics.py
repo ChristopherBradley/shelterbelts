@@ -706,7 +706,7 @@ def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
             continue
             
         skel = skeletonize(mask)
-        skeleton_raster[skel] = lbl
+        # skeleton_raster[skel] = lbl
 
         # Ellipse parameters
         y0, x0 = prop.centroid
@@ -731,14 +731,38 @@ def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
         y2 = y0 - np.cos(angle) * b
 
         # Round to nearest pixel and mark endpoints
-        height, width = ellipse_endpoints_raster.shape
-        p1 = (np.clip(int(round(y1)), 0, height - 1), np.clip(int(round(x1)), 0, width - 1))
-        p2 = (np.clip(int(round(y2)), 0, height - 1), np.clip(int(round(x2)), 0, width - 1))
+        # height, width = ellipse_endpoints_raster.shape
+        # p1 = (np.clip(int(round(y1)), 0, height - 1), np.clip(int(round(x1)), 0, width - 1))
+        # p2 = (np.clip(int(round(y2)), 0, height - 1), np.clip(int(round(x2)), 0, width - 1))
+        # ellipse_endpoints_raster[p1] = lbl
+        # ellipse_endpoints_raster[p2] = lbl
+
+        # Find skeleton pixels closest to ellipse ends
+        coords = np.column_stack(np.nonzero(skel))
+        d1 = np.hypot(coords[:, 0] - y1, coords[:, 1] - x1)
+        d2 = np.hypot(coords[:, 0] - y2, coords[:, 1] - x2)
+        p1 = tuple(coords[np.argmin(d1)])
+        p2 = tuple(coords[np.argmin(d2)])
+
         ellipse_endpoints_raster[p1] = lbl
         ellipse_endpoints_raster[p2] = lbl
-
+        
+        # Find the shortest path along the skeleton to each end of the ellipse
+        cost = np.where(skel, 1, np.inf)
+        try:
+            path, _ = route_through_array(cost, p1, p2, fully_connected=True)
+            skel_new = np.zeros_like(skel, dtype=bool)
+            for r, c in path:
+                skel_new[r, c] = True
+            skel = skel_new
+        except Exception:
+            # If pathfinding fails, keep original skeleton
+            pass
+        
+        skeleton_raster[skel] = lbl
 
     return skeleton_raster, ellipse_outline_raster, ellipse_endpoints_raster
+
 
 
 # +
