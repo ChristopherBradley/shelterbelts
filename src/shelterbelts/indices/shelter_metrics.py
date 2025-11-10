@@ -122,97 +122,96 @@ def pixel_majority_filter(da, radius=3):
 def assign_labels(da_filtered, min_patch_size):
     """Assign an id to each cluster of trees, and merge small clusters into nearby larger ones"""
 
-    # Simple labelling while keeping groups with different cluster ids separate
-    mask = (da_filtered >= 10) & (da_filtered < 20)
-    labels = np.zeros_like(da_filtered, dtype=np.int32)
-    structure = np.ones((3,3), dtype=int)  # 8-connected
+    # # Simpler labelling method
+    # mask = (da_filtered >= 10) & (da_filtered < 20)
+    # labels = np.zeros_like(da_filtered, dtype=np.int32)
+    # structure = np.ones((3,3), dtype=int)  # 8-connected
     
-    current_label = 1
-    for val in range(10, 20):
-        val_mask = da_filtered == val
-        labeled_val, n = ndimage.label(val_mask, structure=structure)
-        labeled_val[labeled_val > 0] += current_label - 1
-        labels += labeled_val
-        current_label += n
+    # current_label = 1
+    # for val in range(10, 20):
+    #     val_mask = da_filtered == val
+    #     labeled_val, n = ndimage.label(val_mask, structure=structure)
+    #     labeled_val[labeled_val > 0] += current_label - 1
+    #     labels += labeled_val
+    #     current_label += n
 
-    segmentation=True
-    if segmentation:
-        # Updating uncategorised labels if there are multiple segments
-        mask = (da_filtered == 14).values
-        skeletonized_uncategories = skeletonize(mask)
-        segments = segmentation(skeletonized_uncategories)
-        dist, nearest_idx = distance_transform_edt(segments == 0, return_indices=True)     # Compute distance transform to nearest segment pixel
-        nearest_segments = segments[tuple(nearest_idx)]     # Get the segment ID for the nearest nonzero pixel
-        offset = assigned_labels.max()     # Offset new segment IDs to avoid conflicts with existing ones
-        new_labels = np.where(mask, nearest_segments + offset, assigned_labels)
-        new_labels[(mask) & (nearest_segments == 0)] = 0     # Set background (segment==0) back to 0 in the new areas
+    # segmentation=True
+    # if segmentation:
+    #     # Updating uncategorised labels if there are multiple segments
+    #     mask = (da_filtered == 14).values
+    #     skeletonized_uncategories = skeletonize(mask)
+    #     segments = segmentation(skeletonized_uncategories)
+    #     dist, nearest_idx = distance_transform_edt(segments == 0, return_indices=True)     # Compute distance transform to nearest segment pixel
+    #     nearest_segments = segments[tuple(nearest_idx)]     # Get the segment ID for the nearest nonzero pixel
+    #     offset = assigned_labels.max()     # Offset new segment IDs to avoid conflicts with existing ones
+    #     new_labels = np.where(mask, nearest_segments + offset, assigned_labels)
+    #     new_labels[(mask) & (nearest_segments == 0)] = 0     # Set background (segment==0) back to 0 in the new areas
 
-    # Remove small clusters
-    labels = new_labels
-    counts = np.bincount(labels.ravel())
-    small_labels = np.where(counts < min_patch_size)[0]
-    mask_small = np.isin(labels, small_labels)
-    labels[mask_small] = 0
+    # # Remove small clusters
+    # labels = new_labels
+    # counts = np.bincount(labels.ravel())
+    # small_labels = np.where(counts < min_patch_size)[0]
+    # mask_small = np.isin(labels, small_labels)
+    # labels[mask_small] = 0
     
-    # Make consecutive again
-    _, labels_consecutive = np.unique(labels, return_inverse=True)
-    labels_consecutive = labels_consecutive.reshape(labels.shape)
-
-    return labels_consecutive
+    # # Make consecutive again
+    # _, labels_consecutive = np.unique(labels, return_inverse=True)
+    # labels_consecutive = labels_consecutive.reshape(labels.shape)
+    # return labels_consecutive
     
-    # # Assign cluster ids to the core areas and corresponding edges
-    # arr = da_filtered.data  
-    # core_mask = (arr == 12)
-    # core_labels, num_labels = ndimage.label(core_mask)
-    # _, (inds_y, inds_x) = ndimage.distance_transform_edt(
-    #     ~core_mask, return_indices=True
-    # )
-    # nearest_core_labels = core_labels[inds_y, inds_x]
-    # assigned_labels = np.zeros_like(arr, dtype=np.int32)
-    # assigned_labels[arr == 13] = nearest_core_labels[arr == 13]
-    # assigned_labels[arr == 12] = core_labels[arr == 12]
+    # Assign cluster ids to the core areas and corresponding edges
+    arr = da_filtered.data  
+    core_mask = (arr == 12)
+    core_labels, num_labels = ndimage.label(core_mask)
+    _, (inds_y, inds_x) = ndimage.distance_transform_edt(
+        ~core_mask, return_indices=True
+    )
+    nearest_core_labels = core_labels[inds_y, inds_x]
+    assigned_labels = np.zeros_like(arr, dtype=np.int32)
+    assigned_labels[arr == 13] = nearest_core_labels[arr == 13]
+    assigned_labels[arr == 12] = core_labels[arr == 12]
     
-    # # Assign cluster ids for all the buffer groups (including small ones), since we're no longer converting these buffer categories.
-    # buffer_codes = [15, 16, 17]
-    # for buffer_code in buffer_codes:
-    #     mask = (arr == buffer_code)
-    #     labels, num_labels = ndimage.label(mask)
-    #     assigned_labels[arr == buffer_code] = labels[arr == buffer_code]
+    # Assign cluster ids for all the buffer groups (including small ones), since we're no longer converting these buffer categories.
+    buffer_codes = [15, 16, 17]
+    for buffer_code in buffer_codes:
+        mask = (arr == buffer_code)
+        labels, num_labels = ndimage.label(mask)
+        assigned_labels[arr == buffer_code] = labels[arr == buffer_code]
     
-    # # Assign ids to the rest of the patch types
-    # # buffer_category_ids = [14, 15, 16, 17]  # Clean up all of the buffer categories. This runs into an issue if there aren't any large enough clusters nearby.
-    # buffer_category_ids = [14]  # Only clean up the "Other" category
-    # for category_id in buffer_category_ids:
-    #     da_category = (da_filtered == category_id)
-    #     labelled_category = tree_clusters(da_category, max_gap_size=1)
-    #     labelled_category = labelled_category + assigned_labels.max()
-    #     labelled_arr = labelled_category.data
-    #     mask = (arr == category_id)
-    #     assigned_labels[mask] = labelled_arr[mask]
+    # Assign ids to the rest of the patch types
+    # buffer_category_ids = [14, 15, 16, 17]  # Clean up all of the buffer categories. This runs into an issue if there aren't any large enough clusters nearby.
+    buffer_category_ids = [14]  # Only clean up the "Other" category
+    for category_id in buffer_category_ids:
+        da_category = (da_filtered == category_id)
+        labelled_category = tree_clusters(da_category, max_gap_size=1)
+        labelled_category = labelled_category + assigned_labels.max()
+        labelled_arr = labelled_category.data
+        mask = (arr == category_id)
+        assigned_labels[mask] = labelled_arr[mask]
     
-    # # Cluster-wise majority filter for very small clusters. Changes the labels. 
-    # labels, counts = np.unique(assigned_labels, return_counts=True)
-    # small_labels = labels[counts < min_patch_size]
-    # small_mask = np.isin(assigned_labels, small_labels)
-    # # valid_mask = ((~small_mask) & (assigned_labels != 0)) | np.isin(arr, [15, 16, 17])  # Don't merge small buffer categories
-    # valid_mask = ((~small_mask) & (assigned_labels != 0))
-    # _, (inds_y, inds_x) = ndimage.distance_transform_edt(
-    #     ~valid_mask,
-    #     return_indices=True
-    # )
-    # nearest_labels = assigned_labels[inds_y, inds_x]
-    # assigned_labels[small_mask] = nearest_labels[small_mask]
+    # Cluster-wise majority filter for very small clusters. Changes the labels. 
+    labels, counts = np.unique(assigned_labels, return_counts=True)
+    small_labels = labels[counts < min_patch_size]
+    small_mask = np.isin(assigned_labels, small_labels)
+    # valid_mask = ((~small_mask) & (assigned_labels != 0)) | np.isin(arr, [15, 16, 17])  # Don't merge small buffer categories
+    valid_mask = ((~small_mask) & (assigned_labels != 0))
+    _, (inds_y, inds_x) = ndimage.distance_transform_edt(
+        ~valid_mask,
+        return_indices=True
+    )
+    nearest_labels = assigned_labels[inds_y, inds_x]
+    assigned_labels[small_mask] = nearest_labels[small_mask]
         
-    # # Re-label the patches so they are consecutive integers
-    # unique_labels = np.unique(assigned_labels)
-    # unique_labels = unique_labels[unique_labels != 0]
-    # new_labels = np.arange(1, len(unique_labels) + 1)
-    # label_map = dict(zip(unique_labels, new_labels))
-    # assigned_labels_relabelled = np.zeros_like(assigned_labels)
-    # for old, new in label_map.items():
-    #     assigned_labels_relabelled[assigned_labels == old] = new
-    # assigned_labels = assigned_labels_relabelled
-    # return assigned_labels
+    # Re-label the patches so they are consecutive integers
+    unique_labels = np.unique(assigned_labels)
+    unique_labels = unique_labels[unique_labels != 0]
+    new_labels = np.arange(1, len(unique_labels) + 1)
+    label_map = dict(zip(unique_labels, new_labels))
+    assigned_labels_relabelled = np.zeros_like(assigned_labels)
+    for old, new in label_map.items():
+        assigned_labels_relabelled[assigned_labels == old] = new
+    assigned_labels = assigned_labels_relabelled
+    return assigned_labels
 
 
 def skeleton_stats(assigned_labels):
@@ -367,10 +366,10 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         dominant_categories.append(most_common)
     df_patch_metrics["category_id"] = dominant_categories
     
-    # # Reassign edges so they get merged with their corresponding cores in the output csv
-    # df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
-    # df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
-    # df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
+    # Reassign edges so they get merged with their corresponding cores in the output csv
+    df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
+    df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
+    df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 12
         
     # Add ellipse stats to the skeleton stats
     da_linear = da_filtered.copy()
@@ -421,7 +420,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
         else:
             label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # There might be a case where df_patch_metrics['category_id'] is None? In which case I should also set to 11 for scattered trees.
-            mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+            # mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+            mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
 
         da_linear.data[remaining_mask] = mapped_categories
 
@@ -557,6 +557,7 @@ buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif
 min_patch_size = 20
 min_branch_length = min_patch_size
 stub="TEST"
+save_csv=True
 # stub = "shelter_indices"
 # geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
 # outdir="/scratch/xe2/cb8590"
@@ -576,72 +577,97 @@ da_filtered = pixel_majority_filter(da)
 # Assign labels and a cluster-wise majority filter on the labels (but doesn't change the da yet)
 assigned_labels = assign_labels(da_filtered, min_patch_size)
 
-# -
-
-labels = ndimage.label(da_filtered.isin(range(10,20)))[0]
-
-
-threshold = 20  # minimum cluster size
-
-
-
 
 # +
-# Simple labelling while keeping groups with different cluster ids separate
-mask = (da_filtered >= 10) & (da_filtered < 20)
-labels = np.zeros_like(da_filtered, dtype=np.int32)
-structure = np.ones((3,3), dtype=int)  # 8-connected
+# Find the skeleton of each cluster
+df_widths = skeleton_stats(assigned_labels) 
 
-current_label = 1
-for val in range(10, 20):
-    val_mask = da_filtered == val
-    labeled_val, n = ndimage.label(val_mask, structure=structure)
-    labeled_val[labeled_val > 0] += current_label - 1
-    labels += labeled_val
-    current_label += n
+# Fit an ellipse around each cluster 
+props = regionprops(assigned_labels)
 
-# Remove small clusters
-counts = np.bincount(labels.ravel())
-small_labels = np.where(counts < threshold)[0]
-mask_small = np.isin(labels, small_labels)
-labels[mask_small] = 0
+# Create the patch metrics
+results = []
+for region in props:
+    label_id = assigned_labels[region.coords[0][0], region.coords[0][1]]
+    results.append({
+        'label': label_id,
+        'ellipse_length': region.major_axis_length,
+        'ellipse_width': region.minor_axis_length,
+        'perimeter': region.perimeter,
+        'area': region.area,
+        'orientation_degrees': np.degrees(region.orientation)
+    })
+df_patch_metrics = pd.DataFrame(results)
 
-_, labels_consecutive = np.unique(labels, return_inverse=True)
-labels_consecutive = labels_consecutive.reshape(labels.shape)
+# Determine the most common category for each row in the patch metrics
+dominant_categories = []
+for region in props:
+    coords = region.coords
+    cat_values = da_filtered.data[coords[:, 0], coords[:, 1]]
+    most_common = mode(cat_values, axis=None, keepdims=False).mode
+    dominant_categories.append(most_common)
+df_patch_metrics["category_id"] = dominant_categories
+
+# # Reassign edges so they get merged with their corresponding cores in the output csv
+# df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
+# df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
+# df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
+    
+# Add ellipse stats to the skeleton stats
+da_linear = da_filtered.copy()
+if len(results) > 0:
+    df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
+    df_patch_metrics = df_patch_metrics.merge(df_widths)
+else:
+    df_patch_metrics = df_widths
+
+# Remove any rows where the area is smaller than the min_patch_size. Necessary since I'm using small buffer groups to reassign "Other" classes.
+if len(df_patch_metrics) > 0 and 'area' in df_patch_metrics.columns:
+    df_patch_metrics_large = df_patch_metrics[df_patch_metrics['area'] > min_patch_size] 
+else:
+    df_patch_metrics_large = df_patch_metrics  # It's probably an empty list because there are no trees in the region
+
+# Save the patch metrics
+if save_csv:
+    filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
+    df_patch_metrics_large.to_csv(filename, index=False)
+    print("Saved:", filename)
+
+# Assign linear and non-linear categories
+for i, row in df_patch_metrics.iterrows():
+    if row["category_id"] == 14:
+        label_id = row["label"]
+        len_width_ratio = row["ellipse len/width"]
+        
+        if "skeleton len/width" not in row.index:
+            new_class = 12  # The whole tile is one big core area
+
+        # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
+        if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+            new_class = 18  # linear features
+        else:
+            new_class = 19  # non-linear features
+
+        mask = (assigned_labels == label_id)
+        da_linear.data[mask] = new_class
+        df_patch_metrics.loc[i, 'category_id'] = new_class
+        df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
+
 
 # -
 
-(da_filtered == 14).values
+# Reassign the remaining corridor/other pixels to the corresponding cluster's category 
+remaining_mask = (da_linear.data == 14)
+if (remaining_mask.sum() > 0):
+    label_ids = assigned_labels[remaining_mask]
 
-# +
-# Updating uncategorised labels if there are multiple segments
-mask = (da_filtered == 14).values
-skeletonized_uncategories = skeletonize(mask)
-segments = segmentation(skeletonized_uncategories)
+    if 'label' not in df_patch_metrics.columns:
+        mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
+    else:
+        label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # There might be a case where df_patch_metrics['category_id'] is None? In which case I should also set to 11 for scattered trees.
+        # mapped_categories = np.vectorize(label_to_category.get)(label_ids)
+        mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
 
-# Compute distance transform to nearest segment pixel
-dist, nearest_idx = distance_transform_edt(segments == 0, return_indices=True)
+    da_linear.data[remaining_mask] = mapped_categories
 
-# Get the segment ID for the nearest nonzero pixel
-nearest_segments = segments[tuple(nearest_idx)]
-
-# Offset new segment IDs to avoid conflicts with existing ones
-offset = assigned_labels.max()
-new_labels = np.where(mask, nearest_segments + offset, assigned_labels)
-
-# Set background (segment==0) back to 0 in the new areas
-new_labels[(mask) & (nearest_segments == 0)] = 0
-
-# +
-
-
-
-
-# Visualize
-# new_labels[mask] = 0
-plt.imshow(new_labels)
-# -
-
-
-
-plt.imshow(mask)
+df_patch_metrics
