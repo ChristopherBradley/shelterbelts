@@ -124,23 +124,10 @@ def pixel_majority_filter(da, radius=3):
     return da_filtered
 
 
-def assign_labels(da_filtered, min_patch_size):
+def assign_labels(da_filtered, min_patch_size=20):
     """Assign an id to each cluster of trees, and merge small clusters into nearby larger ones"""
 
-    # # Simpler labelling method
-    # mask = (da_filtered >= 10) & (da_filtered < 20)
-    # labels = np.zeros_like(da_filtered, dtype=np.int32)
-    # structure = np.ones((3,3), dtype=int)  # 8-connected
-    
-    # current_label = 1
-    # for val in range(10, 20):
-    #     val_mask = da_filtered == val
-    #     labeled_val, n = ndimage.label(val_mask, structure=structure)
-    #     labeled_val[labeled_val > 0] += current_label - 1
-    #     labels += labeled_val
-    #     current_label += n
-
-    # segmentation=True
+    # This segmentation was too slow, and was segmenting core areas that I didn't want it to.
     # if segmentation:
     #     # Updating uncategorised labels if there are multiple segments
     #     mask = (da_filtered == 14).values
@@ -152,13 +139,6 @@ def assign_labels(da_filtered, min_patch_size):
     #     new_labels = np.where(mask, nearest_segments + offset, assigned_labels)
     #     new_labels[(mask) & (nearest_segments == 0)] = 0     # Set background (segment==0) back to 0 in the new areas
 
-    # # Remove small clusters
-    # labels = new_labels
-    # counts = np.bincount(labels.ravel())
-    # small_labels = np.where(counts < min_patch_size)[0]
-    # mask_small = np.isin(labels, small_labels)
-    # labels[mask_small] = 0
-    
     # Assign cluster ids to the core areas and corresponding edges
     arr = da_filtered.data  
     core_mask = (arr == 12)
@@ -190,6 +170,7 @@ def assign_labels(da_filtered, min_patch_size):
         assigned_labels[mask] = labelled_arr[mask]
     
     # Cluster-wise majority filter for very small clusters. Changes the labels. 
+    # I do actually like these categorizations, but they get overwritten by the required resplitting before running skeleton stats right now. So I could probably remove this and just have simple labelling now.
     labels, counts = np.unique(assigned_labels, return_counts=True)
     small_labels = labels[counts < min_patch_size]
     small_mask = np.isin(assigned_labels, small_labels)
@@ -232,14 +213,14 @@ def split_disconnected_clusters(assigned_labels, connectivity=2):
 
 
 # +
-def skeleton_stats(assigned_labels, min_patch_size=20):
+def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
     """
     Minimal function to create skeleton raster and ellipse outline raster for debugging.
     
     Returns:
         skeleton_raster, ellipse_outline_raster
     """
-    skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    shortest_path_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     widths_raster = np.zeros_like(assigned_labels, dtype=np.int32)
@@ -269,7 +250,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20):
             continue  # I might want to reindex these lbl's so they become consecutive again
             
         skel = skeletonize(mask)
-        # skeleton_raster[skel] = lbl
+        skeleton_raster[skel] = lbl
 
         # Ellipse parameters
         y0, x0 = prop.centroid
@@ -300,8 +281,9 @@ def skeleton_stats(assigned_labels, min_patch_size=20):
         p1 = tuple(coords[np.argmin(d1)])
         p2 = tuple(coords[np.argmin(d2)])
 
-        ellipse_endpoints_raster[p1] = lbl
-        ellipse_endpoints_raster[p2] = lbl
+        # Visualise the endpoints for debugging
+        # ellipse_endpoints_raster[p1] = lbl
+        # ellipse_endpoints_raster[p2] = lbl
         
         # Find the shortest path along the skeleton to each end of the ellipse
         cost = np.where(skel, 1, np.inf)
@@ -315,7 +297,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20):
             # If pathfinding fails, keep original skeleton
             pass
         
-        skeleton_raster[skel] = lbl
+        shortest_path_raster[skel] = lbl
 
         # Calculate the widths
         ys, xs = np.nonzero(skel)
@@ -363,12 +345,17 @@ def skeleton_stats(assigned_labels, min_patch_size=20):
             results.append(stats)
 
     df = pd.DataFrame(results)
-    return df, skeleton_raster, ellipse_outline_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster
+
+    if save_labels:
+        
+    
+    return df, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster
 
 
 # -
 
-def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True, min_patch_size=20, crop_pixels=None):
+def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True, 
+                  min_shelterbelt_length=20, max_shelterbelt_width=4, min_patch_size=20, crop_pixels=None):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
     Parameters
@@ -412,20 +399,28 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     assigned_labels = assign_labels(da_filtered, min_patch_size)
     assigned_labels = split_disconnected_clusters(assigned_labels)  # The ellipses go haywire if the clusters are not connected
     
-    if save_tif and save_labels:
-        ds_labels = da_filtered.to_dataset(name="filtered")
-        ds_labels['labelled_categories'] = (["y", "x"], assigned_labels)
-        filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
-        ds_labels['labelled_categories'].astype(float).rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
-        print("Saved:", filename_labelled)
-
     # Fit an ellipse around each cluster 
     props = regionprops(assigned_labels)
     
     # Find the skeleton of each cluster
-    # df_widths, skeleton_raster = skeleton_stats(assigned_labels, props) 
-    df_patch_metrics, skeleton_raster, ellipse_outlines_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster = skeleton_stats(assigned_labels2)
-    
+    df_patch_metrics, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels2)
+
+    # Save these intermediate rasters
+    if save_tif and save_labels:
+        ds_labels = da_filtered.to_dataset(name="filtered")
+        raster_dict = {
+            'assigned_labels':assigned_labels,
+            'ellipse_outline_raster':ellipse_outline_raster,
+            'shortest_path_raster':shortest_path_raster,
+            'perpendicular_raster':perpendicular_raster,
+            'widths_raster':widths_raster
+        }
+        for raster_key, raster_variable in raster_dict.items():
+            ds_labels[raster_key] = (["y", "x"], raster_variable)
+            filename_labelled = os.path.join(outdir, f'{stub}_{raster_key}.tif')
+            ds_labels[raster_key].astype(float).rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' values for these rasters
+            print("Saved:", filename_labelled)
+
     # Determine the most common category for each row in the patch metrics
     dominant_categories = []
     for lbl in df['label']:
@@ -435,18 +430,11 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         dominant_categories.append(most_common)
     df_patch_metrics["category_id"] = dominant_categories
 
-    # # Reassign edges so they get merged with their corresponding cores in the output csv
+    # # Reassign edges so they get merged with their corresponding cores in the output csv. I think I prefer to keep them separate actually - more intuitive.
     # df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
     # df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
     # df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
 
-    # # Already did this within skeleton_stats
-    # # Remove any rows where the area is smaller than the min_patch_size. Necessary since I'm using small buffer groups to reassign "Other" classes.
-    # if len(df_patch_metrics) > 0 and 'area' in df_patch_metrics.columns:
-    #     df_patch_metrics_large = df_patch_metrics[df_patch_metrics['area'] > min_patch_size] 
-    # else:
-    #     df_patch_metrics_large = df_patch_metrics  # It's probably an empty list because there are no trees in the region
-    
     # Save the patch metrics
     if save_csv:
         filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
@@ -456,24 +444,14 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     # Assign linear and non-linear categories
     da_linear = da_filtered
     for i, row in df_patch_metrics.iterrows():
-        if row["category_id"] == 14:
-            label_id = row["label"]
-            len_width_ratio = row["ellipse len/width"]
+        if row["category_id"] == 14:  # currently uncategorised
             
-            # if "skeleton len/width" not in row.index:
-            #     new_class = 12  # The whole tile is one big core area
-
-            # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
-            # if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
-            #     new_class = 18  # linear features
-            # else:
-            #     new_class = 19  # non-linear features
-            if row["skeleton_length"] > 20 and row["skeleton_width"] < 4:
+            if row["skeleton_length"] > min_shelterbelt_length and row["skeleton_width"] < max_shelterbelt_width:
                 new_class = 18  # linear features
             else:
                 new_class = 19  # non-linear features
     
-            mask = (assigned_labels == label_id)
+            mask = (assigned_labels == row["label"])
             da_linear.data[mask] = new_class
             df_patch_metrics.loc[i, 'category_id'] = new_class
             df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
@@ -486,7 +464,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         if 'label' not in df_patch_metrics.columns:
             mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
         else:
-            label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # There might be a case where df_patch_metrics['category_id'] is None? In which case I should also set to 11 for scattered trees.
+            label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # I don't think this done anything now that I have to split_disconnected_clusters before skeleton_stats
             mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
 
         da_linear.data[remaining_mask] = mapped_categories
@@ -624,64 +602,6 @@ save_labels=True
 
 # patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
 # patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
-patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
-
-# +
-da = rxr.open_rasterio(buffer_tif).isel(band=0)
-
-# Pixel-wise majority filter to cleanup straggler pixels. Changes the da directly.
-da_filtered = pixel_majority_filter(da)
-
-# Assign labels and a cluster-wise majority filter on the labels (but doesn't change the da yet)
-assigned_labels = assign_labels(da_filtered, min_patch_size)
+df = patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
 
 
-# -
-
-ds_labels = da_filtered.to_dataset(name="filtered")
-ds_labels['labelled_categories'] = (["y", "x"], assigned_labels)
-filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
-ds_labels['labelled_categories'].astype(float).rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
-print("Saved:", filename_labelled)
-
-assigned_labels = split_disconnected_clusters(assigned_labels)
-
-# %%time
-# Find the skeleton of each cluster
-df, skeleton_raster, ellipse_outlines_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster = skeleton_stats(assigned_labels)
-
-
-df
-
-lbl = df['label'].iloc[0]
-
-
-
-
-
-dominant_categories = []
-for lbl in df['label']:
-    lbl_categories = da_filtered.where(assigned_labels == lbl).values
-    values, counts = np.unique(lbl_categories[~np.isnan(lbl_categories)], return_counts=True)
-    most_common = values[np.argmax(counts)]
-    dominant_categories.append(most_common)
-df["category_id"] = dominant_categories
-
-dominant_categories = []
-for region in props:
-    coords = region.coords
-    cat_values = da_filtered.data[coords[:, 0], coords[:, 1]]
-    most_common = mode(cat_values, axis=None, keepdims=False).mode
-    dominant_categories.append(most_common)
-df_patch_metrics["category_id"] = dominant_categories
-
-ds_labels['assigned_labels'] = ["y", "x"], assigned_labels
-ds_labels['assigned_labels'].astype(float).rio.to_raster('assigned_labels.tif')
-
-ds_labels['ellipse_outlines_raster'] = ["y", "x"], ellipse_outlines_raster
-ds_labels['ellipse_outlines_raster'].rio.to_raster('ellipse_outlines_raster.tif')
-
-ds_labels['widths_raster'] = ["y", "x"], widths_raster
-ds_labels['widths_raster'].rio.to_raster('widths_raster.tif')
-
-df.to_csv('skeleton_stats.csv')
