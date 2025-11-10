@@ -678,6 +678,99 @@ print("Saved:", filename_labelled)
 
 assigned_labels2 = split_disconnected_clusters(assigned_labels)
 
+# +
+# # Slow and weird version, kinda worked but not really doing what I wanted
+# def compute_skeleton_widths(mask, skel, kernel_radius=5):
+#     """
+#     Compute width at each skeleton pixel by checking perpendicular directions
+#     and finding nearest empty region on each side using a circular kernel.
+#     """
+#     dist = ndimage.distance_transform_edt(mask)
+
+#     # Get local gradient to infer perpendicular direction
+#     gy, gx = np.gradient(dist.astype(float))
+#     norm = np.hypot(gx, gy)
+#     gx[norm > 0] /= norm[norm > 0]
+#     gy[norm > 0] /= norm[norm > 0]
+
+#     width_raster = np.zeros_like(mask, dtype=float)
+#     ys, xs = np.nonzero(skel)
+#     h, w = mask.shape
+
+#     for y, x in zip(ys, xs):
+#         dx, dy = gx[y, x], gy[y, x]
+#         if dx == 0 and dy == 0:
+#             continue
+
+#         # Compute left and right test points (one pixel perpendicular)
+#         px1, py1 = x + dy, y - dx  # rotate +90°
+#         px2, py2 = x - dy, y + dx  # rotate -90°
+
+#         left = find_nearest_empty_kernel(mask, px1, py1, kernel_radius)
+#         right = find_nearest_empty_kernel(mask, px2, py2, kernel_radius)
+
+#         width_raster[y, x] = left + right
+
+#     return width_raster
+
+
+# def find_nearest_empty_kernel(mask, x, y, max_radius=10):
+#     """Find distance (in pixels) to the nearest empty region using circular kernels."""
+#     h, w = mask.shape
+#     x, y = int(round(x)), int(round(y))
+
+#     for r in range(1, max_radius + 1):
+#         y1, y2 = max(0, y - r), min(h, y + r + 1)
+#         x1, x2 = max(0, x - r), min(w, x + r + 1)
+#         ys, xs = np.ogrid[-r:r+1, -r:r+1]
+#         kernel = xs**2 + ys**2 <= r**2
+#         submask = mask[y1:y2, x1:x2]
+#         k = kernel[
+#             (y1 - y + r):(y2 - y + r),
+#             (x1 - x + r):(x2 - x + r)
+#         ]
+#         if np.any(~submask[k]):  # found non-mask region
+#             return r
+#     return max_radius
+
+
+def compute_skeleton_widths_fast(tree_mask, safe_empty_mask, skel):
+    """
+    Improved width estimation: precompute 'empty kernel' mask and 
+    measure shortest path to it from both sides of the skeleton.
+    """
+    ys, xs = np.nonzero(skel)
+    dist = ndimage.distance_transform_edt(tree_mask)
+    gy, gx = np.gradient(dist.astype(float))
+    norm = np.hypot(gx, gy)
+    gx[norm > 0] /= norm[norm > 0]
+    gy[norm > 0] /= norm[norm > 0]
+    h, w = tree_mask.shape
+    
+    for y, x in zip(ys, xs):
+        dx, dy = gx[y, x], gy[y, x]
+        if dx == 0 and dy == 0:
+            continue
+
+        # Step once perpendicular each side
+        px1, py1 = x + dy, y - dx  # +90°
+        px2, py2 = x - dy, y + dx  # -90°
+
+        # Clip to image bounds
+        if not (0 <= px1 < w and 0 <= py1 < h and 0 <= px2 < w and 0 <= py2 < h):
+            continue
+
+        # Distance from those side points to nearest safe empty region
+        left = dist_to_empty[int(round(py1)), int(round(px1))]
+        right = dist_to_empty[int(round(py2)), int(round(px2))]
+
+        width_raster[y, x] = left + right
+
+    return width_raster
+
+
+
+# +
 from skimage.draw import ellipse_perimeter
 def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
     """
@@ -689,16 +782,25 @@ def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
     skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-
+    widths_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    perpendicular_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    
+    tree_mask = assigned_labels > 0
+    
+    # Precompute mask where a kernel fully fits outside trees
+    edge_size = 3
+    y, x = np.ogrid[-edge_size:edge_size + 1, -edge_size:edge_size + 1]
+    kernel = (x**2 + y**2 <= (edge_size)**2)
+    tree_counts = convolve(tree_mask.astype(np.uint8), kernel, mode='constant', cval=0)
+    no_trees = (tree_counts == 0)
+    safe_empty_mask = convolve(no_trees.astype(np.uint8), kernel, mode='constant', cval=0) > 0
+    safe_empty_mask = safe_empty_mask.astype(bool)
+    dist_to_empty = ndimage.distance_transform_edt(~safe_empty_mask)
+    
+    width_raster = np.zeros_like(tree_mask, dtype=float)
     props = regionprops(assigned_labels)
     for i, prop in enumerate(props):
         lbl = prop.label
-
-    # labels = np.unique(assigned_labels)
-    # labels = labels[labels != 0]  # 0 is background
-    # label_to_prop = {p.label: p for p in props}
-    # for lbl in labels:
-    #     prop = label_to_prop.get(lbl)
 
         mask = (assigned_labels == lbl)
 
@@ -761,94 +863,35 @@ def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
         
         skeleton_raster[skel] = lbl
 
-    return skeleton_raster, ellipse_outline_raster, ellipse_endpoints_raster
-
-
-
-# +
-# def skeleton_stats(assigned_labels, min_patch_size=20):
-#     """Use a skeleton after cleaning with binary dilation/erosion to calculate mean width and length"""
-#     results = []
-
-#     labels = np.unique(assigned_labels)
-#     labels = labels[labels != 0]  # 0 is background
-    
-#     props = regionprops(assigned_labels)
-#     label_to_prop = {p.label: p for p in props}
-#     skeleton_original_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-#     skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-#     ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-#     ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    
-#     for lbl in labels:
-#         mask = (assigned_labels == lbl)
-#         if mask.sum() < min_patch_size:
-#             continue
-
-#         stats = {"label": int(lbl)}
-
-#         disk_size = 2  # There doesn't seem to be much difference in the resulting average widths regardless of the disk size. 2 seems like a reasonable compromise.
-#         selem = disk(disk_size) 
-#         mask = binary_dilation(mask, structure=selem)
-#         mask = binary_erosion(mask, structure=selem)
-
-#         skel = skeletonize(mask)
-#         skeleton_original_raster[skel] = lbl
-
-#         # Get ellipse parameters
-#         prop = label_to_prop.get(lbl)
-
-#         y0, x0 = prop.centroid
-#         orientation = prop.orientation
-#         # a = prop.major_axis_length / 2.0
-#         # b = prop.minor_axis_length / 2.0
-#         a = prop.minor_axis_length / 2.0
-#         b = prop.major_axis_length / 2.0
-
-#         # Major axis endpoints
-#         x1 = x0 + np.cos(orientation) * a
-#         y1 = y0 - np.sin(orientation) * a
-#         x2 = x0 - np.cos(orientation) * a
-#         y2 = y0 + np.sin(orientation) * a
-
-#         coords = np.column_stack(np.nonzero(skel))
-
-#         # Find skeleton pixels closest to ellipse ends
-#         d1 = np.hypot(coords[:, 0] - y1, coords[:, 1] - x1)
-#         d2 = np.hypot(coords[:, 0] - y2, coords[:, 1] - x2)
-#         p1 = tuple(coords[np.argmin(d1)])
-#         p2 = tuple(coords[np.argmin(d2)])
-
-#         # Mark endpoints
-#         ellipse_endpoints_raster[p1] = lbl
-#         ellipse_endpoints_raster[p2] = lbl
-
-#         # Rasterize ellipse outline
-#         rr, cc = ellipse_perimeter(
-#             int(round(y0)), int(round(x0)),
-#             int(round(b)), int(round(a)),
-#             orientation=-orientation,  # skimage uses opposite convention
-#             shape=assigned_labels.shape
-#         )
-#         ellipse_outline_raster[rr, cc] = lbl
-
-#         # Shortest path along skeleton
-#         cost = np.where(skel, 1, np.inf)
-#         try:
-#             path, _ = route_through_array(cost, p1, p2, fully_connected=True)
-#             skel_new = np.zeros_like(skel, dtype=bool)
-#             for r, c in path:
-#                 skel_new[r, c] = True
-#             skel = skel_new
-#         except Exception:
-#             # If pathfinding fails, keep original skeleton
-#             pass
+        # Calculate the widths
+        ys, xs = np.nonzero(skel)
+                
+        # perpendicular directions
+        # dy = np.sin(orientation + np.pi / 2)
+        # dx = np.cos(orientation + np.pi / 2)
+        dy = np.cos(orientation + np.pi / 2)
+        dx = np.sin(orientation + np.pi / 2)
         
-#         skeleton_raster[skel] = lbl
+        # step 1 pixel perpendicular (round to nearest int)
+        dy_int = np.round(dy).astype(int)
+        dx_int = np.round(dx).astype(int)
         
-#         # Distance to the nearest background pixel
-#         dist = ndimage.distance_transform_edt(mask)
-#         widths = dist[skel] * 2  # diameter = radius x 2
+        # coordinates of the two perpendicular neighbors
+        y1 = np.clip(ys + dy_int, 0, dist_to_empty.shape[0] - 1)
+        x1 = np.clip(xs + dx_int, 0, dist_to_empty.shape[1] - 1)
+        y2 = np.clip(ys - dy_int, 0, dist_to_empty.shape[0] - 1)
+        x2 = np.clip(xs - dx_int, 0, dist_to_empty.shape[1] - 1)
+
+        perpendicular_raster[y1, x1] = lbl
+        perpendicular_raster[y2, x2] = lbl
+        
+        # sum the distances from both sides
+        v1 = dist_to_empty[y1, x1]
+        v2 = dist_to_empty[y2, x2]
+        
+        widths_raster[ys, xs] = v1 + v2 + 1 # The skeleton must be at least 1 wide
+
+    return skeleton_raster, ellipse_outline_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster
 
 #         if len(widths) > 0:
 #             skeleton_width = float(np.mean(widths))
@@ -860,23 +903,12 @@ def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
 #             }
 #         results.append(stats)
 
-#     return pd.DataFrame(results), skeleton_original_raster, skeleton_raster, ellipse_endpoints_raster, ellipse_outline_raster
 
-# # import numpy as np
-# # import pandas as pd
-# # from skimage.morphology import disk, binary_dilation, binary_erosion, skeletonize
-# # from skimage.measure import regionprops
-# # from skimage.graph import route_through_array
-# # from skimage.draw import ellipse_perimeter
-# # from scipy import ndimage
 # -
-
-props = regionprops(assigned_labels)
-
 
 # %%time
 # Find the skeleton of each cluster
-skeleton_raster, ellipse_outlines_raster, ellipse_endpoints_raster = debug_skeleton_ellipses(assigned_labels2)
+skeleton_raster, ellipse_outlines_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster = debug_skeleton_ellipses(assigned_labels2)
 
 
 # %%time
@@ -899,5 +931,34 @@ ds_labels['ellipse_outlines_raster'].rio.to_raster('ellipse_outlines_raster.tif'
 
 ds_labels['ellipse_endpoints_raster'] = ["y", "x"], ellipse_endpoints_raster
 ds_labels['ellipse_endpoints_raster'].rio.to_raster('ellipse_endpoints_raster.tif')
+
+ds_labels['widths_raster'] = ["y", "x"], widths_raster
+ds_labels['widths_raster'].rio.to_raster('widths_raster.tif')
+
+from scipy.ndimage import convolve
+
+
+ds_labels['safe_empty_mask'] = ["y", "x"], safe_empty_mask
+ds_labels['safe_empty_mask'].astype(float).rio.to_raster('safe_empty_mask.tif')
+
+ds_labels['dist_to_empty'] = ["y", "x"], dist_to_empty
+ds_labels['dist_to_empty'].astype(float).rio.to_raster('dist_to_empty.tif')
+
+ds_labels['perpendicular_raster'] = ["y", "x"], perpendicular_raster
+ds_labels['perpendicular_raster'].astype(float).rio.to_raster('perpendicular_raster.tif')
+
+# +
+# Convolve to count how many tree pixels fall within each kernel window
+edge_size = 3
+y, x = np.ogrid[-edge_size:edge_size + 1, -edge_size:edge_size + 1]
+kernel = (x**2 + y**2 <= (edge_size)**2)
+tree_counts = convolve(tree_mask.astype(np.uint8), kernel, mode='constant', cval=0)
+no_trees = (tree_counts == 0)
+safe_empty_mask = convolve(no_trees.astype(np.uint8), kernel, mode='constant', cval=0) > 0
+safe_empty_mask = safe_empty_mask.astype(bool)
+dist_to_empty = ndimage.distance_transform_edt(~safe_empty_mask)
+
+plt.imshow(dist_to_empty)
+# -
 
 
