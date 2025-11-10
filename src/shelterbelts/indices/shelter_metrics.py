@@ -138,43 +138,40 @@ def assign_labels(da_filtered, min_patch_size=20):
     #     offset = assigned_labels.max()     # Offset new segment IDs to avoid conflicts with existing ones
     #     new_labels = np.where(mask, nearest_segments + offset, assigned_labels)
     #     new_labels[(mask) & (nearest_segments == 0)] = 0     # Set background (segment==0) back to 0 in the new areas
+    
+    arr = da_filtered.data  
+    assigned_labels = np.zeros_like(arr, dtype=np.int32)
 
     # Assign cluster ids to the core areas and corresponding edges
-    arr = da_filtered.data  
     core_mask = (arr == 12)
     core_labels, num_labels = ndimage.label(core_mask)
     _, (inds_y, inds_x) = ndimage.distance_transform_edt(
         ~core_mask, return_indices=True
     )
     nearest_core_labels = core_labels[inds_y, inds_x]
-    assigned_labels = np.zeros_like(arr, dtype=np.int32)
     assigned_labels[arr == 13] = nearest_core_labels[arr == 13]
     assigned_labels[arr == 12] = core_labels[arr == 12]
     
-    # Assign cluster ids for all the buffer groups (including small ones), since we're no longer converting these buffer categories.
+    # Assign cluster ids for all the buffer groups (including small ones), since we're no longer converting these buffer categories to linear vs non-linear.
     buffer_codes = [15, 16, 17]
     for buffer_code in buffer_codes:
         mask = (arr == buffer_code)
         labels, num_labels = ndimage.label(mask)
         assigned_labels[arr == buffer_code] = labels[arr == buffer_code]
     
-    # Assign ids to the rest of the patch types
-    # buffer_category_ids = [14, 15, 16, 17]  # Clean up all of the buffer categories. This runs into an issue if there aren't any large enough clusters nearby.
-    buffer_category_ids = [14]  # Only clean up the "Other" category
-    for category_id in buffer_category_ids:
-        da_category = (da_filtered == category_id)
-        labelled_category = tree_clusters(da_category, max_gap_size=1)
-        labelled_category = labelled_category + assigned_labels.max()
-        labelled_arr = labelled_category.data
-        mask = (arr == category_id)
-        assigned_labels[mask] = labelled_arr[mask]
+    # Assign cluster ids to the Other category
+    category_id = 14
+    da_category = (da_filtered == category_id)
+    labelled_category = tree_clusters(da_category, max_gap_size=1)
+    labelled_category = labelled_category + assigned_labels.max()
+    labelled_arr = labelled_category.data
+    mask = (arr == category_id)
+    assigned_labels[mask] = labelled_arr[mask]
     
     # Cluster-wise majority filter for very small clusters. Changes the labels. 
-    # I do actually like these categorizations, but they get overwritten by the required resplitting before running skeleton stats right now. So I could probably remove this and just have simple labelling now.
     labels, counts = np.unique(assigned_labels, return_counts=True)
     small_labels = labels[counts < min_patch_size]
     small_mask = np.isin(assigned_labels, small_labels)
-    # valid_mask = ((~small_mask) & (assigned_labels != 0)) | np.isin(arr, [15, 16, 17])  # Don't merge small buffer categories
     valid_mask = ((~small_mask) & (assigned_labels != 0))
     _, (inds_y, inds_x) = ndimage.distance_transform_edt(
         ~valid_mask,
@@ -430,11 +427,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         dominant_categories.append(most_common)
     df_patch_metrics["category_id"] = dominant_categories
 
-    # # Reassign edges so they get merged with their corresponding cores in the output csv. I think I prefer to keep them separate actually - more intuitive.
-    # df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)  # linear_labels
-    # df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
-    # df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
-
     # Save the patch metrics
     if save_csv:
         filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
@@ -572,36 +564,38 @@ def parse_arguments():
     return parser.parse_args()
 
 
+if __name__ == '__main__':
+
+    args = parse_arguments()
+
+    geotif = args.buffer_tif
+    outdir = args.outdir
+    stub = args.stub
+    ds, df = patch_metrics(geotif, outdir, stub)
+
+    geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
+    dfs = class_metrics(geotif, outdir, stub)
+
 # +
-# if __name__ == '__main__':
+# # Running locally
+# outdir = "../../../outdir/"
+# buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif"
+# min_patch_size = 20
+# min_branch_length = min_patch_size
+# stub="TEST2"
+# save_csv=True
+# plot = False
+# save_tif=True
+# save_labels=True
+# # stub = "shelter_indices"
+# # geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
+# # outdir="/scratch/xe2/cb8590"
 
-#     args = parse_arguments()
-
-#     geotif = args.buffer_tif
-#     outdir = args.outdir
-#     stub = args.stub
-#     ds, df = patch_metrics(geotif, outdir, stub)
-
-#     geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
-#     dfs = class_metrics(geotif, outdir, stub)
+# +
+# # %%time
+# # patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
+# # patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
+# ds, df = patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
 # -
-
-# Running locally
-outdir = "../../../outdir/"
-buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif"
-min_patch_size = 20
-min_branch_length = min_patch_size
-stub="TEST2"
-save_csv=True
-plot = False
-save_tif=True
-save_labels=True
-# stub = "shelter_indices"
-# geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
-# outdir="/scratch/xe2/cb8590"
-
-# patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
-# patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
-df = patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
 
 
