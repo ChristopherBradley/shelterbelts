@@ -154,11 +154,6 @@ def assign_labels(da_filtered, min_patch_size):
     # mask_small = np.isin(labels, small_labels)
     # labels[mask_small] = 0
     
-    # # Make consecutive again
-    # _, labels_consecutive = np.unique(labels, return_inverse=True)
-    # labels_consecutive = labels_consecutive.reshape(labels.shape)
-    # return labels_consecutive
-    
     # Assign cluster ids to the core areas and corresponding edges
     arr = da_filtered.data  
     core_mask = (arr == 12)
@@ -203,52 +198,117 @@ def assign_labels(da_filtered, min_patch_size):
     assigned_labels[small_mask] = nearest_labels[small_mask]
         
     # Re-label the patches so they are consecutive integers
-    unique_labels = np.unique(assigned_labels)
-    unique_labels = unique_labels[unique_labels != 0]
-    new_labels = np.arange(1, len(unique_labels) + 1)
-    label_map = dict(zip(unique_labels, new_labels))
-    assigned_labels_relabelled = np.zeros_like(assigned_labels)
-    for old, new in label_map.items():
-        assigned_labels_relabelled[assigned_labels == old] = new
-    assigned_labels = assigned_labels_relabelled
+    _, labels_consecutive = np.unique(assigned_labels, return_inverse=True)
+    assigned_labels = labels_consecutive.reshape(assigned_labels.shape)
     return assigned_labels
 
 
-def skeleton_stats(assigned_labels):
-    """Use a skeleton after cleaning with binary dilation/erosion to calculate mean width and length"""
-    results = []
+from skimage.graph import route_through_array
+from skimage.draw import ellipse_perimeter
 
-    labels = np.unique(assigned_labels)
-    labels = labels[labels != 0]  # 0 is background
 
-    for lbl in labels:
-        mask = (assigned_labels == lbl)
+# +
+# def skeleton_stats(assigned_labels):
+#     """Use a skeleton after cleaning with binary dilation/erosion to calculate mean width and length"""
+#     results = []
 
-        stats = {"label": int(lbl)}
+#     labels = np.unique(assigned_labels)
+#     labels = labels[labels != 0]  # 0 is background
+    
+#     props = regionprops(assigned_labels)
+#     label_to_prop = {p.label: p for p in props}
+#     skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+#     ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+#     ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    
+#     for lbl in labels:
+#         mask = (assigned_labels == lbl)
 
-        disk_size = 2  # There doesn't seem to be much difference in the resulting average widths regardless of the disk size. 2 seems like a reasonable compromise.
-        selem = disk(disk_size) 
-        mask = binary_dilation(mask, structure=selem)
-        mask = binary_erosion(mask, structure=selem)
+#         stats = {"label": int(lbl)}
 
-        skel = skeletonize(mask)
+#         disk_size = 2  # There doesn't seem to be much difference in the resulting average widths regardless of the disk size. 2 seems like a reasonable compromise.
+#         selem = disk(disk_size) 
+#         mask = binary_dilation(mask, structure=selem)
+#         mask = binary_erosion(mask, structure=selem)
+
+#         skel = skeletonize(mask)
+
+#         # Get ellipse parameters
+#         prop = label_to_prop.get(lbl)
+#         if prop is not None and prop.major_axis_length > 0 and prop.minor_axis_length > 0:
+#             y0, x0 = prop.centroid
+#             orientation = prop.orientation
+#             a = prop.major_axis_length / 2.0
+#             b = prop.minor_axis_length / 2.0
+
+#             # Major axis endpoints
+#             x1 = x0 + np.cos(orientation) * a
+#             y1 = y0 - np.sin(orientation) * a
+#             x2 = x0 - np.cos(orientation) * a
+#             y2 = y0 + np.sin(orientation) * a
+
+#             coords = np.column_stack(np.nonzero(skel))
+#             if len(coords) > 0:
+#                 # Find skeleton pixels closest to ellipse ends
+#                 d1 = np.hypot(coords[:, 0] - y1, coords[:, 1] - x1)
+#                 d2 = np.hypot(coords[:, 0] - y2, coords[:, 1] - x2)
+#                 p1 = tuple(coords[np.argmin(d1)])
+#                 p2 = tuple(coords[np.argmin(d2)])
+
+#                 # Mark endpoints
+#                 ellipse_endpoints_raster[p1] = lbl
+#                 ellipse_endpoints_raster[p2] = lbl
+
+#                 # Rasterize ellipse outline
+#                 rr, cc = ellipse_perimeter(
+#                     int(round(y0)), int(round(x0)),
+#                     int(round(b)), int(round(a)),
+#                     orientation=-orientation,  # skimage uses opposite convention
+#                     shape=assigned_labels.shape
+#                 )
+#                 ellipse_outline_raster[rr, cc] = lbl
+
+#                 # Shortest path along skeleton
+#                 cost = np.where(skel, 1, np.inf)
+#                 try:
+#                     path, _ = route_through_array(cost, p1, p2, fully_connected=True)
+#                     skel_new = np.zeros_like(skel, dtype=bool)
+#                     for r, c in path:
+#                         skel_new[r, c] = True
+#                     skel = skel_new
+#                 except Exception:
+#                     # If pathfinding fails, keep original skeleton
+#                     pass
         
-        # Distance to the nearest background pixel
-        dist = ndimage.distance_transform_edt(mask)
-        widths = dist[skel] * 2  # diameter = radius x 2
+#         skeleton_raster[skel] = lbl
+        
+#         # Distance to the nearest background pixel
+#         dist = ndimage.distance_transform_edt(mask)
+#         widths = dist[skel] * 2  # diameter = radius x 2
 
-        if len(widths) > 0:
-            skeleton_width = float(np.mean(widths))
-            skeleton_area = skel.sum()
-            stats = stats | {
-                f"skeleton_width": skeleton_width,  # mean is probably more intuitive than median
-                f"skeleton_length": skeleton_area, 
-                f"skeleton len/width": skeleton_area/skeleton_width # Might also be interesting to look at ellipse length / skeleton width, and/or incorporate the perimeter area ratio
-            }
-        results.append(stats)
+#         if len(widths) > 0:
+#             skeleton_width = float(np.mean(widths))
+#             skeleton_area = skel.sum()
+#             stats = stats | {
+#                 f"skeleton_width": skeleton_width,  # mean is probably more intuitive than median
+#                 f"skeleton_length": skeleton_area, 
+#                 f"skeleton len/width": skeleton_area/skeleton_width # Might also be interesting to look at ellipse length / skeleton width, and/or incorporate the perimeter area ratio
+#             }
+#         results.append(stats)
 
-    return pd.DataFrame(results)
+#     return pd.DataFrame(results), skeleton_raster, ellipse_endpoints_raster, ellipse_outline_raster
 
+# import numpy as np
+# import pandas as pd
+# from skimage.morphology import disk, binary_dilation, binary_erosion, skeletonize
+# from skimage.measure import regionprops
+# from skimage.graph import route_through_array
+# from skimage.draw import ellipse_perimeter
+# from scipy import ndimage
+
+
+
+# -
 
 def plot_clusters(assigned_labels, filename=None):
     """Visualise the clusters with ellipses and text ids"""
@@ -326,8 +386,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     assigned_labels = assign_labels(da_filtered, min_patch_size)
     
     if plot:
-        # filename = os.path.join(outdir, f'{stub}_labelled_categories.png')
-        filename = None
+        filename = os.path.join(outdir, f'{stub}_labelled_categories.png')
+        # filename = None
         plot_clusters(assigned_labels, filename)
 
     if save_tif and save_labels:
@@ -337,11 +397,11 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         ds_labels['labelled_categories'].astype(float).rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
         print("Saved:", filename_labelled)
 
-    # Find the skeleton of each cluster
-    df_widths = skeleton_stats(assigned_labels) 
-
     # Fit an ellipse around each cluster 
     props = regionprops(assigned_labels)
+    
+    # Find the skeleton of each cluster
+    df_widths, skeleton_raster = skeleton_stats(assigned_labels, props) 
     
     # Create the patch metrics
     results = []
@@ -423,8 +483,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
 
         da_linear.data[remaining_mask] = mapped_categories
-
-    # Maybe I should add an assert that there aren't any 14 labels left, since I'm not confident I've covered every scenario.
     
     ds = da_linear.to_dataset(name="linear_categories")
     ds['labelled_categories'] = (["y", "x"], assigned_labels)  # just so the output ds has both
@@ -442,8 +500,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
         tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
     
     if plot:
-        # filename = os.path.join(outdir, f'{stub}_linear_categories.png')  # For creating a png output
-        filename = None  # For debugging within the notebook
+        filename = os.path.join(outdir, f'{stub}_linear_categories.png')  # For creating a png output
+        # filename = None  # For debugging within the notebook
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")
     
     return ds, df_patch_metrics
@@ -555,14 +613,146 @@ outdir = "../../../outdir/"
 buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif"
 min_patch_size = 20
 min_branch_length = min_patch_size
-stub="TEST"
+stub="TEST2"
 save_csv=True
+plot = False
+save_tif=True
+save_labels=True
 # stub = "shelter_indices"
 # geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
 # outdir="/scratch/xe2/cb8590"
 
+# +
 # patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
 # patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
-patch_metrics(buffer_tif, outdir=outdir, plot=True)
+# patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
 
-#
+# +
+da = rxr.open_rasterio(buffer_tif).isel(band=0)
+
+# Pixel-wise majority filter to cleanup straggler pixels. Changes the da directly.
+da_filtered = pixel_majority_filter(da)
+
+# Assign labels and a cluster-wise majority filter on the labels (but doesn't change the da yet)
+assigned_labels = assign_labels(da_filtered, min_patch_size)
+
+
+# -
+
+ds_labels = da_filtered.to_dataset(name="filtered")
+ds_labels['labelled_categories'] = (["y", "x"], assigned_labels)
+filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
+ds_labels['labelled_categories'].astype(float).rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
+print("Saved:", filename_labelled)
+
+# +
+import numpy as np
+from scipy.ndimage import label as ndi_label
+
+def split_disconnected_clusters(assigned_labels, connectivity=2):
+    """
+    Split disconnected parts of each label into separate labels.
+    
+    Parameters
+    ----------
+    assigned_labels : np.ndarray
+        Labeled array (0 is background).
+    connectivity : int
+        Connectivity for defining connected components (1=4-connectivity, 2=8-connectivity in 2D).
+    
+    Returns
+    -------
+    new_labels : np.ndarray
+        Labeled array with disconnected clusters split into unique labels.
+    """
+    new_labels = assigned_labels.copy()
+    next_label = new_labels.max() + 1
+
+    for lbl in np.unique(assigned_labels):
+        if lbl == 0:
+            continue
+
+        mask = (assigned_labels == lbl)
+        labeled_mask, n_components = ndi_label(mask, structure=np.ones((3,3)) if connectivity==2 else None)
+
+        # If more than one component, assign new labels
+        for comp_id in range(1, n_components + 1):
+            if comp_id == 1:
+                # Keep the first component as original label
+                continue
+            new_labels[labeled_mask == comp_id] = next_label
+            next_label += 1
+
+    return new_labels
+
+
+
+# -
+
+assigned_labels2 = split_disconnected_clusters(assigned_labels)
+
+from skimage.draw import ellipse_perimeter
+def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
+    """
+    Minimal function to create skeleton raster and ellipse outline raster for debugging.
+    
+    Returns:
+        skeleton_raster, ellipse_outline_raster
+    """
+    skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+
+    props = regionprops(assigned_labels)
+
+    for i, prop in enumerate(props):
+        lbl = prop.label
+        mask = (assigned_labels == lbl)
+
+        if mask.sum() < min_patch_size:
+            continue
+            
+        skel = skeletonize(mask)
+        skeleton_raster[skel] = lbl
+
+        # Ellipse parameters
+        y0, x0 = prop.centroid
+        orientation = prop.orientation
+        # a = prop.major_axis_length / 2.0
+        # b = prop.minor_axis_length / 2.0
+        a = prop.minor_axis_length / 2.0
+        b = prop.major_axis_length / 2.0
+
+
+        # Rasterize ellipse outline
+        rr, cc = ellipse_perimeter(
+            int(round(y0)), int(round(x0)),
+            int(round(b)), int(round(a)),
+            orientation=-orientation,  # skimage uses opposite convention
+            shape=assigned_labels.shape
+        )
+        ellipse_outline_raster[rr, cc] = lbl
+
+    return skeleton_raster, ellipse_outline_raster
+
+
+props = regionprops(assigned_labels)
+
+
+# %%time
+# Find the skeleton of each cluster
+skeleton_raster, ellipse_outlines_raster = debug_skeleton_ellipses(assigned_labels2) # Should just do this on the large clusters.
+
+
+ds_labels['assigned_labels'] = ["y", "x"], assigned_labels
+ds_labels['assigned_labels'].astype(float).rio.to_raster('assigned_labels.tif')
+
+ds_labels['assigned_labels'] = ["y", "x"], assigned_labels2
+ds_labels['assigned_labels'].astype(float).rio.to_raster('assigned_labels2.tif')
+
+ds_labels['skeleton_raster'] = ["y", "x"], skeleton_raster
+ds_labels['skeleton_raster'].rio.to_raster('skeleton_raster2.tif')
+
+ds_labels['ellipse_outlines_raster'] = ["y", "x"], ellipse_outlines_raster
+ds_labels['ellipse_outlines_raster'].rio.to_raster('ellipse_outlines_raster.tif')
+
+
