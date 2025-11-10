@@ -70,7 +70,9 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, o
     buffered_gullies = binary_dilation(da_gullies_reprojected.values, structure=gap_kernel)
     
     # Can adjust depending on which category we want to take precedence
-    uncategorised_trees = np.isin(da_cover, [10, 11, 12, 13, 14, 15])
+    # categories_to_override = [10, 11, 12, 13, 14]
+    categories_to_override = [10, 11, 14]
+    uncategorised_trees = np.isin(da_cover, categories_to_override)
     
     riparian_trees = uncategorised_trees & buffered_gullies
     da_buffered = da_cover.where(~riparian_trees, 15)  # Assigning gully trees label 15
@@ -98,12 +100,7 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, o
         da_roads_reprojected = da_roads.rio.reproject_match(da_cover, resampling=Resampling.max)
         roads_thinned = skeletonize(da_roads_reprojected.values)
 
-        # Can uncomment some of these depending on which category we want to take precedence
-        # roads_thinned = roads_thinned & ~buffered_gullies
-        # if ridges_tif: 
-        #     roads_thinned = roads_thinned & ~buffered_ridges
-        # uncategorised_trees = (da_buffered == 14)
-        uncategorised_trees = np.isin(da_buffered, [10, 11, 12, 13, 14])
+        uncategorised_trees = np.isin(da_buffered, categories_to_override)
 
         buffered_roads = binary_dilation(roads_thinned, structure=gap_kernel)
         road_trees = uncategorised_trees & buffered_roads

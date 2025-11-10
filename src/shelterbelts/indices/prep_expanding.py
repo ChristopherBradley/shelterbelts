@@ -16,7 +16,6 @@ from shapely.geometry import box, Polygon, MultiPolygon
 
 # -
 
-# Not sure if it's worth making command line arguments for this, or just manually run from a notebook each time since I'm not going to do it many times
 def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
     """Create subfolders for mosaicking tiles"""
     output_str = f"{base_str}/subfolders"
@@ -56,14 +55,6 @@ def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
 
     # Took 30 secs for 50k tiles
 
-# +
-# # %%time
-# year = 2017
-# years = [2019,2020, 2021, 2022, 2023, 2024]
-# for year in years:
-#     mosaic_subfolders(f'/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326')
-# -
-
 # I run this function in a notebook to prep the sh file that does the qsubs in parallel
 non_suffixes=['_confidence50', '_confidence50_fixedlabels', '_corebugfix']
 non_contains = ['linear_tifs', 'merged_predicted']
@@ -82,7 +73,28 @@ def get_subfolders(folder_with_subfolders, non_suffixes=[], non_contains=[]):
     stems_string = " ".join(stems)
     return stems_string
 
+# +
+import argparse
+def parse_arguments():
+    """Parse command line arguments with default values."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('folder', type=str, help='Folder containing lots of tifs that we want to move into subfolders')
 
-get_subfolders('/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/subfolders/')
+    return parser.parse_args()
 
 
+# -
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    folder = args.folder
+    print(f"Mosaicking folder: {folder}")
+    mosaic_subfolders(folder)
+    stems_string = get_subfolders(os.path.join(folder, "subfolders"))
+    print(f"Created subfolders:\n{stems_string}")
+
+# +
+# folder='/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings'
+# stems_string = get_subfolders(os.path.join(folder, "subfolders"))
+# print(f"Created subfolders:\n{stems_string}")

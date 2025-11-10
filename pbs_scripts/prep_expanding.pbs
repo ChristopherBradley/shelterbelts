@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -N prep_expanding
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=00:30:00
+#PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
+#PBS -q normal
+
+# Change working directory
+wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/indices
+cd $wd
+
+# Setup DEA environment modules for running the Python script
+# module use /g/data/v10/public/modules/modulefiles
+# module load dea/20231204  # using this version to match my predictions.pbs (needs old tensorflow, load_ard, gpd.read_file)
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+folder=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median
+
+# /scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median
+
+# Print out input variables to the error log
+echo "Starting prep_expanding.pbs with folder: $folder"
+
+# Run the script
+python3 prep_expanding.py $folder

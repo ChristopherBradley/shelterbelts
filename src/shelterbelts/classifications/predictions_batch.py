@@ -60,11 +60,11 @@ cmap_binary = {
 }
 
 # Loading this once instead of every time in tif_prediction_ds. Could instead load once in predictions_batch and pass as an argument
-gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned.gpkg')
+gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg')
 
 
 # +
-def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, confidence=False):
+def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, confidence=False, model_weightings=None):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -119,16 +119,30 @@ def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, con
     for col in df.select_dtypes(include=['int64']).columns:
         df[col] = df[col].astype(np.int16)
     
+    # import pdb; pdb.set_trace()
+    
     # This happens when there's no good data for that location (e.g. always clouds, or always in a dark shadow from a north-south ridgeline)
-    bad = ~np.isfinite(df.to_numpy())
+    # bad = ~np.isfinite(df.to_numpy())
     df = df.replace([np.inf, -np.inf], np.nan)  
-    df = df.fillna(0) # not sure what value is appropriate for missing data here, maybe infinity or an average would be better?
+    df = df.fillna(df.median())  # Makes the blue mountains bug not quite as bad, but still bad.
+    df = df.fillna(0)  # Sometimes the focal_std is all NaN. If we fill with 1 or 100 then all the predictions become 0. Filling with 0 seems to work nicely.
 
-    X_all_scaled = scaler.transform(df)
-
-    # Make predictions and add to the xarray    
-    # print("Predicting")
-    preds = model.predict(X_all_scaled)
+    if model_weightings:
+        # Make a bunch of predictions from the ensemble of models and take a weighted average.
+        all_preds = []
+        weights = []
+        for key in model_weightings:
+            model, scaler, weighting = model_weightings[key]
+            X_all_scaled = scaler.transform(df)
+            model_preds = model.predict(X_all_scaled)
+            all_preds.append(model_preds * weighting)
+            weights.append(weighting)
+        preds = np.sum(all_preds, axis=0) / np.sum(weights)    
+        
+    else:
+        # Make predictions and add to the xarray    
+        X_all_scaled = scaler.transform(df)
+        preds = model.predict(X_all_scaled)
     
     if confidence:
         cmap_BrBG = plt.cm.BrBG
@@ -188,7 +202,7 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     da = tif_prediction_ds(ds, outdir, tile_id, model, scaler, savetif)
     return da
 
-def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False):
+def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False, model_weightings=None):
     """Run the sentinel download and tree classification for a given location"""
     # from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
@@ -196,7 +210,7 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, conf
     end_date = f"{year}-12-31"
     ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False, input_crs=src_crs) # If we do save all the sentinel pickle files, it took about 20TB for all of NSW.
 
-    da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True, confidence=confidence)
+    da = tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True, confidence=confidence, model_weightings=None)
 
     # # Trying to avoid memory accumulating with new tiles
     del ds 
@@ -206,7 +220,8 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, conf
 
 def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', multi_model=False, confidence=False):
     """Abstracting the for loop & try except for each worker"""
-    
+    model, scaler, model_weightings = None, None, None
+
     # Loading this once per worker, so they aren't sharing the same model
     if not multi_model:
         filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
@@ -227,26 +242,47 @@ def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85
     for row in rows:
         try:
             if multi_model:
+                
                 # Choose which of the 6 models to use based on the center coordinate
                 bbox = row[3]
                 center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
                 point = Point(center)
 
-                # Using the nearest polygon instead of contains because the koppen boundaries miss quite a bit of landmass near the coastlines
-                # match = gdf_koppen[gdf_koppen.contains(point)]
-                nearest_geom = min(gdf_koppen.geometry, key=lambda g: point.distance(g))
-                match = gdf_koppen[gdf_koppen.geometry == nearest_geom]
+#                 # Using the nearest polygon instead of contains because the koppen boundaries miss quite a bit of landmass near the coastlines
+#                 nearest_geom = min(gdf_koppen.geometry, key=lambda g: point.distance(g))
+#                 match = gdf_koppen[gdf_koppen.geometry == nearest_geom]
 
-                if len(match) > 0:
-                    koppen_class = match.iloc[0]['Name']
-                else:
-                    koppen_class = 'all'  # There should always be a match now that I'm using the nearest polygon
-                model = model_dict[koppen_class][0]
-                scaler = model_dict[koppen_class][1]
-                print(f"predicting with model: {koppen_class}")
+#                 if len(match) > 0:
+#                     koppen_class = match.iloc[0]['Name']
+#                 else:
+#                     koppen_class = 'all'  # There should always be a match now that I'm using the nearest polygon
+#                 model = model_dict[koppen_class][0]
+#                 scaler = model_dict[koppen_class][1]
+#                 print(f"predicting with model: {koppen_class}")
+
+                # Find which models are within a given distance of this pixel
+                gdf_koppen["distance"] = gdf_koppen.geometry.distance(point)
+                distance_degree_threshold = 1
+                distance_km = distance_degree_threshold * 100   # Rough conversion of 1 degree = 100km
+                chosen_models = gdf_koppen[gdf_koppen['distance'] < distance_degree_threshold]  # Only using models if the point is within 1 degree of that polygon
+                chosen_models = chosen_models[['Name', 'distance']].sort_values("distance", ascending=False).reset_index()
+                n_classes = len(chosen_models)
+
+                # Assign weightings based on how close to the polygon this pixel is
+                remaining_percentage = 100
+                model_weightings = dict()  # {stub: (model, scaler, weighting)}
+                for i, chosen_row in chosen_models.iterrows():
+                    koppen_class = chosen_row['Name']
+                    if i == n_classes - 1:
+                        model_weightings[koppen_class] = (model_dict[koppen_class][0], model_dict[koppen_class][1], remaining_percentage)
+                    else:
+                        weighting = (100/n_classes) - (chosen_row['distance'] * distance_km)/n_classes  
+                        model_weightings[koppen_class] = (model_dict[koppen_class][0], model_dict[koppen_class][1], weighting)
+                        remaining_percentage = remaining_percentage - weighting
+                print(f"Predicting {row[0]} with these model weights: {[(k, model_weightings[k][2]) for k in model_weightings]}")
                     
             # mem_before = process.memory_info().rss / 1e9
-            tif_prediction_bbox(*row, model, scaler, confidence=confidence)
+            tif_prediction_bbox(*row, model, scaler, confidence=confidence, model_weightings=model_weightings)
             # mem_after = process.memory_info().rss / 1e9
             mem_info = process.memory_full_info()
             print(f"{row[0]}: RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
@@ -335,13 +371,41 @@ if __name__ == '__main__':
 
 # +
 # # %%time
-# gpkg = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
+# filename = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_10.gpkg'
 # outdir = '/scratch/xe2/cb8590/tmp'
 # nn_dir = '/g/data/xe2/cb8590/models'
 # nn_stub = '4326_float32_s4'
 # year = 2020
-# limit = 1
-# predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model=True)
+# limit = 10
+# predictions_batch(filename, outdir, year, nn_dir, nn_stub, limit, multi_model=True)
 
 # # # 40 secs for 1 file
 # # # 6 mins for 10 files
+
+# +
+# # %%time
+# filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# predictions_batch(filename, outdir, nn_stub='4326_float32_s4_all', confidence=True, year=2018, limit=1)
+
+# # # 40 secs for 1 file
+# # # 6 mins for 10 files
+
+# +
+# # %%time
+# filename = '/scratch/xe2/cb8590/tmp/blue_mountains_bad.gpkg'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# predictions_batch(filename, outdir, nn_stub='4326_float32_s4', confidence=True, year=2018, multi_model=True)
+
+# # # 40 secs for 1 file
+# # # 6 mins for 10 files
+
+# +
+# pd.set_option('display.max_rows', 100)
+# pd.set_option('display.max_columns', 100)
+# df = pd.read_csv('/scratch/xe2/cb8590/tmp/blue_mountains_bad.csv')
+# df2 = pd.read_csv('/scratch/xe2/cb8590/tmp/df_barra_bboxs_sample.csv')
+# df.describe()
+# df.isna().sum().to_frame('NaN_count').assign(
+#     NaN_percent=lambda x: 100 * x['NaN_count'] / len(df)
+# )

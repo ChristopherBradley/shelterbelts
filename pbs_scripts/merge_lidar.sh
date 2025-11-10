@@ -1,7 +1,8 @@
 #!/bin/bash
 
-year=2024
-BASE_DIR="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/subfolders"
+year=2020
+# BASE_DIR="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings/subfolders"
+BASE_DIR="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/subfolders"
 
 for folder in "$BASE_DIR"/*; do
     if [ -d "$folder" ]; then

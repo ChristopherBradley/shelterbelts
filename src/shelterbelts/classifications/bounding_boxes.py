@@ -4,10 +4,13 @@ import argparse
 import glob
 
 from shapely.geometry import box
+from pyproj import Transformer
 
 import geopandas as gpd
 import rioxarray as rxr
 import numpy as np
+import xarray as xr
+
 
 
 def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=None, pixel_cover_threshold=None, remove=False, filetype='.tif', crs=None, save_centroids=False, limit=None):
@@ -42,6 +45,10 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
     veg_tifs = [f for f in veg_tifs if not os.path.isdir(f)]  # The filetype should handle this, but just in case
 
+    if len(veg_tifs) == 0:
+        print("No files found, perhaps you used the wrong folder?")
+        return None
+            
     if limit is not None:
         veg_tifs = veg_tifs[:limit]
     
@@ -55,20 +62,29 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     # Create a geopackage of the attributes of each tif
     records = []
     for i, veg_tif in enumerate(veg_tifs):
-        if i%100 == 0:
+        if i%10 == 0:
             print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
         original_crs = str(da.rio.crs)
 
+        height, width = da.shape
+        bounds = da.rio.bounds()  
+        minx, miny, maxx, maxy = bounds
         if da.rio.crs is None:
             da = da.rio.write_crs('EPSG:28355') # ACT 2015 tifs are missing the crs
         elif da.rio.crs != crs:
-            da = da.rio.reproject(crs)
-        
-        height, width = da.shape
-        bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
-        minx, miny, maxx, maxy = bounds
-
+            # Trying to just reproject the bounds instead of the whole raster to speed things up.
+            transformer = Transformer.from_crs(da.rio.crs, crs, always_xy=True)
+            xs, ys = transformer.transform(
+                [minx, maxx, maxx, minx],
+                [miny, miny, maxy, maxy]
+            )
+            minx, miny, maxx, maxy = min(xs), min(ys), max(xs),  max(ys)
+        # da = da.rio.reproject(crs)
+        # height, width = da.shape
+        # bounds = da.rio.bounds()  # (minx, miny, maxx, maxy)
+        # minx, miny, maxx, maxy = bounds
+            
         if pixel_cover_threshold:
             da = (da > pixel_cover_threshold).astype('uint8')
 
@@ -90,8 +106,9 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
             rec["pixels_1"] = category_counts.get(1, 0)
         records.append(rec)
         
-    gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
-
+    # gdf = gpd.GeoDataFrame(records, crs=da.rio.crs)
+    gdf = gpd.GeoDataFrame(records, crs=crs)
+    
     # Calculate which tifs don't meet our thresholds
     gdf['bad_tif'] = (gdf['height'] < size_threshold) | (gdf['width'] < size_threshold)
     if tif_cover_threshold is not None:
@@ -178,9 +195,27 @@ if __name__ == '__main__':
 
 # bounding_boxes(folder)
 
-# # Footprints currently aren't working with the .asc files, but centroids are for some reason.
-# # filepath = '/g/data/xe2/cb8590/NSW_5m_DEMs'
-# # stub = 'NSW_5m_DEMs'
-# # outdir = "/g/data/xe2/cb8590/Outlines"
-# # bounding_boxes(filepath, outdir, stub, filetype='.asc')
+# Footprints currently aren't working with the .asc files, but centroids are for some reason.
+# folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'
+# stub = 'NSW_5m_DEMs'
+# outdir = "/g/data/xe2/cb8590/Outlines"
 
+# -
+
+# # %%time
+# bounding_boxes(filepath, outdir, stub, filetype='.asc', limit=10)
+
+# +
+# # %%time
+# gdf = bounding_boxes(filepath, outdir, stub, filetype='.asc', crs='EPSG:4326', limit=10)
+# gdf.crs
+
+# +
+# size_threshold=80
+# tif_cover_threshold=None
+# pixel_cover_threshold=None
+# remove=False
+# filetype='.asc'
+# crs=None
+# save_centroids=False
+# limit=None

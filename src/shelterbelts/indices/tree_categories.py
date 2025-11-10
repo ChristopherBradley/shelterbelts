@@ -56,7 +56,7 @@ def scattered_trees(trees_labelled, min_patch_size=20):
 
 
 # +
-def core_trees(woody_veg, edge_size=3, min_patch_size=20, strict_core_area=False):
+def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False):
     """Find pixels surrounded by a circle of trees in every direction with radius edge_size"""    
     y, x = np.ogrid[-edge_size:edge_size+1, -edge_size:edge_size+1]
     core_kernel = (x**2 + y**2 <= edge_size**2)
@@ -83,7 +83,7 @@ def core_trees(woody_veg, edge_size=3, min_patch_size=20, strict_core_area=False
     # Exclude core area's smaller than the scattered trees threshold
     labeled_cores, num_features = label(all_core_area)
     
-    large_cores = np.flatnonzero(np.bincount(labeled_cores.ravel()) >= min_patch_size)
+    large_cores = np.flatnonzero(np.bincount(labeled_cores.ravel()) >= min_core_size)
     if (~woody_veg).sum() > 0:
         # large_cores = large_cores[1:]  # This doesn't work if there aren't any 0 categories larger than the min_patch_size because they got removed from the last step, so we end up losing a core area instead
         large_cores = large_cores[large_cores != 0]  # Drop the 0 category for non-trees
@@ -97,7 +97,7 @@ def core_trees(woody_veg, edge_size=3, min_patch_size=20, strict_core_area=False
 
 # -
 
-def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_size=3, max_gap_size=2, strict_core_area=False, ds=None, save_tif=True, plot=True):
+def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, min_core_size=200, edge_size=3, max_gap_size=2, strict_core_area=False, ds=None, save_tif=True, plot=True):
     """Categorise a boolean woody veg tif into scattered trees, edges, core areas, and corridors, based on the Fragstats landscape ecology approach
 
     Parameters
@@ -106,6 +106,7 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
         outdir: The output directory to save the results.
         stub: Prefix for output files. If not specified, then it appends 'categorised' to the original filename.
         min_patch_size: The minimum area to be classified as a patch/corrider rather than just scattered trees.
+        min_core_size: The minimum area to be classified as a core, rather than just a patch or corridor.
         edge_size: The buffer distance at the edge of a patch, with pixels inside this being the 'core area'. 
             Non-scattered tree pixels outside the core area but within edge_size pixels of a core area get defined as 'edge' pixels. Otherwise they become 'corridor' pixels.
         max_gap_size: The allowable gap between two tree clusters before considering them separate patches.
@@ -132,7 +133,7 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
 
     trees_labelled = tree_clusters(woody_veg, max_gap_size)
     scattered_area = scattered_trees(trees_labelled, min_patch_size)
-    core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size, strict_core_area)
+    core_area, core_kernel = core_trees(woody_veg, edge_size, min_core_size, strict_core_area)
     edge_kernel = np.ones(core_kernel.shape, dtype=bool)
     edge_area = binary_dilation(core_area, structure=edge_kernel) & ~core_area & woody_veg
     corridor_area = woody_veg & ~(core_area | edge_area | scattered_area)
@@ -154,7 +155,8 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, edge_siz
         tif_categorical(ds['tree_categories'], filename_categorical, tree_categories_cmap)
 
     if plot:
-        filename_categorical_png = os.path.join(outdir, f"{stub}_categorised.png")
+        # filename_categorical_png = os.path.join(outdir, f"{stub}_categorised.png")
+        filename_categorical_png = None
         visualise_categories(ds['tree_categories'], filename_categorical_png, tree_categories_cmap, tree_categories_labels, "Tree Categories")
                 
     return ds
@@ -194,7 +196,8 @@ if __name__ == '__main__':
 # # %%time
 # cover_threshold=50
 # min_patch_size=20
-# edge_size=3
+# min_core_size=200
+# edge_size=10
 # max_gap_size=1
 # strict_core_area=False
 
@@ -203,13 +206,17 @@ if __name__ == '__main__':
 # outdir='/scratch/xe2/cb8590/tmp'
 # stub='Test'
 
-# cover_threshold=-1
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
+# cover_threshold=50
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
 # # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/subfolders/lat_34_lon_148/34_37-148_42_y2018_predicted.tif'  # West Milgadara
 # da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
 # da_trees = da_percent > cover_threshold
 # da_trees = da_trees.astype('uint8')
 # ds_woody_veg = da_trees.to_dataset(name='woody_veg')
+# -
 
-# +
-# ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, save_tif=True, plot=False, ds=ds_woody_veg)
+# ds_tree_categories = tree_categories(None, outdir, stub, min_core_size=1000, edge_size=10, strict_core_area=True, min_patch_size=min_patch_size, max_gap_size=max_gap_size, save_tif=True, plot=True, ds=ds_woody_veg)
+
+
+

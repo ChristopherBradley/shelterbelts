@@ -1,5 +1,3 @@
-# !pip install xlsxwriter
-
 import os
 
 import numpy as np
@@ -350,10 +348,10 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             len_width_ratio = row["ellipse len/width"]
             
             if "skeleton len/width" not in row.index:
-                new_class = 12  # I was trying to fix the random 1kmx1km tiles in ACT forests with all '19' values, but this line had no effect. Need to debug further.
+                new_class = 12  # The whole tile is one big core area
 
             # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
-            elif row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+            if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
                 new_class = 18  # linear features
             else:
                 new_class = 19  # non-linear features
@@ -382,7 +380,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     # crop da_linear by n pixels on every side
     
     if plot:
-        filename = os.path.join(outdir, f'{stub}_linear_categories.png')
+        # filename = os.path.join(outdir, f'{stub}_linear_categories.png')
+        filename = None
         
         # I should also remove the really small patches from this plot and corresponding tif file for easier visualisation
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")
@@ -390,14 +389,13 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     ds = da_linear.to_dataset(name="linear_categories")
     ds['labelled_categories'] = (["y", "x"], assigned_labels)
 
-    if crop_pixels is not None:
+    if crop_pixels is not None and crop_pixels != 0:
         ds = ds.isel(
             x=slice(crop_pixels, -crop_pixels),
             y=slice(crop_pixels, -crop_pixels)
         )
     
     if save_tif:
-
         filename_linear = os.path.join(outdir, f'{stub}_linear_categories.tif')
         tif_categorical(ds['linear_categories'], filename_linear, linear_categories_cmap) 
     
@@ -496,22 +494,31 @@ def parse_arguments():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+# +
+# if __name__ == '__main__':
 
-    args = parse_arguments()
+#     args = parse_arguments()
 
-    geotif = args.buffer_tif
-    outdir = args.outdir
-    stub = args.stub
-    ds, df = patch_metrics(geotif, outdir, stub)
+#     geotif = args.buffer_tif
+#     outdir = args.outdir
+#     stub = args.stub
+#     ds, df = patch_metrics(geotif, outdir, stub)
 
-    geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
-    dfs = class_metrics(geotif, outdir, stub)
+#     geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
+#     dfs = class_metrics(geotif, outdir, stub)
 
 # +
-# patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
-# -
-
+# Running locally
 # outdir = "../../../outdir/"
 # stub = "shelter_indices"
 # geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
+# -
+
+outdir="/scratch/xe2/cb8590"
+
+# patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
+patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
+
+#
+
+
