@@ -178,46 +178,45 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# +
-# if __name__ == '__main__':
+if __name__ == '__main__':
 
-#     args = parse_arguments()
+    args = parse_arguments()
     
-#     filename = args.filename
-#     outdir = args.outdir
-#     stub = args.stub
-#     min_patch_size = int(args.min_patch_size)
-#     edge_size = int(args.edge_size)
-#     max_gap_size = int(args.max_gap_size)
-#     plot = args.plot
+    filename = args.filename
+    outdir = args.outdir
+    stub = args.stub
+    min_patch_size = int(args.min_patch_size)
+    edge_size = int(args.edge_size)
+    max_gap_size = int(args.max_gap_size)
+    plot = args.plot
     
-#     tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area, plot=plot)
+    tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area, plot=plot)
 
 # +
-# %%time
-cover_threshold=50
-min_patch_size=20
-min_core_size=200
-edge_size=10
-max_gap_size=1
-strict_core_area=False
+# # %%time
+# cover_threshold=50
+# min_patch_size=20
+# min_core_size=200
+# edge_size=10
+# max_gap_size=1
+# strict_core_area=False
 
-folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_158'
-tmpdir = '/scratch/xe2/cb8590/tmp'
-outdir='/scratch/xe2/cb8590/tmp'
-stub='Test'
+# folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_158'
+# tmpdir = '/scratch/xe2/cb8590/tmp'
+# outdir='/scratch/xe2/cb8590/tmp'
+# stub='Test'
 
-cover_threshold=50
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
-percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/subfolders/lat_34_lon_148/34_37-148_42_y2018_predicted.tif'  # West Milgadara
-da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
-da_trees = da_percent > cover_threshold
-da_trees = da_trees.astype('uint8')
-ds_woody_veg = da_trees.to_dataset(name='woody_veg')
+# cover_threshold=50
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/subfolders/lat_34_lon_148/34_37-148_42_y2018_predicted.tif'  # West Milgadara
+# da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
+# da_trees = da_percent > cover_threshold
+# da_trees = da_trees.astype('uint8')
+# ds_woody_veg = da_trees.to_dataset(name='woody_veg')
 # -
 
-ds_tree_categories = tree_categories(None, outdir, stub, min_core_size=1000, edge_size=10, strict_core_area=True, min_patch_size=min_patch_size, max_gap_size=max_gap_size, save_tif=True, plot=True, ds=ds_woody_veg)
+# ds_tree_categories = tree_categories(None, outdir, stub, min_core_size=1000, edge_size=10, strict_core_area=True, min_patch_size=min_patch_size, max_gap_size=max_gap_size, save_tif=True, plot=True, ds=ds_woody_veg)
 
 
 
