@@ -1,5 +1,6 @@
 import os
 
+# +
 import numpy as np
 import pandas as pd
 import rioxarray as rxr
@@ -8,9 +9,13 @@ from scipy import ndimage
 from scipy.stats import mode
 from skimage.morphology import skeletonize, disk
 from skimage.measure import regionprops, label
+from skimage.draw import ellipse_perimeter
+from skimage.graph import route_through_array
+
 from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
 from scipy.ndimage import binary_erosion, binary_dilation, distance_transform_edt
+# -
 
 from shelterbelts.indices.buffer_categories import buffer_categories_labels, buffer_categories_cmap
 from shelterbelts.indices.tree_categories import tree_clusters
@@ -226,152 +231,142 @@ def split_disconnected_clusters(assigned_labels, connectivity=2):
     return new_labels
 
 
-from skimage.graph import route_through_array
-from skimage.draw import ellipse_perimeter
-
-
 # +
-# def skeleton_stats(assigned_labels, min_patch_size=20):
-#     """Use a skeleton after cleaning with binary dilation/erosion to calculate mean width and length"""
-#     results = []
-
-#     labels = np.unique(assigned_labels)
-#     labels = labels[labels != 0]  # 0 is background
+def skeleton_stats(assigned_labels, min_patch_size=20):
+    """
+    Minimal function to create skeleton raster and ellipse outline raster for debugging.
     
-#     props = regionprops(assigned_labels)
-#     label_to_prop = {p.label: p for p in props}
-#     skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-#     ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-#     ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    Returns:
+        skeleton_raster, ellipse_outline_raster
+    """
+    skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    widths_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    perpendicular_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     
-#     for lbl in labels:
-#         mask = (assigned_labels == lbl)
-#         if mask.sum() < min_patch_size:
-#             continue
+    tree_mask = assigned_labels > 0
+    
+    # Precompute mask where a kernel fully fits outside trees
+    edge_size = 3
+    y, x = np.ogrid[-edge_size:edge_size + 1, -edge_size:edge_size + 1]
+    kernel = (x**2 + y**2 <= (edge_size)**2)
+    tree_counts = convolve(tree_mask.astype(np.uint8), kernel, mode='constant', cval=0)
+    no_trees = (tree_counts == 0)
+    safe_empty_mask = ndimage.convolve(no_trees.astype(np.uint8), kernel, mode='constant', cval=0) > 0
+    safe_empty_mask = safe_empty_mask.astype(bool)
+    dist_to_empty = ndimage.distance_transform_edt(~safe_empty_mask)
 
-#         stats = {"label": int(lbl)}
-
-#         disk_size = 2  # There doesn't seem to be much difference in the resulting average widths regardless of the disk size. 2 seems like a reasonable compromise.
-#         selem = disk(disk_size) 
-#         mask = binary_dilation(mask, structure=selem)
-#         mask = binary_erosion(mask, structure=selem)
-
-#         skel = skeletonize(mask)
-
-#         # Get ellipse parameters
-#         prop = label_to_prop.get(lbl)
-#         if prop is not None and prop.major_axis_length > 0 and prop.minor_axis_length > 0:
-#             y0, x0 = prop.centroid
-#             orientation = prop.orientation
-#             # a = prop.major_axis_length / 2.0
-#             # b = prop.minor_axis_length / 2.0
-#             a = prop.minor_axis_length / 2.0
-#             b = prop.major_axis_length / 2.0
-
-#             # Major axis endpoints
-#             x1 = x0 + np.cos(orientation) * a
-#             y1 = y0 - np.sin(orientation) * a
-#             x2 = x0 - np.cos(orientation) * a
-#             y2 = y0 + np.sin(orientation) * a
-
-#             coords = np.column_stack(np.nonzero(skel))
-#             if len(coords) > 0:
-#                 # Find skeleton pixels closest to ellipse ends
-#                 d1 = np.hypot(coords[:, 0] - y1, coords[:, 1] - x1)
-#                 d2 = np.hypot(coords[:, 0] - y2, coords[:, 1] - x2)
-#                 p1 = tuple(coords[np.argmin(d1)])
-#                 p2 = tuple(coords[np.argmin(d2)])
-
-#                 # Mark endpoints
-#                 ellipse_endpoints_raster[p1] = lbl
-#                 ellipse_endpoints_raster[p2] = lbl
-
-#                 # Rasterize ellipse outline
-#                 rr, cc = ellipse_perimeter(
-#                     int(round(y0)), int(round(x0)),
-#                     int(round(b)), int(round(a)),
-#                     orientation=-orientation,  # skimage uses opposite convention
-#                     shape=assigned_labels.shape
-#                 )
-#                 ellipse_outline_raster[rr, cc] = lbl
-
-#                 # Shortest path along skeleton
-#                 cost = np.where(skel, 1, np.inf)
-#                 try:
-#                     path, _ = route_through_array(cost, p1, p2, fully_connected=True)
-#                     skel_new = np.zeros_like(skel, dtype=bool)
-#                     for r, c in path:
-#                         skel_new[r, c] = True
-#                     skel = skel_new
-#                 except Exception:
-#                     # If pathfinding fails, keep original skeleton
-#                     pass
-        
-#         skeleton_raster[skel] = lbl
-        
-#         # Distance to the nearest background pixel
-#         dist = ndimage.distance_transform_edt(mask)
-#         widths = dist[skel] * 2  # diameter = radius x 2
-
-#         if len(widths) > 0:
-#             skeleton_width = float(np.mean(widths))
-#             skeleton_area = skel.sum()
-#             stats = stats | {
-#                 f"skeleton_width": skeleton_width,  # mean is probably more intuitive than median
-#                 f"skeleton_length": skeleton_area, 
-#                 f"skeleton len/width": skeleton_area/skeleton_width # Might also be interesting to look at ellipse length / skeleton width, and/or incorporate the perimeter area ratio
-#             }
-#         results.append(stats)
-
-#     return pd.DataFrame(results), skeleton_raster, ellipse_endpoints_raster, ellipse_outline_raster
-
-# # import numpy as np
-# # import pandas as pd
-# # from skimage.morphology import disk, binary_dilation, binary_erosion, skeletonize
-# # from skimage.measure import regionprops
-# # from skimage.graph import route_through_array
-# # from skimage.draw import ellipse_perimeter
-# # from scipy import ndimage
-# -
-
-def plot_clusters(assigned_labels, filename=None):
-    """Visualise the clusters with ellipses and text ids"""
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.imshow(assigned_labels, cmap='nipy_spectral', interpolation='nearest')
+    results = []
+    width_raster = np.zeros_like(tree_mask, dtype=float)
     props = regionprops(assigned_labels)
-    for region in props:
-        y0, x0 = region.centroid  
-        orientation = region.orientation
-        length = region.major_axis_length
-        width = region.minor_axis_length
-        angle_deg = -np.degrees(orientation)
-        ellipse = Ellipse(
-            (x0, y0),             
-            width=width,           
-            height=length,       
-            angle=angle_deg,         
-            edgecolor='red',
-            facecolor='none',
-            linewidth=1
-        )
-        ax.add_patch(ellipse)
+    for i, prop in enumerate(props):
+        lbl = prop.label
 
-        ax.text(
-            x0, y0,
-            str(region.label),
-            color='white',
-            fontsize=12,
-            ha='center',
-            va='center'
-        )
-    plt.title("Patch ID's")
-    if filename:
-        plt.savefig(filename)
-        plt.close()
-        print("Saved:", filename)
-    else:
-        plt.show()
+        mask = (assigned_labels == lbl)
 
+        if mask.sum() < min_patch_size:
+            continue
+            
+        skel = skeletonize(mask)
+        # skeleton_raster[skel] = lbl
+
+        # Ellipse parameters
+        y0, x0 = prop.centroid
+        orientation = prop.orientation
+        a = prop.minor_axis_length / 2.0
+        b = prop.major_axis_length / 2.0
+        
+        # Rasterize ellipse outline (skimage uses opposite orientation convention)
+        rr, cc = ellipse_perimeter(
+            int(round(y0)), int(round(x0)),
+            int(round(b)), int(round(a)),
+            orientation=-orientation,  
+            shape=assigned_labels.shape
+        )
+        ellipse_outline_raster[rr, cc] = lbl
+
+        # Calculate the endpoints
+        angle = orientation
+        x1 = x0 + np.sin(angle) * b
+        y1 = y0 + np.cos(angle) * b
+        x2 = x0 - np.sin(angle) * b
+        y2 = y0 - np.cos(angle) * b
+
+        # Find skeleton pixels closest to ellipse ends
+        coords = np.column_stack(np.nonzero(skel))
+        d1 = np.hypot(coords[:, 0] - y1, coords[:, 1] - x1)
+        d2 = np.hypot(coords[:, 0] - y2, coords[:, 1] - x2)
+        p1 = tuple(coords[np.argmin(d1)])
+        p2 = tuple(coords[np.argmin(d2)])
+
+        ellipse_endpoints_raster[p1] = lbl
+        ellipse_endpoints_raster[p2] = lbl
+        
+        # Find the shortest path along the skeleton to each end of the ellipse
+        cost = np.where(skel, 1, np.inf)
+        try:
+            path, _ = route_through_array(cost, p1, p2, fully_connected=True)
+            skel_new = np.zeros_like(skel, dtype=bool)
+            for r, c in path:
+                skel_new[r, c] = True
+            skel = skel_new
+        except Exception:
+            # If pathfinding fails, keep original skeleton
+            pass
+        
+        skeleton_raster[skel] = lbl
+
+        # Calculate the widths
+        ys, xs = np.nonzero(skel)
+                
+        # perpendicular directions (chatgpt always gets the sin and cos the wrong way around)
+        dy = np.cos(orientation + np.pi / 2)
+        dx = np.sin(orientation + np.pi / 2)
+        
+        # step 1 pixel perpendicular (round to nearest int)
+        dy_int = np.round(dy).astype(int)
+        dx_int = np.round(dx).astype(int)
+        
+        # coordinates of the two perpendicular neighbors
+        y1 = np.clip(ys + dy_int, 0, dist_to_empty.shape[0] - 1)
+        x1 = np.clip(xs + dx_int, 0, dist_to_empty.shape[1] - 1)
+        y2 = np.clip(ys - dy_int, 0, dist_to_empty.shape[0] - 1)
+        x2 = np.clip(xs - dx_int, 0, dist_to_empty.shape[1] - 1)
+
+        perpendicular_raster[y1, x1] = lbl
+        perpendicular_raster[y2, x2] = lbl
+        
+        # sum the distances from both sides
+        v1 = dist_to_empty[y1, x1]
+        v2 = dist_to_empty[y2, x2]
+        
+        # widths_raster[ys, xs] = v1 + v2 + 1 # The skeleton must be at least 1 wide
+        widths = v1 + v2 + 1
+        widths_raster[skel] = widths
+
+        if len(widths) > 0:
+            skeleton_width = float(np.mean(widths))
+            skeleton_area = skel.sum()
+            stats = {
+                'label': lbl,
+                'ellipse_length': prop.major_axis_length,
+                'ellipse_width': prop.minor_axis_length,
+                'ellipse len/width': prop.major_axis_length/prop.minor_axis_length,
+                'perimeter': prop.perimeter,
+                'area': prop.area,
+                'orientation_degrees': np.degrees(prop.orientation),
+                f"skeleton_width": skeleton_width,  # mean is probably more intuitive than median
+                f"skeleton_length": skeleton_area, 
+                f"skeleton len/width": skeleton_area/skeleton_width 
+            }
+            results.append(stats)
+
+    df = pd.DataFrame(results)
+    return df, skeleton_raster, ellipse_outline_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster
+
+
+# -
 
 def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_csv=True, save_tif=True, save_labels=True, min_patch_size=20, crop_pixels=None):
     """Calculate patch metrics and cleanup the tree pixel categories.
@@ -410,11 +405,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     assigned_labels = assign_labels(da_filtered, min_patch_size)
     assigned_labels = split_disconnected_clusters(assigned_labels)  # The ellipses go haywire if the clusters are not connected
     
-    if plot:
-        filename = os.path.join(outdir, f'{stub}_labelled_categories.png')
-        # filename = None
-        plot_clusters(assigned_labels, filename)
-
     if save_tif and save_labels:
         ds_labels = da_filtered.to_dataset(name="filtered")
         ds_labels['labelled_categories'] = (["y", "x"], assigned_labels)
@@ -426,21 +416,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     props = regionprops(assigned_labels)
     
     # Find the skeleton of each cluster
-    df_widths, skeleton_raster = skeleton_stats(assigned_labels, props) 
-    
-    # Create the patch metrics
-    results = []
-    for region in props:
-        label_id = assigned_labels[region.coords[0][0], region.coords[0][1]]
-        results.append({
-            'label': label_id,
-            'ellipse_length': region.major_axis_length,
-            'ellipse_width': region.minor_axis_length,
-            'perimeter': region.perimeter,
-            'area': region.area,
-            'orientation_degrees': np.degrees(region.orientation)
-        })
-    df_patch_metrics = pd.DataFrame(results)
+    # df_widths, skeleton_raster = skeleton_stats(assigned_labels, props) 
+    df_patch_metrics, skeleton_raster, ellipse_outlines_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster = skeleton_stats(assigned_labels2)
     
     # Determine the most common category for each row in the patch metrics
     dominant_categories = []
@@ -456,14 +433,6 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_name'] = 'Patch with core'
     df_patch_metrics.loc[(df_patch_metrics['category_id'] == 12) | (df_patch_metrics['category_id'] == 13), 'category_id'] = 13
         
-    # Add ellipse stats to the skeleton stats
-    da_linear = da_filtered.copy()
-    if len(results) > 0:
-        df_patch_metrics['ellipse len/width'] = df_patch_metrics['ellipse_length']/df_patch_metrics['ellipse_width']
-        df_patch_metrics = df_patch_metrics.merge(df_widths)
-    else:
-        df_patch_metrics = df_widths
-    
     # Remove any rows where the area is smaller than the min_patch_size. Necessary since I'm using small buffer groups to reassign "Other" classes.
     if len(df_patch_metrics) > 0 and 'area' in df_patch_metrics.columns:
         df_patch_metrics_large = df_patch_metrics[df_patch_metrics['area'] > min_patch_size] 
@@ -482,11 +451,15 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             label_id = row["label"]
             len_width_ratio = row["ellipse len/width"]
             
-            if "skeleton len/width" not in row.index:
-                new_class = 12  # The whole tile is one big core area
+            # if "skeleton len/width" not in row.index:
+            #     new_class = 12  # The whole tile is one big core area
 
             # Arbitrary thresholds that I need to play around with. Should add these as parameters to the function.
-            if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+            # if row["ellipse len/width"] > 2 and row["skeleton len/width"] > 4:
+            #     new_class = 18  # linear features
+            # else:
+            #     new_class = 19  # non-linear features
+            if row["skeleton_length"] > 20 and row["skeleton_width"] < 6:
                 new_class = 18  # linear features
             else:
                 new_class = 19  # non-linear features
@@ -670,249 +643,14 @@ filename_labelled = os.path.join(outdir, f'{stub}_labelled_categories.tif')
 ds_labels['labelled_categories'].astype(float).rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' Values for viewing this raster
 print("Saved:", filename_labelled)
 
-# +
-
-
-
-# -
-
 assigned_labels2 = split_disconnected_clusters(assigned_labels)
 
-# +
-# # Slow and weird version, kinda worked but not really doing what I wanted
-# def compute_skeleton_widths(mask, skel, kernel_radius=5):
-#     """
-#     Compute width at each skeleton pixel by checking perpendicular directions
-#     and finding nearest empty region on each side using a circular kernel.
-#     """
-#     dist = ndimage.distance_transform_edt(mask)
 
-#     # Get local gradient to infer perpendicular direction
-#     gy, gx = np.gradient(dist.astype(float))
-#     norm = np.hypot(gx, gy)
-#     gx[norm > 0] /= norm[norm > 0]
-#     gy[norm > 0] /= norm[norm > 0]
-
-#     width_raster = np.zeros_like(mask, dtype=float)
-#     ys, xs = np.nonzero(skel)
-#     h, w = mask.shape
-
-#     for y, x in zip(ys, xs):
-#         dx, dy = gx[y, x], gy[y, x]
-#         if dx == 0 and dy == 0:
-#             continue
-
-#         # Compute left and right test points (one pixel perpendicular)
-#         px1, py1 = x + dy, y - dx  # rotate +90°
-#         px2, py2 = x - dy, y + dx  # rotate -90°
-
-#         left = find_nearest_empty_kernel(mask, px1, py1, kernel_radius)
-#         right = find_nearest_empty_kernel(mask, px2, py2, kernel_radius)
-
-#         width_raster[y, x] = left + right
-
-#     return width_raster
-
-
-# def find_nearest_empty_kernel(mask, x, y, max_radius=10):
-#     """Find distance (in pixels) to the nearest empty region using circular kernels."""
-#     h, w = mask.shape
-#     x, y = int(round(x)), int(round(y))
-
-#     for r in range(1, max_radius + 1):
-#         y1, y2 = max(0, y - r), min(h, y + r + 1)
-#         x1, x2 = max(0, x - r), min(w, x + r + 1)
-#         ys, xs = np.ogrid[-r:r+1, -r:r+1]
-#         kernel = xs**2 + ys**2 <= r**2
-#         submask = mask[y1:y2, x1:x2]
-#         k = kernel[
-#             (y1 - y + r):(y2 - y + r),
-#             (x1 - x + r):(x2 - x + r)
-#         ]
-#         if np.any(~submask[k]):  # found non-mask region
-#             return r
-#     return max_radius
-
-
-def compute_skeleton_widths_fast(tree_mask, safe_empty_mask, skel):
-    """
-    Improved width estimation: precompute 'empty kernel' mask and 
-    measure shortest path to it from both sides of the skeleton.
-    """
-    ys, xs = np.nonzero(skel)
-    dist = ndimage.distance_transform_edt(tree_mask)
-    gy, gx = np.gradient(dist.astype(float))
-    norm = np.hypot(gx, gy)
-    gx[norm > 0] /= norm[norm > 0]
-    gy[norm > 0] /= norm[norm > 0]
-    h, w = tree_mask.shape
-    
-    for y, x in zip(ys, xs):
-        dx, dy = gx[y, x], gy[y, x]
-        if dx == 0 and dy == 0:
-            continue
-
-        # Step once perpendicular each side
-        px1, py1 = x + dy, y - dx  # +90°
-        px2, py2 = x - dy, y + dx  # -90°
-
-        # Clip to image bounds
-        if not (0 <= px1 < w and 0 <= py1 < h and 0 <= px2 < w and 0 <= py2 < h):
-            continue
-
-        # Distance from those side points to nearest safe empty region
-        left = dist_to_empty[int(round(py1)), int(round(px1))]
-        right = dist_to_empty[int(round(py2)), int(round(px2))]
-
-        width_raster[y, x] = left + right
-
-    return width_raster
-
-
-
-# +
-from skimage.draw import ellipse_perimeter
-def debug_skeleton_ellipses(assigned_labels, min_patch_size=20):
-    """
-    Minimal function to create skeleton raster and ellipse outline raster for debugging.
-    
-    Returns:
-        skeleton_raster, ellipse_outline_raster
-    """
-    skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    widths_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    perpendicular_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    
-    tree_mask = assigned_labels > 0
-    
-    # Precompute mask where a kernel fully fits outside trees
-    edge_size = 3
-    y, x = np.ogrid[-edge_size:edge_size + 1, -edge_size:edge_size + 1]
-    kernel = (x**2 + y**2 <= (edge_size)**2)
-    tree_counts = convolve(tree_mask.astype(np.uint8), kernel, mode='constant', cval=0)
-    no_trees = (tree_counts == 0)
-    safe_empty_mask = convolve(no_trees.astype(np.uint8), kernel, mode='constant', cval=0) > 0
-    safe_empty_mask = safe_empty_mask.astype(bool)
-    dist_to_empty = ndimage.distance_transform_edt(~safe_empty_mask)
-    
-    width_raster = np.zeros_like(tree_mask, dtype=float)
-    props = regionprops(assigned_labels)
-    for i, prop in enumerate(props):
-        lbl = prop.label
-
-        mask = (assigned_labels == lbl)
-
-        if mask.sum() < min_patch_size:
-            continue
-            
-        skel = skeletonize(mask)
-        # skeleton_raster[skel] = lbl
-
-        # Ellipse parameters
-        y0, x0 = prop.centroid
-        orientation = prop.orientation
-        a = prop.minor_axis_length / 2.0
-        b = prop.major_axis_length / 2.0
-        
-        # Rasterize ellipse outline (skimage uses opposite orientation convention)
-        rr, cc = ellipse_perimeter(
-            int(round(y0)), int(round(x0)),
-            int(round(b)), int(round(a)),
-            orientation=-orientation,  
-            shape=assigned_labels.shape
-        )
-        ellipse_outline_raster[rr, cc] = lbl
-
-        # Calculate the endpoints
-        angle = orientation
-        x1 = x0 + np.sin(angle) * b
-        y1 = y0 + np.cos(angle) * b
-        x2 = x0 - np.sin(angle) * b
-        y2 = y0 - np.cos(angle) * b
-
-        # Round to nearest pixel and mark endpoints
-        # height, width = ellipse_endpoints_raster.shape
-        # p1 = (np.clip(int(round(y1)), 0, height - 1), np.clip(int(round(x1)), 0, width - 1))
-        # p2 = (np.clip(int(round(y2)), 0, height - 1), np.clip(int(round(x2)), 0, width - 1))
-        # ellipse_endpoints_raster[p1] = lbl
-        # ellipse_endpoints_raster[p2] = lbl
-
-        # Find skeleton pixels closest to ellipse ends
-        coords = np.column_stack(np.nonzero(skel))
-        d1 = np.hypot(coords[:, 0] - y1, coords[:, 1] - x1)
-        d2 = np.hypot(coords[:, 0] - y2, coords[:, 1] - x2)
-        p1 = tuple(coords[np.argmin(d1)])
-        p2 = tuple(coords[np.argmin(d2)])
-
-        ellipse_endpoints_raster[p1] = lbl
-        ellipse_endpoints_raster[p2] = lbl
-        
-        # Find the shortest path along the skeleton to each end of the ellipse
-        cost = np.where(skel, 1, np.inf)
-        try:
-            path, _ = route_through_array(cost, p1, p2, fully_connected=True)
-            skel_new = np.zeros_like(skel, dtype=bool)
-            for r, c in path:
-                skel_new[r, c] = True
-            skel = skel_new
-        except Exception:
-            # If pathfinding fails, keep original skeleton
-            pass
-        
-        skeleton_raster[skel] = lbl
-
-        # Calculate the widths
-        ys, xs = np.nonzero(skel)
-                
-        # perpendicular directions
-        # dy = np.sin(orientation + np.pi / 2)
-        # dx = np.cos(orientation + np.pi / 2)
-        dy = np.cos(orientation + np.pi / 2)
-        dx = np.sin(orientation + np.pi / 2)
-        
-        # step 1 pixel perpendicular (round to nearest int)
-        dy_int = np.round(dy).astype(int)
-        dx_int = np.round(dx).astype(int)
-        
-        # coordinates of the two perpendicular neighbors
-        y1 = np.clip(ys + dy_int, 0, dist_to_empty.shape[0] - 1)
-        x1 = np.clip(xs + dx_int, 0, dist_to_empty.shape[1] - 1)
-        y2 = np.clip(ys - dy_int, 0, dist_to_empty.shape[0] - 1)
-        x2 = np.clip(xs - dx_int, 0, dist_to_empty.shape[1] - 1)
-
-        perpendicular_raster[y1, x1] = lbl
-        perpendicular_raster[y2, x2] = lbl
-        
-        # sum the distances from both sides
-        v1 = dist_to_empty[y1, x1]
-        v2 = dist_to_empty[y2, x2]
-        
-        widths_raster[ys, xs] = v1 + v2 + 1 # The skeleton must be at least 1 wide
-
-    return skeleton_raster, ellipse_outline_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster
-
-#         if len(widths) > 0:
-#             skeleton_width = float(np.mean(widths))
-#             skeleton_area = skel.sum()
-#             stats = stats | {
-#                 f"skeleton_width": skeleton_width,  # mean is probably more intuitive than median
-#                 f"skeleton_length": skeleton_area, 
-#                 f"skeleton len/width": skeleton_area/skeleton_width # Might also be interesting to look at ellipse length / skeleton width, and/or incorporate the perimeter area ratio
-#             }
-#         results.append(stats)
-
-
-# -
 
 # %%time
 # Find the skeleton of each cluster
-skeleton_raster, ellipse_outlines_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster = debug_skeleton_ellipses(assigned_labels2)
+df, skeleton_raster, ellipse_outlines_raster, ellipse_endpoints_raster, widths_raster, perpendicular_raster = skeleton_stats(assigned_labels2)
 
-
-# %%time
-df, skeleton_original_raster, skeleton_raster, ellipse_endpoints_raster, ellipse_outline_raster = skeleton_stats(assigned_labels2)
 
 ds_labels['assigned_labels'] = ["y", "x"], assigned_labels
 ds_labels['assigned_labels'].astype(float).rio.to_raster('assigned_labels.tif')
@@ -935,8 +673,11 @@ ds_labels['ellipse_endpoints_raster'].rio.to_raster('ellipse_endpoints_raster.ti
 ds_labels['widths_raster'] = ["y", "x"], widths_raster
 ds_labels['widths_raster'].rio.to_raster('widths_raster.tif')
 
-from scipy.ndimage import convolve
+widths_raster[assigned_labels > 0].sum()
 
+plt.imshow(widths_raster)
+
+ds_labels['widths_raster'].plot()
 
 ds_labels['safe_empty_mask'] = ["y", "x"], safe_empty_mask
 ds_labels['safe_empty_mask'].astype(float).rio.to_raster('safe_empty_mask.tif')
