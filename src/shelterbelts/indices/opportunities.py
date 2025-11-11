@@ -246,11 +246,11 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
     road_opportunities = buffered_roads & grass_crops & ~da_trees & ~gully_opportunities
     
     # Buffered ridges
-    if da_ridges is not None:
+    if da_ridges is None:
+        buffered_ridges = ridge_opportunities = np.zeros_like(da_trees, dtype=np.uint8)
+    else:
         buffered_ridges = binary_dilation(da_ridges.values, structure=gap_kernel)
         ridge_opportunities = buffered_ridges & grass_crops & ~da_trees & ~gully_opportunities & ~buffered_roads
-    else:
-        buffered_ridges = ridge_opportunities = np.zeros_like(da_trees, dtype=np.uint8)
     
     # Buffered contours
     buffered_contours = binary_dilation(da_contours.values, structure=gap_kernel)
@@ -385,17 +385,17 @@ def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_thresh
     if ridges:
         ds['gullies'] = ds_catchments['gullies']
         ds['ridges'] = ds_catchments['ridges']
+        da_ridges = ds['ridges']
     else:
         ds['gullies'] = da_hydrolines
-        ds['ridges'] = None
+        da_ridges = None
     ds['contours'] = (["y", "x"], contours_array)  
     ds['worldcover'] = da_worldcover2 
 
-    ds_opportunities = opportunities_da(ds['woody_veg'], ds['roads'], ds['gullies'], ds['ridges'], ds['contours'], ds['worldcover'],
+    ds_opportunities = opportunities_da(ds['woody_veg'], ds['roads'], ds['gullies'], da_ridges, ds['contours'], ds['worldcover'],
                                        outdir, stub, tmpdir, width, savetif, plot)
     
     return ds_opportunities
-
 
 
 # Could generalise and reuse the run_pipeline_tifs function from full_pipelines.py. The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
@@ -426,7 +426,6 @@ def opportunities_folder(folder, outdir='.', stub='TEST', tmpdir='.', cover_thre
     filename_linear = os.path.join(basedir, f'{stub}_merged_{param_stub}.tif')
     tif_categorical(ds['opportunities'], filename_linear, linear_categories_cmap) 
     return ds
-    
 
 
 # +
@@ -457,6 +456,9 @@ def parse_arguments():
     return parser.parse_args()
 
 
+# -
+
+
 if __name__ == "__main__":
     args = parse_arguments()
 
@@ -475,7 +477,8 @@ if __name__ == "__main__":
             min_contour_length=args.min_contour_length,
             equal_area=args.equal_area,
             savetif=args.savetif,
-            plot=args.plot
+            plot=args.plot,
+            crop_pixels=args.crop_pixels
         )
     else:
         opportunities_folder(
@@ -493,13 +496,15 @@ if __name__ == "__main__":
             equal_area=args.equal_area,
             savetif=args.savetif,
             plot=args.plot,
+            crop_pixels=args.crop_pixels,
             limit=args.limit
         )
 
-
 # +
 # # %%time
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024_actnsw_4326/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024_actnsw_4326/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
+# percent_tif='/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_32_lon_148/32_01-148_02_y2018_predicted_expanded20.tif'
+
 # tmpdir = '/scratch/xe2/cb8590/'
 # stub='TEST'
 # cover_threshold=50
@@ -510,10 +515,10 @@ if __name__ == "__main__":
 # contour_spacing=2
 # min_contour_length=1000
 # equal_area=True
+# crop_pixels=20
 
-# ds = opportunities(percent_tif, tmpdir, stub, tmpdir, cover_threshold, 
-#                    contour_spacing=contour_spacing, min_contour_length=min_contour_length, equal_area=equal_area,
-#                   ridges=True, plot=True) # less than 1 second yay
-# -
+# # ds = opportunities(percent_tif, tmpdir, stub, tmpdir, cover_threshold, 
+# #                    contour_spacing=contour_spacing, min_contour_length=min_contour_length, equal_area=equal_area,
+# #                   ridges=False, plot=True) # less than 1 second yay
 
-
+# ds = opportunities(percent_tif, tmpdir, stub, tmpdir, ridges=False, cover_threshold=50, crop_pixels=20, plot=True) # less than 1 second yay

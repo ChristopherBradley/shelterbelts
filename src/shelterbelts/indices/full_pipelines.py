@@ -145,7 +145,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         
         footprint_gpkg = f"{stub}_footprints.gpkg"
         bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-        mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column=suffix_stem)  
+        mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename')  
         ds = merged_ds(mosaic, out_meta, suffix_stem)
         basedir = os.path.dirname(outdir)
         

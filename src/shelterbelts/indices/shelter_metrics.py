@@ -343,9 +343,6 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
 
     df = pd.DataFrame(results)
 
-    if save_labels:
-        
-    
     return df, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster
 
 
@@ -396,11 +393,8 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
     assigned_labels = assign_labels(da_filtered, min_patch_size)
     assigned_labels = split_disconnected_clusters(assigned_labels)  # The ellipses go haywire if the clusters are not connected
     
-    # Fit an ellipse around each cluster 
-    props = regionprops(assigned_labels)
-    
     # Find the skeleton of each cluster
-    df_patch_metrics, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels2)
+    df_patch_metrics, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels)
 
     # Save these intermediate rasters
     if save_tif and save_labels:
