@@ -17,11 +17,18 @@ from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_cate
 #     42: (240, 150, 255)
 # }
 # Better colour scheme for debugging the shelter categories
-cover_cmap = {
+# cover_cmap = {
+#     31: (0, 0, 0),
+#     32: (0, 0, 0),
+#     41: (0, 0, 0),
+#     42: (0, 0, 0)
+# }
+# A compromise
+cover_cmap = {  
     31: (0, 0, 0),
-    32: (0, 0, 0),
+    32: (255, 255, 76),
     41: (0, 0, 0),
-    42: (0, 0, 0)
+    42: (240, 150, 255)
 }
 
 cover_labels = {

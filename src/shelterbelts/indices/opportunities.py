@@ -1,5 +1,6 @@
 # +
 import os
+import glob
 
 import numpy as np
 import rioxarray as rxr
@@ -169,7 +170,7 @@ def dict_to_grid(Z, dict_Contours, contours):
 def contours_interval(Z, interval=10, min_contour_length=100):
     """Create a binary raster along specific contours for consistency when running across multiple tiles"""
     Z = np.array(np.round(Z))
-    minZ, maxZ = int(np.min(Z)), int(np.max(Z))
+    minZ, maxZ = np.nanmin(Z), np.nanmax(Z)
 
     contours = [height for height in range(minZ, maxZ) if height % interval == 0]
     
@@ -275,6 +276,7 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
         )
     
     if savetif:
+        os.makedirs(outdir, exist_ok=True)
         filename = os.path.join(outdir,f"{stub}_opportunities.tif")
         tif_categorical(ds['opportunities'], filename, opportunity_cmap)
 
@@ -448,7 +450,6 @@ def parse_arguments():
     parser.add_argument("--contour_spacing", type=int, default=10, help="Pixel spacing between contours (default: 10)")
     parser.add_argument("--min_contour_length", type=int, default=100, help="Minimum contour length to consider (default: 100)")
     parser.add_argument("--equal_area", action="store_true", help="Use equal-area contours instead of fixed elevation spacing (default: False)")
-    parser.add_argument("--savetif", action="store_true", help="Save output GeoTIFFs (default: False)")
     parser.add_argument("--plot", action="store_true", help="Show diagnostic plots (default: False)")
     parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
@@ -476,7 +477,7 @@ if __name__ == "__main__":
             contour_spacing=args.contour_spacing,
             min_contour_length=args.min_contour_length,
             equal_area=args.equal_area,
-            savetif=args.savetif,
+            savetif=True,
             plot=args.plot,
             crop_pixels=args.crop_pixels
         )
@@ -494,7 +495,7 @@ if __name__ == "__main__":
             contour_spacing=args.contour_spacing,
             min_contour_length=args.min_contour_length,
             equal_area=args.equal_area,
-            savetif=args.savetif,
+            savetif=True,
             plot=args.plot,
             crop_pixels=args.crop_pixels,
             limit=args.limit

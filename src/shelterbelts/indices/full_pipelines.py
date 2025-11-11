@@ -150,7 +150,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         basedir = os.path.dirname(outdir)
         
         filename_linear = os.path.join(basedir, f'{stub}_merged_{param_stub}.tif')
-        tif_categorical(ds[suffix_stem], filename_linear, linear_categories_cmap) 
+        tif_categorical(ds[suffix_stem], filename_linear, linear_categories_cmap) # The distances and densities should use a continuous cmap ranging from 0-100 instead
     return ds
 
 

@@ -217,11 +217,11 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
     Returns:
         skeleton_raster, ellipse_outline_raster
     """
-    shortest_path_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     ellipse_outline_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    ellipse_endpoints_raster = np.zeros_like(assigned_labels, dtype=np.int32)
-    widths_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    skeleton_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    shortest_path_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     perpendicular_raster = np.zeros_like(assigned_labels, dtype=np.int32)
+    widths_raster = np.zeros_like(assigned_labels, dtype=np.int32)
     
     tree_mask = assigned_labels > 0
     
@@ -229,7 +229,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
     edge_size = 3
     y, x = np.ogrid[-edge_size:edge_size + 1, -edge_size:edge_size + 1]
     kernel = (x**2 + y**2 <= (edge_size)**2)
-    tree_counts = convolve(tree_mask.astype(np.uint8), kernel, mode='constant', cval=0)
+    tree_counts = ndimage.convolve(tree_mask.astype(np.uint8), kernel, mode='constant', cval=0)
     no_trees = (tree_counts == 0)
     safe_empty_mask = ndimage.convolve(no_trees.astype(np.uint8), kernel, mode='constant', cval=0) > 0
     safe_empty_mask = safe_empty_mask.astype(bool)
@@ -327,11 +327,15 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
         if len(widths) > 0:
             skeleton_width = float(np.mean(widths))
             skeleton_area = skel.sum()
+            ellipse_ratio = (
+                prop.major_axis_length / prop.minor_axis_length
+                if prop.minor_axis_length != 0 else np.nan
+            )
             stats = {
                 'label': lbl,
                 'ellipse_length': prop.major_axis_length,
                 'ellipse_width': prop.minor_axis_length,
-                'ellipse len/width': prop.major_axis_length/prop.minor_axis_length,
+                'ellipse len/width': ellipse_ratio,
                 'perimeter': prop.perimeter,
                 'area': prop.area,
                 'orientation_degrees': np.degrees(prop.orientation),
@@ -414,7 +418,7 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
 
     # Determine the most common category for each row in the patch metrics
     dominant_categories = []
-    for lbl in df['label']:
+    for lbl in df_patch_metrics['label']:
         lbl_categories = da_filtered.where(assigned_labels == lbl).values
         values, counts = np.unique(lbl_categories[~np.isnan(lbl_categories)], return_counts=True)
         most_common = values[np.argmax(counts)]
