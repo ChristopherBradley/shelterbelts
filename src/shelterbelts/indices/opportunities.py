@@ -206,7 +206,7 @@ def contours_equal_area(Z, num_contours=4, min_contour_length=100):
 # -
 
 def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_worldcover, outdir='.', stub='TEST', tmpdir='.', 
-                     width=3, savetif=True, plot=False):
+                     width=3, savetif=True, plot=False, crop_pixels=0):
     """Suggest opportunities for new trees based on gullies, roads, ridges and contours - in that order of priority (bit arbitrary).
     
     Parameters
@@ -261,6 +261,13 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
     # Creating the xarray
     ds = da_trees.to_dataset(name='woody_veg')
     ds['opportunities'] = ('y', 'x'), opportunities
+
+    # Crop the output if it was expanded before the pipeline started
+    if crop_pixels is not None and crop_pixels != 0:
+        ds = ds.isel(
+            x=slice(crop_pixels, -crop_pixels),
+            y=slice(crop_pixels, -crop_pixels)
+        )
     
     if savetif:
         filename = os.path.join(outdir,f"{stub}_opportunities.tif")
@@ -272,14 +279,12 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
         visualise_categories(ds['opportunities'], None, opportunity_cmap, opportunity_labels, "Opportunities")
 
     return ds
-        
 
 
-# +
 def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
-                  savetif=True, plot=False):
+                  savetif=True, plot=False, crop_pixels=0):
     """Suggest opportunities for new trees based on ridges, gullies and contours.
     
     Parameters

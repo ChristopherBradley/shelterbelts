@@ -179,7 +179,6 @@ def crop_barra_bboxs():
     # gdf_3857 = gdf.to_crs('EPSG:3857')
 
 
-
 # -
 
 # Did this before running predictions_batch.py
@@ -192,7 +191,6 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
     # Load the GeoDataFrame
     gdf = gpd.read_file(input_file)
     gdf['stub'] = [f"{geom.centroid.y:.2f}-{geom.centroid.x:.2f}".replace(".", "_")[1:] for geom in gdf['geometry']]
-    # gdf = gdf.to_crs('EPSG:3857')  # Thought this might fix the off by 1 errors, but turns out it was a different error. Then this meant that the model selection code didn't work so I was prediciting using the general model instead of region specific :(
     print(f"Original length of gdf: {len(gdf)}")
     
     # Remove tiles that have already been processed
@@ -216,9 +214,17 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
 # year = 2019
 # sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_{year}attempt3', chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326")
 
+# +
 # %%time
 year = 2020
-sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_weightings_median_{year}_attempt2', chunk_size=20, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326_weightings_median")
+state = 'aus'
+stub = f'{state}_4326_weightings_median_{year}'
+# sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_weightings_median_{year}_attempt2', chunk_size=20, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326_weightings_median")
+sub_gpkgs(save_gpkg=False, state=state, stub=stub, chunk_size=500, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{stub}")  
+
+# Took 1.5 mins to save 883 files for all of aus.
+
+# -
 
 asc_folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'        # 265GB - Should convert to tif files but keep in the original EPSG
 out_folder = '/scratch/xe2/cb8590/NSW_5m_DEMs_3857'  # 95GB - Should move these to scratch and maybe should be using an Aus crs instead of global

@@ -2,10 +2,10 @@
 
 # Directory containing the split gpkg files
 year=2020
-# GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_actnsw_4326_${year}attempt2"
-GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_actnsw_4326_weightings_median_${year}_attempt2"
-# GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_actnsw_4326"
-OUTDIR="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median"
+state=aus
+GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_${state}_4326_weightings_median_${year}"
+# GPKG_DIR="/g/data/xe2/cb8590/Outlines/BARRA_bboxs/BARRA_bboxs_${state}_4326_weightings_median_${year}_attempt2"
+OUTDIR="/scratch/xe2/cb8590/barra_trees_s4_${state}_4326_weightings_median_${year}"
 
 # Loop through each gpkg and submit a PBS job
 for gpkg in "$GPKG_DIR"/*.gpkg; do

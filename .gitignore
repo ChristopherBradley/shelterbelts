@@ -1,7 +1,7 @@
 data
 outdir
 pbs_outputs
-pbs_success
+pbs__success
 pbs_errors
 pbs_saving
 pbs_results
