@@ -22,7 +22,12 @@ from shelterbelts.apis.catchments import catchments  # This takes a while to imp
 
 # -
 
-from shelterbelts.indices.full_pipelines import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
+# from shelterbelts.indices.full_pipelines import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
+worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'  # Should move these to gdata so they don't disappear.
+worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
+# worldcover_footprints = '/scratch/xe2/cb8590/Worldcover_Australia/Worldcover_Australia_footprints.gpkg'
+hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
+roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 
 # +
 nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
@@ -46,7 +51,7 @@ inverted_labels = {v: k for k, v in opportunity_labels.items()}
 
 
 # +
-def segmentation(river_pixels, min_branch_length=10):
+def segmentation(river_mask, min_branch_length=10):
     """Converts a binary skeletonized array into an integer segmented array"""
     # River segmentation algorithm (entirely ChatGPT)
 

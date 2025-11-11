@@ -1,18 +1,26 @@
 # # +
 # Change directory to this repo. Need to do this when using the DEA environment since I can't just pip install -e .
+# import os, sys
+# repo_name = "shelterbelts"
+# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+# elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
+#     repo_dir = os.path.dirname(os.getcwd())       
+# else:                                             # Already running from root of this repo. 
+#     repo_dir = os.getcwd()
+# src_dir = os.path.join(repo_dir, 'src')
+# os.chdir(src_dir)
+# sys.path.append(src_dir)
+# # print(src_dir)
+
 import os, sys
 repo_name = "shelterbelts"
 if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
-    repo_dir = os.path.dirname(os.getcwd())       
-else:                                             # Already running from root of this repo. 
-    repo_dir = os.getcwd()
-src_dir = os.path.join(repo_dir, 'src')
-os.chdir(src_dir)
-sys.path.append(src_dir)
-# print(src_dir)
-
+    src_dir = os.path.join(repo_dir, 'src')
+    os.chdir(src_dir)
+    sys.path.append(src_dir)
+    # print(src_dir)
 
 # +
 # %%time
@@ -40,15 +48,10 @@ from shelterbelts.indices.shelter_metrics import class_metrics, patch_metrics, l
 
 # 11 secs for all these imports
 # -
+from shelterbelts.indices.opportunities import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb  # Should make sure no other files import from this one, to avoid circular imports
 
 
-worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'  # Should move these to gdata so they don't disappear.
-worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
-# worldcover_footprints = '/scratch/xe2/cb8590/Worldcover_Australia/Worldcover_Australia_footprints.gpkg'
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
-hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
-roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
-
 
 def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', stub=None, 
                      wind_method=None, wind_threshold=15,
