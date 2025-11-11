@@ -393,6 +393,37 @@ def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_thresh
 
 
 
+# Could generalise and reuse the run_pipeline_tifs function from full_pipelines.py. The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
+def opportunities_folder(folder, outdir='.', stub='TEST', tmpdir='.', cover_threshold=0,
+                  width=3, ridges=False, num_catchments=10, min_branch_length=10, 
+                  contour_spacing=10, min_contour_length=100, equal_area=False, 
+                  savetif=True, plot=False, crop_pixels=0, limit=None):
+    """Run the opportunities function on every tif in the folder and mosaic the outputs at the end"""
+    os.makedirs(outdir, exist_ok=True)
+    percent_tifs = glob.glob(f'{folder}/*.tif')
+    if limit:
+        percent_tifs = percent_tifs[:limit]
+    for percent_tif in percent_tifs:
+        opportunities(percent_tif, outdir, stub, tmpdir, cover_threshold,
+                  width, ridges, num_catchments, min_branch_length, 
+                  contour_spacing, min_contour_length, equal_area, 
+                  savetif, plot, crop_pixels)
+        
+    gdf = bounding_boxes(outdir, filetype='opportunities.tif')
+    stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
+    
+    footprint_gpkg = f"{stub}_footprints.gpkg"
+    bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
+    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename')  
+    ds = merged_ds(mosaic, out_meta, 'opportunities')
+
+    basedir = os.path.dirname(outdir)
+    filename_linear = os.path.join(basedir, f'{stub}_merged_{param_stub}.tif')
+    tif_categorical(ds['opportunities'], filename_linear, linear_categories_cmap) 
+    return ds
+    
+
+
 # +
 # Would be slightly more computationally efficient to generate the opportunities from within full_pipelines than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
 import argparse
@@ -415,6 +446,8 @@ def parse_arguments():
     parser.add_argument("--equal_area", action="store_true", help="Use equal-area contours instead of fixed elevation spacing (default: False)")
     parser.add_argument("--savetif", action="store_true", help="Save output GeoTIFFs (default: False)")
     parser.add_argument("--plot", action="store_true", help="Show diagnostic plots (default: False)")
+    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
+    parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
 
     return parser.parse_args()
 
@@ -422,22 +455,41 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
 
-    opportunities(
-        percent_tif=args.percent_tif,
-        outdir=args.outdir,
-        stub=args.stub,
-        tmpdir=args.tmpdir,
-        cover_threshold=args.cover_threshold,
-        width=args.width,
-        ridges=args.ridges,
-        num_catchments=args.num_catchments,
-        min_branch_length=args.min_branch_length,
-        contour_spacing=args.contour_spacing,
-        min_contour_length=args.min_contour_length,
-        equal_area=args.equal_area,
-        savetif=args.savetif,
-        plot=args.plot
-    )
+    if args.percent_tif.endswith('.tif'):
+        opportunities(
+            percent_tif=args.percent_tif,
+            outdir=args.outdir,
+            stub=args.stub,
+            tmpdir=args.tmpdir,
+            cover_threshold=args.cover_threshold,
+            width=args.width,
+            ridges=args.ridges,
+            num_catchments=args.num_catchments,
+            min_branch_length=args.min_branch_length,
+            contour_spacing=args.contour_spacing,
+            min_contour_length=args.min_contour_length,
+            equal_area=args.equal_area,
+            savetif=args.savetif,
+            plot=args.plot
+        )
+    else:
+        opportunities_folder(
+            folder=args.percent_tif,
+            outdir=args.outdir,
+            stub=args.stub,
+            tmpdir=args.tmpdir,
+            cover_threshold=args.cover_threshold,
+            width=args.width,
+            ridges=args.ridges,
+            num_catchments=args.num_catchments,
+            min_branch_length=args.min_branch_length,
+            contour_spacing=args.contour_spacing,
+            min_contour_length=args.min_contour_length,
+            equal_area=args.equal_area,
+            savetif=args.savetif,
+            plot=args.plot,
+            limit=args.limit
+        )
 
 
 # +

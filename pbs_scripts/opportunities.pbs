@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N opportunities
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=00:30:00
+#PBS -l storage=gdata/xe2+gdata/ob53
+#PBS -q normal
+
+tmpdir='/scratch/xe2/cb8590/tmp'
+
+param_stub=lat_32_lon_148
+year=2018
+folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/$param_stub
+outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/opportunities_${param_stub}
+# echo "Starting opportunities.pbs for folder $folder, outdir $outdir"
+
+percent_tif=/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_32_lon_148/32_01-148_02_y2018_predicted_expanded20.tif
+echo "Starting opportunities.pbs for percent_tif $percent_tif, outdir $outdir"
+
+# Change working directory
+cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/indices
+
+# Load the conda environment
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+# Run the script
+python opportunities.py "$percent_tif" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20
+# python opportunities.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20

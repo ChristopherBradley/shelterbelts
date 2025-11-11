@@ -8,17 +8,13 @@
 #PBS -l storage=gdata/xe2+gdata/ob53
 #PBS -q normal
 
-
-# param_stub=lat_28_lon_140
-
-tmpdir='/scratch/xe2/cb8590/tmp'
-# folder=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/$param_stub
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/linear_tifs_${param_stub}_corefix2
+param_stub=lat_36_lon_144
 
 year=2018
+tmpdir='/scratch/xe2/cb8590/tmp'
 folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/$param_stub
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_percentcover
-outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_windward
+outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_percentcover
+# # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_windward
 
 echo "Starting indices.pbs for folder $folder, outdir $outdir"
 
@@ -30,8 +26,8 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20
-python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD
+python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20
+# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD
 
 
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --density_threshold $density_threshold
