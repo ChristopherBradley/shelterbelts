@@ -11,7 +11,12 @@ from shapely.geometry import box, Polygon, MultiPolygon
 import xarray as xr
 import numpy as np
 
+if True print("oops")
 
+c = d
+a = b
+
+die
 # -
 
 def single_boundary():

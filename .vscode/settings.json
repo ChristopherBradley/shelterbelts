@@ -1,3 +1,8 @@
+// {
+//     "python-envs.defaultEnvManager": "ms-python.python:conda",
+//     "python-envs.defaultPackageManager": "ms-python.python:conda",
+//     "python-envs.pythonProjects": []
+// }
 {
     "remote.SSH.connectTimeout": 60,
     "remote.SSH.remoteServerListenTimeout": 60,
@@ -7,4 +12,15 @@
     "python-envs.pythonProjects": [],
     "explorer.autoReveal": false,
     "explorer.autoRevealDelay": 5000,
+    "files.exclude": {
+    "**/__pycache__": true,
+    "**/.git": true,
+    "**/site-packages": true,
+    "**/miniconda": true
+    },
+    "python.analysis.exclude": [
+        "**/miniconda/**",
+        "**/envs/**",
+        "**/__pycache__/**"
+    ]
 }

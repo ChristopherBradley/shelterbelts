@@ -172,7 +172,8 @@ def contours_interval(Z, interval=10, min_contour_length=100):
     Z = np.array(np.round(Z))
     minZ, maxZ = np.nanmin(Z), np.nanmax(Z)
 
-    contours = [height for height in range(minZ, maxZ) if height % interval == 0]
+    # contours = [height for height in range(minZ, maxZ) if height % interval == 0]
+    contours = [height for height in range(int(minZ), int(maxZ)) if height % interval == 0]
     
     dict_Contours = dict()
     for height in contours:

@@ -4,7 +4,7 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=00:30:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/ob53
 #PBS -q normal
 
