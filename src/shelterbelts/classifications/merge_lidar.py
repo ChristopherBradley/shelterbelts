@@ -34,7 +34,7 @@ def cluster_bounds(bounds, tol=0.02):
     return groups
 
 
-def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif', subdir='chm', crs=None, dont_reproject=False):
+def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', subdir='chm', crs=None, dont_reproject=False, dedup=True):
     """Take a folder of tif files and merge them into a single uint8 raster
 
     Parameters
@@ -53,9 +53,6 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
         merged.tif: A geotif of the da
         
     """
-    suffix_stub = suffix.split('.')[0]
-    outdir = os.path.join(base_dir, f'uint8{suffix_stub}')
-    
     # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
     glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
     filenames = glob.glob(glob_path)
@@ -68,9 +65,16 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
         final_crs = crs
     print(f"Merging with crs: {final_crs}")
 
+    suffix_stub = suffix.split('.')[0]
+
+    if da.dtype == 'uint8':
+        outdir = base_dir   # Don't convert to uint8
+    else:
+        outdir = os.path.join(base_dir, f'uint8{suffix_stub}')
+
+    # Convert to uint8. Should probs add a parameter to not do this, in case we want to save the merged raster in the original datatype
     if not os.path.exists(outdir):
         os.mkdir(outdir)
-    
         for i, filename in enumerate(filenames):
             da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
             da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
@@ -88,51 +92,49 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp2', suffix='_res1.tif',
                 print(f"Saved {i}/{len(filenames)}:", outpath)
 
     # This gives extra info like number of pixels in each category, but we only care about the filename and geometry
-    gdf = bounding_boxes(outdir, crs=final_crs)
-
+    stub = f"{'_'.join(outdir.split('/')[-2:]).split('.')[0]}_{suffix_stub}"  # The filename and one folder above with the suffix. 
+    gdf = bounding_boxes(outdir, crs=final_crs, stub=stub)
+    
     # This is the bounding box that I used to make the initial request from ELVIS
     full_bounds =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
     bbox = full_bounds
+
+    # Visualise the full bounds in QGIS
     # gds_full_bounds = gpd.GeoSeries([box(*full_bounds)], crs=gdf.crs)
     # gds_full_bounds.to_file('/scratch/xe2/cb8590/tmp/DATA_717827_full_bounds.geojson')
 
-    # This should work for ACT and NSW naming conventions (just for string ordering, not extracting the exact date)
-    dates = [extract_year(filename) for filename in gdf['filename']]
-    gdf['date'] = dates
-
-    # Just keep most recent lidar for each tile
-    bounds = pd.DataFrame(
-        gdf.geometry.bounds.values,
-        columns=["minx", "miny", "maxx", "maxy"],
-        index=gdf.index
-    )
-    bounds["group"] = cluster_bounds(bounds, tol=0.002)
-    gdf_groups = gdf.join(bounds["group"])
-    gdf_dedup = (
-        gdf_groups.sort_values("date")
-        .groupby("group", as_index=False)
-        .last()
-    )
-    gdf_dedup.crs = gdf.crs
-
-    # Find tiles that are outside this transformed bbox. This isn't fully reliable, even when using transform_bbox instead of gdf_dedup.to_crs(tiff_crs), so we need to also handle this inside canopy_height.merge_tiles_bbox
-    # tiff_crs = final_crs
-    # bbox = polygon.loc[0, 'geometry'].bounds
-    # bbox_transformed = transform_bbox(bbox, outputEPSG=tiff_crs)
-    # roi_geom = gpd.GeoSeries([box(*bbox_transformed)], crs=tiff_crs)
-    # gdf_dedup = gdf_dedup.to_crs(tiff_crs)   # This transforms points inside the geometry, but not the entire geometry
-    # gdf_dedup["in_roi"] = gdf_dedup.intersects(roi_geom.iloc[0])
-    # print(f'Removing tiles not inside the projected bounds:', sum(~gdf_dedup['in_roi']))
-    # gdf_dedup = gdf_dedup[gdf_dedup["in_roi"]]
-        
-    filename_dedup = os.path.join(outdir, 'footprints_unique.gpkg')
-    gdf_dedup.to_file(filename_dedup)
-    print("Saved:", filename_dedup)
+    if dedup:
+        # This should work for ACT and NSW naming conventions (just for string ordering, not extracting the exact date). 
+        # If I already know the tiles don't overlap at all, I should skip this step. 
+        dates = [extract_year(filename) for filename in gdf['filename']]
+        gdf['date'] = dates
+    
+        # Just keep most recent lidar for each tile
+        bounds = pd.DataFrame(
+            gdf.geometry.bounds.values,
+            columns=["minx", "miny", "maxx", "maxy"],
+            index=gdf.index
+        )
+        bounds["group"] = cluster_bounds(bounds, tol=0.002)
+        gdf_groups = gdf.join(bounds["group"])
+        gdf_dedup = (
+            gdf_groups.sort_values("date")
+            .groupby("group", as_index=False)
+            .last()
+        )
+        gdf_dedup.crs = gdf.crs
+            
+        filename_dedup = os.path.join(outdir, 'footprints_unique.gpkg')
+        gdf_dedup.to_file(filename_dedup)
+        print("Saved:", filename_dedup)
+    else:
+        gdf_dedup = gdf
+        filename_dedup = os.path.join(outdir, f"{stub}_footprints.gpkg")
 
     # Finally merge the relevant tiles
     base_stub = base_dir.split('/')[-1]
     stub = base_stub + '_' + outdir.split('/')[-1]  # Need to include the base stub so cropped filenames are unique, so rasterio doesn't die when submitting multiple jobs at once.
-    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # I'm deliberately inverting the outdir and tmpdir so cropped files go to tmp
+    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # I'm deliberately inverting the outdir and tmpdir so the output cropped files go to tmp
     ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
     da = ds[suffix_stub].rio.reproject(final_crs)  # This reprojecting should clean up the nan values on the edge
 
@@ -180,14 +182,4 @@ if __name__ == '__main__':
         crs=args.crs,
         dont_reproject=args.dont_reproject
     )
-
-
-# # # %%time
-# stub = 'DATA_722660'
-# base_dir = f'/scratch/xe2/cb8590/lidar/{stub}'
-# subdir='chm'
-# suffix='_percentcover_res10_height2m.tif'
-# # suffix='_chm_res1.tif'
-# merge_lidar(base_dir, subdir=subdir, suffix=suffix)
-# # # # # Took 4 mins first time, 1 min after that.
 

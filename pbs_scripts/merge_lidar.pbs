@@ -10,6 +10,7 @@
 
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_140
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/linear_tifs_lat_36_lon_144_cropfix
+base_dir=/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/opportunities_lat_32_lon_148
 
 echo "Starting elvis_geojsons.pbs for stub $stub"
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications

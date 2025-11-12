@@ -290,7 +290,7 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
     return ds
 
 
-def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_threshold=0,
+def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
                   savetif=True, plot=False, crop_pixels=0):
@@ -323,6 +323,10 @@ def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_thresh
     ---------
         opportunities.tif: A tif file of the 'opportunities' band in ds, with colours embedded.
     """
+
+    if stub is None:
+        stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
+        
     # Load binary trees
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
     da_trees = da_percent > cover_threshold
@@ -403,7 +407,7 @@ def opportunities(percent_tif, outdir='.', stub='TEST', tmpdir='.', cover_thresh
 
 
 # Could generalise and reuse the run_pipeline_tifs function from full_pipelines.py. The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
-def opportunities_folder(folder, outdir='.', stub='TEST', tmpdir='.', cover_threshold=0,
+def opportunities_folder(folder, outdir='.', stub=None, tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
                   savetif=True, plot=False, crop_pixels=0, limit=None):
@@ -442,7 +446,7 @@ def parse_arguments():
 
     parser.add_argument("percent_tif", help="Input percentage cover tree tif file")
     parser.add_argument("--outdir", default=".", help="Output directory for results (default: current directory)")
-    parser.add_argument("--stub", default="TEST", help="Prefix for output files (default: TEST)")
+    parser.add_argument("--stub", default=None, help="Prefix for output files (default: None)")
     parser.add_argument("--tmpdir", default=".", help="Temporary working directory (default: current directory)")
     parser.add_argument("--cover_threshold", type=int, default=0, help="Tree cover threshold percentage (default: 0)")
     parser.add_argument("--width", type=int, default=3, help="Buffer width in pixels (default: 3)")

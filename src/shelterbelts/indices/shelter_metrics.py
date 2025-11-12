@@ -416,21 +416,24 @@ def patch_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, plot=True, save_
             ds_labels[raster_key].astype(float).rio.to_raster(filename_labelled)  # Not applying a colour scheme because I prefer to use the QGIS 'Paletted/Unique' values for these rasters
             print("Saved:", filename_labelled)
 
-    # Determine the most common category for each row in the patch metrics
-    dominant_categories = []
-    for lbl in df_patch_metrics['label']:
-        lbl_categories = da_filtered.where(assigned_labels == lbl).values
-        values, counts = np.unique(lbl_categories[~np.isnan(lbl_categories)], return_counts=True)
-        most_common = values[np.argmax(counts)]
-        dominant_categories.append(most_common)
-    df_patch_metrics["category_id"] = dominant_categories
-
-    # Save the patch metrics
-    if save_csv:
-        filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
-        df_patch_metrics.to_csv(filename, index=False)
-        print("Saved:", filename)
+    if len(df_patch_metrics) == 0:
+        print("df_patch_metrics is empty")
+    else:
+        # Determine the most common category for each row in the patch metrics
+        dominant_categories = []
+        for lbl in df_patch_metrics['label']:
+            lbl_categories = da_filtered.where(assigned_labels == lbl).values
+            values, counts = np.unique(lbl_categories[~np.isnan(lbl_categories)], return_counts=True)
+            most_common = values[np.argmax(counts)]
+            dominant_categories.append(most_common)
+        df_patch_metrics["category_id"] = dominant_categories
     
+        # Save the patch metrics
+        if save_csv:
+            filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
+            df_patch_metrics.to_csv(filename, index=False)
+            print("Saved:", filename)
+
     # Assign linear and non-linear categories
     da_linear = da_filtered
     for i, row in df_patch_metrics.iterrows():

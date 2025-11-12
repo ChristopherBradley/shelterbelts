@@ -62,7 +62,8 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
 
 def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson', id_column='tile', verbose=True):
     """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
-    
+
+    os.makedirs(outdir, exist_ok=True)
     canopy_height_dir = tmpdir
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
     footprints_crs = gpd.read_file(os.path.join(canopy_height_dir, footprints_geojson)).crs

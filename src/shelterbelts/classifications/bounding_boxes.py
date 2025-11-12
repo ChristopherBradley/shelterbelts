@@ -64,7 +64,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     # Create a geopackage of the attributes of each tif
     records = []
     for i, veg_tif in enumerate(veg_tifs):
-        if i%10 == 0:
+        if i%100 == 0:
             print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
         original_crs = str(da.rio.crs)
@@ -164,6 +164,9 @@ def parse_arguments():
     return parser.parse_args()
 
 
+
+# -
+
 if __name__ == '__main__':
     
     args = parse_arguments()
@@ -177,47 +180,3 @@ if __name__ == '__main__':
         args.remove, 
         args.filetype,
         args.crs)
-
-# +
-# # %%time
-# gdf = bounding_boxes('/g/data/xe2/cb8590/Nick_Aus_treecover_10m', filetype='.tiff')
-# # gdf = bounding_boxes("/scratch/xe2/cb8590/Worldcover_Australia")
-
-# +
-# # %%time
-# folder = "/scratch/xe2/cb8590/Worldcover_Australia"
-# stub = "Worldcover_Australia"
-# outdir = "/scratch/xe2/cb8590/tmp"
-# filetype = 'tif'
-# crs = None
-# pixel_cover_threshold = None
-# tif_cover_threshold = None  # Takes 10 secs so long as this is None
-# size_threshold = 80
-# remove = False
-
-# bounding_boxes(folder)
-
-# Footprints currently aren't working with the .asc files, but centroids are for some reason.
-# folder = '/g/data/xe2/cb8590/NSW_5m_DEMs'
-# stub = 'NSW_5m_DEMs'
-# outdir = "/g/data/xe2/cb8590/Outlines"
-
-# -
-
-# # %%time
-# bounding_boxes(filepath, outdir, stub, filetype='.asc', limit=10)
-
-# +
-# # %%time
-# gdf = bounding_boxes(filepath, outdir, stub, filetype='.asc', crs='EPSG:4326', limit=10)
-# gdf.crs
-
-# +
-# size_threshold=80
-# tif_cover_threshold=None
-# pixel_cover_threshold=None
-# remove=False
-# filetype='.asc'
-# crs=None
-# save_centroids=False
-# limit=None
