@@ -20,6 +20,7 @@ from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 from shelterbelts.apis.hydrolines import hydrolines
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 from shelterbelts.apis.catchments import catchments  # This takes a while to import
+from shelterbelts.classifications.bounding_boxes import bounding_boxes
 
 # -
 
@@ -426,8 +427,8 @@ def opportunities_folder(folder, outdir='.', stub='TEST', tmpdir='.', cover_thre
     ds = merged_ds(mosaic, out_meta, 'opportunities')
 
     basedir = os.path.dirname(outdir)
-    filename_linear = os.path.join(basedir, f'{stub}_merged_{param_stub}.tif')
-    tif_categorical(ds['opportunities'], filename_linear, linear_categories_cmap) 
+    filename_linear = os.path.join(basedir, f'{stub}_merged_{stub}.tif')
+    tif_categorical(ds['opportunities'], filename_linear, opportunity_cmap) 
     return ds
 
 

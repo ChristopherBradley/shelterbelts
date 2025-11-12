@@ -11,7 +11,6 @@ from shapely.geometry import box, Polygon, MultiPolygon
 import xarray as xr
 import numpy as np
 
-
 def single_boundary():
     """Creating a single boundary for NSW (missing jervis bay)"""
     gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Australia State Boundaries/STE_2021_AUST_GDA2020.shp')
