@@ -187,13 +187,13 @@ if __name__ == '__main__':
 # stub = 'TEST_Fulham'
 # download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir=".")
 # # 10 secs using the NCI datacube compared to 5 mins using the DEA STAC API
-# -
+# +
 # folder = '/scratch/xe2/tmp/tif_folder'
-
 # gdf = gpd.read_file('/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg')
 # bbox = gdf.iloc[0]['geometry'].bounds
 # bbox2 = gdf.iloc[:1].to_crs('EPSG:3857').iloc[0]['geometry'].bounds
 # ds = download_ds2_bbox(bbox2, input_crs='epsg:3857')
 # ds
+# -
 
 
