@@ -2,6 +2,7 @@ import os
 import glob
 import argparse
 
+
 import geopandas as gpd
 import rioxarray as rxr
 from shapely.geometry import box
@@ -10,6 +11,7 @@ from shapely.geometry import box
 import gc
 import psutil
 import resource
+import subprocess, sys
 
 # repo_name = "shelterbelts"
 # import sys, os
@@ -67,7 +69,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     gdf_hydrolines, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
     gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
 
-    if wind_method: 
+    if wind_method and wind_method != "None":  # Handling conversion of None to "None" when using subprocess
         lat = (bbox_4326[1] + bbox_4326[3])/2
         lon = (bbox_4326[0] + bbox_4326[2])/2
         ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=True, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
@@ -129,11 +131,38 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
+
     if limit:
         percent_tifs = percent_tifs[:limit]
     for i, percent_tif in enumerate(percent_tifs):
-        print(f"Working on tif {i}/{len(percent_tifs)}:", percent_tif)
-        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
+        print(f"Launching subprocess for tif {i}/{len(percent_tifs)}:", percent_tif)
+
+        # Launching a subprocess to hopefully avoid memory accumulation issues
+        cmd = [
+            sys.executable,
+            "full_pipelines.py",
+            str(percent_tif),
+            "--outdir", str(outdir),
+            "--tmpdir", str(tmpdir),
+            # "--param_stub", '',  # or args.param_stub if applicable
+            "--wind_method", str(wind_method),
+            "--wind_threshold", str(wind_threshold),
+            "--cover_threshold", str(cover_threshold),
+            "--min_patch_size", str(min_patch_size),
+            "--edge_size", str(edge_size),
+            "--max_gap_size", str(max_gap_size),
+            "--distance_threshold", str(distance_threshold),
+            "--density_threshold", str(density_threshold),
+            "--buffer_width", str(buffer_width),
+            "--crop_pixels", str(crop_pixels)
+        ]
+        if strict_core_area:
+            cmd += ["--strict_core_area"]
+        
+        # Run the subprocess
+        subprocess.run(cmd, check=True)
+
+        # run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
 
     # Merge the outputs
     if wind_method:
@@ -162,7 +191,7 @@ def parse_arguments():
     parser.add_argument("folder", help="Input folder containing percent_cover.tifs")
     parser.add_argument("--outdir", default="/scratch/xe2/cb8590/tmp", help="Output folder for linear_categories.tifs (default: /scratch/xe2/cb8590/tmp)")
     parser.add_argument("--tmpdir", default="/scratch/xe2/cb8590/tmp", help="Temporary working folder (default: /scratch/xe2/cb8590/tmp)")
-    parser.add_argument("--param_stub", default="", help="Extra stub for the suffix of the merged tif")  # Don't need this argument anymore, better to just incorporate these parameter names in the outdir
+    parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")  # Don't need this argument anymore, better to just incorporate these parameter names in the outdir
     parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
     parser.add_argument("--wind_threshold", default=15, help="Windspeed that causes damage to crops/pasture in km/hr (default: 15)")
     parser.add_argument("--cover_threshold", type=int, default=10, help="Percentage tree cover within a pixel to classify as tree (default: 10)")
@@ -181,22 +210,41 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
-    run_pipeline_tifs(
-        folder=args.folder,
-        outdir=args.outdir,
-        tmpdir=args.tmpdir,
-        param_stub=args.param_stub,
-        wind_method=args.wind_method,
-        wind_threshold=args.wind_threshold,
-        cover_threshold=args.cover_threshold,
-        min_patch_size=args.min_patch_size,
-        edge_size=args.edge_size,
-        max_gap_size=args.max_gap_size,
-        distance_threshold=args.distance_threshold,
-        density_threshold=args.density_threshold,
-        buffer_width=args.buffer_width,
-        strict_core_area=args.strict_core_area,
-        crop_pixels=args.crop_pixels,
-        limit=args.limit
-    )
+    if args.folder.endswith('.tif'):
+        run_pipeline_tif(
+            args.folder,
+            outdir=args.outdir,
+            tmpdir=args.tmpdir,
+            stub=args.param_stub,
+            wind_method=args.wind_method,
+            wind_threshold=args.wind_threshold,
+            cover_threshold=args.cover_threshold,
+            min_patch_size=args.min_patch_size,
+            edge_size=args.edge_size,
+            max_gap_size=args.max_gap_size,
+            distance_threshold=args.distance_threshold,
+            density_threshold=args.density_threshold,
+            buffer_width=args.buffer_width,
+            strict_core_area=args.strict_core_area,
+            crop_pixels=args.crop_pixels
+        )
+    else:
+        run_pipeline_tifs(
+            folder=args.folder,
+            outdir=args.outdir,
+            tmpdir=args.tmpdir,
+            param_stub=args.param_stub,
+            wind_method=args.wind_method,
+            wind_threshold=args.wind_threshold,
+            cover_threshold=args.cover_threshold,
+            min_patch_size=args.min_patch_size,
+            edge_size=args.edge_size,
+            max_gap_size=args.max_gap_size,
+            distance_threshold=args.distance_threshold,
+            density_threshold=args.density_threshold,
+            buffer_width=args.buffer_width,
+            strict_core_area=args.strict_core_area,
+            crop_pixels=args.crop_pixels,
+            limit=args.limit
+        )
 

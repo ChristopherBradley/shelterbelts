@@ -403,7 +403,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     ds['worldcover'] = da_worldcover2 
 
     ds_opportunities = opportunities_da(ds['woody_veg'], ds['roads'], ds['gullies'], da_ridges, ds['contours'], ds['worldcover'],
-                                       outdir, unique_stub, tmpdir, width, savetif, plot)
+                                       outdir, unique_stub, tmpdir, width, savetif, plot, crop_pixels)
     
     return ds_opportunities
 
@@ -417,15 +417,17 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
 
     folder_stem = pathlib.Path(folder).stem
     if not stub:
-        stub = f'{folder_stem}_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
+        stub = f'opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
     
-    outdir = os.path.join(folder, stub)
+    outdir = os.path.join(folder, f'{folder_stem}_{stub}')
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
     if limit:
         percent_tifs = percent_tifs[:limit]
     for percent_tif in percent_tifs:
-        opportunities(percent_tif, outdir, stub, tmpdir, cover_threshold,
+        tif_stem = pathlib.Path(percent_tif).stem
+        tif_stub = f"{tif_stem}_{stub}"     # This stub needs to include the exact lat lon of the tile. 
+        opportunities(percent_tif, outdir, tif_stub, tmpdir, cover_threshold,
                   width, ridges, num_catchments, min_branch_length, 
                   contour_spacing, min_contour_length, equal_area, 
                   savetif, plot, crop_pixels)
@@ -439,7 +441,7 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
     ds = merged_ds(mosaic, out_meta, 'opportunities')
 
     basedir = os.path.dirname(outdir)
-    filename_linear = os.path.join(basedir, f'{stub}_merged_{stub}.tif')
+    filename_linear = os.path.join(basedir, f'{stub}_merged.tif')
     tif_categorical(ds['opportunities'], filename_linear, opportunity_cmap) 
     return ds
 
