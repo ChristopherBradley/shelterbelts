@@ -1,12 +1,15 @@
 #!/bin/bash
 #PBS -N indices
-#PBS -l mem=4GB
+#PBS -l mem=32GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/ob53
 #PBS -q normal
+
+export GDAL_CACHEMAX=64
+export GDAL_NUM_THREADS=1
 
 # param_stub=lat_36_lon_144
 param_stub=lat_34_lon_148

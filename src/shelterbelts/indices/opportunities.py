@@ -1,6 +1,7 @@
 # +
 import os
 import glob
+import pathlib
 
 import numpy as np
 import rioxarray as rxr
@@ -325,7 +326,8 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     """
 
     if stub is None:
-        stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
+        tif_stem = pathlib.Path(percent_tif).stem
+        stub = f'{tif_stem}_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
         
     # Load binary trees
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
@@ -348,8 +350,8 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
 
     # Load worldcover 
-    worldcover_stub = f'{stub}_worldcover_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
-    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
+    unique_stub = stub
+    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, unique_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
     da_worldcover2 = da_worldcover.rio.reproject_match(da_trees) # Should do this within full_pipelines so it doesn't need to happen twice
@@ -358,7 +360,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
     
     # Need to check if the region is inside NSW, and use the Australia version or terrain tiles if not.
-    mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, dem_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=False) 
+    mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, unique_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=False) 
     ds_dem = merged_ds(mosaic, out_meta, 'dem')   # This is a 5m dem, as opposed to the 10m tree raster
     ds_dem = ds_dem.rio.reproject_match(ds)
 
@@ -401,17 +403,23 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     ds['worldcover'] = da_worldcover2 
 
     ds_opportunities = opportunities_da(ds['woody_veg'], ds['roads'], ds['gullies'], da_ridges, ds['contours'], ds['worldcover'],
-                                       outdir, stub, tmpdir, width, savetif, plot)
+                                       outdir, unique_stub, tmpdir, width, savetif, plot)
     
     return ds_opportunities
 
 
 # Could generalise and reuse the run_pipeline_tifs function from full_pipelines.py. The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
-def opportunities_folder(folder, outdir='.', stub=None, tmpdir='.', cover_threshold=0,
+def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
                   savetif=True, plot=False, crop_pixels=0, limit=None):
     """Run the opportunities function on every tif in the folder and mosaic the outputs at the end"""
+
+    folder_stem = pathlib.Path(folder).stem
+    if not stub:
+        stub = f'{folder_stem}_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
+    
+    outdir = os.path.join(folder, stub)
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
     if limit:
@@ -421,9 +429,9 @@ def opportunities_folder(folder, outdir='.', stub=None, tmpdir='.', cover_thresh
                   width, ridges, num_catchments, min_branch_length, 
                   contour_spacing, min_contour_length, equal_area, 
                   savetif, plot, crop_pixels)
-        
-    gdf = bounding_boxes(outdir, filetype='opportunities.tif')
-    stub = '_'.join(outdir.split('/')[-2:]).split('.')[0]  # The filename and one folder above
+
+    # Could just use the merge_lidar function instead of reimplementing like this each time.
+    gdf = bounding_boxes(outdir, filetype='opportunities.tif', stub=stub)
     
     footprint_gpkg = f"{stub}_footprints.gpkg"
     bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
@@ -490,7 +498,6 @@ if __name__ == "__main__":
     else:
         opportunities_folder(
             folder=args.percent_tif,
-            outdir=args.outdir,
             stub=args.stub,
             tmpdir=args.tmpdir,
             cover_threshold=args.cover_threshold,
@@ -507,25 +514,3 @@ if __name__ == "__main__":
             limit=args.limit
         )
 
-# +
-# # %%time
-# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024_actnsw_4326/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
-# percent_tif='/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_32_lon_148/32_01-148_02_y2018_predicted_expanded20.tif'
-
-# tmpdir = '/scratch/xe2/cb8590/'
-# stub='TEST'
-# cover_threshold=50
-# width=3
-# ridges=False
-# num_catchments=10
-# min_branch_length=10
-# contour_spacing=2
-# min_contour_length=1000
-# equal_area=True
-# crop_pixels=20
-
-# # ds = opportunities(percent_tif, tmpdir, stub, tmpdir, cover_threshold, 
-# #                    contour_spacing=contour_spacing, min_contour_length=min_contour_length, equal_area=equal_area,
-# #                   ridges=False, plot=True) # less than 1 second yay
-
-# ds = opportunities(percent_tif, tmpdir, stub, tmpdir, ridges=False, cover_threshold=50, crop_pixels=20, plot=True) # less than 1 second yay

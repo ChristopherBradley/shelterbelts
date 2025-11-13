@@ -52,7 +52,9 @@ dev = [
     "jupytext",
     "pytest",
     "twine",
-    "build"
+    "build",
+    "jupyterlab-lsp",
+    "python-lsp-server[all]"
 ]
 
 [project.urls]
