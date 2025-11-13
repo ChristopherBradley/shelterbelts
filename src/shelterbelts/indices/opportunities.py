@@ -431,13 +431,14 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
                   width, ridges, num_catchments, min_branch_length, 
                   contour_spacing, min_contour_length, equal_area, 
                   savetif, plot, crop_pixels)
-
+        
+    # outdir = folder
     # Could just use the merge_lidar function instead of reimplementing like this each time.
     gdf = bounding_boxes(outdir, filetype='opportunities.tif', stub=stub)
     
     footprint_gpkg = f"{stub}_footprints.gpkg"
     bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename')  
+    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, "", outdir, footprint_gpkg, id_column='filename')  # The tilenames should already be unique so we don't need a stub
     ds = merged_ds(mosaic, out_meta, 'opportunities')
 
     basedir = os.path.dirname(outdir)

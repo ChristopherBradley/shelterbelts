@@ -1,6 +1,6 @@
 
 
-from shelterbelts.indices.opportunities import opportunities
+from shelterbelts.indices.opportunities import opportunities, opportunities_folder
 
 # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024_actnsw_4326/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
 percent_tif='/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_32_lon_148/32_01-148_02_y2018_predicted_expanded20.tif'
@@ -21,12 +21,19 @@ crop_pixels=20
 #                    contour_spacing=contour_spacing, min_contour_length=min_contour_length, equal_area=equal_area,
 #                   ridges=False, plot=True) # less than 1 second yay
 
-ds = opportunities(percent_tif, tmpdir, stub, tmpdir, ridges=False, cover_threshold=50, crop_pixels=20, plot=True) # less than 1 second yay
+# +
+# ds = opportunities(percent_tif, tmpdir, stub, tmpdir, ridges=False, cover_threshold=50, crop_pixels=20, plot=True) # less than 1 second yay
 
 # +
-ds = opportunities(percent_tif, tmpdir, stub, tmpdir, ridges=False, equal_area=True, contour_spacing=0, cover_threshold=50, crop_pixels=20, plot=True) # less than 1 second yay
+# ds = opportunities(percent_tif, tmpdir, stub, tmpdir, ridges=False, equal_area=True, contour_spacing=0, cover_threshold=50, crop_pixels=20, plot=True) # less than 1 second yay
 
 
 # -
+folder = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_32_lon_148/lat_32_lon_148_opportunities_w3_rFalse_nc10_bl10_cs10_cl100_eTrue'
+# folder = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_32_lon_148'
+stub = 'opportunities_w3_rFalse_nc10_bl10_cs10_cl100_eTrue'
+ds = opportunities_folder(folder, stub=stub)
+
+
 
 
