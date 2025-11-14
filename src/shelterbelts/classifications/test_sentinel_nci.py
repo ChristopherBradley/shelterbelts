@@ -1,3 +1,7 @@
+import datacube
+
+
+dc = datacube.Datacube(app='sentinel_download')
 
 
 from shelterbelts.indices.full_pipelines import run_pipeline_tif
@@ -50,6 +54,4 @@ run_pipeline_tif(tif)
 # crs=None
 # save_centroids=False
 # limit=None
-
-
 # --

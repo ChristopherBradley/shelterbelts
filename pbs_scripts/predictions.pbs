@@ -4,13 +4,13 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=30:00:00
+#PBS -l walltime=48:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
-year=2018
-gpkg=/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_1.gpkg
-OUTDIR=/scratch/xe2/cb8590
+# year=2018
+# GPKG=/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_1.gpkg
+# OUTDIR=/scratch/xe2/cb8590
 
 # Setup DEA environment modules for running the Python script
 module use /g/data/v10/public/modules/modulefiles

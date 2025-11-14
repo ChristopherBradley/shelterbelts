@@ -135,9 +135,8 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     if limit:
         percent_tifs = percent_tifs[:limit]
     for i, percent_tif in enumerate(percent_tifs):
-        print(f"Launching subprocess for tif {i}/{len(percent_tifs)}:", percent_tif)
+        print(f"Launching Popen subprocess for tif {i}/{len(percent_tifs)}:", percent_tif)
 
-        # Launching a subprocess to hopefully avoid memory accumulation issues
         cmd = [
             sys.executable,
             "full_pipelines.py",
@@ -159,8 +158,12 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         if strict_core_area:
             cmd += ["--strict_core_area"]
         
-        # Run the subprocess
-        subprocess.run(cmd, check=True)
+        # Popen a subprocess to hopefully avoid memory accumulation
+        p = subprocess.Popen(cmd)
+        p.wait()
+    
+        # Launching a subprocess to hopefully avoid memory accumulation issues
+        # subprocess.run(cmd, check=True)
 
         # run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
 
