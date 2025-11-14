@@ -1,6 +1,6 @@
 import os
 
-# +
+
 import numpy as np
 import pandas as pd
 import rioxarray as rxr
@@ -15,11 +15,12 @@ from skimage.graph import route_through_array
 from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
 from scipy.ndimage import binary_erosion, binary_dilation, distance_transform_edt
-# -
+
 
 from shelterbelts.indices.buffer_categories import buffer_categories_labels, buffer_categories_cmap
 from shelterbelts.indices.tree_categories import tree_clusters
 from shelterbelts.indices.opportunities import segmentation
+
 
 from shelterbelts.apis.worldcover import visualise_categories, tif_categorical
 
@@ -29,12 +30,14 @@ linear_cmap = {
     19:  [165, 195, 45] # // Bright olive green: Non-linear patches (91, 153, 75)  
 }
 
+
 linear_labels = {
     18: "Linear Patches",
     19: "Non-linear Patches"
 }
 linear_categories_cmap = buffer_categories_cmap | linear_cmap
 linear_categories_labels = buffer_categories_labels | linear_labels
+
 
 # Mapping for broader categories
 landcover_groups = {
@@ -550,6 +553,7 @@ def class_metrics(buffer_tif, outdir=".", stub="TEST", ds=None, save_excel=True)
 
     return dfs
 
+
 import argparse
 def parse_arguments():
     """Parse command line arguments with default values."""
@@ -574,7 +578,7 @@ if __name__ == '__main__':
     geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
     dfs = class_metrics(geotif, outdir, stub)
 
-# +
+
 # # Running locally
 # outdir = "../../../outdir/"
 # buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif"
@@ -589,11 +593,11 @@ if __name__ == '__main__':
 # # geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
 # # outdir="/scratch/xe2/cb8590"
 
-# +
-# # %%time
+
+# %%time
 # # patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
 # # patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
 # ds, df = patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
-# -
+
 
 

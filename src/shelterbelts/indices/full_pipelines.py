@@ -1,8 +1,9 @@
 import os
 import glob
 import argparse
+import math
 
-
+import pandas as pd
 import geopandas as gpd
 import rioxarray as rxr
 from shapely.geometry import box
@@ -102,12 +103,23 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     print("Number of open files:", len(psutil.Process(os.getpid()).open_files()))
     return None
 
+def run_pipeline_csv(csv, outdir='/scratch/xe2/cb8590/tmp',
+                     tmpdir='/scratch/xe2/cb8590/tmp', stub=None,
+                     wind_method=None, wind_threshold=15,
+                     cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
+                     distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True,
+                     crop_pixels=0):
+    """Run the pipeline for every tif in a csv"""
+    df = pd.read_csv(csv)
+    for percent_tif in df['filename']:
+        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
+
 
 def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', param_stub='', 
                       wind_method=None, wind_threshold=15,
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=False,
-                      crop_pixels=0, limit=None):
+                      crop_pixels=0, limit=None, tiles_per_csv=100):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 
@@ -134,13 +146,24 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
 
     if limit:
         percent_tifs = percent_tifs[:limit]
-    for i, percent_tif in enumerate(percent_tifs):
-        print(f"Launching Popen subprocess for tif {i}/{len(percent_tifs)}:", percent_tif)
+
+    df = pd.DataFrame(percent_tifs, columns=["filename"])
+    csv_filenames = []
+    chunk_size = tiles_per_csv
+    for i in range(math.ceil(len(df) / chunk_size)):
+        chunk = df[i*chunk_size : (i+1)*chunk_size]
+        filename = os.path.join(tmpdir, f"run_pipeline_tifs_{i}.csv")
+        chunk.to_csv(filename, index=False)
+        csv_filenames.append(filename)
+        print("Saved:", filename)
+
+    for i, filename in enumerate(csv_filenames):
+        print(f"Launching Popen subprocess for filename {i}/{len(csv_filenames)}:", filename)
 
         cmd = [
             sys.executable,
             "full_pipelines.py",
-            str(percent_tif),
+            str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),
             # "--param_stub", '',  # or args.param_stub if applicable
@@ -161,6 +184,34 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         # Popen a subprocess to hopefully avoid memory accumulation
         p = subprocess.Popen(cmd)
         p.wait()
+
+    # for i, percent_tif in enumerate(percent_tifs):
+    #     print(f"Launching Popen subprocess for tif {i}/{len(percent_tifs)}:", percent_tif)
+
+    #     cmd = [
+    #         sys.executable,
+    #         "full_pipelines.py",
+    #         str(percent_tif),
+    #         "--outdir", str(outdir),
+    #         "--tmpdir", str(tmpdir),
+    #         # "--param_stub", '',  # or args.param_stub if applicable
+    #         "--wind_method", str(wind_method),
+    #         "--wind_threshold", str(wind_threshold),
+    #         "--cover_threshold", str(cover_threshold),
+    #         "--min_patch_size", str(min_patch_size),
+    #         "--edge_size", str(edge_size),
+    #         "--max_gap_size", str(max_gap_size),
+    #         "--distance_threshold", str(distance_threshold),
+    #         "--density_threshold", str(density_threshold),
+    #         "--buffer_width", str(buffer_width),
+    #         "--crop_pixels", str(crop_pixels)
+    #     ]
+    #     if strict_core_area:
+    #         cmd += ["--strict_core_area"]
+        
+    #     # Popen a subprocess to hopefully avoid memory accumulation
+    #     p = subprocess.Popen(cmd)
+    #     p.wait()
     
         # Launching a subprocess to hopefully avoid memory accumulation issues
         # subprocess.run(cmd, check=True)
@@ -215,6 +266,24 @@ if __name__ == "__main__":
     args = parse_arguments()
     if args.folder.endswith('.tif'):
         run_pipeline_tif(
+            args.folder,
+            outdir=args.outdir,
+            tmpdir=args.tmpdir,
+            stub=args.param_stub,
+            wind_method=args.wind_method,
+            wind_threshold=args.wind_threshold,
+            cover_threshold=args.cover_threshold,
+            min_patch_size=args.min_patch_size,
+            edge_size=args.edge_size,
+            max_gap_size=args.max_gap_size,
+            distance_threshold=args.distance_threshold,
+            density_threshold=args.density_threshold,
+            buffer_width=args.buffer_width,
+            strict_core_area=args.strict_core_area,
+            crop_pixels=args.crop_pixels
+        )
+    elif args.folder.endswith('.csv'):
+            run_pipeline_csv(
             args.folder,
             outdir=args.outdir,
             tmpdir=args.tmpdir,
