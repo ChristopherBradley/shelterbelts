@@ -98,9 +98,9 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     gc.collect()
     # rasterio.shutil.delete_raster_cache()
     mem_info = process.memory_full_info()
-    print(f"RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
-    print("Memory usage:", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, "MB")
-    print("Number of open files:", len(psutil.Process(os.getpid()).open_files()))
+    # print(f"RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
+    # print("Memory usage:", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, "MB")
+    # print("Number of open files:", len(psutil.Process(os.getpid()).open_files()))
     return None
 
 def run_pipeline_csv(csv, outdir='/scratch/xe2/cb8590/tmp',
@@ -228,7 +228,9 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         suffix_stems = ['linear_categories', 'densities']
     for suffix_stem in suffix_stems:
         filetype=f'{suffix_stem}.tif'
-        stub = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
+        stub_original = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
+        
+        stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
         gdf = bounding_boxes(outdir, stub=stub, filetype=filetype)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
         
         footprint_gpkg = f"{stub}_footprints.gpkg"
