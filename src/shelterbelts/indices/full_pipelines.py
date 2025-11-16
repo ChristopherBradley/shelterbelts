@@ -48,7 +48,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
                      wind_method=None, wind_threshold=15,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0):
+                     crop_pixels=0, min_core_size=100, min_shelterbelt_length=20, max_shelterbelt_width=4):
     """Starting from a percent_cover tif, go through the whole pipeline"""
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
@@ -79,12 +79,12 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
         ds_wind = None
 
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
-    ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False, ds=ds_woody_veg)
+    ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False, ds=ds_woody_veg)
     ds_shelter = shelter_categories(None, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories, ds_wind=ds_wind, crop_pixels=crop_pixels)
     ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
 
     ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
-    ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, crop_pixels=crop_pixels) 
+    ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width) 
 
     # Trying to avoid memory accumulation
     for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_shelter, ds_cover, ds_buffer, ds_linear]:
@@ -108,18 +108,18 @@ def run_pipeline_csv(csv, outdir='/scratch/xe2/cb8590/tmp',
                      wind_method=None, wind_threshold=15,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0):
+                     crop_pixels=0, min_core_size=100, min_shelterbelt_length=20, max_shelterbelt_width=4):
     """Run the pipeline for every tif in a csv"""
     df = pd.read_csv(csv)
     for percent_tif in df['filename']:
-        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
+        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width)
 
 
 def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', param_stub='', 
                       wind_method=None, wind_threshold=15,
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=False,
-                      crop_pixels=0, limit=None, tiles_per_csv=100):
+                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=100, min_shelterbelt_length=20, max_shelterbelt_width=4):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 
@@ -176,7 +176,10 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
             "--distance_threshold", str(distance_threshold),
             "--density_threshold", str(density_threshold),
             "--buffer_width", str(buffer_width),
-            "--crop_pixels", str(crop_pixels)
+            "--crop_pixels", str(crop_pixels),
+            "--min_core_size", str(min_core_size),
+            "--min_shelterbelt_length", str(min_shelterbelt_length),
+            "--max_shelterbelt_width", str(max_shelterbelt_width)
         ]
         if strict_core_area:
             cmd += ["--strict_core_area"]
@@ -258,6 +261,9 @@ def parse_arguments():
     parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
     parser.add_argument("--strict_core_area", default=False, action="store_true", help="Boolean to determine whether to enforce core areas to be fully connected.")
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
+    parser.add_argument("--min_core_size", type=int, default=100, help="The minimum area to be classified as a core, rather than just a patch or corridor. (default: 100)")
+    parser.add_argument("--min_shelterbelt_length", type=int, default=20, help="The minimum length to be classified as a shelterbelt. (default: 20)")
+    parser.add_argument("--max_shelterbelt_width", type=int, default=4, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
 
     return parser.parse_args()
 
@@ -280,7 +286,10 @@ if __name__ == "__main__":
             density_threshold=args.density_threshold,
             buffer_width=args.buffer_width,
             strict_core_area=args.strict_core_area,
-            crop_pixels=args.crop_pixels
+            crop_pixels=args.crop_pixels,
+            min_core_size=args.min_core_size,
+            min_shelterbelt_length=args.min_shelterbelt_length,
+            max_shelterbelt_width=args.max_shelterbelt_width
         )
     elif args.folder.endswith('.csv'):
             run_pipeline_csv(
@@ -298,7 +307,10 @@ if __name__ == "__main__":
             density_threshold=args.density_threshold,
             buffer_width=args.buffer_width,
             strict_core_area=args.strict_core_area,
-            crop_pixels=args.crop_pixels
+            crop_pixels=args.crop_pixels,
+            min_core_size=args.min_core_size,
+            min_shelterbelt_length=args.min_shelterbelt_length,
+            max_shelterbelt_width=args.max_shelterbelt_width
         )
     else:
         run_pipeline_tifs(
@@ -317,6 +329,8 @@ if __name__ == "__main__":
             buffer_width=args.buffer_width,
             strict_core_area=args.strict_core_area,
             crop_pixels=args.crop_pixels,
-            limit=args.limit
+            limit=args.limit,
+            min_core_size=args.min_core_size,
+            min_shelterbelt_length=args.min_shelterbelt_length,
+            max_shelterbelt_width=args.max_shelterbelt_width
         )
-
