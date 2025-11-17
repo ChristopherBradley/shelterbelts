@@ -25,4 +25,4 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python expand_tifs.py --folder_to_expand $folder_to_expand --folder_merged $folder_merged --outdir $outdir
+python expand_tifs.py --folder_to_expand $folder_to_expand --folder_merged $folder_merged --outdir $outdir --gpkg $gpkg

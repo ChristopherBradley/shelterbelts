@@ -4,11 +4,9 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=02:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
-#PBS -j oe
-
 
 
 # Change working directory
@@ -22,7 +20,8 @@ module load dea/20231204
 # folder='/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
 year=2020
 # folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/subfolders"
-folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/subfolders"
+# folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/subfolders"
+folder="/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/subfolders"
 
 # Print out input variables to the error log
 echo "Starting bounding_boxes.pbs"
