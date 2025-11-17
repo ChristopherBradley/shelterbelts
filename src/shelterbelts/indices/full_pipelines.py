@@ -252,7 +252,7 @@ def parse_arguments():
     parser.add_argument("--tmpdir", default="/scratch/xe2/cb8590/tmp", help="Temporary working folder (default: /scratch/xe2/cb8590/tmp)")
     parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")  # Don't need this argument anymore, better to just incorporate these parameter names in the outdir
     parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
-    parser.add_argument("--wind_threshold", default=15, help="Windspeed that causes damage to crops/pasture in km/hr (default: 15)")
+    parser.add_argument("--wind_threshold", type=int, default=15, help="Windspeed that causes damage to crops/pasture in km/hr (default: 15)")
     parser.add_argument("--cover_threshold", type=int, default=10, help="Percentage tree cover within a pixel to classify as tree (default: 10)")
     parser.add_argument("--min_patch_size", type=int, default=20, help="Minimum patch size in pixels (default: 20)")
     parser.add_argument("--edge_size", type=int, default=3, help="Buffer distance at patch edges for core area (default: 3)")
