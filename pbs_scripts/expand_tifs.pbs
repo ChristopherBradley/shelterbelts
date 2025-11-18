@@ -11,6 +11,10 @@
 # stub=lat_34_lon_144
 # folder_year=barra_trees_s4_2024
 
+folder_year=barra_trees_s4_aus_4326_weightings_median_2020
+stub=lat_32_lon_148
+gpkg=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders/barra_trees_s4_aus_4326_weightings_median_2020_subfolders__footprints.gpkg
+
 folder_to_expand=/scratch/xe2/cb8590/$folder_year/subfolders/$stub
 folder_merged=/scratch/xe2/cb8590/$folder_year/subfolders 
 outdir=/scratch/xe2/cb8590/$folder_year/expanded

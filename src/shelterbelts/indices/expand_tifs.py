@@ -56,9 +56,9 @@ def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir='/scratch/xe2/
 
 
 # +
-def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None):
+def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None, gpkg=None):
     """Run expand_tif on all subfolders in folder_to_expand, preserving the folder structure when writing to outdir"""
-    filenames = glob.glob(f'{folder_to_expand}/*')
+    filenames = glob.glob(f'{folder_to_expand}/*.tif')
     filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
     filenames = [f for f in filenames if not 'merged' in f]
     sub_outdir = os.path.join(outdir, Path(folder_to_expand).stem)
@@ -67,7 +67,7 @@ def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None):
     if limit:
         filenames = filenames[:limit]
     for filename in filenames:
-        expand_tif(filename, folder_merged, sub_outdir)
+        expand_tif(filename, folder_merged, sub_outdir, gpkg)
 
 # Takes ~15 mins per folder
 

@@ -1,4 +1,5 @@
-
+import glob
+import os
 
 from shelterbelts.indices.expand_tifs import expand_tifs, expand_tif
 
@@ -19,15 +20,23 @@ gpkg = '/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfo
 ds = expand_tif(filename, folder_merged, outdir, gpkg)
 
 
-# +
-
 # # %%time
-folder_to_expand = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_144'
-folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted'
-outdir = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded'
-
-
-# # %%time
+folder_to_expand = '/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/subfolders/lat_34_lon_144'
+folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/subfolders'
+outdir = '/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded'
 expand_tifs(folder_to_expand, folder_merged, outdir, limit=10)
 # 7 secs for 10, means about 30 mins per folder
 
+
+folder_to_expand = '/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders/lat_32_lon_148'
+folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders'
+outdir = '/scratch/xe2/cb8590/tmp'
+expand_tifs(folder_to_expand, folder_merged, outdir, limit=10, gpkg=gpkg)
+# 7 secs for 10, means about 30 mins per folder
+
+
+filenames = glob.glob(f'{folder_to_expand}/*')
+filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
+filenames = [f for f in filenames if not 'merged' in f]
+
+[(i,f) for i, f in enumerate(filenames) if ]
