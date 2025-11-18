@@ -1,0 +1,30 @@
+#!/bin/bash
+#PBS -N canopy_height_nick
+#PBS -q copyq
+#PBS -l mem=32GB
+#PBS -l jobfs=1GB
+#PBS -l ncpus=1
+#PBS -P xe2
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/xe2
+
+
+# Notes:
+# 'copyq' queue required for internet access
+
+# Print out input variables to the error log
+echo "Starting"
+###
+
+
+# activate virtual environment:
+source /g/data/xe2/John/geospatenv/bin/activate
+# module load gdal/3.6.4
+# module load netcdf/4.7.3
+
+# Change working directory
+wd=/home/147/cb8590/Projects/shelterbelts/src
+cd $wd
+
+# Run script:
+python shelterbelts/classifications/canopy_height_download.py

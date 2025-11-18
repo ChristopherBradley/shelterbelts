@@ -35,8 +35,12 @@ expand_tifs(folder_to_expand, folder_merged, outdir, limit=10, gpkg=gpkg)
 # 7 secs for 10, means about 30 mins per folder
 
 
-filenames = glob.glob(f'{folder_to_expand}/*')
-filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
-filenames = [f for f in filenames if not 'merged' in f]
+    filenames = glob.glob(f'{folder_to_expand}/*.tif')
+    filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
+    filenames = [f for f in filenames if not 'merged' in f]
 
-[(i,f) for i, f in enumerate(filenames) if ]
+[(i,f) for i, f in enumerate(filenames) if '32_37-149_66_y2020' in f]
+
+filenames[1125:1130]
+
+
