@@ -3,16 +3,13 @@
 # -
 
 import os
-import glob
-import pickle
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 import random
 import rioxarray as rxr
 import xarray as xr
-import scipy.ndimage as ndimage
-from sklearn.metrics import accuracy_score, precision_score, recall_score, classification_report
+from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
@@ -139,7 +136,9 @@ def save_nick_canopyheight():
         tif_categorical(da, out_filename, worldcover_cmap)  # Should be using a different cmap
 
 
+# +
 # %%time
+from rasterio.enums import Resampling
 def create_df_evaluation():
     limit = 5000
     gdf_subset = gdf_joined[:limit]
@@ -165,8 +164,8 @@ def create_df_evaluation():
         ds_pred_trees = (ds_pred >= 50).astype(int)
         
         ds_nick_reprojected = ds_nick_trees.rio.reproject_match(ds_pred_trees)
-        ds_worldcover_reprojected = ds_worldcover_trees.rio.reproject_match(ds_pred_trees)
-        ds_gch_reprojected = ds_gch_trees.rio.reproject_match(ds_pred_trees)
+        ds_worldcover_reprojected = ds_worldcover_trees.rio.reproject_match(ds_pred_trees, resampling=Resampling.max)
+        ds_gch_reprojected = ds_gch_trees.rio.reproject_match(ds_pred_trees, resampling=Resampling.max)
         
         ds = xr.Dataset({
             "nick_trees": ds_nick_reprojected,
@@ -181,12 +180,15 @@ def create_df_evaluation():
         dfs.append(df)
     
     df_all = pd.concat(dfs)
-    filename = f'/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_limit{limit}.csv'
+    filename = f'/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_resamplingmax.csv'
     df_all.to_csv(filename)
     # Took 15 mins
+    
+create_df_evaluation()
+# -
 
-
-df_all = pd.read_csv('/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_limit5000.csv')
+# df_all = pd.read_csv('/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_limit5000.csv')
+df_all = pd.read_csv('/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_resamplingmax.csv')
 
 len(df_all)
 
