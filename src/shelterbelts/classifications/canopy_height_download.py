@@ -57,7 +57,7 @@ canopy_baseurl = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsged
 
 # -
 
-to_download = to_download[:2]
+# to_download = to_download[:2]
 
 # +
 # tile = to_download[0]
