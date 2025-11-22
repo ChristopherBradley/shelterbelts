@@ -25,6 +25,7 @@ snowflake/cache
 *.txt
 *cache*
 *.laz
+*.virtual_documents*
 
 # qsub logging files
 *.o*
