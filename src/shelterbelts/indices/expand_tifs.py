@@ -11,7 +11,7 @@ from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 
 
-def expand_tif(filename, folder_merged, outdir, tmpdir='/scratch/xe2/cb8590/tmp', num_pixels=20, pixel_size=10):
+def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir='/scratch/xe2/cb8590/tmp', num_pixels=20, pixel_size=10):
     """Expand the tif by a certain number of pixels, to avoid edge effects when running indices at scale
     
     Parameters
@@ -36,8 +36,8 @@ def expand_tif(filename, folder_merged, outdir, tmpdir='/scratch/xe2/cb8590/tmp'
     buffer = num_pixels * pixel_size
     expanded_bounds = (minx - buffer, miny - buffer, maxx + buffer, maxy + buffer)
     # gpd.GeoDataFrame({'geometry': [box(*expanded_bounds)]}, crs='EPSG:3857').to_file('/scratch/xe2/cb8590/tmp/expanded_bounds.gpkg')  # For visualising the expanded bounds in QGIS
-
-    gpkg = os.path.join(folder_merged, f'{Path(folder_merged).parent.stem}_{Path(folder_merged).stem}_footprints.gpkg') # I think this is cleaner than the way I wrote it in bounding_boxes.py, but should give the same result
+    if not gpkg:
+        gpkg = os.path.join(folder_merged, f'{Path(folder_merged).parent.stem}_{Path(folder_merged).stem}_footprints.gpkg') # I think this is cleaner than the way I wrote it in bounding_boxes.py, but should give the same result
     stub = f'{Path(filename).stem}_expanded'
     if not os.path.exists(gpkg):
         # Just do this once before running these in parallel, that way you don't run into parallel issues of multiple jobs trying to create the gpkg at the same time.
@@ -56,9 +56,9 @@ def expand_tif(filename, folder_merged, outdir, tmpdir='/scratch/xe2/cb8590/tmp'
 
 
 # +
-def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None):
+def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None, gpkg=None):
     """Run expand_tif on all subfolders in folder_to_expand, preserving the folder structure when writing to outdir"""
-    filenames = glob.glob(f'{folder_to_expand}/*')
+    filenames = glob.glob(f'{folder_to_expand}/*.tif')
     filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
     filenames = [f for f in filenames if not 'merged' in f]
     sub_outdir = os.path.join(outdir, Path(folder_to_expand).stem)
@@ -67,7 +67,7 @@ def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None):
     if limit:
         filenames = filenames[:limit]
     for filename in filenames:
-        expand_tif(filename, folder_merged, sub_outdir)
+        expand_tif(filename, folder_merged, sub_outdir, gpkg)
 
 # Takes ~15 mins per folder
 
@@ -81,6 +81,7 @@ def parse_arguments():
     parser.add_argument("--folder_merged", required=True, help="Folder containing wall-to-wall merged TIFs for context.")
     parser.add_argument("--outdir", required=True, help="Output directory to save expanded TIFs (folder structure will be preserved).")
     parser.add_argument("--limit", type=int, default=None, help="Optional limit on the number of subfolders to process.")
+    parser.add_argument("--gpkg", type=str, default=None, help="Provide your own gpkg instead of assuming it from the folder structure.")
     return parser.parse_args()
 
 
@@ -90,7 +91,8 @@ if __name__ == "__main__":
     expand_tifs(folder_to_expand=args.folder_to_expand, 
                 folder_merged=args.folder_merged, 
                 outdir=args.outdir,
-                limit=args.limit
+                limit=args.limit,
+                gpkg=args.gpkg
                )
 
 # +

@@ -224,8 +224,8 @@ def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85
 
     # Loading this once per worker, so they aren't sharing the same model
     if not multi_model:
-        filename_model = os.path.join(nn_dir, f'nn_{nn_stub}.keras')
-        filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}.pkl')
+        filename_model = os.path.join(nn_dir, f'nn_{nn_stub}_all.keras')
+        filename_scaler = os.path.join(nn_dir, f'scaler_{nn_stub}_all.pkl')
         model = keras.models.load_model(filename_model)
         scaler = joblib.load(filename_scaler)
     else:

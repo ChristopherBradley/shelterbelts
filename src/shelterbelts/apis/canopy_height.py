@@ -38,7 +38,7 @@ def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.8
     # Download the 'tiles_global.geojson' to this folder if we haven't already
     filename = os.path.join(canopy_height_dir, footprints_geojson)
     # filename = os.path.join(footprints_geojson)  # Now expecting the full filepath to this geojson.
-    
+        
     if not os.path.exists(filename):
         assert footprints_geojson == 'tiles_global.geojson', 'Please provide footprints for the tifs in this directory'
         url = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson"

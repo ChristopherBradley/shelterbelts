@@ -4,13 +4,14 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=48:00:00
+#PBS -l walltime=00:30:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
-# year=2018
+year=2020
 # GPKG=/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_1.gpkg
-# OUTDIR=/scratch/xe2/cb8590
+GPKG=/scratch/xe2/cb8590/tmp/WA_sample.gpkg
+OUTDIR=/scratch/xe2/cb8590
 
 # Setup DEA environment modules for running the Python script
 module use /g/data/v10/public/modules/modulefiles
@@ -25,7 +26,8 @@ echo "Running predictions.pbs for gpkg: $GPKG, year $year, with module dea/20231
 
 # Run the script
 # python3 predictions_batch.py --gpkg "$GPKG" --outdir "$OUTDIR" --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p
-python3 predictions_batch.py --gpkg "$GPKG" --outdir "$OUTDIR" --year $year --nn_dir /g/data/xe2/cb8590/models --nn_stub 4326_float32_s4 --multi_model --confidence
+# python3 predictions_batch.py --gpkg "$GPKG" --outdir "$OUTDIR" --year $year --nn_dir /g/data/xe2/cb8590/models --nn_stub 4326_float32_s4 --multi_model --confidence
+python3 predictions_batch.py --gpkg "$GPKG" --outdir "$OUTDIR" --year $year --nn_dir /g/data/xe2/cb8590/models --nn_stub 4326_float32_s4 --confidence
 
 # python3 predictions_batch.py --gpkg /g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_nsw.gpkg --outdir /scratch/xe2/cb8590/barra_trees_2020 --year 2020 --nn_dir /g/data/xe2/cb8590/models --nn_stub fft_89a_92s_85r_86p --limit 500
 # python3 predictions_batch.py --gpkg /scratch/xe2/cb8590/esdale/Esdale_bbox.gpkg  --outdir /scratch/xe2/cb8590/esdale --year $year --nn_dir /g/data/xe2/cb8590/models --nn_stub 4326_float32_s4 --multi_model --confidence
