@@ -3,8 +3,33 @@ Using satellite imagery for mapping and categorising shelterbelts across Austral
 
 # Google Earth Engine App
 You can visualise some results from the repo in this Earth Engine App:
-https://christopher-bradley-phd.projects.earthengine.app/view/testingexampleshelterbelts
-(will update to this link soon: https://christopher-bradley-phd.projects.earthengine.app/view/shelterbelts)
+https://christopher-bradley-phd.projects.earthengine.app/view/shelterbelts
+
+My slides from the latest Australian National University Research School of Biology (ANU RSB) conference are here:
+https://docs.google.com/presentation/d/1_ItZhrtzTDuZXp-qzwP6mT8-nzrLUdA0sI959rIH5zs/edit?usp=sharing
+
+### Current Methods & Upcoming Plans
+The tree predictions come from annual Sentinel-2 imagery largely following a method by Stewart et al. (2025), using a tree/no-tree training dataset provided by Nicolas Pucino.
+
+After the predictions, pixels were categorised using the following method:
+- Assign trees from model confidence (50% threshold)
+- Assign scattered trees to small groups (< 20 pixels)
+- Assign core & buffers to big groups (> 3 pixels thick)
+- Assign sheltered vs unsheltered pixels based on percent cover within 100m (10% threshold)
+, or wind direction (10 pixels leeward, 5 pixels upwind)
+- Assign grassland, cropland, urban and water categories from WorldCover 2021
+- Assign riparian and roads trees (3 pixel buffer)
+- Assign linear vs non-linear patches by fitting an ellipse and skeleton to each group and applying length and width thresholds (the EE App currently has an outdated version of this)
+
+### Upcoming Plans
+- Resolve issue with tree predictions in Western Australia
+- Tune thresholds for choosing linear/non-linear/core areas
+- Expand shelter categories to the rest of Australia, for each year 2017-2025
+- Calculate summary statistics for different regions (states, local govdernment areas, IBRA regions)
+- Cleanup demoes and tests and publish in the Journal of Open Source Software
+- Include 1m canopy height for all of ACT & NSW
+- Analyse effects on productivity & potential future benefits
+- Add layers with opportunities for more trees
 
 # Local Setup
 1. Download and install Miniconda from https://www.anaconda.com/download/success
@@ -26,24 +51,4 @@ https://christopher-bradley-phd.projects.earthengine.app/view/testingexampleshel
 3. Right click any .py file and open as a jupyter notebook. Currently some debugging arguments are usually commented out at the bottom of each file. I'm planning to move these to tests/demos.
 
 # Methods and Parameters
-There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting synchronous jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).
-
-
-# Running at scale
-
-Using Elvis
-- elvis_geojson.py
-- 
-
-Starting from a .laz file (1m CHM)
-- 
-
-Starting from a folder of binary tif files (classifications)
-- 
-
-Starting from a folder of percent cover files (indices)
-- predictions
-- prep_exanding
-- merging
-- expansion
-- indices
+There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting synchronous jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality). I was in a bit of a rush before ESA, but I'm planning to clean these up and prepare a paper for the Journal of Open Source Software (JOSS) before the end of 2025...
