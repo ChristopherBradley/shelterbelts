@@ -92,7 +92,7 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, o
     X_test = scaler.transform(df_test.drop(columns=non_input_variables, errors='ignore'))
 
     # Save the StandardScaler
-    filename_scaler = os.path.join(outdir, f'{stub}_scaler.pkl')
+    filename_scaler = os.path.join(outdir, f'scaler_{stub}.pkl')
     joblib.dump(scaler, filename_scaler)  
     print("Saved", filename_scaler)
 
@@ -133,7 +133,8 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
                         callbacks=[early_stopping], validation_data=(X_test, y_test), verbose=2)
 
     # Save the model
-    filename = os.path.join(outdir, f'{stub}_nn.keras')
+    # filename = os.path.join(outdir, f'{stub}_nn.keras')
+    filename = os.path.join(outdir, f'{stub}.keras')
     model.save(filename)
     print("Saved", filename)
     

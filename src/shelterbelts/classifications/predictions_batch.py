@@ -64,7 +64,7 @@ gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned
 
 
 # +
-def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, confidence=False, model_weightings=None):
+def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=False, confidence=False, model_weightings=None):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']

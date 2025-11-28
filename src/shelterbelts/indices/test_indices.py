@@ -30,16 +30,13 @@ folder = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/subfolders/lat_34_
 tmpdir = '/scratch/xe2/cb8590/tmp'
 outdir=tmpdir
 
-csv = '/scratch/xe2/cb8590/tmp/run_pipeline_tifs_24.csv'
+# +
+# # %%time
+# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/34_09-149_14_y2018_predicted_expanded20.tif'  # Exceeding memory
+# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/34_89-148_94_y2018_predicted_expanded20.tif' # Failing in pbs
+# run_pipeline_tif(percent_tif, outdir=tmpdir, tmpdir=tmpdir, cover_threshold=50, crop_pixels=20, distance_threshold=40, buffer_width=10)
 
-df = pd.read_csv(csv)
 
-df
-
-# %%time
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/34_09-149_14_y2018_predicted_expanded20.tif'  # Exceeding memory
-percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/35_33-149_46_y2018_predicted_expanded20.tif' # keyboard interrupt
-run_pipeline_tif(percent_tif, outdir=tmpdir, tmpdir=tmpdir, cover_threshold=50, crop_pixels=20)
 
 # +
 # run_pipeline_tif(percent_tif, outdir=tmpdir, tmpdir=tmpdir, stub=None, 
@@ -47,7 +44,7 @@ run_pipeline_tif(percent_tif, outdir=tmpdir, tmpdir=tmpdir, cover_threshold=50, 
 #                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
 #                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True,
 #                      crop_pixels=0)
+# -
 
-# +
-# folder = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148'
-# run_pipeline_tifs(folder, outdir=tmpdir, tmpdir=tmpdir, cover_threshold=50, crop_pixels=20)
+folder = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148'
+run_pipeline_tifs(folder, outdir=tmpdir, tmpdir=tmpdir, cover_threshold=50, crop_pixels=20, limit=10)

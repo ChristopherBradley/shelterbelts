@@ -2,6 +2,7 @@ import os
 import glob
 import argparse
 import math
+import pathlib
 
 import pandas as pd
 import geopandas as gpd
@@ -14,14 +15,14 @@ import psutil
 import resource
 import subprocess, sys
 
-# repo_name = "shelterbelts"
-# import sys, os
-# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-#     src_dir = os.path.join(repo_dir, 'src')
-#     os.chdir(src_dir)
-#     sys.path.append(src_dir)
-#     # print(src_dir)
+repo_name = "shelterbelts"
+import sys, os
+if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+    src_dir = os.path.join(repo_dir, 'src')
+    os.chdir(src_dir)
+    sys.path.append(src_dir)
+    # print(src_dir)
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.apis.worldcover import tif_categorical
@@ -143,9 +144,17 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
+    print(f"Starting with {len(percent_tifs)} percent_tifs")
 
     if limit:
         percent_tifs = percent_tifs[:limit]
+
+    # Remove tifs that have already been processed (sometimes I have to run this multiple times if a process runs out of memory or rasterio gives a parallelisation conflict)
+    percent_stubs = [pathlib.Path(tif).stem[:12] for tif in percent_tifs]
+    processed = glob.glob(f'{outdir}/*.tif')
+    processed_stubs = set(pathlib.Path(tif).stem[:12] for tif in processed)
+    percent_tifs = [tif for tif, stub in zip(percent_tifs, percent_stubs) if stub not in processed_stubs]
+    print(f"Reduced to {len(percent_tifs)} percent_tifs")
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])
     csv_filenames = []

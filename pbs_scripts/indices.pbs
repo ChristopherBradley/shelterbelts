@@ -15,13 +15,13 @@ export GDAL_NUM_THREADS=1
 # param_stub=lat_36_lon_144
 # param_stub=lat_34_lon_148
 
-year=2020
+year=2018
 tmpdir='/scratch/xe2/cb8590/tmp'
 
-# folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/$param_stub
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}distancethreshold20_HAPPENED_windint
-folder=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/expanded/$param_stub
-outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/expanded/linear_tifs_${param_stub}
+folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/$param_stub
+outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_default
+# folder=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/expanded/$param_stub
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/expanded/linear_tifs_${param_stub}
 
 # Load the conda environment
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/indices
