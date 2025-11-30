@@ -171,7 +171,8 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
 
         cmd = [
             sys.executable,
-            "full_pipelines.py",
+            # "full_pipelines.py", 
+            "shelterbelts/indices/full_pipelines.py",  
             str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),
@@ -240,11 +241,11 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         stub_original = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
         
         stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
-        gdf = bounding_boxes(outdir, stub=stub, filetype=filetype)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
+        gdf = bounding_boxes(outdir, stub=stub, filetype=filetype, verbose=False)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
         
         footprint_gpkg = f"{stub}_footprints.gpkg"
         bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-        mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename')  
+        mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename', verbose=False)  
         ds = merged_ds(mosaic, out_meta, suffix_stem)
         basedir = os.path.dirname(outdir)
         

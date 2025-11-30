@@ -21,6 +21,13 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Remove tensorflow logging info
 
+# Removing this warning. Maybe I should set the NUMEXPR_MAX_THREADS to just 1?
+# INFO:numexpr.utils:Note: detected 96 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+# INFO:numexpr.utils:Note: NumExpr detected 96 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+import logging
+logging.getLogger("numexpr.utils").setLevel(logging.ERROR)
+
+
 # Takes 1 min to load all the libraries on my mac
 
 # # Change directory to this repo - this should work on gadi or locally via python or jupyter. Need this when using the DEA environment.
@@ -134,7 +141,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
 
     # Save the model
     # filename = os.path.join(outdir, f'{stub}_nn.keras')
-    filename = os.path.join(outdir, f'{stub}.keras')
+    filename = os.path.join(outdir, f'nn_{stub}.keras')
     model.save(filename)
     print("Saved", filename)
     

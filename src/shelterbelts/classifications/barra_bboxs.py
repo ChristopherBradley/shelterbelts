@@ -215,9 +215,9 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
 # %%time
 year = 2020
 state = 'aus'
-stub = f'{state}_4326_weightings_median_{year}'
+stub = f'{state}_noxy_df_4326_{year}'
 # sub_gpkgs(save_gpkg=False, state='actnsw', stub=f'actnsw_4326_weightings_median_{year}_attempt2', chunk_size=20, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{year}_actnsw_4326_weightings_median")
-sub_gpkgs(save_gpkg=False, state=state, stub=f"{stub}_attempt4", chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{stub}")  
+sub_gpkgs(save_gpkg=True, state=state, stub=f"{stub}", chunk_size=1000, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{stub}")  
 
 # Took 1.5 mins to save 883 files for all of aus.
 

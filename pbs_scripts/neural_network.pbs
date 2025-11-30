@@ -32,13 +32,13 @@ module load dea/20231204  # using this version to match my predictions.pbs (need
 # training_stub=df_matching_4326
 # training_stub=df_matching_koppen
 
-training_stub=df_4326_Cfb
+# training_stub=df_4326_Cfb
 # training_stub=df_4326_BSh
 # training_stub=df_4326_BSk
 # training_stub=df_4326_BWh
 # training_stub=df_4326_Aw
 # training_stub=df_4326_CFa
-# training_stub=df_all_koppen
+training_stub=df_all_koppen
 
 training_folder=Nick_training_allyears_float32_s4
 
@@ -57,4 +57,4 @@ echo "NN Training stub: $training_stub from folder: $training_folder"
 # python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub NN_${training_stub}_256_128_64_seed0 --random_state 0 --drop_columns spatial_ref tile_id year start_date end_date crs Koppen
 # python3 neural_network.py /scratch/xe2/cb8590/$training_folder/$training_stub.feather --outdir /scratch/xe2/cb8590/$training_folder --stub NN_${training_stub}_noxy --drop_columns spatial_ref tile_id year start_date end_date crs Koppen --epochs 200
 
-python3 neural_network.py /scratch/xe2/cb8590/$training_folder/$training_stub.feather --outdir /scratch/xe2/cb8590/$training_folder --stub NN_noxy_${training_stub} --drop_columns spatial_ref tile_id year start_date end_date crs Koppen x y --epochs 200
+python3 neural_network.py /scratch/xe2/cb8590/$training_folder/$training_stub.feather --outdir /scratch/xe2/cb8590/$training_folder --stub noxy_${training_stub} --drop_columns spatial_ref tile_id year start_date end_date crs Koppen x y --epochs 200 --limit 10000000
