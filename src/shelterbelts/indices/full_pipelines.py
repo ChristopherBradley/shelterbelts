@@ -144,7 +144,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
-    print(f"Starting with {len(percent_tifs)} percent_tifs")
+    print(f"Starting with {len(percent_tifs)} percent_tifs", flush=True)
 
     if limit:
         percent_tifs = percent_tifs[:limit]
@@ -154,7 +154,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     processed = glob.glob(f'{outdir}/*.tif')
     processed_stubs = set(pathlib.Path(tif).stem[:12] for tif in processed)
     percent_tifs = [tif for tif, stub in zip(percent_tifs, percent_stubs) if stub not in processed_stubs]
-    print(f"Reduced to {len(percent_tifs)} percent_tifs")
+    print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])
     csv_filenames = []

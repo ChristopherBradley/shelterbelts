@@ -19,7 +19,7 @@ year=2018
 tmpdir='/scratch/xe2/cb8590/tmp'
 
 folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/$param_stub
-outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_default
+outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/expanded/linear_tifs_${param_stub}_ellipsefix
 # folder=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/expanded/$param_stub
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/expanded/linear_tifs_${param_stub}
 
