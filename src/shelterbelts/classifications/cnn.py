@@ -320,44 +320,55 @@ def make_weight_mask(patch_size, min_value=0.1):
 
 def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
     """
-    Reconstruct full-size image from patches.
-
-    Parameters
-    ----------
-    patches_y : np.ndarray
-        Shape (N, patch_size, patch_size, 1)
-    image_shape : tuple
-        (H, W) of original image
-    patch_size : int
-    stride : int
-
-    Returns
-    -------
-    y_full : np.ndarray
-        Shape (H, W)
+        Reconstruct full-size image from patches. 
+        When patches overlap, use the patch where the pixel is closest to the center. 
+    
+        Parameters
+        ----------
+        patches_y : np.ndarray
+            Shape (N, patch_size, patch_size, 1)
+        image_shape : tuple
+            (H, W) of original image
+        patch_size : int
+        stride : int
+    
+        Returns
+        -------
+        y_full : np.ndarray
+            Shape (H, W)
     """
     H, W = image_shape
     y_full = np.zeros((H, W), dtype=np.float32)
-    weight_sum = np.zeros((H, W), dtype=np.float32)
+    best_weight = np.zeros((H, W), dtype=np.float32)
 
     starts_i = compute_starts(H, patch_size, stride)
     starts_j = compute_starts(W, patch_size, stride)
 
-    # precompute weight mask
+    # weight mask with values in [0.1, 1]
     mask = make_weight_mask(patch_size)
 
     idx = 0
     for i in starts_i:
         for j in starts_j:
-            patch = patches_y[idx, ..., 0]  
-            
-            y_full[i:i+patch_size, j:j+patch_size] += patch * mask
-            weight_sum[i:i+patch_size, j:j+patch_size] += mask
+            patch = patches_y[idx, ..., 0]
+
+            # extract the region in the output where this patch lands
+            region = best_weight[i:i+patch_size, j:j+patch_size]
+            update_mask = mask > region    # TRUE where this patch has higher weight
+
+            # update y_full where mask is better
+            y_full[i:i+patch_size, j:j+patch_size][update_mask] = (
+                patch[update_mask]
+            )
+
+            # update the best weights
+            best_weight[i:i+patch_size, j:j+patch_size][update_mask] = (
+                mask[update_mask]
+            )
 
             idx += 1
 
-    return y_full / weight_sum
-
+    return y_full
 
 
 # -
