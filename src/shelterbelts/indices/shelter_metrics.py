@@ -568,38 +568,39 @@ def parse_arguments():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
-
-    args = parse_arguments()
-
-    geotif = args.buffer_tif
-    outdir = args.outdir
-    stub = args.stub
-    ds, df = patch_metrics(geotif, outdir, stub)
-
-    geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
-    dfs = class_metrics(geotif, outdir, stub)
-
 # +
-# # Running locally
-# outdir = "../../../outdir/"
-# buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif"
-# min_patch_size = 20
-# min_branch_length = min_patch_size
-# stub="TEST2"
-# save_csv=True
-# plot = False
-# save_tif=True
-# save_labels=True
-# # stub = "shelter_indices"
-# # geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
-# # outdir="/scratch/xe2/cb8590"
+# if __name__ == '__main__':
 
-# +
-# # %%time
-# # patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
-# # patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
-# ds, df = patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
+#     args = parse_arguments()
+
+#     geotif = args.buffer_tif
+#     outdir = args.outdir
+#     stub = args.stub
+#     ds, df = patch_metrics(geotif, outdir, stub)
+
+#     geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
+#     dfs = class_metrics(geotif, outdir, stub)
 # -
+
+# Running locally
+outdir = "../../../outdir/"
+buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif"
+min_patch_size = 20
+min_branch_length = min_patch_size
+stub="TEST2"
+save_csv=True
+plot = False
+save_tif=True
+save_labels=True
+# stub = "shelter_indices"
+# geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
+# outdir="/scratch/xe2/cb8590"
+
+# %%time
+# patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
+# patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
+ds, df = patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
+
+
 
 
