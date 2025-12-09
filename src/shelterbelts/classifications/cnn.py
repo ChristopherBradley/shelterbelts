@@ -1,4 +1,4 @@
-# + endofcell="--"
+# +
 # # +
 # # %%time
 import os
@@ -10,7 +10,6 @@ import pandas as pd
 import rioxarray as rxr
 
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import layers, Model
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
@@ -30,7 +29,8 @@ def monthly_mosaic(sentinel_file, tree_file=None, clip_percentile=(2, 98)):
     # Reproject to match tree mask exactly (should already have roughly the same dimensions)
     if tree_file:
         da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
-        ds_sentinel = ds_sentinel.rio.reproject_match(da_tree)
+        # ds_sentinel = ds_sentinel.rio.reproject_match(da_tree)
+        da_tree = da_tree.rio.reproject_match(ds_sentinel)  # Trying out reprojecting the other way around, to be consistent with when we predict unseen data
     else:
         da_tree = None  # Would use this option when applying the model to unseen data
     
@@ -94,10 +94,18 @@ def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
     monthly_values = np.nan_to_num(monthly, nan=0.0, posinf=1.0, neginf=0.0)
     return monthly_values
 
+def compute_starts(size, patch_size, stride):
+    # Helper function for predicting patches on the right and bottom of the tiles (that don't line up exactly)
+    starts = list(range(0, size - patch_size + 1, stride))
+    last_start = size - patch_size
+    if starts[-1] != last_start:
+        starts.append(last_start)
+    return starts
 
 def extract_patches(X, y=None, patch_size=64, stride=32):
     """
-    Create smaller patches for the convolutional network.
+    Create smaller patches for the convolutional network. Assumes that X and y have the same (H, W).
+    H = Height, W = Width, C = Channels, T = Time, N = Number of patches
     
     Parameters
     ----------
@@ -120,8 +128,11 @@ def extract_patches(X, y=None, patch_size=64, stride=32):
     patches_X, patches_y = [], []
     H, W = X.shape[:2]
 
-    for i in range(0, H - patch_size + 1, stride):
-        for j in range(0, W - patch_size + 1, stride):
+    starts_i = compute_starts(H, patch_size, stride)
+    starts_j = compute_starts(W, patch_size, stride)
+
+    for i in starts_i:
+        for j in starts_j:
             Xp = X[i:i+patch_size, j:j+patch_size, ...]
             if y is not None:
                 yp = y[i:i+patch_size, j:j+patch_size]
@@ -132,16 +143,13 @@ def extract_patches(X, y=None, patch_size=64, stride=32):
                 patches_X.append(Xp)
 
     patches_X = np.array(patches_X)
-    
+
     if y is not None:
-        if len(patches_y) == 0:
-            # no patches had trees → return empty array with correct shape
-            patches_y = np.zeros((0, patch_size, patch_size, 1), dtype=X.dtype)
-        else:
-            patches_y = np.array(patches_y)
+        patches_y = np.array(patches_y) if len(patches_y) else \
+                    np.zeros((0, patch_size, patch_size, 1), dtype=X.dtype)
         return patches_X, patches_y
-    else:
-        return patches_X, None
+
+    return patches_X, None
 
 
 def preprocess_tile(sentinel_file, tree_file=None, patch_size=64, stride=32, clip_percentile=(2, 98)):
@@ -170,7 +178,6 @@ def prep_tiles(sentinel_folder, tree_folder, outdir=".", stub="TEST", patch_size
     sentinel_files = sorted(glob.glob(os.path.join(sentinel_folder, "*.pkl")))
 
     # Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
-    # I should figure out how to balance the larger dataset, and/or adjust the loss function to not overpredict non-trees 
     interesting_tile_ids = [
         "g2_017_",
         "g2_019_",
@@ -288,14 +295,13 @@ def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, ba
 
     print(classification_report(y_val_flat, y_pred_flat, digits=4))
     
-    # Should save this classification report to file too
-
     return model
 
+    # Should save this classification report to file too
 
-# -
+
 def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
-    """
+     """
     Reconstruct full-size image from patches.
 
     Parameters
@@ -314,31 +320,27 @@ def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
     """
     H, W = image_shape
     y_full = np.zeros((H, W), dtype=np.float32)
-    count = np.zeros((H, W), dtype=np.float32)  # for averaging overlapping pixels
+    count = np.zeros((H, W), dtype=np.float32)
 
-    n_patches_per_row = (H - patch_size) // stride + 1
-    n_patches_per_col = (W - patch_size) // stride + 1
+    starts_i = compute_starts(H, patch_size, stride)
+    starts_j = compute_starts(W, patch_size, stride)
 
     idx = 0
-    for i in range(0, H - patch_size + 1, stride):
-        for j in range(0, W - patch_size + 1, stride):
-            if idx >= len(patches_y):
-                break
-            patch = patches_y[idx, ..., 0]  # remove channel dim
+    for i in starts_i:
+        for j in starts_j:
+            patch = patches_y[idx, ..., 0]
             y_full[i:i+patch_size, j:j+patch_size] += patch
             count[i:i+patch_size, j:j+patch_size] += 1
             idx += 1
 
-    # Avoid division by zero
     count[count == 0] = 1
-    y_full /= count
-    return y_full
-
-# --
+    return y_full / count
 
 
-# +
-# # %%time
+
+# -
+
+# %%time
 if __name__ == '__main__':
 
     sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
@@ -355,11 +357,8 @@ if __name__ == '__main__':
     # model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
 
 
-
-
-
-
 # +
+# %%time
 # Should probably use this ds as input into preprocess_tile & monthly_mosaic instead of the filename, so I don't have to load file twice
 sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
 print(f"Loading {sentinel_file}")
@@ -374,18 +373,24 @@ trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
 trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
 ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
 ds_sentinel['trees_predicted'].plot()
-
-
-# +
-# # sanity check that the reconstruction is working
-# tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_10m.tiff'
-# da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
-# da_tree_reprojected = da_tree.rio.reproject_match(ds_sentinel)
-# _, y_p = preprocess_tile(sentinel_file, tree_file)
-# reconstructed = reconstruct_from_patches(y_p, da_tree.shape)
-# plt.imshow(reconstructed) # Looks fine
-
-
 # -
 
 
+ds_sentinel['trees_predicted'].rio.to_raster('/scratch/xe2/cb8590/tmp/g2_017_predicted.tif')
+
+# sanity check that the reconstruction is working
+tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_10m.tiff'
+da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
+da_tree_reprojected = da_tree.rio.reproject_match(ds_sentinel)
+_, y_p = preprocess_tile(sentinel_file, tree_file)
+reconstructed = reconstruct_from_patches(y_p, da_tree_reprojected.shape)
+plt.imshow(reconstructed) # Looks fine
+ds_sentinel['trees_predicted'].shape
+
+
+
+
+
+da_tree_reprojected.shape
+
+da_tree.shape
