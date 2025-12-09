@@ -36,9 +36,9 @@ def monthly_mosaic(sentinel_file, tree_file=None, clip_percentile=(2, 98)):
     
     # Create tile_array and timestamps
     bands = list(ds_sentinel.data_vars)
-    T = ds_sentinel.dims['time']
+    T = ds_sentinel.sizes['time']
     C = len(bands)
-    H, W = ds_sentinel.dims['y'], ds_sentinel.dims['x']
+    H, W = ds_sentinel.sizes['y'], ds_sentinel.sizes['x']
 
     # Stack all bands into shape (H, W, T, C)
     tile_array = np.zeros((H, W, T, C), dtype=np.float32)
@@ -373,6 +373,36 @@ def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
 
 # -
 
+def predict(sentinel_file, outdir=".", stub="TEST", confidence_threshold=0.5, savetif=True):
+    """Use the trained convolutional neural network to predict unseen data"""
+    
+    # Should use this ds as input into preprocess_tile & monthly_mosaic instead of the filename, so I don't have to load the file twice
+    print(f"Loading {sentinel_file}")
+    with open(sentinel_file, 'rb') as f:
+        ds_sentinel = pickle.load(f)  # xarray.Dataset, dims: time, y, x
+    
+    # Applying the model to new data
+    X_p, shape = preprocess_tile(sentinel_file)
+    shape = (ds_sentinel.sizes['y'], ds_sentinel.sizes['x'])  
+    y_pred_prob = model.predict(X_p, batch_size=1)
+    trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
+    
+    # Attach to the original xarray
+    if confidence_threshold is not None:
+        trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
+        ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted
+    else:
+        ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
+
+    if savetif:
+        filename = os.path.join(outdir, f"{stub}_predicted.tif")
+        ds_sentinel['trees_predicted'].rio.to_raster(filename)
+        print(f"Saved: {filename}")
+
+    return ds_sentinel['trees_predicted']
+
+
+
 # %%time
 if __name__ == '__main__':
 
@@ -390,43 +420,8 @@ if __name__ == '__main__':
     # model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
 
 
-# +
-# Should probably use this ds as input into preprocess_tile & monthly_mosaic instead of the filename, so I don't have to load file twice
 sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
-print(f"Loading {sentinel_file}")
-with open(sentinel_file, 'rb') as f:
-    ds_sentinel = pickle.load(f)  # xarray.Dataset, dims: time, y, x
+trees_predicted = predict(sentinel_file, outdir="/scratch/xe2/cb8590/tmp")
+trees_predicted.plot()
 
-# Applying the model to new data
-X_p, shape = preprocess_tile(sentinel_file)
-shape = (ds_sentinel.dims['y'], ds_sentinel.dims['x'])  
-y_pred_prob = model.predict(X_p, batch_size=1)
-# -
-
-# %%time
-trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
-trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
-ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
-ds_sentinel['trees_predicted'].plot()
-
-
-ds_sentinel['trees_predicted'].rio.to_raster('/scratch/xe2/cb8590/tmp/g2_017_predicted.tif')
-
-(ds_sentinel['trees_predicted'] > 0.5).astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/g2_017_predicted_binary.tif')
-
-# sanity check that the reconstruction is working
-tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_10m.tiff'
-da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
-da_tree_reprojected = da_tree.rio.reproject_match(ds_sentinel)
-_, y_p = preprocess_tile(sentinel_file, tree_file)
-reconstructed = reconstruct_from_patches(y_p, da_tree_reprojected.shape)
-plt.imshow(reconstructed) # Looks fine
-ds_sentinel['trees_predicted'].shape
-
-
-
-
-
-da_tree_reprojected.shape
-
-da_tree.shape
+# !ls
