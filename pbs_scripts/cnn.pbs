@@ -1,0 +1,35 @@
+#!/bin/bash
+#PBS -N cnn
+#PBS -l mem=64GB
+#PBS -l ncpus=4
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
+#PBS -q normal
+
+# Print out input variables to the error log
+echo "Starting cnn.pbs"
+
+# Change working directory
+wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
+cd $wd
+
+# Setup DEA environment modules for running the Python script
+module use /g/data/v10/public/modules/modulefiles
+module load dea/20231204  # using this version to match my predictions.pbs (needs old tensorflow, load_ard, gpd.read_file)
+# source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+# conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+sentinel_folder=/scratch/xe2/cb8590/Nick_sentinel
+tree_folder=/g/data/xe2/cb8590/Nick_Aus_treecover_10m 
+
+# ['BSk', 'Cfb', 'BSh', 'BWh', 'CFa', 'Aw']
+
+koppen_class=CFa
+stub=limit200_epochs50_$koppen_class
+echo "CNN Training stub: $stub"
+
+# Run the script
+# python3 cnn.py $sentinel_folder $tree_folder --outdir /scratch/xe2/cb8590/tmp --stub $stub --epochs 50
+python3 cnn.py $sentinel_folder $tree_folder --outdir /scratch/xe2/cb8590/tmp --stub $stub --limit 200 --epochs 50 --koppen_class $koppen_class

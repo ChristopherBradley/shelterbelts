@@ -12,11 +12,17 @@ import rioxarray as rxr
 import tensorflow as tf
 from tensorflow.keras import layers, Model
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score, precision_score, recall_score, classification_report
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import geopandas as gpd
+import random
+random.seed(42)
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)  # Silencing the pickle load numpy array warning
 
 def monthly_mosaic(sentinel_file, tree_file=None, clip_percentile=(2, 98)):
     """Create cloud-free monthly sentinel imagery"""
@@ -93,6 +99,7 @@ def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
 
     monthly_values = np.nan_to_num(monthly, nan=0.0, posinf=1.0, neginf=0.0)
     return monthly_values
+
 
 def compute_starts(size, patch_size, stride):
     # Helper function for predicting patches on the right and bottom of the tiles (that don't line up exactly)
@@ -172,28 +179,30 @@ def preprocess_tile(sentinel_file, tree_file=None, patch_size=64, stride=32, cli
         )
     return X_p, y_p
 
-def prep_tiles(sentinel_folder, tree_folder, outdir=".", stub="TEST", patch_size=64, stride=32, clip_percentile=(2, 98), limit=None):
+
+# Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
+# interesting_tile_ids = [
+#     "g2_017_",
+#     "g2_019_",
+#     "g2_021_",
+#     "g2_21361_",
+#     "g2_23939_",
+#     "g2_23938_",
+#     "g2_09_",
+#     "g2_2835_",
+#     "g2_25560_",
+#     "g2_24903_"
+# ]
+# sentinel_files = [filename for filename in sentinel_files if any(tile_id in filename for tile_id in interesting_tile_ids)]
+
+    
+def prep_tiles(sentinel_folder, tree_folder, outdir=".", stub="TEST", patch_size=64, stride=32, clip_percentile=(2, 98), limit=None, sentinel_files=None):
     """Use a bunch of tiles to create the training and testing arrays for the CNN"""
 
-    sentinel_files = sorted(glob.glob(os.path.join(sentinel_folder, "*.pkl")))
-
-    # Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
-    interesting_tile_ids = [
-        "g2_017_",
-        "g2_019_",
-        "g2_021_",
-        "g2_21361_",
-        "g2_23939_",
-        "g2_23938_",
-        "g2_09_",
-        "g2_2835_",
-        "g2_25560_",
-        "g2_24903_"
-    ]
-    sentinel_files = [filename for filename in sentinel_files if any(tile_id in filename for tile_id in interesting_tile_ids)]
-    
-    sentinel_files = sentinel_files[:limit]
-    
+    if sentinel_files is None:    
+        sentinel_files = glob.glob(os.path.join(sentinel_folder, "*.pkl"))
+        sentinel_files = random.sample(sentinel_files, k=limit)  # limit the number of sentinel_ids
+        
     print("Number of tiles to use as input:", len(sentinel_files))
 
     sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_files]
@@ -259,6 +268,7 @@ def loss_plots(history, history_mapping, outdir=".", stub="TEST"):
     plt.tight_layout()
     filename = os.path.join(outdir, f'{stub}_training_plots.png')
     plt.savefig(filename)
+    print(f"Saved: {filename}")
 
     
 def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, batch_size=8, epochs=10):
@@ -275,7 +285,8 @@ def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, ba
         validation_data=(X_val, y_val),
         batch_size=batch_size,
         epochs=epochs,
-        callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)]
+        callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)],
+        verbose=2
     )
     
     # Save the model
@@ -290,14 +301,17 @@ def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, ba
     y_pred_prob = model.predict(X_val, batch_size=1)
     y_pred = (y_pred_prob > 0.5).astype(np.uint8)
 
-    y_val_flat = y_val.flatten()
-    y_pred_flat = y_pred.flatten()
+    y_true = y_val.flatten()
+    y_pred = y_pred.flatten()
 
-    print(classification_report(y_val_flat, y_pred_flat, digits=4))
-    
+    # Should save this in a neat and tidy csv
+    print("Precision:", round(precision_score(y_true, y_pred, zero_division=0), 2))
+    print("Recall:", round(recall_score(y_true, y_pred, zero_division=0), 2))
+    print("Accuracy:", round(accuracy_score(y_true, y_pred), 2))
+    print("Classification_report:\n", classification_report(y_true, y_pred, digits=4))
+
     return model
 
-    # Should save this classification report to file too
 
 def make_weight_mask(patch_size, min_value=0.1):
     ax = np.linspace(-1, 1, patch_size)
@@ -371,9 +385,7 @@ def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
     return y_full
 
 
-# -
-
-def predict(sentinel_file, outdir=".", stub="TEST", confidence_threshold=0.5, savetif=True):
+def predict(sentinel_file, model, outdir=".", stub="TEST", confidence_threshold=0.5, savetif=True):
     """Use the trained convolutional neural network to predict unseen data"""
     
     # Should use this ds as input into preprocess_tile & monthly_mosaic instead of the filename, so I don't have to load the file twice
@@ -401,27 +413,164 @@ def predict(sentinel_file, outdir=".", stub="TEST", confidence_threshold=0.5, sa
 
     return ds_sentinel['trees_predicted']
 
-
-
-# %%time
-if __name__ == '__main__':
-
-    sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
-    tree_folder = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
-    limit = 10
+# sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# stub = 'CNN_TEST'
+# model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
+# trees_predicted = predict(sentinel_file, model, outdir=outdir)
+# trees_predicted.plot()
+# -
+def choose_best_sentinel_files(limit=10, koppen_class=None):
+    # Merge the years and percent trees. Copied from accuracy_comparisons. I should just save this gpkg so I don't have to merge each time.
+    filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+    gdf_years = gpd.read_file(filename)
+    gdf_percent = gpd.read_file('/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg')
     
-    outdir = '/scratch/xe2/cb8590/tmp'
-    stub = 'CNN_TEST'
+    # Taking the useful features from both gpkgs
+    gdf_good = gdf_percent[~gdf_percent['bad_tif']].drop(columns='geometry')
+    gdf_recent = gdf_years[gdf_years['year'] > 2017]
+    gdf_recent_3857 = gdf_recent.to_crs("EPSG:3857")
+    gdf_merged_3857 = gdf_good.merge(gdf_recent_3857, how='inner', on='filename')
+    gdf_merged_3857['stub'] = [f.split('.')[0] for f in gdf_merged_3857['filename']]
+    gdf_merged_3857 = gpd.GeoDataFrame(
+        gdf_merged_3857,
+        geometry=gdf_recent_3857.geometry.name,
+        crs=gdf_recent_3857.crs
+    )
+    
+    # Attach the koppen classes
+    gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg')
+    gdf_koppen_3857 = gdf_koppen.to_crs("EPSG:3857")
+    gdf_joined = gdf_merged_3857.sjoin_nearest(
+        gdf_koppen_3857[['geometry', 'Name']],
+        how="left",
+        distance_col="distance_to_koppen"
+    )
+    gdf = gdf_joined
+    
+    # Find how close the percent trees is to 50.
+    gdf['percent_from_50'] = abs(50 - gdf['percent_trees'])
+    gdf = gdf.sort_values('percent_from_50')
 
-    X, y = prep_tiles(sentinel_folder, tree_folder, outdir, stub, limit=limit)
-    # X, y = load_preprocessed_npz(outdir, stub)   # Use this if you've already preprocessed the data previously
+    if koppen_class is not None:
+        gdf = gdf[gdf['Name'] == koppen_class]
+    
+    # Choose a subset of sentinel_files, so when specifying a limit we choose the most informative tiles first
+    tree_filenames = gdf['filename'][:limit]  # limit the number of tree_ids (there should be 8 sentinel_files per tree tile, corresponding to the years 2017-2024)
+    tile_ids = {"_".join(filename.split('_')[:2]) for filename in tree_filenames}
+    sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
+    sentinel_files = sorted(glob.glob(os.path.join(sentinel_folder, "*.pkl")))
+    sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_files]
+    sentinel_files = [sentinel_file for sentinel_file, sentinel_tile_id in zip(sentinel_files, sentinel_tile_ids) if sentinel_tile_id in tile_ids]
+    sentinel_files = random.sample(sentinel_files, k=limit)  # limit the number of sentinel_ids
+    
+    return sentinel_files
 
-    model = train_model(X, y, outdir, stub)
-    # model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
+
+def cnn(sentinel_folder, tree_folder, outdir=".", stub="TEST", limit=None, test_size=0.2, 
+        random_state=1, batch_size=8, epochs=10, patch_size=64, stride=32, clip_percentile=(2, 98), koppen_class=None):
+    """
+    Create and evaluate a convolutional neural network to predict tree vs no tree classifications
+
+    Parameters
+    ----------
+        tree_folder: Folder of binary tree tifs
+        sentinel_folder: Folder of pickle files containing sentinel imagery, generated by sentinel_nci.py
+        outdir: The directory for the outputs
+        stub: The prefix of the outputs
+        limit: Number of tiles to use when training
+        test_size: Percentage of patches to use for testing
+        random_state: Seed for the random number generator
+        batch_size: hyperparameter
+        epochs: hyperparameter
+        patch_size: Dimensions of each patch that the model predicts (like a row in a multi-layer perceptron)
+        stride: Step size when sliding the patch window. Needs to be less than the patch size when predicting unseen data.test_size
+        clip_percentile: percentiles to use when removing outliers.
+
+    Prints
+    -------
+        Accuracy metrics after the model has finished training.
+
+    Downloads
+    ---------
+        model.keras: The machine learning model for running on new input data
+        training.png: accuracy and loss plots over each epoch
+    """
+    sentinel_files = choose_best_sentinel_files(limit, koppen_class)  # Using this function means we ignore the sentinel_folder argument, and the tree_folder must be /g/data/xe2/cb8590/Nick_Aus_treecover_10m (bit of a hacky way of doing things for now)
+
+    print("Preprocessing")
+    X, y = prep_tiles(sentinel_folder, tree_folder, outdir, stub, patch_size, stride, clip_percentile, limit=limit, sentinel_files=sentinel_files)
+
+    print("Training")
+    model = train_model(X, y, outdir, stub, test_size, random_state, batch_size, epochs)
+
+    return model
 
 
-sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
-trees_predicted = predict(sentinel_file, outdir="/scratch/xe2/cb8590/tmp")
-trees_predicted.plot()
+# +
+import argparse
 
-# !ls
+def parse_arguments():
+    """Parse command line arguments for CNN training."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('sentinel_folder', help='Folder of pickle files containing Sentinel imagery, generated by sentinel_nci.py')
+    parser.add_argument('tree_folder', help='Folder of binary tree TIFFs')
+    parser.add_argument('--outdir', default='.', help='The directory for the outputs')
+    parser.add_argument('--stub', default='TEST', help='Prefix of the outputs')
+    parser.add_argument('--limit', type=int, default=None, help='Number of tiles to use when training (default: all)')
+    parser.add_argument('--test_size', type=float, default=0.2, help='Fraction of patches to use for testing (default: 0.2)')
+    parser.add_argument('--random_state', type=int, default=1, help='Random seed (default: 1)')
+    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training (default: 8)')
+    parser.add_argument('--epochs', type=int, default=10, help='Max number of epochs (default: 10)')
+    parser.add_argument('--patch_size', type=int, default=64, help='Dimensions of each patch (default: 64)')
+    parser.add_argument('--stride', type=int, default=32, help='Step size for sliding patch window (default: 32)')
+    parser.add_argument('--clip_percentile', type=float, nargs=2, default=(2, 98), help='Percentiles to use when removing outliers (default: 2 98)'),
+    parser.add_argument('--koppen_class', type=str, default=None, nargs=2, default=(2, 98), help='Only train on tiles in this koppen class')
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    
+    cnn(
+        sentinel_folder=args.sentinel_folder,
+        tree_folder=args.tree_folder,
+        outdir=args.outdir,
+        stub=args.stub,
+        limit=args.limit,
+        test_size=args.test_size,
+        random_state=args.random_state,
+        batch_size=args.batch_size,
+        epochs=args.epochs,
+        patch_size=args.patch_size,
+        stride=args.stride,
+        clip_percentile=tuple(args.clip_percentile),
+        koppen_class=args.koppen_class
+    )
+
+
+# +
+# # %%time
+
+# sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
+# tree_folder = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+# limit = 10
+
+# outdir = '/scratch/xe2/cb8590/tmp'
+# stub = 'CNN_TEST'
+
+# sentinel_files = choose_best_sentinel_files(limit, koppen_class='Cfb')
+
+# print("Preprocessing")
+# X, y = prep_tiles(sentinel_folder, tree_folder, outdir, stub, limit=limit, sentinel_files=sentinel_files)
+# # X, y = load_preprocessed_npz(outdir, stub)   # Use this if you've already preprocessed the data previously
+
+# print("Training")
+# model = train_model(X, y, outdir, stub)
+# # model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
+
+
+# +
+# gdf['Name'].unique()

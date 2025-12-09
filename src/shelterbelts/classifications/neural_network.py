@@ -360,7 +360,6 @@ def parse_arguments():
 if __name__ == '__main__':
     args = parse_arguments()
     
-
     neural_network(
         args.training_file,
         outdir=args.outdir,

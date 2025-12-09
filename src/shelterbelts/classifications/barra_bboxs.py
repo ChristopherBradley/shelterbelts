@@ -255,6 +255,8 @@ def asc_folder_to_tif(asc_folder, out_folder, dst_crs="EPSG:3857"):
         )
     print(f"\n Finished converting {len(asc_files)} tiles → {out_folder}")
 
+
 # asc_folder_to_tif(asc_folder, out_folder) # Going to take about 4 hours.
 
-
+f'sca{False}'
+        
