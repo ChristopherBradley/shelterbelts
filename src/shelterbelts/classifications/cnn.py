@@ -299,9 +299,27 @@ def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, ba
 
     # Should save this classification report to file too
 
+def make_weight_mask(patch_size, min_value=0.1):
+    ax = np.linspace(-1, 1, patch_size)
+    xx, yy = np.meshgrid(ax, ax)
+
+    # radial distance (0 at center → sqrt(2) at corners)
+    rr = np.sqrt(xx**2 + yy**2)
+
+    # normalize so corners = 1
+    rr = rr / rr.max()   # now full patch is inside the circle
+
+    # cosine falloff: 1 at center → 0 at edges/corners
+    mask = 0.5 * (1 + np.cos(rr * np.pi))
+
+    # impose minimum value
+    mask = np.maximum(mask, min_value)
+
+    return mask.astype(np.float32)
+
 
 def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
-     """
+    """
     Reconstruct full-size image from patches.
 
     Parameters
@@ -320,21 +338,25 @@ def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
     """
     H, W = image_shape
     y_full = np.zeros((H, W), dtype=np.float32)
-    count = np.zeros((H, W), dtype=np.float32)
+    weight_sum = np.zeros((H, W), dtype=np.float32)
 
     starts_i = compute_starts(H, patch_size, stride)
     starts_j = compute_starts(W, patch_size, stride)
 
+    # precompute weight mask
+    mask = make_weight_mask(patch_size)
+
     idx = 0
     for i in starts_i:
         for j in starts_j:
-            patch = patches_y[idx, ..., 0]
-            y_full[i:i+patch_size, j:j+patch_size] += patch
-            count[i:i+patch_size, j:j+patch_size] += 1
+            patch = patches_y[idx, ..., 0]  
+            
+            y_full[i:i+patch_size, j:j+patch_size] += patch * mask
+            weight_sum[i:i+patch_size, j:j+patch_size] += mask
+
             idx += 1
 
-    count[count == 0] = 1
-    return y_full / count
+    return y_full / weight_sum
 
 
 
@@ -358,7 +380,6 @@ if __name__ == '__main__':
 
 
 # +
-# %%time
 # Should probably use this ds as input into preprocess_tile & monthly_mosaic instead of the filename, so I don't have to load file twice
 sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
 print(f"Loading {sentinel_file}")
@@ -369,14 +390,18 @@ with open(sentinel_file, 'rb') as f:
 X_p, shape = preprocess_tile(sentinel_file)
 shape = (ds_sentinel.dims['y'], ds_sentinel.dims['x'])  
 y_pred_prob = model.predict(X_p, batch_size=1)
+# -
+
+# %%time
 trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
 trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
 ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
 ds_sentinel['trees_predicted'].plot()
-# -
 
 
 ds_sentinel['trees_predicted'].rio.to_raster('/scratch/xe2/cb8590/tmp/g2_017_predicted.tif')
+
+(ds_sentinel['trees_predicted'] > 0.5).astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/g2_017_predicted_binary.tif')
 
 # sanity check that the reconstruction is working
 tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_10m.tiff'
