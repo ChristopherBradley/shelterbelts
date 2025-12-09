@@ -63,8 +63,9 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
     
     # import pdb; pdb.set_trace()
+    # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
+    worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}' # 
     
-    worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
@@ -198,39 +199,6 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         p = subprocess.Popen(cmd)
         p.wait()
 
-    # for i, percent_tif in enumerate(percent_tifs):
-    #     print(f"Launching Popen subprocess for tif {i}/{len(percent_tifs)}:", percent_tif)
-
-    #     cmd = [
-    #         sys.executable,
-    #         "full_pipelines.py",
-    #         str(percent_tif),
-    #         "--outdir", str(outdir),
-    #         "--tmpdir", str(tmpdir),
-    #         # "--param_stub", '',  # or args.param_stub if applicable
-    #         "--wind_method", str(wind_method),
-    #         "--wind_threshold", str(wind_threshold),
-    #         "--cover_threshold", str(cover_threshold),
-    #         "--min_patch_size", str(min_patch_size),
-    #         "--edge_size", str(edge_size),
-    #         "--max_gap_size", str(max_gap_size),
-    #         "--distance_threshold", str(distance_threshold),
-    #         "--density_threshold", str(density_threshold),
-    #         "--buffer_width", str(buffer_width),
-    #         "--crop_pixels", str(crop_pixels)
-    #     ]
-    #     if strict_core_area:
-    #         cmd += ["--strict_core_area"]
-        
-    #     # Popen a subprocess to hopefully avoid memory accumulation
-    #     p = subprocess.Popen(cmd)
-    #     p.wait()
-    
-        # Launching a subprocess to hopefully avoid memory accumulation issues
-        # subprocess.run(cmd, check=True)
-
-        # run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
-
     # Merge the outputs
     if wind_method:
         suffix_stems = ['linear_categories', 'distances']
@@ -240,7 +208,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         filetype=f'{suffix_stem}.tif'
         stub_original = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
         
-        stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
+        stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
         gdf = bounding_boxes(outdir, stub=stub, filetype=filetype, verbose=False)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
         
         footprint_gpkg = f"{stub}_footprints.gpkg"
