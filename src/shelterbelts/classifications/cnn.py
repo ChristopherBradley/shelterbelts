@@ -526,7 +526,7 @@ def parse_arguments():
     parser.add_argument('--patch_size', type=int, default=64, help='Dimensions of each patch (default: 64)')
     parser.add_argument('--stride', type=int, default=32, help='Step size for sliding patch window (default: 32)')
     parser.add_argument('--clip_percentile', type=float, nargs=2, default=(2, 98), help='Percentiles to use when removing outliers (default: 2 98)'),
-    parser.add_argument('--koppen_class', type=str, default=None, nargs=2, default=(2, 98), help='Only train on tiles in this koppen class')
+    parser.add_argument('--koppen_class', type=str, default=None, help='Only train on tiles in this koppen class')
 
     return parser.parse_args()
 
