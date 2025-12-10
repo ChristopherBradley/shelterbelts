@@ -275,7 +275,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
         )
 
     # Save the distance or density as an intermediate tif
-    da_distance_or_percent.astype('uint8').rio.to_raster(filename)
+    da_distance_or_percent.fillna(0).astype('uint8').rio.to_raster(filename)
     print(f"Saved: {filename}")
 
     # Assigning sheltered pixels a new label
