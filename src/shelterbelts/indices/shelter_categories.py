@@ -254,7 +254,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
             distances = min_distances 
 
     else:
-        da_percent_trees = compute_tree_densities(tree_percent)
+        da_percent_trees = compute_tree_densities(tree_percent, max_distance=distance_threshold)
         sheltered = da_percent_trees >= density_threshold
 
     # Prep filename for intermediate output
