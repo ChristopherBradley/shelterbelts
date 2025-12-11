@@ -35,6 +35,7 @@ tmpdir='/scratch/xe2/cb8590/tmp'
 folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/$param_stub
 
 # Run the script
+# echo "default values"
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20
 
@@ -43,9 +44,6 @@ folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/
 
 echo "param_to_vary=$param_to_vary"
 echo "param_value=$param_value"
-
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_${param_to_vary}_${param_value}
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --$param_to_vary $param_value
 
 echo strict!
 outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_strict_${param_to_vary}_${param_value}
@@ -58,3 +56,7 @@ python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover
 # echo distance=20!
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_strict_distance20${param_to_vary}_${param_value}
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --strict --$param_to_vary $param_value --distance_threshold 20
+
+# echo wind_method=HAPPENED!
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_strict_distance20${param_to_vary}_${param_value}
+# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --strict --$param_to_vary $param_value --wind_method HAPPENED

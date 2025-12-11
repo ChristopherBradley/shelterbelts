@@ -260,7 +260,6 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
 
     # Prep filename for intermediate output
     if ds_wind:
-        import pdb; pdb.set_trace()
         filename = os.path.join(outdir,f"{stub}_shelter_distances.tif")
         da_distance_or_percent = distances
     else:        

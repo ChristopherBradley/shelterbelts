@@ -22,7 +22,7 @@ tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_1
 
 # -
 
-densities = shelter_categories(tif, outdir='/scratch/xe2/cb8590/tmp', distance_threshold=10)
+densities = shelter_categories(tif, outdir='/scratch/xe2/cb8590/tmp', wind_method="HAPPENED", wind_threshold=100)  # Need to provide the wind_nc for these parameters to do anything.
 # da = shelter_categories(category_tif)
 
 

@@ -26,36 +26,54 @@
 # done
 
 # Trying lots of different parameters
-qsub -v param_to_vary=max_shelterbelt_width,param_value=2 indices.pbs
-qsub -v param_to_vary=max_shelterbelt_width,param_value=10 indices.pbs
+# qsub -v param_to_vary=wind_threshold,param_value=1 indices.pbs  # Just varying the wind threshold on it's own is my 'default', because it doesn't do anything
+# qsub -v param_to_vary=strict,param_value= indices.pbs  # default should be strict
 
-qsub -v param_to_vary=min_shelterbelt_length,param_value=10 indices.pbs
-qsub -v param_to_vary=min_shelterbelt_length,param_value=50 indices.pbs
+# qsub -v param_to_vary=edge_size,param_value=1 indices.pbs # default is 3
+# qsub -v param_to_vary=edge_size,param_value=10 indices.pbs
 
-qsub -v param_to_vary=min_patch_size,param_value=10 indices.pbs
-qsub -v param_to_vary=min_patch_size,param_value=30 indices.pbs
+# qsub -v param_to_vary=buffer_width,param_value=1 indices.pbs # default is 3
+# qsub -v param_to_vary=buffer_width,param_value=5 indices.pbs
 
-qsub -v param_to_vary=min_core_size,param_value=20 indices.pbs
+# qsub -v param_to_vary=distance_threshold,param_value=5 indices.pbs # default is 10
+# qsub -v param_to_vary=distance_threshold,param_value=20 indices.pbs 
+
+# qsub -v param_to_vary=density_threshold,param_value=3 indices.pbs # default is 5
+# qsub -v param_to_vary=density_threshold,param_value=10 indices.pbs
+
+qsub -v param_to_vary=min_core_size,param_value=20 indices.pbs # undecided on default (currently 100)
+qsub -v param_to_vary=min_core_size,param_value=500 indices.pbs # undecided on default (currently 100)
 qsub -v param_to_vary=min_core_size,param_value=1000 indices.pbs
+qsub -v param_to_vary=min_core_size,param_value=2000 indices.pbs
+qsub -v param_to_vary=min_core_size,param_value=5000 indices.pbs
+qsub -v param_to_vary=min_core_size,param_value=10000 indices.pbs
 
-qsub -v param_to_vary=edge_size,param_value=1 indices.pbs
-qsub -v param_to_vary=edge_size,param_value=10 indices.pbs
+qsub -v param_to_vary=max_shelterbelt_width,param_value=3 indices.pbs  # Undecided on default (currently 4)
+qsub -v param_to_vary=max_shelterbelt_width,param_value=5 indices.pbs
+qsub -v param_to_vary=max_shelterbelt_width,param_value=6 indices.pbs
+qsub -v param_to_vary=max_shelterbelt_width,param_value=7 indices.pbs
+qsub -v param_to_vary=max_shelterbelt_width,param_value=8 indices.pbs
 
-qsub -v param_to_vary=max_gap_size,param_value=0 indices.pbs
-qsub -v param_to_vary=max_gap_size,param_value=3 indices.pbs
+qsub -v param_to_vary=min_shelterbelt_length,param_value=10 indices.pbs # Undecided on default (currently 20)
+qsub -v param_to_vary=min_shelterbelt_length,param_value=15 indices.pbs
+qsub -v param_to_vary=min_shelterbelt_length,param_value=25 indices.pbs
+qsub -v param_to_vary=min_shelterbelt_length,param_value=30 indices.pbs
 
-qsub -v param_to_vary=buffer_width,param_value=1 indices.pbs
-qsub -v param_to_vary=buffer_width,param_value=5 indices.pbs
+# qsub -v param_to_vary=max_gap_size,param_value=0 indices.pbs  # default is 1. Undecided on whether to include this example.
+# qsub -v param_to_vary=max_gap_size,param_value=3 indices.pbs
 
-qsub -v param_to_vary=distance_threshold,param_value=5 indices.pbs
-qsub -v param_to_vary=distance_threshold,param_value=20 indices.pbs
+# qsub -v param_to_vary=min_patch_size,param_value=5 indices.pbs # default is 20. Undecided on whether to include this example.
+# qsub -v param_to_vary=min_patch_size,param_value=40 indices.pbs
 
-qsub -v param_to_vary=density_threshold,param_value=3 indices.pbs
-qsub -v param_to_vary=density_threshold,param_value=10 indices.pbs
+# #####
 
-######
+# qsub -v param_to_vary=wind_method,param_value=WINDWARD indices.pbs
+# qsub -v param_to_vary=wind_method,param_value=MOST_COMMON indices.pbs
+# qsub -v param_to_vary=wind_method,param_value=ANY indices.pbs
+# qsub -v param_to_vary=wind_method,param_value=MAX indices.pbs
 
-qsub -v param_to_vary=wind_method,param_value=WINDWARD indices.pbs
-qsub -v param_to_vary=wind_method,param_value=MOST_COMMON indices.pbs
-qsub -v param_to_vary=wind_method,param_value=ANY indices.pbs
-qsub -v param_to_vary=wind_method,param_value=HAPPENED indices.pbs
+# ######
+
+# qsub -v param_to_vary=wind_threshold,param_value=20 indices.pbs
+# qsub -v param_to_vary=wind_threshold,param_value=25 indices.pbs
+# qsub -v param_to_vary=wind_threshold,param_value=30 indices.pbs

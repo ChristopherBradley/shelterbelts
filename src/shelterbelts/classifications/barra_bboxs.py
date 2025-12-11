@@ -193,7 +193,7 @@ def sub_gpkgs(state='actnsw', stub='actnsw_4326', chunk_size=500, processed_fold
     # Remove tiles that have already been processed
     processed_filenames = Path(processed_folder).glob("*_predicted.tif")
     processed_stubs = {
-        f.stem[:len('28_97-152_94')] for f in processed_filenames
+        f.stem[:len('28_97-152_94')] for f in processed_filenames  # This doesn't match the tiles starting with a single digit, e.g. 9_93-142_22. Should do some string splitting based on the underscores instead. 
     }
     gdf = gdf[~gdf["stub"].isin(processed_stubs)]
     print(f"Filtered length of gdf: {len(gdf)}")
@@ -217,7 +217,7 @@ year = 2020
 state = 'aus'
 stub = f'{state}_noxy_df_4326_{year}'
 # sub_gpkgs(save_gpkg=False, state=state, stub=f"{stub}", chunk_size=1000, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{stub}")  
-sub_gpkgs(save_gpkg=True, state=state, stub=f"{stub}_attempt2", chunk_size=500, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{stub}")  
+sub_gpkgs(save_gpkg=False, state=state, stub=f"{stub}_attempt4", chunk_size=10, processed_folder=f"/scratch/xe2/cb8590/barra_trees_s4_{stub}")  
 
 # Took 1.5 mins to save 883 files for all of aus.
 
@@ -255,8 +255,4 @@ def asc_folder_to_tif(asc_folder, out_folder, dst_crs="EPSG:3857"):
         )
     print(f"\n Finished converting {len(asc_files)} tiles → {out_folder}")
 
-
 # asc_folder_to_tif(asc_folder, out_folder) # Going to take about 4 hours.
-
-f'sca{False}'
-        
