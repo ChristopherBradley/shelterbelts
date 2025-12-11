@@ -236,6 +236,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
                 distance_rasters.append(distances)
             if not distance_rasters:
                 sheltered = xr.full_like(shelter_heights, False).astype(bool)
+                distances = sheltered.astype('uint8')  # Nothing/everything is sheltered, because the windspeed isn't high enough to require shelter
             else:
                 masked_stack = xr.concat(distance_rasters, dim="stack")
                 min_distances = masked_stack.min(dim="stack", skipna=True)        
@@ -259,6 +260,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
 
     # Prep filename for intermediate output
     if ds_wind:
+        import pdb; pdb.set_trace()
         filename = os.path.join(outdir,f"{stub}_shelter_distances.tif")
         da_distance_or_percent = distances
     else:        
