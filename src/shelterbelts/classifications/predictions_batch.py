@@ -64,7 +64,7 @@ gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned
 
 
 # +
-def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=True, confidence=False, model_weightings=None):
+def tif_prediction_ds(ds, outdir, stub, model, scaler, savetif, add_xy=False, confidence=False, model_weightings=None):
 
     # Calculate vegetation indices
     B8 = ds['nbart_nir_1']
@@ -230,7 +230,7 @@ def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85
         scaler = joblib.load(filename_scaler)
     else:
         koppen_classes = gdf_koppen['Name'].unique()
-        koppen_classes = list(koppen_classes) + ['all'] # Add the overall model too, in case some regions don't land in a specific class
+        koppen_classes = list(koppen_classes) # + ['all'] No longer need to add the 'all' model, because I'm just using the nearest class instead of forcing overlap
         model_dict = dict()
         for koppen_class in koppen_classes:
             filename_model = os.path.join(nn_dir, f'nn_{nn_stub}_{koppen_class}.keras')
@@ -284,8 +284,8 @@ def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85
             # mem_before = process.memory_info().rss / 1e9
             tif_prediction_bbox(*row, model, scaler, confidence=confidence, model_weightings=model_weightings)
             # mem_after = process.memory_info().rss / 1e9
-            mem_info = process.memory_full_info()
-            print(f"{row[0]}: RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
+            # mem_info = process.memory_full_info()
+            # print(f"{row[0]}: RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
 
             # print(f"{row[0]}: Memory used before {mem_before:.2f} GB, after {mem_after:.2f} GB", flush=True)
         except Exception as e:

@@ -236,6 +236,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
                 distance_rasters.append(distances)
             if not distance_rasters:
                 sheltered = xr.full_like(shelter_heights, False).astype(bool)
+                distances = sheltered.astype('uint8')  # Nothing/everything is sheltered, because the windspeed isn't high enough to require shelter
             else:
                 masked_stack = xr.concat(distance_rasters, dim="stack")
                 min_distances = masked_stack.min(dim="stack", skipna=True)        
@@ -254,7 +255,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
             distances = min_distances 
 
     else:
-        da_percent_trees = compute_tree_densities(tree_percent)
+        da_percent_trees = compute_tree_densities(tree_percent, max_distance=distance_threshold)
         sheltered = da_percent_trees >= density_threshold
 
     # Prep filename for intermediate output
@@ -275,7 +276,7 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
         )
 
     # Save the distance or density as an intermediate tif
-    da_distance_or_percent.astype('uint8').rio.to_raster(filename)
+    da_distance_or_percent.fillna(0).astype('uint8').rio.to_raster(filename)
     print(f"Saved: {filename}")
 
     # Assigning sheltered pixels a new label

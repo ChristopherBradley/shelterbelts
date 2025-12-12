@@ -233,10 +233,12 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
     safe_empty_mask = ndimage.convolve(no_trees.astype(np.uint8), kernel, mode='constant', cval=0) > 0
     safe_empty_mask = safe_empty_mask.astype(bool)
     dist_to_empty = ndimage.distance_transform_edt(~safe_empty_mask)
-
+    
     results = []
     width_raster = np.zeros_like(tree_mask, dtype=float)
     props = regionprops(assigned_labels)
+
+    
     for i, prop in enumerate(props):
         lbl = prop.label
 
@@ -253,6 +255,10 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
         orientation = prop.orientation
         a = prop.minor_axis_length / 2.0
         b = prop.major_axis_length / 2.0
+
+        # Force the radius to be at least 1 pixel, for the ellipse_perimeter function to work
+        a = max(a, 1)
+        b = max(b, 1)
         
         # Rasterize ellipse outline (skimage uses opposite orientation convention)
         rr, cc = ellipse_perimeter(
@@ -562,7 +568,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-
+# +
 if __name__ == '__main__':
 
     args = parse_arguments()
@@ -574,7 +580,7 @@ if __name__ == '__main__':
 
     geotif = os.path.join(outdir, f"{stub}_linear_categories.tif")
     dfs = class_metrics(geotif, outdir, stub)
-
+# -
 
 # # Running locally
 # outdir = "../../../outdir/"

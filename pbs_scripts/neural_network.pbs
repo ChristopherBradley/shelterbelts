@@ -4,11 +4,9 @@
 #PBS -l ncpus=4
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=05:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
-#PBS -j oe
-
 
 # Print out input variables to the error log
 echo "Starting neural_network.pbs"
@@ -57,4 +55,6 @@ echo "NN Training stub: $training_stub from folder: $training_folder"
 # python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --random_state 0 --stub NN_${training_stub}_seed0 --drop_columns spatial_ref tile_id year start_date end_date crs Koppen
 
 # python3 neural_network.py /scratch/xe2/cb8590/Nick_training_lidar_year/$training_stub.feather --outdir /scratch/xe2/cb8590/Nick_training_lidar_year --stub NN_${training_stub}_256_128_64_seed0 --random_state 0 --drop_columns spatial_ref tile_id year start_date end_date crs Koppen
-python3 neural_network.py /scratch/xe2/cb8590/$training_folder/$training_stub.feather --outdir /scratch/xe2/cb8590/$training_folder --stub NN_${training_stub}_float32_s4_200epochs --drop_columns spatial_ref tile_id year start_date end_date crs Koppen --epochs 200
+# python3 neural_network.py /scratch/xe2/cb8590/$training_folder/$training_stub.feather --outdir /scratch/xe2/cb8590/$training_folder --stub NN_${training_stub}_noxy --drop_columns spatial_ref tile_id year start_date end_date crs Koppen --epochs 200
+
+python3 neural_network.py /scratch/xe2/cb8590/$training_folder/$training_stub.feather --outdir /scratch/xe2/cb8590/$training_folder --stub noxy_${training_stub} --drop_columns spatial_ref tile_id year start_date end_date crs Koppen x y --epochs 200 --limit 10000000

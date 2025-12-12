@@ -2,6 +2,7 @@ import os
 import glob
 import argparse
 import math
+import pathlib
 
 import pandas as pd
 import geopandas as gpd
@@ -14,14 +15,14 @@ import psutil
 import resource
 import subprocess, sys
 
-# repo_name = "shelterbelts"
-# import sys, os
-# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-#     src_dir = os.path.join(repo_dir, 'src')
-#     os.chdir(src_dir)
-#     sys.path.append(src_dir)
-#     # print(src_dir)
+repo_name = "shelterbelts"
+import sys, os
+if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+    src_dir = os.path.join(repo_dir, 'src')
+    os.chdir(src_dir)
+    sys.path.append(src_dir)
+    # print(src_dir)
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.apis.worldcover import tif_categorical
@@ -62,7 +63,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
     
     # import pdb; pdb.set_trace()
-    worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
+    # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
+    worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # 
     
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
@@ -143,9 +145,17 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.tif')
+    print(f"Starting with {len(percent_tifs)} percent_tifs", flush=True)
 
     if limit:
         percent_tifs = percent_tifs[:limit]
+
+    # Remove tifs that have already been processed (sometimes I have to run this multiple times if a process runs out of memory or rasterio gives a parallelisation conflict)
+    percent_stubs = [pathlib.Path(tif).stem[:12] for tif in percent_tifs]
+    processed = glob.glob(f'{outdir}/*.tif')
+    processed_stubs = set(pathlib.Path(tif).stem[:12] for tif in processed)
+    percent_tifs = [tif for tif, stub in zip(percent_tifs, percent_stubs) if stub not in processed_stubs]
+    print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])
     csv_filenames = []
@@ -162,7 +172,8 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
 
         cmd = [
             sys.executable,
-            "full_pipelines.py",
+            # "full_pipelines.py", 
+            "shelterbelts/indices/full_pipelines.py",  
             str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),
@@ -197,12 +208,12 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         filetype=f'{suffix_stem}.tif'
         stub_original = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
         
-        stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
-        gdf = bounding_boxes(outdir, stub=stub, filetype=filetype)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
+        stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
+        gdf = bounding_boxes(outdir, stub=stub, filetype=filetype, verbose=False)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
         
         footprint_gpkg = f"{stub}_footprints.gpkg"
         bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-        mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename')  
+        mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename', verbose=False)  
         ds = merged_ds(mosaic, out_meta, suffix_stem)
         basedir = os.path.dirname(outdir)
         

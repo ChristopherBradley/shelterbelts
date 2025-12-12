@@ -73,7 +73,6 @@ def get_subfolders(folder_with_subfolders, non_suffixes=[], non_contains=[]):
     stems_string = " ".join(stems)
     return stems_string
 
-# +
 import argparse
 def parse_arguments():
     """Parse command line arguments with default values."""
@@ -83,8 +82,6 @@ def parse_arguments():
 
     return parser.parse_args()
 
-
-# -
 
 if __name__ == '__main__':
     args = parse_arguments()

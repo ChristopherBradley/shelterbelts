@@ -1,4 +1,4 @@
-# + endofcell="--"
+# +
 # # +
 # # %%time
 import os
@@ -10,14 +10,19 @@ import pandas as pd
 import rioxarray as rxr
 
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import layers, Model
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score, precision_score, recall_score, classification_report
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import geopandas as gpd
+import random
+random.seed(42)
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)  # Silencing the pickle load numpy array warning
 
 def monthly_mosaic(sentinel_file, tree_file=None, clip_percentile=(2, 98)):
     """Create cloud-free monthly sentinel imagery"""
@@ -30,15 +35,16 @@ def monthly_mosaic(sentinel_file, tree_file=None, clip_percentile=(2, 98)):
     # Reproject to match tree mask exactly (should already have roughly the same dimensions)
     if tree_file:
         da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
-        ds_sentinel = ds_sentinel.rio.reproject_match(da_tree)
+        # ds_sentinel = ds_sentinel.rio.reproject_match(da_tree)
+        da_tree = da_tree.rio.reproject_match(ds_sentinel)  # Trying out reprojecting the other way around, to be consistent with when we predict unseen data
     else:
         da_tree = None  # Would use this option when applying the model to unseen data
     
     # Create tile_array and timestamps
     bands = list(ds_sentinel.data_vars)
-    T = ds_sentinel.dims['time']
+    T = ds_sentinel.sizes['time']
     C = len(bands)
-    H, W = ds_sentinel.dims['y'], ds_sentinel.dims['x']
+    H, W = ds_sentinel.sizes['y'], ds_sentinel.sizes['x']
 
     # Stack all bands into shape (H, W, T, C)
     tile_array = np.zeros((H, W, T, C), dtype=np.float32)
@@ -95,9 +101,18 @@ def monthly_median_stack(tile_array, timestamps, clip_percentile=(2, 98)):
     return monthly_values
 
 
+def compute_starts(size, patch_size, stride):
+    # Helper function for predicting patches on the right and bottom of the tiles (that don't line up exactly)
+    starts = list(range(0, size - patch_size + 1, stride))
+    last_start = size - patch_size
+    if starts[-1] != last_start:
+        starts.append(last_start)
+    return starts
+
 def extract_patches(X, y=None, patch_size=64, stride=32):
     """
-    Create smaller patches for the convolutional network.
+    Create smaller patches for the convolutional network. Assumes that X and y have the same (H, W).
+    H = Height, W = Width, C = Channels, T = Time, N = Number of patches
     
     Parameters
     ----------
@@ -120,8 +135,11 @@ def extract_patches(X, y=None, patch_size=64, stride=32):
     patches_X, patches_y = [], []
     H, W = X.shape[:2]
 
-    for i in range(0, H - patch_size + 1, stride):
-        for j in range(0, W - patch_size + 1, stride):
+    starts_i = compute_starts(H, patch_size, stride)
+    starts_j = compute_starts(W, patch_size, stride)
+
+    for i in starts_i:
+        for j in starts_j:
             Xp = X[i:i+patch_size, j:j+patch_size, ...]
             if y is not None:
                 yp = y[i:i+patch_size, j:j+patch_size]
@@ -132,16 +150,13 @@ def extract_patches(X, y=None, patch_size=64, stride=32):
                 patches_X.append(Xp)
 
     patches_X = np.array(patches_X)
-    
+
     if y is not None:
-        if len(patches_y) == 0:
-            # no patches had trees → return empty array with correct shape
-            patches_y = np.zeros((0, patch_size, patch_size, 1), dtype=X.dtype)
-        else:
-            patches_y = np.array(patches_y)
+        patches_y = np.array(patches_y) if len(patches_y) else \
+                    np.zeros((0, patch_size, patch_size, 1), dtype=X.dtype)
         return patches_X, patches_y
-    else:
-        return patches_X, None
+
+    return patches_X, None
 
 
 def preprocess_tile(sentinel_file, tree_file=None, patch_size=64, stride=32, clip_percentile=(2, 98)):
@@ -164,29 +179,30 @@ def preprocess_tile(sentinel_file, tree_file=None, patch_size=64, stride=32, cli
         )
     return X_p, y_p
 
-def prep_tiles(sentinel_folder, tree_folder, outdir=".", stub="TEST", patch_size=64, stride=32, clip_percentile=(2, 98), limit=None):
+
+# Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
+# interesting_tile_ids = [
+#     "g2_017_",
+#     "g2_019_",
+#     "g2_021_",
+#     "g2_21361_",
+#     "g2_23939_",
+#     "g2_23938_",
+#     "g2_09_",
+#     "g2_2835_",
+#     "g2_25560_",
+#     "g2_24903_"
+# ]
+# sentinel_files = [filename for filename in sentinel_files if any(tile_id in filename for tile_id in interesting_tile_ids)]
+
+    
+def prep_tiles(sentinel_folder, tree_folder, outdir=".", stub="TEST", patch_size=64, stride=32, clip_percentile=(2, 98), limit=None, sentinel_files=None):
     """Use a bunch of tiles to create the training and testing arrays for the CNN"""
 
-    sentinel_files = sorted(glob.glob(os.path.join(sentinel_folder, "*.pkl")))
-
-    # Initially just trying out 10 tiles as input, around canberra with a good distribution of trees and no trees
-    # I should figure out how to balance the larger dataset, and/or adjust the loss function to not overpredict non-trees 
-    interesting_tile_ids = [
-        "g2_017_",
-        "g2_019_",
-        "g2_021_",
-        "g2_21361_",
-        "g2_23939_",
-        "g2_23938_",
-        "g2_09_",
-        "g2_2835_",
-        "g2_25560_",
-        "g2_24903_"
-    ]
-    sentinel_files = [filename for filename in sentinel_files if any(tile_id in filename for tile_id in interesting_tile_ids)]
-    
-    sentinel_files = sentinel_files[:limit]
-    
+    if sentinel_files is None:    
+        sentinel_files = glob.glob(os.path.join(sentinel_folder, "*.pkl"))
+        sentinel_files = random.sample(sentinel_files, k=limit)  # limit the number of sentinel_ids
+        
     print("Number of tiles to use as input:", len(sentinel_files))
 
     sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_files]
@@ -252,6 +268,7 @@ def loss_plots(history, history_mapping, outdir=".", stub="TEST"):
     plt.tight_layout()
     filename = os.path.join(outdir, f'{stub}_training_plots.png')
     plt.savefig(filename)
+    print(f"Saved: {filename}")
 
     
 def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, batch_size=8, epochs=10):
@@ -268,7 +285,8 @@ def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, ba
         validation_data=(X_val, y_val),
         batch_size=batch_size,
         epochs=epochs,
-        callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)]
+        callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)],
+        verbose=2
     )
     
     # Save the model
@@ -283,109 +301,276 @@ def train_model(X, y, outdir=".", stub="TEST", test_size=0.2, random_state=1, ba
     y_pred_prob = model.predict(X_val, batch_size=1)
     y_pred = (y_pred_prob > 0.5).astype(np.uint8)
 
-    y_val_flat = y_val.flatten()
-    y_pred_flat = y_pred.flatten()
+    y_true = y_val.flatten()
+    y_pred = y_pred.flatten()
 
-    print(classification_report(y_val_flat, y_pred_flat, digits=4))
-    
-    # Should save this classification report to file too
+    # Should save this in a neat and tidy csv
+    print("Precision:", round(precision_score(y_true, y_pred, zero_division=0), 2))
+    print("Recall:", round(recall_score(y_true, y_pred, zero_division=0), 2))
+    print("Accuracy:", round(accuracy_score(y_true, y_pred), 2))
+    print("Classification_report:\n", classification_report(y_true, y_pred, digits=4))
 
     return model
 
 
-# -
+def make_weight_mask(patch_size, min_value=0.1):
+    ax = np.linspace(-1, 1, patch_size)
+    xx, yy = np.meshgrid(ax, ax)
+
+    # radial distance (0 at center → sqrt(2) at corners)
+    rr = np.sqrt(xx**2 + yy**2)
+
+    # normalize so corners = 1
+    rr = rr / rr.max()   # now full patch is inside the circle
+
+    # cosine falloff: 1 at center → 0 at edges/corners
+    mask = 0.5 * (1 + np.cos(rr * np.pi))
+
+    # impose minimum value
+    mask = np.maximum(mask, min_value)
+
+    return mask.astype(np.float32)
+
+
 def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
     """
-    Reconstruct full-size image from patches.
-
-    Parameters
-    ----------
-    patches_y : np.ndarray
-        Shape (N, patch_size, patch_size, 1)
-    image_shape : tuple
-        (H, W) of original image
-    patch_size : int
-    stride : int
-
-    Returns
-    -------
-    y_full : np.ndarray
-        Shape (H, W)
+        Reconstruct full-size image from patches. 
+        When patches overlap, use the patch where the pixel is closest to the center. 
+    
+        Parameters
+        ----------
+        patches_y : np.ndarray
+            Shape (N, patch_size, patch_size, 1)
+        image_shape : tuple
+            (H, W) of original image
+        patch_size : int
+        stride : int
+    
+        Returns
+        -------
+        y_full : np.ndarray
+            Shape (H, W)
     """
     H, W = image_shape
     y_full = np.zeros((H, W), dtype=np.float32)
-    count = np.zeros((H, W), dtype=np.float32)  # for averaging overlapping pixels
+    best_weight = np.zeros((H, W), dtype=np.float32)
 
-    n_patches_per_row = (H - patch_size) // stride + 1
-    n_patches_per_col = (W - patch_size) // stride + 1
+    starts_i = compute_starts(H, patch_size, stride)
+    starts_j = compute_starts(W, patch_size, stride)
+
+    # weight mask with values in [0.1, 1]
+    mask = make_weight_mask(patch_size)
 
     idx = 0
-    for i in range(0, H - patch_size + 1, stride):
-        for j in range(0, W - patch_size + 1, stride):
-            if idx >= len(patches_y):
-                break
-            patch = patches_y[idx, ..., 0]  # remove channel dim
-            y_full[i:i+patch_size, j:j+patch_size] += patch
-            count[i:i+patch_size, j:j+patch_size] += 1
+    for i in starts_i:
+        for j in starts_j:
+            patch = patches_y[idx, ..., 0]
+
+            # extract the region in the output where this patch lands
+            region = best_weight[i:i+patch_size, j:j+patch_size]
+            update_mask = mask > region    # TRUE where this patch has higher weight
+
+            # update y_full where mask is better
+            y_full[i:i+patch_size, j:j+patch_size][update_mask] = (
+                patch[update_mask]
+            )
+
+            # update the best weights
+            best_weight[i:i+patch_size, j:j+patch_size][update_mask] = (
+                mask[update_mask]
+            )
+
             idx += 1
 
-    # Avoid division by zero
-    count[count == 0] = 1
-    y_full /= count
     return y_full
 
-# --
+
+def predict(sentinel_file, model, outdir=".", stub="TEST", confidence_threshold=0.5, savetif=True):
+    """Use the trained convolutional neural network to predict unseen data"""
+    
+    # Should use this ds as input into preprocess_tile & monthly_mosaic instead of the filename, so I don't have to load the file twice
+    print(f"Loading {sentinel_file}")
+    with open(sentinel_file, 'rb') as f:
+        ds_sentinel = pickle.load(f)  # xarray.Dataset, dims: time, y, x
+    
+    # Applying the model to new data
+    X_p, shape = preprocess_tile(sentinel_file)
+    shape = (ds_sentinel.sizes['y'], ds_sentinel.sizes['x'])  
+    y_pred_prob = model.predict(X_p, batch_size=1)
+    trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
+    
+    # Attach to the original xarray
+    if confidence_threshold is not None:
+        trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
+        ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted
+    else:
+        ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
+
+    if savetif:
+        filename = os.path.join(outdir, f"{stub}_predicted.tif")
+        ds_sentinel['trees_predicted'].rio.to_raster(filename)
+        print(f"Saved: {filename}")
+
+    return ds_sentinel['trees_predicted']
+
+# sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
+# outdir = '/scratch/xe2/cb8590/tmp'
+# stub = 'CNN_TEST'
+# model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
+# trees_predicted = predict(sentinel_file, model, outdir=outdir)
+# trees_predicted.plot()
+# -
+def choose_best_sentinel_files(limit=10, koppen_class=None):
+    # Merge the years and percent trees. Copied from accuracy_comparisons. I should just save this gpkg so I don't have to merge each time.
+    filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+    gdf_years = gpd.read_file(filename)
+    gdf_percent = gpd.read_file('/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg')
+    
+    # Taking the useful features from both gpkgs
+    gdf_good = gdf_percent[~gdf_percent['bad_tif']].drop(columns='geometry')
+    gdf_recent = gdf_years[gdf_years['year'] > 2017]
+    gdf_recent_3857 = gdf_recent.to_crs("EPSG:3857")
+    gdf_merged_3857 = gdf_good.merge(gdf_recent_3857, how='inner', on='filename')
+    gdf_merged_3857['stub'] = [f.split('.')[0] for f in gdf_merged_3857['filename']]
+    gdf_merged_3857 = gpd.GeoDataFrame(
+        gdf_merged_3857,
+        geometry=gdf_recent_3857.geometry.name,
+        crs=gdf_recent_3857.crs
+    )
+    
+    # Attach the koppen classes
+    gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg')
+    gdf_koppen_3857 = gdf_koppen.to_crs("EPSG:3857")
+    gdf_joined = gdf_merged_3857.sjoin_nearest(
+        gdf_koppen_3857[['geometry', 'Name']],
+        how="left",
+        distance_col="distance_to_koppen"
+    )
+    gdf = gdf_joined
+    
+    # Find how close the percent trees is to 50.
+    gdf['percent_from_50'] = abs(50 - gdf['percent_trees'])
+    gdf = gdf.sort_values('percent_from_50')
+
+    if koppen_class is not None:
+        gdf = gdf[gdf['Name'] == koppen_class]
+    
+    # Choose a subset of sentinel_files, so when specifying a limit we choose the most informative tiles first
+    tree_filenames = gdf['filename'][:limit]  # limit the number of tree_ids (there should be 8 sentinel_files per tree tile, corresponding to the years 2017-2024)
+    tile_ids = {"_".join(filename.split('_')[:2]) for filename in tree_filenames}
+    sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
+    sentinel_files = sorted(glob.glob(os.path.join(sentinel_folder, "*.pkl")))
+    sentinel_tile_ids = ["_".join(sentinel_tile.split('/')[-1].split('_')[:2]) for sentinel_tile in sentinel_files]
+    sentinel_files = [sentinel_file for sentinel_file, sentinel_tile_id in zip(sentinel_files, sentinel_tile_ids) if sentinel_tile_id in tile_ids]
+    sentinel_files = random.sample(sentinel_files, k=limit)  # limit the number of sentinel_ids
+    
+    return sentinel_files
+
+
+def cnn(sentinel_folder, tree_folder, outdir=".", stub="TEST", limit=None, test_size=0.2, 
+        random_state=1, batch_size=8, epochs=10, patch_size=64, stride=32, clip_percentile=(2, 98), koppen_class=None):
+    """
+    Create and evaluate a convolutional neural network to predict tree vs no tree classifications
+
+    Parameters
+    ----------
+        tree_folder: Folder of binary tree tifs
+        sentinel_folder: Folder of pickle files containing sentinel imagery, generated by sentinel_nci.py
+        outdir: The directory for the outputs
+        stub: The prefix of the outputs
+        limit: Number of tiles to use when training
+        test_size: Percentage of patches to use for testing
+        random_state: Seed for the random number generator
+        batch_size: hyperparameter
+        epochs: hyperparameter
+        patch_size: Dimensions of each patch that the model predicts (like a row in a multi-layer perceptron)
+        stride: Step size when sliding the patch window. Needs to be less than the patch size when predicting unseen data.test_size
+        clip_percentile: percentiles to use when removing outliers.
+
+    Prints
+    -------
+        Accuracy metrics after the model has finished training.
+
+    Downloads
+    ---------
+        model.keras: The machine learning model for running on new input data
+        training.png: accuracy and loss plots over each epoch
+    """
+    sentinel_files = choose_best_sentinel_files(limit, koppen_class)  # Using this function means we ignore the sentinel_folder argument, and the tree_folder must be /g/data/xe2/cb8590/Nick_Aus_treecover_10m (bit of a hacky way of doing things for now)
+
+    print("Preprocessing")
+    X, y = prep_tiles(sentinel_folder, tree_folder, outdir, stub, patch_size, stride, clip_percentile, limit=limit, sentinel_files=sentinel_files)
+
+    print("Training")
+    model = train_model(X, y, outdir, stub, test_size, random_state, batch_size, epochs)
+
+    return model
+
+
+# +
+import argparse
+
+def parse_arguments():
+    """Parse command line arguments for CNN training."""
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('sentinel_folder', help='Folder of pickle files containing Sentinel imagery, generated by sentinel_nci.py')
+    parser.add_argument('tree_folder', help='Folder of binary tree TIFFs')
+    parser.add_argument('--outdir', default='.', help='The directory for the outputs')
+    parser.add_argument('--stub', default='TEST', help='Prefix of the outputs')
+    parser.add_argument('--limit', type=int, default=None, help='Number of tiles to use when training (default: all)')
+    parser.add_argument('--test_size', type=float, default=0.2, help='Fraction of patches to use for testing (default: 0.2)')
+    parser.add_argument('--random_state', type=int, default=1, help='Random seed (default: 1)')
+    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training (default: 8)')
+    parser.add_argument('--epochs', type=int, default=10, help='Max number of epochs (default: 10)')
+    parser.add_argument('--patch_size', type=int, default=64, help='Dimensions of each patch (default: 64)')
+    parser.add_argument('--stride', type=int, default=32, help='Step size for sliding patch window (default: 32)')
+    parser.add_argument('--clip_percentile', type=float, nargs=2, default=(2, 98), help='Percentiles to use when removing outliers (default: 2 98)'),
+    parser.add_argument('--koppen_class', type=str, default=None, help='Only train on tiles in this koppen class')
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    
+    cnn(
+        sentinel_folder=args.sentinel_folder,
+        tree_folder=args.tree_folder,
+        outdir=args.outdir,
+        stub=args.stub,
+        limit=args.limit,
+        test_size=args.test_size,
+        random_state=args.random_state,
+        batch_size=args.batch_size,
+        epochs=args.epochs,
+        patch_size=args.patch_size,
+        stride=args.stride,
+        clip_percentile=tuple(args.clip_percentile),
+        koppen_class=args.koppen_class
+    )
 
 
 # +
 # # %%time
-if __name__ == '__main__':
 
-    sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
-    tree_folder = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
-    limit = 10
-    
-    outdir = '/scratch/xe2/cb8590/tmp'
-    stub = 'CNN_TEST'
+# sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel'
+# tree_folder = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
+# limit = 10
 
-    X, y = prep_tiles(sentinel_folder, tree_folder, outdir, stub, limit=limit)
-    # X, y = load_preprocessed_npz(outdir, stub)   # Use this if you've already preprocessed the data previously
+# outdir = '/scratch/xe2/cb8590/tmp'
+# stub = 'CNN_TEST'
 
-    model = train_model(X, y, outdir, stub)
-    # model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
+# sentinel_files = choose_best_sentinel_files(limit, koppen_class='Cfb')
 
+# print("Preprocessing")
+# X, y = prep_tiles(sentinel_folder, tree_folder, outdir, stub, limit=limit, sentinel_files=sentinel_files)
+# # X, y = load_preprocessed_npz(outdir, stub)   # Use this if you've already preprocessed the data previously
 
-
-
-
-
-# +
-# Should probably use this ds as input into preprocess_tile & monthly_mosaic instead of the filename, so I don't have to load file twice
-sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_017_binary_tree_cover_10m_2020_ds2_2020.pkl'
-print(f"Loading {sentinel_file}")
-with open(sentinel_file, 'rb') as f:
-    ds_sentinel = pickle.load(f)  # xarray.Dataset, dims: time, y, x
-
-# Applying the model to new data
-X_p, shape = preprocess_tile(sentinel_file)
-shape = (ds_sentinel.dims['y'], ds_sentinel.dims['x'])  
-y_pred_prob = model.predict(X_p, batch_size=1)
-trees_predicted_prob = reconstruct_from_patches(y_pred_prob, shape)
-trees_predicted = (trees_predicted_prob > 0.5).astype(np.uint8)
-ds_sentinel['trees_predicted'] = ('y', 'x'), trees_predicted_prob
-ds_sentinel['trees_predicted'].plot()
+# print("Training")
+# model = train_model(X, y, outdir, stub)
+# # model = keras.models.load_model(os.path.join(outdir, f'cnn_{stub}.keras')) # Use this if you've already trained the model
 
 
 # +
-# # sanity check that the reconstruction is working
-# tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_017_binary_tree_cover_10m.tiff'
-# da_tree = rxr.open_rasterio(tree_file).isel(band=0).drop_vars("band")
-# da_tree_reprojected = da_tree.rio.reproject_match(ds_sentinel)
-# _, y_p = preprocess_tile(sentinel_file, tree_file)
-# reconstructed = reconstruct_from_patches(y_p, da_tree.shape)
-# plt.imshow(reconstructed) # Looks fine
-
-
-# -
-
-
+# gdf['Name'].unique()

@@ -13,7 +13,7 @@ import xarray as xr
 
 
 
-def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=None, pixel_cover_threshold=None, remove=False, filetype='.tif', crs=None, save_centroids=False, limit=None):
+def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_threshold=None, pixel_cover_threshold=None, remove=False, filetype='.tif', crs=None, save_centroids=False, limit=None, verbose=True):
     """Create a geopackage of tif bboxs and remove tifs that don't meet the size or cover threshold
     
     Parameters
@@ -64,7 +64,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     # Create a geopackage of the attributes of each tif
     records = []
     for i, veg_tif in enumerate(veg_tifs):
-        if i%100 == 0:
+        if verbose and i%100 == 0:
             print(f'Working on {i}/{len(veg_tifs)}: {veg_tif}', flush=True)
         da = rxr.open_rasterio(veg_tif).isel(band=0).drop_vars("band")
         original_crs = str(da.rio.crs)
