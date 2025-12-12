@@ -49,6 +49,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
 
     if len(veg_tifs) == 0:
         print("No files found, perhaps you used the wrong folder?")
+        print("Folder:", folder)
         return None
             
     if limit is not None:

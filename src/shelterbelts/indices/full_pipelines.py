@@ -162,7 +162,8 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     chunk_size = tiles_per_csv
     for i in range(math.ceil(len(df) / chunk_size)):
         chunk = df[i*chunk_size : (i+1)*chunk_size]
-        filename = os.path.join(tmpdir, f"run_pipeline_tifs_{i}.csv")
+        all_the_params = f'{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # Anything that might be run in parallel needs a unique filename
+        filename = os.path.join(tmpdir, f"{param_stub}_{all_the_params}_run_pipeline_tifs_{i}.csv")
         chunk.to_csv(filename, index=False)
         csv_filenames.append(filename)
         print("Saved:", filename)

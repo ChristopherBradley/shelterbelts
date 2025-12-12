@@ -15,11 +15,10 @@ export GDAL_NUM_THREADS=1
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/indices
 source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
-echo "Starting indices.pbs for folder $folder, outdir $outdir"
 
 # percent_tif=/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/35_33-149_46_y2018_predicted_expanded20.tif
 # param_stub=lat_36_lon_144
-param_stub=lat_34_lon_148
+# param_stub=lat_34_lon_148
 
 # year=2018
 year=2020
@@ -33,21 +32,46 @@ tmpdir='/scratch/xe2/cb8590/tmp'
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/expanded/linear_tifs_${param_stub}
 
 folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/$param_stub
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}
 
 # Run the script
+echo "Starting indices.pbs for folder $folder, outdir $outdir"
 # echo "default values"
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_default_percentmethod
 # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20
+
+# echo "More shelterbelts percent_method"
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_more_percentmethod
+# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2
+
+echo "Less shelterbelts percent_method"
+outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_less_percentmethod
+python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0
+
+# echo "default wind"
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_default_windmethod
+# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD
+
+# echo "More shelterbelts wind"
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_more_windmethod
+# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --wind_method ALL --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2
+
+# echo "Less shelterbelts wind"
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_less_windmethod
+# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0
+ 
+
+
 
 # param_to_vary=min_patch_size
 # param_value=10
 
-echo "param_to_vary=$param_to_vary"
-echo "param_value=$param_value"
+# echo "param_to_vary=$param_to_vary"
+# echo "param_value=$param_value"
 
-echo strict!
-outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_strict_${param_to_vary}_${param_value}
-python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --strict --$param_to_vary $param_value
+# echo strict!
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_strict_${param_to_vary}_${param_value}
+# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --cover_threshold 50 --crop_pixels 20 --strict --$param_to_vary $param_value
 
 # echo distance=5!
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_strict_distance5${param_to_vary}_${param_value}
