@@ -127,7 +127,7 @@ def compute_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_a
     return da_percent_trees
 
 
-def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=15, distance_threshold=20, density_threshold=10, minimum_height=10, ds=None, ds_wind=None, savetif=True, plot=True, crop_pixels=None):
+def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=20, distance_threshold=20, density_threshold=5, minimum_height=10, ds=None, ds_wind=None, savetif=True, plot=True, crop_pixels=None):
     """Define sheltered and unsheltered pixels
     
     Parameters
@@ -306,9 +306,9 @@ def parse_arguments():
     parser.add_argument('--stub', default='TEST', help='Prefix for output files.')
     parser.add_argument('--wind_method', default='MOST_COMMON', help="Either 'MOST_COMMON', 'MAX', 'HAPPENED' or 'ANY'")
     parser.add_argument('--distance_threshold', default=20, help='The distance from trees that counts as sheltered.')
-    parser.add_argument('--wind_threshold', default=15, help='The wind speed used to determine the dominant wind direction.')
+    parser.add_argument('--wind_threshold', default=20, help='The wind speed used to determine the dominant wind direction.')
     parser.add_argument('--minimum_height', default=10, help="Assume that all tree pixels are at least this tall.")
-    parser.add_argument('--density_threshold', default=10, help="The minimum percentage tree cover that counts as sheltered.")
+    parser.add_argument('--density_threshold', default=5, help="The minimum percentage tree cover that counts as sheltered.")
     parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
 
     return parser.parse_args()

@@ -45,10 +45,10 @@ canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
 
 def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
                      tmpdir='/scratch/xe2/cb8590/tmp', stub=None,
-                     wind_method=None, wind_threshold=15,
+                     wind_method=None, wind_threshold=20,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
-                     distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=100, min_shelterbelt_length=20, max_shelterbelt_width=4):
+                     distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6):
     """Starting from a percent_cover tif, go through the whole pipeline"""
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
@@ -62,8 +62,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
     
     # import pdb; pdb.set_trace()
+    worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
     
-    worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
@@ -105,10 +105,10 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
 
 def run_pipeline_csv(csv, outdir='/scratch/xe2/cb8590/tmp',
                      tmpdir='/scratch/xe2/cb8590/tmp', stub=None,
-                     wind_method=None, wind_threshold=15,
+                     wind_method=None, wind_threshold=20,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
-                     distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=100, min_shelterbelt_length=20, max_shelterbelt_width=4):
+                     distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6):
     """Run the pipeline for every tif in a csv"""
     df = pd.read_csv(csv)
     for percent_tif in df['filename']:
@@ -116,10 +116,10 @@ def run_pipeline_csv(csv, outdir='/scratch/xe2/cb8590/tmp',
 
 
 def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', param_stub='', 
-                      wind_method=None, wind_threshold=15,
+                      wind_method=None, wind_threshold=20,
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
-                      distance_threshold=10, density_threshold=5, buffer_width=3, strict_core_area=False,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=100, min_shelterbelt_length=20, max_shelterbelt_width=4):
+                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
+                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 
@@ -188,39 +188,6 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         p = subprocess.Popen(cmd)
         p.wait()
 
-    # for i, percent_tif in enumerate(percent_tifs):
-    #     print(f"Launching Popen subprocess for tif {i}/{len(percent_tifs)}:", percent_tif)
-
-    #     cmd = [
-    #         sys.executable,
-    #         "full_pipelines.py",
-    #         str(percent_tif),
-    #         "--outdir", str(outdir),
-    #         "--tmpdir", str(tmpdir),
-    #         # "--param_stub", '',  # or args.param_stub if applicable
-    #         "--wind_method", str(wind_method),
-    #         "--wind_threshold", str(wind_threshold),
-    #         "--cover_threshold", str(cover_threshold),
-    #         "--min_patch_size", str(min_patch_size),
-    #         "--edge_size", str(edge_size),
-    #         "--max_gap_size", str(max_gap_size),
-    #         "--distance_threshold", str(distance_threshold),
-    #         "--density_threshold", str(density_threshold),
-    #         "--buffer_width", str(buffer_width),
-    #         "--crop_pixels", str(crop_pixels)
-    #     ]
-    #     if strict_core_area:
-    #         cmd += ["--strict_core_area"]
-        
-    #     # Popen a subprocess to hopefully avoid memory accumulation
-    #     p = subprocess.Popen(cmd)
-    #     p.wait()
-    
-        # Launching a subprocess to hopefully avoid memory accumulation issues
-        # subprocess.run(cmd, check=True)
-
-        # run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels)
-
     # Merge the outputs
     if wind_method:
         suffix_stems = ['linear_categories', 'distances']
@@ -252,20 +219,20 @@ def parse_arguments():
     parser.add_argument("--tmpdir", default="/scratch/xe2/cb8590/tmp", help="Temporary working folder (default: /scratch/xe2/cb8590/tmp)")
     parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")  # Don't need this argument anymore, better to just incorporate these parameter names in the outdir
     parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
-    parser.add_argument("--wind_threshold", type=int, default=15, help="Windspeed that causes damage to crops/pasture in km/hr (default: 15)")
+    parser.add_argument("--wind_threshold", type=int, default=20, help="Windspeed that causes damage to crops/pasture in km/hr (default: 20)")
     parser.add_argument("--cover_threshold", type=int, default=10, help="Percentage tree cover within a pixel to classify as tree (default: 10)")
     parser.add_argument("--min_patch_size", type=int, default=20, help="Minimum patch size in pixels (default: 20)")
     parser.add_argument("--edge_size", type=int, default=3, help="Buffer distance at patch edges for core area (default: 3)")
     parser.add_argument("--max_gap_size", type=int, default=1, help="Maximum gap between tree clusters (default: 1)")
-    parser.add_argument("--distance_threshold", type=int, default=10, help="Distance from trees that counts as sheltered (default: 10)")
+    parser.add_argument("--distance_threshold", type=int, default=20, help="Distance from trees that counts as sheltered (default: 20)")
     parser.add_argument("--density_threshold", type=int, default=5, help="Tree cover %% within distance_threshold that counts as sheltered (default: 5)")
     parser.add_argument("--buffer_width", type=int, default=3, help="Buffer width for sheltered area (default: 3)")
     parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
     parser.add_argument("--strict_core_area", default=False, action="store_true", help="Boolean to determine whether to enforce core areas to be fully connected.")
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
-    parser.add_argument("--min_core_size", type=int, default=100, help="The minimum area to be classified as a core, rather than just a patch or corridor. (default: 100)")
+    parser.add_argument("--min_core_size", type=int, default=1000, help="The minimum area to be classified as a core, rather than just a patch or corridor. (default: 100)")
     parser.add_argument("--min_shelterbelt_length", type=int, default=20, help="The minimum length to be classified as a shelterbelt. (default: 20)")
-    parser.add_argument("--max_shelterbelt_width", type=int, default=4, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
+    parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
 
     return parser.parse_args()
 

@@ -97,7 +97,7 @@ def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False
 
 # -
 
-def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, min_core_size=200, edge_size=3, max_gap_size=2, strict_core_area=False, ds=None, save_tif=True, plot=True):
+def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=2, strict_core_area=False, ds=None, save_tif=True, plot=True):
     """Categorise a boolean woody veg tif into scattered trees, edges, core areas, and corridors, based on the Fragstats landscape ecology approach
 
     Parameters
