@@ -21,7 +21,8 @@ module load dea/20231204
 year=2020
 # folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/subfolders"
 # folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/subfolders"
-folder="/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/subfolders"
+# folder="/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/subfolders"
+folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/subfolders/
 
 # Print out input variables to the error log
 echo "Starting bounding_boxes.pbs"
