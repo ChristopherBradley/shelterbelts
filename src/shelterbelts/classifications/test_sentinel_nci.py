@@ -1,10 +1,62 @@
 import datacube
 
 
+
+
+
+
+
+
 dc = datacube.Datacube(app='sentinel_download')
 
 
 from shelterbelts.indices.full_pipelines import run_pipeline_tif
+
+from shelterbelts.classifications.sentinel_nci import download_ds2_bbox
+
+import geopandas as gpd
+
+from shapely import Polygon
+
+gdf = gpd.read_file('/g/data/xe2/cb8590/Outlines/BARRA_bboxs/barra_bboxs_1.gpkg')
+
+gdf
+
+# +
+latlon = [
+
+(-34.01236, 147.96265),
+
+(-34.01236, 147.98153),
+
+(-33.99500, 147.98153),
+
+(-33.99500, 147.96265),
+
+]
+
+# shapely wants (lon, lat)
+
+lonlat = [(lon, lat) for (lat, lon) in latlon]
+
+poly = Polygon(lonlat)
+
+poly, poly.is_valid
+
+gdf = gpd.GeoDataFrame({"id": [1]}, geometry=[poly], crs="EPSG:4326")
+
+
+# -
+
+gdf["filename"] = "TEST"
+gdf["start_date"] = "2017-01-01"
+gdf["end_date"] = "2025-01-01"
+
+gdf
+
+gdf.to_file("/g/data/xe2/cb8590/Outlines/yasar_experiment.gpkg", layer="poly", driver="GPKG")
+
+
 
 tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/35_93-148_38_y2018_predicted_expanded20.tif'
 

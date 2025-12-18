@@ -1,10 +1,10 @@
 #!/bin/bash
 #PBS -N sentinel_sh
-#PBS -l mem=4GB
-#PBS -l ncpus=1
+#PBS -l mem=64GB
+#PBS -l ncpus=8
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=20:00:00
+#PBS -l walltime=00:30:00
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
@@ -13,14 +13,18 @@ echo "Starting sentinel.pbs for $filename"
 
 # Change working directory
 wd=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
+outdir=/scratch/xe2/cb8590/Nick_sentinel
 cd $wd
 
 # Setup DEA environment modules for running the Python script
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
+filename=/g/data/xe2/cb8590/Outlines/yasar_experiment.gpkg
+outdir=/scratch/xe2/cb8590/tmp
+
 # Run the script
-python3 sentinel_nci.py --gpkg "$filename" --outdir /scratch/xe2/cb8590/Nick_sentinel
+python3 sentinel_nci.py --gpkg "$filename" --outdir "$outdir"
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/Tas_tifs/tas_lidar_tif_attributes.gpkg --outdir /scratch/xe2/cb8590/Tas_sentinel
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/practice/tmp/tif_folder/tif_folder_footprints.gpkg --outdir /scratch/xe2/cb8590/tmp/
 # python3 sentinel_nci.py --gpkg /scratch/xe2/cb8590/ACT_tifs/ACT_tifs_footprints.gpkg --outdir /scratch/xe2/cb8590/ACT_tifs_sentinel

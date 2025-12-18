@@ -121,7 +121,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
                       wind_method=None, wind_threshold=20,
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6):
+                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6, merge_outputs=False, suffix='tif'):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 
@@ -144,18 +144,19 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
     
     """
     os.makedirs(outdir, exist_ok=True)
-    percent_tifs = glob.glob(f'{folder}/*.tif')
+    percent_tifs = glob.glob(f'{folder}/*.{suffix}')
     print(f"Starting with {len(percent_tifs)} percent_tifs", flush=True)
 
     if limit:
         percent_tifs = percent_tifs[:limit]
 
-    # Remove tifs that have already been processed (sometimes I have to run this multiple times if a process runs out of memory or rasterio gives a parallelisation conflict)
-    percent_stubs = [pathlib.Path(tif).stem[:12] for tif in percent_tifs]
-    processed = glob.glob(f'{outdir}/*.tif')
-    processed_stubs = set(pathlib.Path(tif).stem[:12] for tif in processed)
-    percent_tifs = [tif for tif, stub in zip(percent_tifs, percent_stubs) if stub not in processed_stubs]
-    print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
+    if limit is None: # Don't remove tifs if we've specified a limit, because it's just for testing so I want reproducible results.
+        # Remove tifs that have already been processed (sometimes I have to run this multiple times if a process runs out of memory or rasterio gives a parallelisation conflict)
+        percent_stubs = [pathlib.Path(tif).stem[:12] for tif in percent_tifs]
+        processed = glob.glob(f'{outdir}/*.tif')
+        processed_stubs = set(pathlib.Path(tif).stem[:12] for tif in processed)
+        percent_tifs = [tif for tif, stub in zip(percent_tifs, percent_stubs) if stub not in processed_stubs]
+        print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])
     csv_filenames = []
@@ -200,27 +201,28 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
         p = subprocess.Popen(cmd)
         p.wait()
 
-    # Merge the outputs
-    if wind_method:
-        suffix_stems = ['linear_categories', 'distances']
-    else:
-        suffix_stems = ['linear_categories', 'densities']
-    for suffix_stem in suffix_stems:
-        filetype=f'{suffix_stem}.tif'
-        stub_original = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
-        
-        stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
-        gdf = bounding_boxes(outdir, stub=stub, filetype=filetype, verbose=False)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
-        
-        footprint_gpkg = f"{stub}_footprints.gpkg"
-        bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-        mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename', verbose=False)  
-        ds = merged_ds(mosaic, out_meta, suffix_stem)
-        basedir = os.path.dirname(outdir)
-        
-        filename_linear = os.path.join(basedir, f'{stub}_merged_{param_stub}.tif')
-        tif_categorical(ds[suffix_stem], filename_linear, linear_categories_cmap) # The distances and densities should use a continuous cmap ranging from 0-100 instead
-    return ds
+    if merge_outputs:
+        # Merge the outputs
+        if wind_method:
+            suffix_stems = ['linear_categories', 'distances']
+        else:
+            suffix_stems = ['linear_categories', 'densities']
+        for suffix_stem in suffix_stems:
+            filetype=f'{suffix_stem}.tif'
+            stub_original = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
+            
+            stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
+            gdf = bounding_boxes(outdir, stub=stub, filetype=filetype, verbose=False)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
+            
+            footprint_gpkg = f"{stub}_footprints.gpkg"
+            bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
+            mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename', verbose=False)  
+            ds = merged_ds(mosaic, out_meta, suffix_stem)
+            basedir = os.path.dirname(outdir)
+            
+            filename_linear = os.path.join(basedir, f'{stub}_merged_{param_stub}.tif')
+            tif_categorical(ds[suffix_stem], filename_linear, linear_categories_cmap) # The distances and densities should use a continuous cmap ranging from 0-100 instead
+        return ds
 
 
 def parse_arguments():
@@ -229,7 +231,7 @@ def parse_arguments():
     parser.add_argument("folder", help="Input folder containing percent_cover.tifs")
     parser.add_argument("--outdir", default="/scratch/xe2/cb8590/tmp", help="Output folder for linear_categories.tifs (default: /scratch/xe2/cb8590/tmp)")
     parser.add_argument("--tmpdir", default="/scratch/xe2/cb8590/tmp", help="Temporary working folder (default: /scratch/xe2/cb8590/tmp)")
-    parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")  # Don't need this argument anymore, better to just incorporate these parameter names in the outdir
+    parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")
     parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
     parser.add_argument("--wind_threshold", type=int, default=20, help="Windspeed that causes damage to crops/pasture in km/hr (default: 20)")
     parser.add_argument("--cover_threshold", type=int, default=10, help="Percentage tree cover within a pixel to classify as tree (default: 10)")
@@ -245,6 +247,7 @@ def parse_arguments():
     parser.add_argument("--min_core_size", type=int, default=1000, help="The minimum area to be classified as a core, rather than just a patch or corridor. (default: 100)")
     parser.add_argument("--min_shelterbelt_length", type=int, default=20, help="The minimum length to be classified as a shelterbelt. (default: 20)")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
+    parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
 
     return parser.parse_args()
 
@@ -313,5 +316,6 @@ if __name__ == "__main__":
             limit=args.limit,
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
-            max_shelterbelt_width=args.max_shelterbelt_width
+            max_shelterbelt_width=args.max_shelterbelt_width,
+            suffix=args.suffix
         )
