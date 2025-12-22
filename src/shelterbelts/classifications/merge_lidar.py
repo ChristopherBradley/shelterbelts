@@ -93,7 +93,7 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', 
 
     # This gives extra info like number of pixels in each category, but we only care about the filename and geometry
     stub = f"{'_'.join(outdir.split('/')[-2:]).split('.')[0]}_{suffix_stub}"  # The filename and one folder above with the suffix. 
-    gdf = bounding_boxes(outdir, crs=final_crs, stub=stub)
+    gdf = bounding_boxes(outdir, crs=final_crs, stub=stub, filetype=suffix)
     
     # This is the bounding box that I used to make the initial request from ELVIS
     full_bounds =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
