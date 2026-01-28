@@ -202,7 +202,7 @@ def wind_dataframe(ds):
     df = pd.DataFrame(percentage_matrix, index=speed_labels, columns = compass_labels)
 
     max_speed = round(float(speed_km_hr.max()), 2)
-    direction_max_speed = str(compass[speed_km_hr.argmax()].values)
+    direction_max_speed = str(compass[speed_km_hr.argmax(dim=...)].values)
     
     return df, max_speed, direction_max_speed
 

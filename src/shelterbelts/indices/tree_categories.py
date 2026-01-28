@@ -9,6 +9,18 @@ from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 
 import matplotlib.pyplot as plt
 
+"""Tree categorization module.
+
+This module provides functionality to categorize woody vegetation into different
+tree types based on landscape ecology principles (Fragstats approach). Trees are
+classified into:
+
+- **Scattered Trees**: Individual trees or small clusters below the minimum patch size
+- **Patch Core**: Interior areas of tree patches, away from edges
+- **Patch Edge**: Peripheral areas of tree patches
+- **Other Trees**: Corridors connecting patches or larger clusters
+"""
+
 # Create a single array with all the layers
 tree_categories_cmap = {
     0:(255, 255, 255),
@@ -28,8 +40,7 @@ inverted_labels = {v: k for k, v in tree_categories_labels.items()}
 
 
 def tree_clusters(woody_veg, max_gap_size=2):
-    """"Assign a cluster label to trees within a given distance of each other.
-        Using a gap_size of 0 means only direct adjacencies using the 4 neighbour rule."""
+    """Assign cluster labels to trees within a given distance of each other."""
 
     # Create the circular kernel
     y, x = np.ogrid[-max_gap_size:max_gap_size+1, -max_gap_size:max_gap_size+1]
@@ -48,7 +59,7 @@ def tree_clusters(woody_veg, max_gap_size=2):
 
 
 def scattered_trees(trees_labelled, min_patch_size=20):
-    """Create a boolean mask of small patches based on the labelled clusters."""
+    """Identify tree clusters smaller than minimum patch size."""
     counts = np.bincount(trees_labelled.ravel())
     small_clusters = np.flatnonzero(counts < min_patch_size)
     scattered_area = np.isin(trees_labelled, small_clusters)
@@ -57,7 +68,7 @@ def scattered_trees(trees_labelled, min_patch_size=20):
 
 # +
 def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False):
-    """Find pixels surrounded by a circle of trees in every direction with radius edge_size"""    
+    """Identify core areas of tree patches using morphological operations."""    
     y, x = np.ogrid[-edge_size:edge_size+1, -edge_size:edge_size+1]
     core_kernel = (x**2 + y**2 <= edge_size**2)
 
@@ -97,37 +108,100 @@ def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False
 
 # -
 
-def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=2, strict_core_area=False, ds=None, save_tif=True, plot=True):
-    """Categorise a boolean woody veg tif into scattered trees, edges, core areas, and corridors, based on the Fragstats landscape ecology approach
-
+def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=2, strict_core_area=False, save_tif=True, plot=True):
+    """Categorise woody vegetation into tree types using landscape ecology methods.
+    
+    Classifies a boolean woody vegetation map into four categories based on the
+    Fragstats landscape ecology approach:
+    
+    - **Scattered Trees** (11): Individual trees or clusters below minimum patch size
+    - **Patch Core** (12): Interior areas of tree patches with buffer from edges
+    - **Patch Edge** (13): Perimeter areas of tree patches within edge distance
+    - **Other Trees** (14): Corridor pixels connecting patches
+    
     Parameters
     ----------
-        filename: A binary tif file containing tree/no tree information.
-        outdir: The output directory to save the results.
-        stub: Prefix for output files. If not specified, then it appends 'categorised' to the original filename.
-        min_patch_size: The minimum area to be classified as a patch/corrider rather than just scattered trees.
-        min_core_size: The minimum area to be classified as a core, rather than just a patch or corridor.
-        edge_size: The buffer distance at the edge of a patch, with pixels inside this being the 'core area'. 
-            Non-scattered tree pixels outside the core area but within edge_size pixels of a core area get defined as 'edge' pixels. Otherwise they become 'corridor' pixels.
-        max_gap_size: The allowable gap between two tree clusters before considering them separate patches.
-        strict_core_area: Boolean to determine whether to enforce core areas to be fully connected.
-        ds: a pre-loaded xarray.DataSet with a band 'woody_veg'. This gets used instead of the woody_veg_tif when provided.
-        save_tif: Boolean to determine whether to save the final result to file.
-        plot: Boolean to determine whether to generate a png plot.
-
+    input_data : str or xarray.Dataset
+        Either a file path to a binary GeoTIFF containing tree/no-tree information,
+        or an xarray Dataset with a 'woody_veg' band (boolean or integer).
+    outdir : str, optional
+        Output directory for saving results. Default is current directory.
+    stub : str, optional
+        Prefix for output filenames. If input_data is a string and stub is not
+        provided, it is derived from the input filename. Required when
+        input_data is a Dataset.
+    min_patch_size : int, optional
+        Minimum area (pixels) to classify as a patch rather than scattered trees.
+        Default is 20.
+    min_core_size : int, optional
+        Minimum area (pixels) to classify as a core area. Default is 1000.
+    edge_size : int, optional
+        Distance (pixels) defining the edge region around patch cores.
+        Default is 3.
+    max_gap_size : int, optional
+        Maximum gap (pixels) to bridge when connecting tree clusters.
+        Default is 2.
+    strict_core_area : bool, optional
+        If True, enforce that core areas are strictly connected.
+        If False, use relaxed connectivity rules. Default is False.
+    save_tif : bool, optional
+        Whether to save the categorized result as a GeoTIFF file.
+        Default is True.
+    plot : bool, optional
+        Whether to generate a PNG visualization of the results.
+        Default is True.
+    
     Returns
     -------
-        ds: an xarray with a band 'tree_categories', where the integers represent the categories defined in 'tree_category_labels'.
-
-    Downloads
-    ---------
-        woody_veg_categorised.tif: A tif file of the 'tree_categories' band in ds, with colours embedded.
-        woody_veg_categorised.png: A png file like the tif file, but with a legend as well.
+    xarray.Dataset
+        Dataset containing:
+        
+        - **woody_veg**: Original binary tree/no-tree classification
+        - **tree_categories**: Categorized tree types (values 0, 11, 12, 13, 14)
+    
+    Notes
+    -----
+    The categorization uses morphological operations with circular kernels defined
+    by edge_size and max_gap_size. The process:
+    
+    1. Connects nearby tree clusters using max_gap_size
+    2. Identifies core areas using edge_size
+    3. Classifies remaining trees as edge or corridor
+    4. Marks very small clusters as scattered trees
+    
+    Output Files
+    ~~~~~~~~~~~~
+    When save_tif=True, generates a GeoTIFF file with embedded color map:
+    ``{stub}_categorised.tif``
+    
+    When plot=True, generates a PNG visualization with legend:
+    ``{stub}_categorised.png``
+    
+    References
+    ----------
+    McGarigal, K., & Marks, B. J. (1995). FRAGSTATS: Spatial Pattern Analysis
+    Program for Quantifying Landscape Structure. General Technical Report.
+    
+    Examples
+    --------
+    From a GeoTIFF file:
+    
+    >>> ds = tree_categories('trees.tif', outdir='output', stub='mysite')
+    
+    From an xarray Dataset:
+    
+    >>> import xarray as xr
+    >>> ds_input = xr.open_dataset('trees.nc')
+    >>> ds_cat = tree_categories(ds_input, stub='mysite')
     
     """
-    if not ds:
-        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+    if isinstance(input_data, str):
+        da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
         ds = da.to_dataset(name='woody_veg')
+        filename = input_data
+    else:
+        ds = input_data
+        filename = None
 
     woody_veg = ds['woody_veg'].values.astype(bool)
 
@@ -147,16 +221,19 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, min_core
     # ds = ds.rename({'x':'longitude', 'y': 'latitude'})
 
     if not stub:
-        # Use the same prefix as the original woody_veg filename
-        stub = filename.split('/')[-1].split('.')[0]
+        if filename:
+            # Use the same prefix as the original woody_veg filename
+            stub = filename.split('/')[-1].split('.')[0]
+        else:
+            raise ValueError("stub must be provided when input_data is a Dataset")
 
     if save_tif:
         filename_categorical = os.path.join(outdir,f"{stub}_categorised.tif")
         tif_categorical(ds['tree_categories'], filename_categorical, tree_categories_cmap)
 
     if plot:
-        # filename_categorical_png = os.path.join(outdir, f"{stub}_categorised.png")
-        filename_categorical_png = None
+        filename_categorical_png = os.path.join(outdir, f"{stub}_categorised.png")
+        # filename_categorical_png = None
         visualise_categories(ds['tree_categories'], filename_categorical_png, tree_categories_cmap, tree_categories_labels, "Tree Categories")
                 
     return ds
@@ -164,33 +241,36 @@ def tree_categories(filename, outdir='.', stub=None, min_patch_size=20, min_core
 
 def parse_arguments():
     """Parse command line arguments with default values."""
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description='Categorize woody vegetation into tree types using landscape ecology methods.'
+    )
     
     parser.add_argument('--filename', help='A binary tif file containing tree/no tree information')
     parser.add_argument('--outdir', default='.', help='The output directory to save the results')
     parser.add_argument('--stub', default=None, help='Prefix for output files.')
-    parser.add_argument('--min_patch_size', default=20, help='The minimum area to be classified as a patch/corrider rather than just scattered trees.')
-    parser.add_argument('--edge_size', default=3, help='The buffer distance at the edge of a patch, with pixels inside this being the core area')
-    parser.add_argument('--max_gap_size', default=2, help='The allowable gap between two tree clusters before considering them as separate patches.')
+    parser.add_argument('--min_patch_size', default=20, type=int, help='The minimum area to be classified as a patch/corrider rather than just scattered trees.')
+    parser.add_argument('--edge_size', default=3, type=int, help='The buffer distance at the edge of a patch, with pixels inside this being the core area')
+    parser.add_argument('--max_gap_size', default=2, type=int, help='The allowable gap between two tree clusters before considering them as separate patches.')
     parser.add_argument('--strict_core_area', default=False, action="store_true", help="Whether to enforce core areas being fully connected.")
     parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
  
-    return parser.parse_args()
+    return parser
 
 
 if __name__ == '__main__':
 
-    args = parse_arguments()
+    parser = parse_arguments()
+    args = parser.parse_args()
     
     filename = args.filename
     outdir = args.outdir
     stub = args.stub
-    min_patch_size = int(args.min_patch_size)
-    edge_size = int(args.edge_size)
-    max_gap_size = int(args.max_gap_size)
+    min_patch_size = args.min_patch_size
+    edge_size = args.edge_size
+    max_gap_size = args.max_gap_size
     plot = args.plot
     
-    tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, strict_core_area, plot=plot)
+    tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, args.strict_core_area, plot=plot)
 
 # +
 # # %%time
