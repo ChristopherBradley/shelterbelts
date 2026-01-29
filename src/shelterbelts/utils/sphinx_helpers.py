@@ -1,6 +1,23 @@
 """Utilities for Sphinx documentation examples."""
 
 from pathlib import Path
+import rioxarray as rxr
+
+
+def create_test_woody_veg_dataset():
+    """Create a test woody vegetation dataset for docstring examples.
+    
+    Returns a ready-to-use xarray Dataset with a 'woody_veg' variable,
+    eliminating file I/O from docstring examples.
+    
+    Returns
+    -------
+    xarray.Dataset
+        Dataset with 'woody_veg' data array (boolean, 100x100 pixels)
+    """
+    test_file = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+    da_trees = rxr.open_rasterio(test_file).isel(band=0).drop_vars('band')
+    return da_trees.to_dataset(name='woody_veg')
 
 
 def get_example_data(filename):

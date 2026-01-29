@@ -183,92 +183,58 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     
     Examples
     --------
-    From a GeoTIFF file:
+    Creating tree categories from test data:
     
-    >>> ds = tree_categories('trees.tif', outdir='output', stub='mysite')
+    >>> from shelterbelts.utils import create_test_woody_veg_dataset
+    >>> ds_input = create_test_woody_veg_dataset()
+    >>> ds_cat = tree_categories(ds_input, stub='test', outdir='/tmp', plot=False, save_tif=False)
+    >>> set(ds_cat.data_vars) == {'woody_veg', 'tree_categories'}
+    True
     
-    From an xarray Dataset:
-    
-    >>> import xarray as xr
-    >>> ds_input = xr.open_dataset('trees.nc')
-    >>> ds_cat = tree_categories(ds_input, stub='mysite')
-    
-    Visual comparison of parameters:
-    
-    **edge_size effect** - controls width of edge buffer around patch cores:
+    Here's how different parameters affect the categorization:
     
     .. plot::
         
         from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
         from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
+        import matplotlib.pyplot as plt
         
         test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        
+        # edge_size: 1 vs 5
         ds1 = tree_categories(test_filename, edge_size=1)
         ds2 = tree_categories(test_filename, edge_size=5)
         visualise_categories_sidebyside(
-            ds1['tree_categories'], 
-            ds2['tree_categories'],
-            colormap=tree_categories_cmap,
-            labels=tree_categories_labels,
-            title1="edge_size=1 (narrow edges)",
-            title2="edge_size=5 (wide edges)"
+            ds1['tree_categories'], ds2['tree_categories'],
+            colormap=tree_categories_cmap, labels=tree_categories_labels,
+            title1="edge_size=1", title2="edge_size=5"
         )
-    
-    **min_patch_size effect** - controls minimum cluster size to be classified as a patch:
-    
-    .. plot::
         
-        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
-        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
-        
-        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        # min_patch_size: 10 vs 30
         ds1 = tree_categories(test_filename, min_patch_size=10)
         ds2 = tree_categories(test_filename, min_patch_size=30)
         visualise_categories_sidebyside(
-            ds1['tree_categories'], 
-            ds2['tree_categories'],
-            colormap=tree_categories_cmap,
-            labels=tree_categories_labels,
-            title1="min_patch_size=10 (less scattered trees)",
-            title2="min_patch_size=30 (more scattered trees)"
+            ds1['tree_categories'], ds2['tree_categories'],
+            colormap=tree_categories_cmap, labels=tree_categories_labels,
+            title1="min_patch_size=10", title2="min_patch_size=30"
         )
-    
-    **max_gap_size effect** - controls maximum gap to bridge when connecting tree clusters:
-    
-    .. plot::
         
-        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
-        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
-        
-        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        # max_gap_size: 0 vs 2
         ds1 = tree_categories(test_filename, max_gap_size=0)
         ds2 = tree_categories(test_filename, max_gap_size=2)
         visualise_categories_sidebyside(
-            ds1['tree_categories'], 
-            ds2['tree_categories'],
-            colormap=tree_categories_cmap,
-            labels=tree_categories_labels,
-            title1="max_gap_size=0 (no bridging)",
-            title2="max_gap_size=2 (connect nearby clusters)"
+            ds1['tree_categories'], ds2['tree_categories'],
+            colormap=tree_categories_cmap, labels=tree_categories_labels,
+            title1="max_gap_size=0", title2="max_gap_size=2"
         )
-    
-    **strict_core_area effect** - controls core area connectivity enforcement:
-    
-    .. plot::
         
-        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
-        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
-        
-        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        # strict_core_area: False vs True
         ds1 = tree_categories(test_filename, strict_core_area=False)
         ds2 = tree_categories(test_filename, strict_core_area=True)
         visualise_categories_sidebyside(
-            ds1['tree_categories'], 
-            ds2['tree_categories'],
-            colormap=tree_categories_cmap,
-            labels=tree_categories_labels,
-            title1="strict_core_area=False (relaxed)",
-            title2="strict_core_area=True (strict)"
+            ds1['tree_categories'], ds2['tree_categories'],
+            colormap=tree_categories_cmap, labels=tree_categories_labels,
+            title1="strict_core_area=False", title2="strict_core_area=True"
         )
     
     """

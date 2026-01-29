@@ -161,43 +161,33 @@ def shelter_categories(category_tif, wind_nc=None, height_tif=None, outdir='.', 
     
     Examples
     --------
-    **distance_threshold effect** - controls how far from trees is considered sheltered:
-    
     .. plot::
         
         from shelterbelts.indices.shelter_categories import shelter_categories, shelter_category_cmap, shelter_category_labels
         from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
+        import matplotlib.pyplot as plt
         
         test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        
+        # distance_threshold: 10 vs 30
         ds1 = shelter_categories(test_filename, distance_threshold=10)
         ds2 = shelter_categories(test_filename, distance_threshold=30)
         visualise_categories_sidebyside(
-            ds1['shelter_categories'], 
-            ds2['shelter_categories'],
-            colormap=shelter_category_cmap,
-            labels=shelter_category_labels,
-            title1="distance_threshold=10 (narrow shelter)",
-            title2="distance_threshold=30 (wide shelter)"
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_category_cmap, labels=shelter_category_labels,
+            title1="distance_threshold=10", title2="distance_threshold=30"
         )
-    
-    **density_threshold effect** - controls minimum tree cover for shelter:
-    
-    .. plot::
+        plt.suptitle("Distance Threshold Effect", fontsize=12, fontweight='bold', y=0.98)
         
-        from shelterbelts.indices.shelter_categories import shelter_categories, shelter_category_cmap, shelter_category_labels
-        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
-        
-        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        # density_threshold: 3 vs 10
         ds1 = shelter_categories(test_filename, density_threshold=3)
         ds2 = shelter_categories(test_filename, density_threshold=10)
         visualise_categories_sidebyside(
-            ds1['shelter_categories'], 
-            ds2['shelter_categories'],
-            colormap=shelter_category_cmap,
-            labels=shelter_category_labels,
-            title1="density_threshold=3 (loose)",
-            title2="density_threshold=10 (strict)"
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_category_cmap, labels=shelter_category_labels,
+            title1="density_threshold=3", title2="density_threshold=10"
         )
+        plt.suptitle("Density Threshold Effect", fontsize=12, fontweight='bold', y=0.98)
 
     Downloads
     ---------

@@ -21,7 +21,7 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
     
     ax.imshow(da.values, cmap=cmap, norm=norm)
     if title:
-        ax.set_title(title)
+        ax.set_title(title, fontsize=30, fontweight='bold')
     ax.axis('off')
     
     if labels:
@@ -30,9 +30,9 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
             for class_id, color in zip(worldcover_classes, colors)
         ]
         if legend_inside:
-            ax.legend(handles=legend_elements, loc='upper right')
+            ax.legend(handles=legend_elements, loc='upper right', fontsize=14)
         else:
-            ax.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
+            ax.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=11)
 
 
 def visualise_categories(da, filename=None, colormap=None, labels=None, title=None):
@@ -40,7 +40,7 @@ def visualise_categories(da, filename=None, colormap=None, labels=None, title=No
     if colormap is None:
         raise ValueError("colormap dictionary must be provided")
     
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(14, 10))
     _plot_categories_on_axis(ax, da, colormap, labels, title)
     plt.tight_layout()
     
@@ -57,7 +57,7 @@ def visualise_categories_sidebyside(da1, da2, filename=None, colormap=None, labe
     if colormap is None:
         raise ValueError("colormap dictionary must be provided")
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
     _plot_categories_on_axis(ax1, da1, colormap, labels, title1, legend_inside=True)
     _plot_categories_on_axis(ax2, da2, colormap, labels, title2, legend_inside=True)
     plt.tight_layout()

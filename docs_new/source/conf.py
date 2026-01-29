@@ -43,3 +43,7 @@ html_theme = 'alabaster'
 # html_theme = 'furo'
 
 html_static_path = ['_static']
+
+# Plot directive settings - show only high-resolution PNG
+plot_formats = [('hires.png', 150)]
+plot_html_show_formats = False

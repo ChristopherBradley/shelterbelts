@@ -52,24 +52,23 @@ def buffer_categories(cover_tif, gullies_tif, ridges_tif=None, roads_tif=None, o
     
     Examples
     --------
-    **buffer_width effect** - controls distance from features to include in buffer:
-    
     .. plot::
         
         from shelterbelts.indices.buffer_categories import buffer_categories, buffer_category_cmap, buffer_category_labels
         from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
+        import matplotlib.pyplot as plt
         
         test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        
+        # buffer_width: 1 vs 5
         ds1 = buffer_categories(test_filename, buffer_width=1)
         ds2 = buffer_categories(test_filename, buffer_width=5)
         visualise_categories_sidebyside(
-            ds1['buffer_categories'], 
-            ds2['buffer_categories'],
-            colormap=buffer_category_cmap,
-            labels=buffer_category_labels,
-            title1="buffer_width=1 (narrow)",
-            title2="buffer_width=5 (wide)"
+            ds1['buffer_categories'], ds2['buffer_categories'],
+            colormap=buffer_category_cmap, labels=buffer_category_labels,
+            title1="buffer_width=1", title2="buffer_width=5"
         )
+        plt.suptitle("Buffer Width Effect", fontsize=12, fontweight='bold', y=0.98)
     
     """
     if not ds: 
