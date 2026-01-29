@@ -69,6 +69,9 @@ package-dir = {"" = "src"}
 
 # Suppress warnings from dependencies and internal code
 [tool.pytest.ini_options]
+markers = [
+    "visual: tests that open matplotlib windows (run individually by name)"
+]
 filterwarnings = [
     # Third-party packages using old Pydantic v1 class-based Config style
     "ignore::pydantic.warnings.PydanticDeprecatedSince20",

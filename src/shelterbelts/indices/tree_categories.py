@@ -5,7 +5,7 @@ import numpy as np
 import rioxarray as rxr
 from scipy.ndimage import label, binary_erosion, binary_dilation
 
-from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
+from shelterbelts.utils import visualise_categories, visualise_categories_sidebyside, tif_categorical, get_example_data
 
 import matplotlib.pyplot as plt
 
@@ -108,9 +108,8 @@ def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False
 
 # -
 
-def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=2, strict_core_area=False, save_tif=True, plot=True):
-    """Categorise woody vegetation into tree types using landscape ecology methods.
-    
+def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=2, strict_core_area=True, save_tif=True, plot=True):
+    """
     Classifies a boolean woody vegetation map into four categories based on the
     Fragstats landscape ecology approach:
     
@@ -143,7 +142,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         Default is 2.
     strict_core_area : bool, optional
         If True, enforce that core areas are strictly connected.
-        If False, use relaxed connectivity rules. Default is False.
+        If False, use relaxed connectivity rules. Default is True.
     save_tif : bool, optional
         Whether to save the categorized result as a GeoTIFF file.
         Default is True.
@@ -193,6 +192,84 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     >>> import xarray as xr
     >>> ds_input = xr.open_dataset('trees.nc')
     >>> ds_cat = tree_categories(ds_input, stub='mysite')
+    
+    Visual comparison of parameters:
+    
+    **edge_size effect** - controls width of edge buffer around patch cores:
+    
+    .. plot::
+        
+        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
+        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
+        
+        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        ds1 = tree_categories(test_filename, edge_size=1)
+        ds2 = tree_categories(test_filename, edge_size=5)
+        visualise_categories_sidebyside(
+            ds1['tree_categories'], 
+            ds2['tree_categories'],
+            colormap=tree_categories_cmap,
+            labels=tree_categories_labels,
+            title1="edge_size=1 (narrow edges)",
+            title2="edge_size=5 (wide edges)"
+        )
+    
+    **min_patch_size effect** - controls minimum cluster size to be classified as a patch:
+    
+    .. plot::
+        
+        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
+        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
+        
+        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        ds1 = tree_categories(test_filename, min_patch_size=10)
+        ds2 = tree_categories(test_filename, min_patch_size=30)
+        visualise_categories_sidebyside(
+            ds1['tree_categories'], 
+            ds2['tree_categories'],
+            colormap=tree_categories_cmap,
+            labels=tree_categories_labels,
+            title1="min_patch_size=10 (less scattered trees)",
+            title2="min_patch_size=30 (more scattered trees)"
+        )
+    
+    **max_gap_size effect** - controls maximum gap to bridge when connecting tree clusters:
+    
+    .. plot::
+        
+        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
+        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
+        
+        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        ds1 = tree_categories(test_filename, max_gap_size=0)
+        ds2 = tree_categories(test_filename, max_gap_size=2)
+        visualise_categories_sidebyside(
+            ds1['tree_categories'], 
+            ds2['tree_categories'],
+            colormap=tree_categories_cmap,
+            labels=tree_categories_labels,
+            title1="max_gap_size=0 (no bridging)",
+            title2="max_gap_size=2 (connect nearby clusters)"
+        )
+    
+    **strict_core_area effect** - controls core area connectivity enforcement:
+    
+    .. plot::
+        
+        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
+        from shelterbelts.utils import visualise_categories_sidebyside, get_example_data
+        
+        test_filename = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+        ds1 = tree_categories(test_filename, strict_core_area=False)
+        ds2 = tree_categories(test_filename, strict_core_area=True)
+        visualise_categories_sidebyside(
+            ds1['tree_categories'], 
+            ds2['tree_categories'],
+            colormap=tree_categories_cmap,
+            labels=tree_categories_labels,
+            title1="strict_core_area=False (relaxed)",
+            title2="strict_core_area=True (strict)"
+        )
     
     """
     if isinstance(input_data, str):
@@ -251,8 +328,8 @@ def parse_arguments():
     parser.add_argument('--min_patch_size', default=20, type=int, help='The minimum area to be classified as a patch/corrider rather than just scattered trees.')
     parser.add_argument('--edge_size', default=3, type=int, help='The buffer distance at the edge of a patch, with pixels inside this being the core area')
     parser.add_argument('--max_gap_size', default=2, type=int, help='The allowable gap between two tree clusters before considering them as separate patches.')
-    parser.add_argument('--strict_core_area', default=False, action="store_true", help="Whether to enforce core areas being fully connected.")
-    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
+    parser.add_argument('--no-strict-core-area', dest='strict_core_area', action="store_false", default=True, help='Disable strict core area enforcement (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
  
     return parser
 

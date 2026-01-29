@@ -27,6 +27,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',  # Support for Google/NumPy style docstrings
     'sphinxarg.ext',  # Support for argparse documentation
+    'matplotlib.sphinxext.plot_directive',  # Support for inline plots
 ]
 templates_path = ['_templates']
 exclude_patterns = []

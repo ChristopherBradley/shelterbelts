@@ -7,7 +7,7 @@ help:
 
 Makefile:
 
-SPHINXBUILD   = sphinx-build
+SPHINXBUILD   = conda run -n shelterbelts_pdal sphinx-build
 BUILDDIR      = build
 SOURCEDIR     = source
 
