@@ -243,7 +243,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         ds = da.to_dataset(name='woody_veg')
         filename = input_data
     else:
-        ds = input_data
+        ds = input_data.copy(deep=True)
         filename = None
 
     woody_veg = ds['woody_veg'].values.astype(bool)

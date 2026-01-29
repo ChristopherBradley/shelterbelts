@@ -2,6 +2,7 @@ import os
 import pytest
 
 from shelterbelts.indices.tree_categories import tree_categories
+from shelterbelts.utils import create_test_woody_veg_dataset
 
 
 # Configuration
@@ -59,3 +60,15 @@ def test_tree_categories_no_plot():
     assert set(ds.coords) == {'x', 'y', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
     assert not os.path.exists(f"outdir/{stub}_categorised.png")
+
+
+def test_tree_categories_does_not_mutate_input_dataset():
+    """Ensure input Dataset is not mutated in-place."""
+    ds_input = create_test_woody_veg_dataset()
+    ds_input_before = ds_input.copy(deep=True)
+
+    ds_output = tree_categories(ds_input, stub='test', outdir='outdir', plot=False, save_tif=False)
+
+    assert 'tree_categories' not in ds_input.data_vars
+    assert set(ds_output.data_vars) == {'woody_veg', 'tree_categories'}
+    assert ds_input['woody_veg'].equals(ds_input_before['woody_veg'])

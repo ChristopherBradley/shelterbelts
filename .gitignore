@@ -110,6 +110,8 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+# Keep .py notebooks, ignore generated .ipynb for detailed demos
+notebooks/**/demo_*.ipynb
 
 # IPython
 profile_default/
