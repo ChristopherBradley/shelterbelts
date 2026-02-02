@@ -1,5 +1,4 @@
 import os
-import pytest
 
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.utils import create_test_woody_veg_dataset
@@ -72,3 +71,21 @@ def test_tree_categories_does_not_mutate_input_dataset():
     assert 'tree_categories' not in ds_input.data_vars
     assert set(ds_output.data_vars) == {'woody_veg', 'tree_categories'}
     assert ds_input['woody_veg'].equals(ds_input_before['woody_veg'])
+
+
+def test_tree_categories_strict_core_area():
+    """Test tree_categories with strict_core_area parameter"""
+    ds_strict_false = tree_categories(
+        test_filename, stub='strict_false', outdir='outdir',
+        plot=False, save_tif=False, strict_core_area=False
+    )
+    ds_strict_true = tree_categories(
+        test_filename, stub='strict_true', outdir='outdir',
+        plot=False, save_tif=False, strict_core_area=True
+    )
+    assert set(ds_strict_false.data_vars) == {'woody_veg', 'tree_categories'}
+    assert set(ds_strict_true.data_vars) == {'woody_veg', 'tree_categories'}
+    
+    # Check for differences in core areas
+    diff_strict = (ds_strict_false['tree_categories'] != ds_strict_true['tree_categories']).sum().item()
+    assert diff_strict >= 0

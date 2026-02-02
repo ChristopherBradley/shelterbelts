@@ -5,15 +5,14 @@ import numpy as np
 import rioxarray as rxr
 from scipy.ndimage import label, binary_erosion, binary_dilation
 
-from shelterbelts.utils import visualise_categories, visualise_categories_sidebyside, tif_categorical, get_example_data
+from shelterbelts.utils import visualise_categories, tif_categorical
 
 import matplotlib.pyplot as plt
 
 """Tree categorization module.
 
 This module provides functionality to categorize woody vegetation into different
-tree types based on landscape ecology principles (Fragstats approach). Trees are
-classified into:
+tree types based on landscape ecology principles. The classifications are:
 
 - **Scattered Trees**: Individual trees or small clusters below the minimum patch size
 - **Patch Core**: Interior areas of tree patches, away from edges
@@ -66,7 +65,6 @@ def scattered_trees(trees_labelled, min_patch_size=20):
     return scattered_area
 
 
-# +
 def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False):
     """Identify core areas of tree patches using morphological operations."""    
     y, x = np.ogrid[-edge_size:edge_size+1, -edge_size:edge_size+1]
@@ -96,17 +94,11 @@ def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False
     
     large_cores = np.flatnonzero(np.bincount(labeled_cores.ravel()) >= min_core_size)
     if (~woody_veg).sum() > 0:
-        # large_cores = large_cores[1:]  # This doesn't work if there aren't any 0 categories larger than the min_patch_size because they got removed from the last step, so we end up losing a core area instead
         large_cores = large_cores[large_cores != 0]  # Drop the 0 category for non-trees
     core_area = np.isin(labeled_cores, large_cores) & woody_veg
 
     return core_area, core_kernel
 
-# core_area, core_kernel = core_trees(woody_veg, edge_size, min_patch_size)
-# plt.imshow(core_area)
-
-
-# -
 
 def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=2, strict_core_area=True, save_tif=True, plot=True):
     """
@@ -141,8 +133,8 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         Maximum gap (pixels) to bridge when connecting tree clusters.
         Default is 2.
     strict_core_area : bool, optional
-        If True, enforce that core areas are strictly connected.
-        If False, use relaxed connectivity rules. Default is True.
+        If True, enforce that core areas exceed the edge_size at all points.
+        If False, use dilation and erosion to allow some irregularity. Default is True.
     save_tif : bool, optional
         Whether to save the categorized result as a GeoTIFF file.
         Default is True.
@@ -157,23 +149,13 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         
         - **woody_veg**: Original binary tree/no-tree classification
         - **tree_categories**: Categorized tree types (values 0, 11, 12, 13, 14)
-    
+        
     Notes
-    -----
-    The categorization uses morphological operations with circular kernels defined
-    by edge_size and max_gap_size. The process:
-    
-    1. Connects nearby tree clusters using max_gap_size
-    2. Identifies core areas using edge_size
-    3. Classifies remaining trees as edge or corridor
-    4. Marks very small clusters as scattered trees
-    
-    Output Files
-    ~~~~~~~~~~~~
-    When save_tif=True, generates a GeoTIFF file with embedded color map:
+    -------
+    When save_tif=True, it outputs a GeoTIFF file with embedded color map:
     ``{stub}_categorised.tif``
     
-    When plot=True, generates a PNG visualization with legend:
+    When plot=True, it outputs a PNG visualization with legend:
     ``{stub}_categorised.png``
     
     References
@@ -261,7 +243,6 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     tree_categories_array[edge_area]      = inverted_labels['Patch Edge']
     tree_categories_array[corridor_area]  = inverted_labels['Other Trees']
     ds['tree_categories'] = (('y', 'x'), tree_categories_array)
-    # ds = ds.rename({'x':'longitude', 'y': 'latitude'})
 
     if not stub:
         if filename:
@@ -276,7 +257,6 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
 
     if plot:
         filename_categorical_png = os.path.join(outdir, f"{stub}_categorised.png")
-        # filename_categorical_png = None
         visualise_categories(ds['tree_categories'], filename_categorical_png, tree_categories_cmap, tree_categories_labels, "Tree Categories")
                 
     return ds
@@ -317,6 +297,7 @@ if __name__ == '__main__':
 
 # +
 # # %%time
+# TODO: This code should go in a separate testing file
 # cover_threshold=50
 # min_patch_size=20
 # min_core_size=200

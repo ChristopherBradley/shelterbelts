@@ -61,11 +61,6 @@ visualise_categories(
 ds_edge1 = tree_categories(ds_input, stub='edge1', outdir='/tmp', plot=False, save_tif=False, edge_size=1)
 ds_edge5 = tree_categories(ds_input, stub='edge5', outdir='/tmp', plot=False, save_tif=False, edge_size=5)
 
-# Verify both produced valid outputs
-assert set(ds_edge1.data_vars) == {'woody_veg', 'tree_categories'}
-assert set(ds_edge5.data_vars) == {'woody_veg', 'tree_categories'}
-print("edge_size: both parameters produced valid outputs")
-
 visualise_categories_sidebyside(
     ds_edge1['tree_categories'], ds_edge5['tree_categories'],
     colormap=tree_categories_cmap, labels=tree_categories_labels,
@@ -84,12 +79,6 @@ visualise_categories_sidebyside(
 # %%
 ds_patch10 = tree_categories(ds_input, stub='patch10', outdir='/tmp', plot=False, save_tif=False, min_patch_size=10)
 ds_patch30 = tree_categories(ds_input, stub='patch30', outdir='/tmp', plot=False, save_tif=False, min_patch_size=30)
-
-# Note: This test data is relatively small, so parameter effects may be subtle
-# Check that both run without error
-assert set(ds_patch10.data_vars) == {'woody_veg', 'tree_categories'}
-assert set(ds_patch30.data_vars) == {'woody_veg', 'tree_categories'}
-print("min_patch_size: both parameters produced valid outputs")
 
 visualise_categories_sidebyside(
     ds_patch10['tree_categories'], ds_patch30['tree_categories'],
@@ -110,11 +99,6 @@ visualise_categories_sidebyside(
 ds_gap0 = tree_categories(ds_input, stub='gap0', outdir='/tmp', plot=False, save_tif=False, max_gap_size=0)
 ds_gap2 = tree_categories(ds_input, stub='gap2', outdir='/tmp', plot=False, save_tif=False, max_gap_size=2)
 
-# Verify both produced valid outputs
-assert set(ds_gap0.data_vars) == {'woody_veg', 'tree_categories'}
-assert set(ds_gap2.data_vars) == {'woody_veg', 'tree_categories'}
-print("max_gap_size: both parameters produced valid outputs")
-
 visualise_categories_sidebyside(
     ds_gap0['tree_categories'], ds_gap2['tree_categories'],
     colormap=tree_categories_cmap, labels=tree_categories_labels,
@@ -132,15 +116,6 @@ visualise_categories_sidebyside(
 # %%
 ds_strict_false = tree_categories(ds_input, stub='strict_false', outdir='/tmp', plot=False, save_tif=False, strict_core_area=False)
 ds_strict_true = tree_categories(ds_input, stub='strict_true', outdir='/tmp', plot=False, save_tif=False, strict_core_area=True)
-
-# Check for differences in core areas
-diff_strict = (ds_strict_false['tree_categories'] != ds_strict_true['tree_categories']).sum().item()
-if diff_strict > 0:
-    print(f"strict_core_area: {diff_strict} pixels different between False and True")
-    assert True
-else:
-    print("strict_core_area: no visible difference on test data (acceptable)")
-    assert set(ds_strict_false.data_vars) == {'woody_veg', 'tree_categories'}
 
 visualise_categories_sidebyside(
     ds_strict_false['tree_categories'], ds_strict_true['tree_categories'],
