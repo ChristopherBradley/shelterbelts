@@ -83,4 +83,5 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 # Examples
 There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting synchronous jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
 
-I was in a bit of a rush before ESA, but I'm planning to clean these up and prepare a publication for the Journal of Open Source Software (JOSS) before the end of 2025...
+
+

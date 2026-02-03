@@ -17,25 +17,26 @@
 # # Tree Categories Demo
 #
 # Demonstrates the `tree_categories` function with different parameter values.
-# This notebook explores how each parameter affects the categorization of woody vegetation.
 
 # %% [markdown]
 # ## Setup
 
 # %%
-import numpy as np
+import rioxarray as rxr
 
-from shelterbelts.utils import create_test_woody_veg_dataset, visualise_categories_sidebyside, visualise_categories
+from shelterbelts.utils import visualise_categories_sidebyside, visualise_categories, get_example_data
 from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
 
 # Load test data
-ds_input = create_test_woody_veg_dataset()
+test_file = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+da_trees = rxr.open_rasterio(test_file).isel(band=0).drop_vars('band')
+ds_input = da_trees.to_dataset(name='woody_veg')
 print(f"Input dimensions: {ds_input['woody_veg'].shape}")
 
 # %% [markdown]
 # ## Default Parameters
 #
-# First, let's run with default parameters to see the baseline categorization:
+# First, let's run with default parameters:
 
 # %%
 ds_default = tree_categories(ds_input, stub='default', outdir='/tmp', plot=False, save_tif=False)
@@ -54,8 +55,8 @@ visualise_categories(
 # The `edge_size` parameter defines the distance (in pixels) from the edge of a patch.
 # Areas beyond this distance from edges are classified as "Patch Core".
 #
-# - **Low value (1)**: Thin edge zones, more core area
-# - **High value (5)**: Thick edge zones, less core area
+# - **Low value (1)**: Thin edges
+# - **High value (5)**: Thick edges
 
 # %%
 ds_edge1 = tree_categories(ds_input, stub='edge1', outdir='/tmp', plot=False, save_tif=False, edge_size=1)
@@ -73,8 +74,8 @@ visualise_categories_sidebyside(
 # The `min_patch_size` parameter sets the minimum area (in pixels) for a cluster to be
 # considered a patch rather than scattered trees.
 #
-# - **Low value (10)**: More small clusters classified as patches
-# - **High value (30)**: Only larger clusters classified as patches
+# - **Low value (10)**: Less scattered trees
+# - **High value (30)**: More scattered trees
 
 # %%
 ds_patch10 = tree_categories(ds_input, stub='patch10', outdir='/tmp', plot=False, save_tif=False, min_patch_size=10)
@@ -92,8 +93,8 @@ visualise_categories_sidebyside(
 # The `max_gap_size` parameter determines the maximum gap (in pixels) that can be bridged
 # when connecting tree clusters into patches.
 #
-# - **Low value (0)**: No gap bridging, more fragmented patches
-# - **High value (2)**: Bridges small gaps, more connected patches
+# - **Low value (0)**: More scattered trees and smaller patches
+# - **High value (2)**: Less scattered trees and larger patches
 
 # %%
 ds_gap0 = tree_categories(ds_input, stub='gap0', outdir='/tmp', plot=False, save_tif=False, max_gap_size=0)
@@ -108,10 +109,10 @@ visualise_categories_sidebyside(
 # %% [markdown]
 # ## Parameter: strict_core_area
 #
-# The `strict_core_area` parameter controls whether core areas must be strictly connected.
+# The `strict_core_area` parameter changes the method for defining core areas.
 #
-# - **False**: Relaxed connectivity, allows patchy core areas
-# - **True**: Strict connectivity, requires fully connected core areas
+# - **False**: Use dilation and erosion to allow some irregularity.
+# - **True**: Enforce that core areas exceed the edge_size at all points.
 
 # %%
 ds_strict_false = tree_categories(ds_input, stub='strict_false', outdir='/tmp', plot=False, save_tif=False, strict_core_area=False)

@@ -251,15 +251,6 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
             colormap=shelter_categories_cmap, labels=shelter_categories_labels,
             title1="wind_threshold=10", title2="wind_threshold=30"
         )
-        
-        # With height tif: Minimum height 5 vs 10
-        ds1 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='noh', plot=False, savetif=False, distance_threshold=20, wind_method='MOST_COMMON')
-        ds2 = shelter_categories(ds_cat, wind_data=wind_file, height_tif=height_file, outdir='/tmp', stub='withh', plot=False, savetif=False, distance_threshold=20, minimum_height=10, wind_method='MOST_COMMON')
-        visualise_categories_sidebyside(
-            ds1['shelter_categories'], ds2['shelter_categories'],
-            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
-            title1="Without height_tif (pixels)", title2="With height_tif (tree heights)"
-        )
     
     """
     if category_data is None:
