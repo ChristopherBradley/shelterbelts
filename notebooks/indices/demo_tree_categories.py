@@ -25,7 +25,8 @@
 import rioxarray as rxr
 
 from shelterbelts.utils import visualise_categories_sidebyside, visualise_categories, get_example_data
-from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
+from shelterbelts.indices import tree_categories
+from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
 
 # Load test data
 test_file = get_example_data('g2_26729_binary_tree_cover_10m.tiff')

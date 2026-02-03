@@ -23,7 +23,8 @@
 
 # %%
 from shelterbelts.utils import get_example_data, get_example_tree_categories_data, visualise_categories_sidebyside, visualise_categories
-from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
+from shelterbelts.indices import shelter_categories
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 
 # Load test data
 ds_cat = get_example_tree_categories_data()

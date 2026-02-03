@@ -29,3 +29,16 @@ Command Line Interface
    :module: shelterbelts.indices.shelter_categories
    :func: parse_arguments
    :prog: python -m shelterbelts.indices.shelter_categories
+
+Cover Categories
+----------------
+
+.. autofunction:: shelterbelts.indices.cover_categories.cover_categories
+
+Command Line Interface
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. argparse::
+   :module: shelterbelts.indices.cover_categories
+   :func: parse_arguments
+   :prog: python -m shelterbelts.indices.cover_categories

@@ -30,9 +30,7 @@ from shelterbelts.apis.hydrolines import hydrolines
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 from shelterbelts.apis.barra_daily import barra_daily
 
-from shelterbelts.indices.tree_categories import tree_categories
-from shelterbelts.indices.shelter_categories import shelter_categories
-from shelterbelts.indices.cover_categories import cover_categories
+from shelterbelts.indices import tree_categories, shelter_categories, cover_categories
 from shelterbelts.indices.buffer_categories import buffer_categories
 from shelterbelts.indices.shelter_metrics import patch_metrics, linear_categories_cmap
 

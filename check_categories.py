@@ -1,5 +1,5 @@
 from shelterbelts.utils import create_test_woody_veg_dataset
-from shelterbelts.indices.tree_categories import tree_categories
+from shelterbelts.indices import tree_categories
 import numpy as np
 
 ds = create_test_woody_veg_dataset()

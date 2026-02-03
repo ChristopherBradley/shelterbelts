@@ -1,8 +1,7 @@
 import os
 import pytest
 
-from shelterbelts.indices.shelter_categories import shelter_categories
-from shelterbelts.indices.tree_categories import tree_categories
+from shelterbelts.indices import shelter_categories, tree_categories
 from shelterbelts.utils import create_test_woody_veg_dataset
 
 

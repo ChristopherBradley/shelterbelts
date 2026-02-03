@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from shelterbelts.indices.cover_categories import cover_categories
+from shelterbelts.indices import cover_categories
 
 
 stub = 'g2_26729'

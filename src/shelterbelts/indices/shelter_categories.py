@@ -191,8 +191,8 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     --------
     Using a file path as input:
     
-    >>> from shelterbelts.utils import get_example_data
-    >>> filename = get_example_data('g2_26729_tree_categories.tif')
+    >>> from shelterbelts.utils import get_filename
+    >>> filename = get_filename('g2_26729_tree_categories.tif')
     >>> ds_shelter = shelter_categories(filename, outdir='/tmp', plot=False, savetif=False)
     >>> set(ds_shelter.data_vars) == {'tree_categories', 'shelter_categories'}  # No woody_veg layer because we loaded the tree_categories.tif directly
     True
@@ -209,12 +209,13 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     
     .. plot::
 
-        from shelterbelts.utils import get_example_data, get_example_tree_categories_data, visualise_categories_sidebyside
-        from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
+        from shelterbelts.utils import get_filename, get_example_tree_categories_data, visualise_categories_sidebyside
+        from shelterbelts.indices import shelter_categories
+        from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 
         ds_cat = get_example_tree_categories_data()
-        wind_file = get_example_data('g2_26729_barra_daily.nc')
-        height_file = get_example_data('g2_26729_canopy_height.tif')
+        wind_file = get_filename('g2_26729_barra_daily.nc')
+        height_file = get_filename('g2_26729_canopy_height.tif')
         
         # density_threshold: 3 vs 10 (density method, no wind data)
         ds1 = shelter_categories(ds_cat, outdir='/tmp', stub='dens1', plot=False, savetif=False, density_threshold=3)

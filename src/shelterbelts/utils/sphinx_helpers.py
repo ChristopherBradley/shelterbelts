@@ -12,7 +12,7 @@ def create_test_woody_veg_dataset():
     xarray.Dataset
         Dataset with 'woody_veg' data array (boolean, 100x100 pixels)
     """
-    test_file = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+    test_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
     da_trees = rxr.open_rasterio(test_file).isel(band=0).drop_vars('band')
     return da_trees.to_dataset(name='woody_veg')
 
@@ -32,7 +32,7 @@ def get_example_tree_categories_data():
     return ds_cat
 
 
-def get_example_data(filename):
+def get_filename(filename):
     """Find example data file for use in Sphinx plot directives.
     
     Parameters
