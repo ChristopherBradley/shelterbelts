@@ -55,3 +55,24 @@ Command Line Interface
    :module: shelterbelts.indices.buffer_categories
    :func: parse_arguments
    :prog: python -m shelterbelts.indices.buffer_categories
+
+Shelter Metrics
+---------------
+
+Patch Metrics
+~~~~~~~~~~~~~
+
+.. autofunction:: shelterbelts.indices.patch_metrics
+
+Class Metrics
+~~~~~~~~~~~~~
+
+.. autofunction:: shelterbelts.indices.class_metrics
+
+Command Line Interface
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. argparse::
+   :module: shelterbelts.indices.shelter_metrics
+   :func: parse_arguments
+   :prog: python -m shelterbelts.indices.shelter_metrics

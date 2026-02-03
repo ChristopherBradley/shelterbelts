@@ -74,6 +74,17 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
     >>> 'buffer_categories' in set(ds.data_vars)
     True
     
+    Using Datasets as input:
+    
+    >>> import rioxarray as rxr
+    >>> da_cover = rxr.open_rasterio(cover_file).squeeze('band').drop_vars('band')
+    >>> ds_cover = da_cover.to_dataset(name='cover_categories')
+    >>> da_gullies = rxr.open_rasterio(gullies_file).squeeze('band').drop_vars('band')
+    >>> ds_gullies = da_gullies.to_dataset(name='gullies')
+    >>> ds = buffer_categories(ds_cover, ds_gullies, outdir='/tmp', plot=False, savetif=False)
+    >>> 'buffer_categories' in set(ds.data_vars)
+    True
+    
     Here's how different parameters affect the buffer categorization:
     
     .. plot::

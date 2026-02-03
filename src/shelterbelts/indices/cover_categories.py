@@ -75,10 +75,7 @@ def cover_categories(shelter_data, worldcover_data, outdir='.', stub='TEST', sav
 
     Using datasets as input:
 
-    >>> from shelterbelts.utils import get_filename
     >>> import rioxarray as rxr
-    >>> shelter_file = get_filename('g2_26729_shelter_categories.tif')
-    >>> worldcover_file = get_filename('g2_26729_worldcover.tif')
     >>> da_shelter = rxr.open_rasterio(shelter_file).squeeze('band').drop_vars('band')
     >>> da_worldcover = rxr.open_rasterio(worldcover_file).squeeze('band').drop_vars('band')
     >>> ds_cover = cover_categories(da_shelter, da_worldcover, outdir='/tmp', plot=False, savetif=False)
