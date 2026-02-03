@@ -7,9 +7,6 @@ import rioxarray as rxr
 def create_test_woody_veg_dataset():
     """Create a test woody vegetation dataset for docstring examples.
     
-    Returns a ready-to-use xarray Dataset with a 'woody_veg' variable,
-    eliminating file I/O from docstring examples.
-    
     Returns
     -------
     xarray.Dataset
@@ -20,11 +17,23 @@ def create_test_woody_veg_dataset():
     return da_trees.to_dataset(name='woody_veg')
 
 
+def get_example_tree_categories_data():
+    """Create tree categories data for docstring examples.
+    
+    Returns
+    -------
+    xarray.Dataset
+        Dataset with 'tree_categories' data array
+    """
+    from shelterbelts.indices.tree_categories import tree_categories
+    
+    ds_input = create_test_woody_veg_dataset()
+    ds_cat = tree_categories(ds_input, stub='example', outdir='/tmp', plot=False, save_tif=False)
+    return ds_cat
+
+
 def get_example_data(filename):
     """Find example data file for use in Sphinx plot directives.
-    
-    Tries multiple paths to accommodate both local development and
-    Read the Docs environments.
     
     Parameters
     ----------
@@ -44,7 +53,7 @@ def get_example_data(filename):
     possible_paths = [
         Path.cwd().parent / 'data' / filename,
         Path.cwd().parent.parent / 'data' / filename,
-        Path('/Users/christopherbradley/repos/PHD/shelterbelts/data') / filename,
+        Path('/Users/christopherbradley/repos/PHD/shelterbelts/data') / filename, # TODO: Shouldn't hardcode this in the repo
     ]
     
     for path in possible_paths:

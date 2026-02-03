@@ -14,8 +14,8 @@ def test_tree_categories_basic():
     ds = tree_categories(test_filename, outdir='outdir', stub=stub)
     assert set(ds.coords) == {'x', 'y', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert os.path.exists(f"outdir/{stub}_categorised.tif")
-    assert os.path.exists(f"outdir/{stub}_categorised.png")
+    assert os.path.exists(f"outdir/{stub}_tree_categories.tif")
+    assert os.path.exists(f"outdir/{stub}_tree_categories.png")
 
 
 def test_tree_categories_patch_size():
@@ -41,24 +41,24 @@ def test_tree_categories_gap_size():
 
 def test_tree_categories_no_save():
     """Test tree_categories without saving tif"""
-    if os.path.exists(f"outdir/{stub}_categorised.tif"):
-        os.remove(f"outdir/{stub}_categorised.tif")
+    if os.path.exists(f"outdir/{stub}_tree_categories.tif"):
+        os.remove(f"outdir/{stub}_tree_categories.tif")
     
     ds = tree_categories(test_filename, outdir='outdir', stub=stub, save_tif=False)
     assert set(ds.coords) == {'x', 'y', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert not os.path.exists(f"outdir/{stub}_categorised.tif")
+    assert not os.path.exists(f"outdir/{stub}_tree_categories.tif")
 
 
 def test_tree_categories_no_plot():
     """Test tree_categories without plotting"""
-    if os.path.exists(f"outdir/{stub}_categorised.png"):
-        os.remove(f"outdir/{stub}_categorised.png")
+    if os.path.exists(f"outdir/{stub}_tree_categories.png"):
+        os.remove(f"outdir/{stub}_tree_categories.png")
     
     ds = tree_categories(test_filename, outdir='outdir', stub=stub, plot=False)
     assert set(ds.coords) == {'x', 'y', 'spatial_ref'}  
     assert set(ds.data_vars) == {'woody_veg', 'tree_categories'}
-    assert not os.path.exists(f"outdir/{stub}_categorised.png")
+    assert not os.path.exists(f"outdir/{stub}_tree_categories.png")
 
 
 def test_tree_categories_does_not_mutate_input_dataset():

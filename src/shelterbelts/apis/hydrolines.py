@@ -111,6 +111,6 @@ if __name__ == '__main__':
 # hydrolines_gdb = "/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/SurfaceHydrologyLinesRegional.gdb"
 # outdir = '../../../outdir/'
 # stub = 'g2_26729'
-# geotif = f"{outdir}{stub}_categorised.tif"
+# geotif = f"{outdir}{stub}_tree_categories.tif"
 # gdf, ds = hydrolines(geotif, hydrolines_gdb)
 # ds['gullies'].plot()

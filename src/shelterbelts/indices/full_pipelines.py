@@ -81,8 +81,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
         ds_wind = None
 
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
-    ds_tree_categories = tree_categories(None, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False, ds=ds_woody_veg)
-    ds_shelter = shelter_categories(None, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_tree_categories, ds_wind=ds_wind, crop_pixels=crop_pixels)
+    ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False)
+    ds_shelter = shelter_categories(ds_tree_categories, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, crop_pixels=crop_pixels)
     ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
 
     ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)

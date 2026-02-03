@@ -9,17 +9,6 @@ from shelterbelts.utils import visualise_categories, tif_categorical
 
 import matplotlib.pyplot as plt
 
-"""Tree categorization module.
-
-This module provides functionality to categorize woody vegetation into different
-tree types based on landscape ecology principles. The classifications are:
-
-- **Scattered Trees**: Individual trees or small clusters below the minimum patch size
-- **Patch Core**: Interior areas of tree patches, away from edges
-- **Patch Edge**: Peripheral areas of tree patches
-- **Other Trees**: Corridors connecting patches or larger clusters
-"""
-
 # Create a single array with all the layers
 tree_categories_cmap = {
     0:(255, 255, 255),
@@ -153,10 +142,10 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     Notes
     -------
     When save_tif=True, it outputs a GeoTIFF file with embedded color map:
-    ``{stub}_categorised.tif``
+    ``{stub}_tree_categories.tif``
     
     When plot=True, it outputs a PNG visualization with legend:
-    ``{stub}_categorised.png``
+    ``{stub}_tree_categories.png``
     
     References
     ----------
@@ -165,11 +154,17 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     
     Examples
     --------
-    Creating tree categories from test data:
+    Using a file path as input:
+    >>> from shelterbelts.utils import get_example_data
+    >>> filename_string = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+    >>> ds_cat = tree_categories(filename_string, plot=False, save_tif=False)
+    >>> set(ds_cat.data_vars) == {'woody_veg', 'tree_categories'}
+    True
     
+    Using a Dataset as input:
     >>> from shelterbelts.utils import create_test_woody_veg_dataset
     >>> ds_input = create_test_woody_veg_dataset()
-    >>> ds_cat = tree_categories(ds_input, stub='test', outdir='/tmp', plot=False, save_tif=False)
+    >>> ds_cat = tree_categories(ds_input, stub="TEST", plot=False, save_tif=False)
     >>> set(ds_cat.data_vars) == {'woody_veg', 'tree_categories'}
     True
     
@@ -252,11 +247,11 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
             raise ValueError("stub must be provided when input_data is a Dataset")
 
     if save_tif:
-        filename_categorical = os.path.join(outdir,f"{stub}_categorised.tif")
+        filename_categorical = os.path.join(outdir,f"{stub}_tree_categories.tif")
         tif_categorical(ds['tree_categories'], filename_categorical, tree_categories_cmap)
 
     if plot:
-        filename_categorical_png = os.path.join(outdir, f"{stub}_categorised.png")
+        filename_categorical_png = os.path.join(outdir, f"{stub}_tree_categories.png")
         visualise_categories(ds['tree_categories'], filename_categorical_png, tree_categories_cmap, tree_categories_labels, "Tree Categories")
                 
     return ds

@@ -1,3 +1,6 @@
+# Will add jupyter notebooks at the end once I'm happy with everything
+*.ipynb
+
 data
 outdir
 pbs_outputs
