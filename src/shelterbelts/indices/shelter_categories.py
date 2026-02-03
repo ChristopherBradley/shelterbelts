@@ -190,6 +190,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     Examples
     --------
     Using a file path as input:
+    
     >>> from shelterbelts.utils import get_example_data
     >>> filename = get_example_data('g2_26729_tree_categories.tif')
     >>> ds_shelter = shelter_categories(filename, outdir='/tmp', plot=False, savetif=False)
@@ -197,25 +198,69 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     True
     
     Using a Dataset as input:
+
     >>> from shelterbelts.utils import get_example_tree_categories_data
     >>> ds_cat = get_example_tree_categories_data()
     >>> ds_shelter = shelter_categories(ds_cat, outdir='/tmp', plot=False, savetif=False)
     >>> set(ds_shelter.data_vars) == {'woody_veg', 'tree_categories', 'shelter_categories'} # Includes woody_veg layer because the full pipeline was executed
     True
 
+    Here's how different parameters affect the shelter categorization:
+    
     .. plot::
 
-        from shelterbelts.utils import get_example_tree_categories_data, visualise_categories_sidebyside
+        from shelterbelts.utils import get_example_data, get_example_tree_categories_data, visualise_categories_sidebyside
         from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
 
         ds_cat = get_example_tree_categories_data()
-        ds1 = shelter_categories(ds_cat, outdir='/tmp', stub='d1', plot=False, savetif=False, distance_threshold=10)
-        ds2 = shelter_categories(ds_cat, outdir='/tmp', stub='d2', plot=False, savetif=False, distance_threshold=30)
+        wind_file = get_example_data('g2_26729_barra_daily.nc')
+        height_file = get_example_data('g2_26729_canopy_height.tif')
+        
+        # density_threshold: 3 vs 10 (density method, no wind data)
+        ds1 = shelter_categories(ds_cat, outdir='/tmp', stub='dens1', plot=False, savetif=False, density_threshold=3)
+        ds2 = shelter_categories(ds_cat, outdir='/tmp', stub='dens2', plot=False, savetif=False, density_threshold=10)
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="density_threshold=3", title2="density_threshold=10"
+        )
+
+        # wind_method: MOST_COMMON vs WINDWARD
+        ds1 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='wind1', plot=False, savetif=False, wind_method='MOST_COMMON')
+        ds2 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='wind2', plot=False, savetif=False, wind_method='WINDWARD')
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="wind_method=MOST_COMMON", title2="wind_method=WINDWARD"
+        )
+        
+        # distance_threshold: 10 vs 30 (with wind data)
+        ds1 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='dist1', plot=False, savetif=False, distance_threshold=10, wind_method='MOST_COMMON')
+        ds2 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='dist2', plot=False, savetif=False, distance_threshold=30, wind_method='MOST_COMMON')
         visualise_categories_sidebyside(
             ds1['shelter_categories'], ds2['shelter_categories'],
             colormap=shelter_categories_cmap, labels=shelter_categories_labels,
             title1="distance_threshold=10", title2="distance_threshold=30"
         )
+        
+        # wind_threshold: 10 vs 30 (km/h)
+        ds1 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='wt1', plot=False, savetif=False, wind_threshold=10, wind_method='MOST_COMMON')
+        ds2 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='wt2', plot=False, savetif=False, wind_threshold=30, wind_method='MOST_COMMON')
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="wind_threshold=10", title2="wind_threshold=30"
+        )
+        
+        # With height tif: Minimum height 5 vs 10
+        ds1 = shelter_categories(ds_cat, wind_data=wind_file, outdir='/tmp', stub='noh', plot=False, savetif=False, distance_threshold=20, wind_method='MOST_COMMON')
+        ds2 = shelter_categories(ds_cat, wind_data=wind_file, height_tif=height_file, outdir='/tmp', stub='withh', plot=False, savetif=False, distance_threshold=20, minimum_height=10, wind_method='MOST_COMMON')
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="Without height_tif (pixels)", title2="With height_tif (tree heights)"
+        )
+    
     """
     if category_data is None:
         raise ValueError("category_data must be provided as a file path, Dataset, or DataArray")

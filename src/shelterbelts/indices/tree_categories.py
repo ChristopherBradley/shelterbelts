@@ -155,6 +155,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     Examples
     --------
     Using a file path as input:
+
     >>> from shelterbelts.utils import get_example_data
     >>> filename_string = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
     >>> ds_cat = tree_categories(filename_string, plot=False, save_tif=False)
@@ -162,6 +163,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     True
     
     Using a Dataset as input:
+    
     >>> from shelterbelts.utils import create_test_woody_veg_dataset
     >>> ds_input = create_test_woody_veg_dataset()
     >>> ds_cat = tree_categories(ds_input, stub="TEST", plot=False, save_tif=False)
