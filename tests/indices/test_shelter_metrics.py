@@ -1,5 +1,4 @@
 import os
-import pytest
 
 from shelterbelts.indices.shelter_metrics import patch_metrics, class_metrics
 

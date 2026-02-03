@@ -42,3 +42,16 @@ Command Line Interface
    :module: shelterbelts.indices.cover_categories
    :func: parse_arguments
    :prog: python -m shelterbelts.indices.cover_categories
+
+Buffer Categories
+-----------------
+
+.. autofunction:: shelterbelts.indices.buffer_categories
+
+Command Line Interface
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. argparse::
+   :module: shelterbelts.indices.buffer_categories
+   :func: parse_arguments
+   :prog: python -m shelterbelts.indices.buffer_categories

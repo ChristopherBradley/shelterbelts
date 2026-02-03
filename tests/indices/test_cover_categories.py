@@ -1,5 +1,4 @@
 import os
-import pytest
 
 from shelterbelts.indices import cover_categories
 

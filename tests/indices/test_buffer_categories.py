@@ -1,5 +1,4 @@
 import os
-import pytest
 
 from shelterbelts.indices.buffer_categories import buffer_categories
 
@@ -39,7 +38,7 @@ def test_buffer_categories_with_ridges():
     ds = buffer_categories(
         f'outdir/{stub}_cover_categories.tif',
         f'outdir/{stub}_gullies.tif',
-        ridges_tif=f'outdir/{stub}_ridges.tif',
+        ridges_data=f'outdir/{stub}_ridges.tif',
         outdir="outdir",
         stub=stub,
         buffer_width=5
@@ -53,7 +52,7 @@ def test_buffer_categories_with_roads():
     ds = buffer_categories(
         f'outdir/{stub}_cover_categories.tif',
         f'outdir/{stub}_gullies.tif',
-        roads_tif=f'outdir/{stub}_roads.tif',
+        roads_data=f'outdir/{stub}_roads.tif',
         outdir="outdir",
         stub=stub,
         buffer_width=5
@@ -67,8 +66,8 @@ def test_buffer_categories_with_ridges_and_roads():
     ds = buffer_categories(
         f'outdir/{stub}_cover_categories.tif',
         f'outdir/{stub}_gullies.tif',
-        ridges_tif=f'outdir/{stub}_ridges.tif',
-        roads_tif=f'outdir/{stub}_roads.tif',
+        ridges_data=f'outdir/{stub}_ridges.tif',
+        roads_data=f'outdir/{stub}_roads.tif',
         outdir="outdir",
         stub=stub,
         buffer_width=5
