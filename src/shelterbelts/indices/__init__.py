@@ -1,11 +1,17 @@
 """Shelterbelts indices module - categorize land use and vegetation patterns."""
 
-from .tree_categories import tree_categories
-from .shelter_categories import shelter_categories
-from .cover_categories import cover_categories
+from .tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
+from .shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
+from .cover_categories import cover_categories, cover_categories_cmap, cover_categories_labels
 
 __all__ = [
     'tree_categories',
+    'tree_categories_cmap',
+    'tree_categories_labels',
     'shelter_categories',
+    'shelter_categories_cmap',
+    'shelter_categories_labels',
     'cover_categories',
+    'cover_categories_cmap',
+    'cover_categories_labels',
 ]

@@ -209,9 +209,8 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     
     .. plot::
 
+        from shelterbelts.indices import shelter_categories, shelter_categories_cmap, shelter_categories_labels
         from shelterbelts.utils import get_filename, get_example_tree_categories_data, visualise_categories_sidebyside
-        from shelterbelts.indices import shelter_categories
-        from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 
         ds_cat = get_example_tree_categories_data()
         wind_file = get_filename('g2_26729_barra_daily.nc')
@@ -417,6 +416,7 @@ def parse_arguments():
     parser.add_argument('--wind_threshold', default=20, type=int, help='The wind speed used to determine the dominant wind direction.')
     parser.add_argument('--minimum_height', default=10, type=int, help="Assume that all tree pixels are at least this tall.")
     parser.add_argument('--density_threshold', default=5, type=int, help="The minimum percentage tree cover that counts as sheltered.")
+    parser.add_argument('--no-savetif', dest='savetif', action="store_false", default=True, help="Disable saving GeoTIFF output (default: enabled)")
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualization (default: enabled)")
 
     return parser

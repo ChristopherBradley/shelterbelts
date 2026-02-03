@@ -7,7 +7,7 @@ Indices
 Tree Categories
 ---------------
 
-.. autofunction:: shelterbelts.indices.tree_categories.tree_categories
+.. autofunction:: shelterbelts.indices.tree_categories
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -20,7 +20,7 @@ Command Line Interface
 Shelter Categories
 ------------------
 
-.. autofunction:: shelterbelts.indices.shelter_categories.shelter_categories
+.. autofunction:: shelterbelts.indices.shelter_categories
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -33,7 +33,7 @@ Command Line Interface
 Cover Categories
 ----------------
 
-.. autofunction:: shelterbelts.indices.cover_categories.cover_categories
+.. autofunction:: shelterbelts.indices.cover_categories
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~

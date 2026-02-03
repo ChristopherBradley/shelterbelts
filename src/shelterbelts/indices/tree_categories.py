@@ -7,8 +7,6 @@ from scipy.ndimage import label, binary_erosion, binary_dilation
 
 from shelterbelts.utils import visualise_categories, tif_categorical
 
-import matplotlib.pyplot as plt
-
 # Create a single array with all the layers
 tree_categories_cmap = {
     0:(255, 255, 255),
@@ -173,11 +171,9 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     Here's how different parameters affect the categorization:
     
     .. plot::
-        
-        from shelterbelts.indices import tree_categories
-        from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
+
+        from shelterbelts.indices import tree_categories, tree_categories_cmap, tree_categories_labels
         from shelterbelts.utils import visualise_categories_sidebyside, get_filename
-        import matplotlib.pyplot as plt
         
         test_filename = get_filename('g2_26729_binary_tree_cover_10m.tiff')
         
@@ -262,17 +258,17 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
 
 def parse_arguments():
     """Parse command line arguments with default values."""
-    parser = argparse.ArgumentParser(
-        description='Categorize woody vegetation into tree types using landscape ecology methods.'
-    )
+    parser = argparse.ArgumentParser()
     
-    parser.add_argument('--filename', help='A binary tif file containing tree/no tree information')
+    parser.add_argument('--input_data', help='A binary tif file containing tree/no tree information')
     parser.add_argument('--outdir', default='.', help='The output directory to save the results')
     parser.add_argument('--stub', default=None, help='Prefix for output files.')
     parser.add_argument('--min_patch_size', default=20, type=int, help='The minimum area to be classified as a patch/corrider rather than just scattered trees.')
+    parser.add_argument('--min_core_size', default=1000, type=int, help='Minimum area (pixels) to classify as a core area.')
     parser.add_argument('--edge_size', default=3, type=int, help='The buffer distance at the edge of a patch, with pixels inside this being the core area')
     parser.add_argument('--max_gap_size', default=2, type=int, help='The allowable gap between two tree clusters before considering them as separate patches.')
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action="store_false", default=True, help='Disable strict core area enforcement (default: enabled)')
+    parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
  
     return parser
@@ -283,15 +279,18 @@ if __name__ == '__main__':
     parser = parse_arguments()
     args = parser.parse_args()
     
-    filename = args.filename
-    outdir = args.outdir
-    stub = args.stub
-    min_patch_size = args.min_patch_size
-    edge_size = args.edge_size
-    max_gap_size = args.max_gap_size
-    plot = args.plot
-    
-    tree_categories(filename, outdir, stub, min_patch_size, edge_size, max_gap_size, args.strict_core_area, plot=plot)
+    tree_categories(
+        args.input_data,
+        outdir=args.outdir,
+        stub=args.stub,
+        min_patch_size=args.min_patch_size,
+        min_core_size=args.min_core_size,
+        edge_size=args.edge_size,
+        max_gap_size=args.max_gap_size,
+        strict_core_area=args.strict_core_area,
+        save_tif=args.save_tif,
+        plot=args.plot
+    )
 
 # +
 # # %%time
