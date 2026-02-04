@@ -4,13 +4,17 @@ from shelterbelts.indices.buffer_categories import buffer_categories
 
 
 stub = 'g2_26729'
+cover_categories_file = f'data/{stub}_cover_categories.tif'
+gullies_file = f'data/{stub}_DEM-S_gullies.tif'
+ridges_file = f'data/{stub}_DEM-S_ridges.tif'
+roads_file = f'data/{stub}_roads.tif'
 
 
 def test_buffer_categories_basic():
     """Basic test for buffer_categories function"""
     ds = buffer_categories(
-        f'outdir/{stub}_cover_categories.tif',
-        f'outdir/{stub}_gullies.tif',
+        cover_categories_file,
+        gullies_file,
         outdir="outdir",
         stub=stub
     )
@@ -23,8 +27,8 @@ def test_buffer_categories_basic():
 def test_buffer_categories_buffer_width():
     """Test buffer_categories with different buffer widths"""
     ds = buffer_categories(
-        f'outdir/{stub}_cover_categories.tif',
-        f'outdir/{stub}_gullies.tif',
+        cover_categories_file,
+        gullies_file,
         outdir="outdir",
         stub=stub,
         buffer_width=5
@@ -36,9 +40,9 @@ def test_buffer_categories_buffer_width():
 def test_buffer_categories_with_ridges():
     """Test buffer_categories with ridges tif"""
     ds = buffer_categories(
-        f'outdir/{stub}_cover_categories.tif',
-        f'outdir/{stub}_gullies.tif',
-        ridges_data=f'outdir/{stub}_ridges.tif',
+        cover_categories_file,
+        gullies_file,
+        ridges_data=ridges_file,
         outdir="outdir",
         stub=stub,
         buffer_width=5
@@ -50,9 +54,9 @@ def test_buffer_categories_with_ridges():
 def test_buffer_categories_with_roads():
     """Test buffer_categories with roads tif"""
     ds = buffer_categories(
-        f'outdir/{stub}_cover_categories.tif',
-        f'outdir/{stub}_gullies.tif',
-        roads_data=f'outdir/{stub}_roads.tif',
+        cover_categories_file,
+        gullies_file,
+        roads_data=roads_file,
         outdir="outdir",
         stub=stub,
         buffer_width=5
@@ -64,10 +68,10 @@ def test_buffer_categories_with_roads():
 def test_buffer_categories_with_ridges_and_roads():
     """Test buffer_categories with both ridges and roads tif"""
     ds = buffer_categories(
-        f'outdir/{stub}_cover_categories.tif',
-        f'outdir/{stub}_gullies.tif',
-        ridges_data=f'outdir/{stub}_ridges.tif',
-        roads_data=f'outdir/{stub}_roads.tif',
+        cover_categories_file,
+        gullies_file,
+        ridges_data=ridges_file,
+        roads_data=roads_file,
         outdir="outdir",
         stub=stub,
         buffer_width=5
@@ -82,8 +86,8 @@ def test_buffer_categories_no_save():
         os.remove(f"outdir/{stub}_buffer_categories.tif")
     
     ds = buffer_categories(
-        f'outdir/{stub}_cover_categories.tif',
-        f'outdir/{stub}_gullies.tif',
+        cover_categories_file,
+        gullies_file,
         outdir="outdir",
         stub=stub,
         savetif=False
@@ -97,8 +101,8 @@ def test_buffer_categories_no_plot():
         os.remove(f"outdir/{stub}_buffer_categories.png")
     
     ds = buffer_categories(
-        f'outdir/{stub}_cover_categories.tif',
-        f'outdir/{stub}_gullies.tif',
+        cover_categories_file,
+        gullies_file,
         outdir="outdir",
         stub=stub,
         plot=False
