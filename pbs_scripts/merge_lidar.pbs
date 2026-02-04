@@ -12,6 +12,7 @@
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2024/expanded/linear_tifs_lat_36_lon_144_cropfix
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/opportunities_lat_32_lon_148
 # base_dir="/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders/lat_28_lon_146"
+# base_dir=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded/linear_tifs_lat_32_lon_148_default_percentmethod
 
 echo "Starting elvis_geojsons.pbs for stub $stub"
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
@@ -21,12 +22,10 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python merge_lidar.py --base_dir $base_dir --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
+# python merge_lidar.py --base_dir $base_dir --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the predictions before expanding. Needs 16GB
+# python merge_lidar.py --base_dir $base_dir --suffix linear_categories.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the indices
+python merge_lidar.py --base_dir $base_dir --suffix shelter_densities.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the indices
 
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _percentcover_res10_height2m.tif
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar/$stub --suffix _chm_res1.tif
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/lidar_merged_120km_percentcover --suffix _height2m.tif --subdir ''  # Re-merging 30km tiles into 120km
-# python merge_lidar.py --base_dir /scratch/xe2/cb8590/barra_trees_s4_2023_3857/subfolders/x_3800000_y_16200000/subfolders/x_3870000_y_16250000 --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject
 
 # Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 
 # 8GB for NSW 1m 

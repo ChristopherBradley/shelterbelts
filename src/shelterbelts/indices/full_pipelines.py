@@ -54,7 +54,7 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
         stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
-    data_folder = percent_tif[percent_tif.find('DATA'):percent_tif.find('DATA') + 11]
+    data_folder = percent_tif[percent_tif.find('DATA'):percent_tif.find('DATA') + 11] # Bespoke for when using the ELVIS filenaming system
 
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
     da_trees = da_percent > cover_threshold
@@ -114,6 +114,7 @@ def run_pipeline_csv(csv, outdir='/scratch/xe2/cb8590/tmp',
     """Run the pipeline for every tif in a csv"""
     df = pd.read_csv(csv)
     for percent_tif in df['filename']:
+        # The provided stub needs to be None, because we want to use the percent_tif filename instead. 
         run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width)
 
 
@@ -179,7 +180,7 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
             str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),
-            # "--param_stub", '',  # or args.param_stub if applicable
+            "--param_stub", str(param_stub),  # or args.param_stub if applicable
             "--wind_method", str(wind_method),
             "--wind_threshold", str(wind_threshold),
             "--cover_threshold", str(cover_threshold),

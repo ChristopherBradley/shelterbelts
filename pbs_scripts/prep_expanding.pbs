@@ -21,7 +21,8 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 # folder=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median
 # folder=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020
 # folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2020
-folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2024
+# folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2024
+folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2017
 
 # Print out input variables to the error log
 echo "Starting prep_expanding.pbs with folder: $folder"

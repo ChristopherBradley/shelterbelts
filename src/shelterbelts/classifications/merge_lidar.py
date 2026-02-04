@@ -99,10 +99,6 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', 
     full_bounds =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
     bbox = full_bounds
 
-    # Visualise the full bounds in QGIS
-    # gds_full_bounds = gpd.GeoSeries([box(*full_bounds)], crs=gdf.crs)
-    # gds_full_bounds.to_file('/scratch/xe2/cb8590/tmp/DATA_717827_full_bounds.geojson')
-
     if dedup:
         # This should work for ACT and NSW naming conventions (just for string ordering, not extracting the exact date). 
         # If I already know the tiles don't overlap at all, I should skip this step. 
@@ -167,6 +163,7 @@ def parse_arguments():
     parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
     parser.add_argument('--crs', default=None, help='Force the output to be in a certain EPSG. Need to format the crs in full, e.g. EPSG:3857')
     parser.add_argument("--dont_reproject", action="store_true", help="Don't do any reprojecting. Default: False")
+    parser.add_argument("--dedup", action="store_true", help="Deduplicate tiles with the same bbox but different years (use the most recent). Default: False")
 
     return parser.parse_args()
 
@@ -180,6 +177,7 @@ if __name__ == '__main__':
         suffix=args.suffix,
         subdir=args.subdir,
         crs=args.crs,
-        dont_reproject=args.dont_reproject
+        dont_reproject=args.dont_reproject,
+        dedup=args.dedup
     )
 

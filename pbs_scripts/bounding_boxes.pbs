@@ -8,6 +8,7 @@
 #PBS -l storage=gdata/xe2+gdata/v10+gdata/ka08
 #PBS -q normal
 
+echo "Starting bounding_boxes.pbs"
 
 # Change working directory
 wd=/home/147/cb8590/Projects/shelterbelts
@@ -17,16 +18,9 @@ cd $wd
 module use /g/data/v10/public/modules/modulefiles
 module load dea/20231204
 
-# folder='/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
-year=2020
-# folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326/subfolders"
-# folder="/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/subfolders"
-# folder="/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_${year}/subfolders"
-folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/subfolders/
+# year=2024
+# folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/subfolders/
+# python3 src/shelterbelts/classifications/bounding_boxes.py $folder --crs EPSG:3857
 
-# Print out input variables to the error log
-echo "Starting bounding_boxes.pbs"
-
-# Run the script
-# python3 src/shelterbelts/classifications/bounding_boxes.py $folder --filetype '.tiff'
-python3 src/shelterbelts/classifications/bounding_boxes.py $folder --crs EPSG:3857
+folder=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded/linear_tifs_lat_34_lon_148_default_percentmethod
+python3 src/shelterbelts/classifications/bounding_boxes.py $folder --crs EPSG:3857 --filetype linear_categories.tif
