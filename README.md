@@ -85,5 +85,7 @@ There are jupyter notebooks to demo the functionality of this repo in `notebooks
 
 # Testing
 From the project root:
+`qsub -I -P xe2 -q copyq -l ncpus=1 -l mem=8GB -l walltime=04:00:00 -l storage=gdata/xe2+scratch/xe2 -l wd`
+`conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts`
 `pytest tests/test_indices`
 

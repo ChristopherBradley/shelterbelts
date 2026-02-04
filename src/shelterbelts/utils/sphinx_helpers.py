@@ -51,10 +51,9 @@ def get_filename(filename):
         If the data file cannot be found in any expected location
     """
     possible_paths = [
+        Path('data') / filename,
         Path.cwd().parent / 'data' / filename,
-        Path.cwd().parent.parent / 'data' / filename,
-        Path('/Users/christopherbradley/repos/PHD/shelterbelts/data') / filename, # TODO: Shouldn't hardcode this in the repo
-    ]
+        Path.cwd().parent.parent / 'data' / filename]
     
     for path in possible_paths:
         if path.exists():
