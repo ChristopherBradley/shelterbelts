@@ -6,14 +6,6 @@ import math
 import glob
 from pathlib import Path
 
-import xarray as xr
-import numpy as np
-
-import geopandas as gpd
-from shapely.prepared import prep
-from shapely.geometry import box, Polygon, MultiPolygon
-
-
 # -
 
 def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):

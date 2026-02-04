@@ -1,3 +1,6 @@
+# Will add jupyter notebooks at the end once I'm happy with everything
+*.ipynb
+
 data
 outdir
 pbs_outputs
@@ -110,6 +113,8 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+# Keep .py notebooks, ignore generated .ipynb for detailed demos
+notebooks/**/demo_*.ipynb
 
 # IPython
 profile_default/

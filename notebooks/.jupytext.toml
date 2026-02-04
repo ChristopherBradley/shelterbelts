@@ -1,0 +1,9 @@
+# Jupytext configuration for notebooks directory
+# See https://jupytext.readthedocs.io/
+
+# Default formats for new notebooks
+formats = "ipynb,py:percent"
+
+# Notebook metadata to include in .py files
+notebook_metadata_filter = "jupytext,-widgets,-varInspector"
+cell_metadata_filter = "-all"

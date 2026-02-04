@@ -59,3 +59,24 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/ChristopherBradley/shelterbelts"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+# Suppress warnings from dependencies and internal code
+[tool.pytest.ini_options]
+markers = [
+    "visual: tests that open matplotlib windows (run individually by name)"
+]
+filterwarnings = [
+    # Third-party packages using old Pydantic v1 class-based Config style
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+    # Binary incompatibility from dependencies compiled with different numpy versions
+    "ignore:numpy.ndarray size changed:RuntimeWarning",
+    # src/shelterbelts/apis/barra_daily.py:205 in wind_dataframe() - argmax() call
+    "ignore:Behaviour of argmin/argmax:DeprecationWarning"
+]

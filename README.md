@@ -34,6 +34,31 @@ After the predictions, pixels were categorised using the following method:
 - Analyse effects on productivity & potential future benefits
 - Add layers with opportunities for more trees
 
+## Parameter Reference
+
+The main parameters for categorizing shelterbelts can be tuned. Below are the default values along with some suggested low and high thresholds:
+
+| Parameter | Default | Low Threshold | High Threshold | Description |
+|-----------|---------|---------------|----------------|-------------|
+| `min_patch_size` | 20 | 10 | 30 | Minimum pixels to classify as a patch (vs scattered trees) |
+| `min_core_size` | 1000 | 100 | 10000 | Minimum pixels to classify as a core area |
+| `edge_size` | 3 | 1 | 5 | Distance (pixels) defining the edge region around patch cores |
+| `max_gap_size` | 1 | 0 | 2 | Maximum gap (pixels) to bridge when connecting tree clusters |
+| `buffer_width` | 3 | 1 | 5 | Distance (pixels) defining buffer zones around features |
+| `distance_threshold` | 20 | 10 | 30 | Distance from trees that counts as sheltered (pixels or heights) |
+| `density_threshold` | 5 | 3 | 10 | Minimum percentage tree cover that counts as sheltered |
+| `wind_threshold` | 20 | 10 | 30 | Wind speed (km/h) used to determine dominant wind direction |
+| `wind_method` | WINDWARD | MOST_COMMON | ALL | Method to determine primary wind direction |
+| `strict_core_area` | strict | non-strict | strict | Whether to enforce strict connectivity for core areas |
+| `min_shelterbelt_length` | 20 | 10 | 30 | Minimum length to classify as a shelterbelt |
+| `max_shelterbelt_width` | 6 | 4 | 8 | Maximum width to classify as a shelterbelt |
+
+Parameters can be modified when calling functions directly in Python or via command-line arguments. For example:
+
+```bash
+python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --edge_size 5
+```
+
 # Setup
 
 ## Local Setup
@@ -58,4 +83,5 @@ After the predictions, pixels were categorised using the following method:
 # Examples
 There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting synchronous jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
 
-I was in a bit of a rush before ESA, but I'm planning to clean these up and prepare a publication for the Journal of Open Source Software (JOSS) before the end of 2025...
+
+
