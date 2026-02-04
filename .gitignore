@@ -1,7 +1,11 @@
 # Will add jupyter notebooks at the end once I'm happy with everything
 *.ipynb
 
-data
+# Track specific files in data/ even though their types are ignored globally
+# These files are used for testing and examples
+!data/
+!data/**
+
 outdir
 pbs_outputs
 pbs__success
