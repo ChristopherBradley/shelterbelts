@@ -1,13 +1,10 @@
 # +
 import os
 import glob
-import shutil
-import re
-import math
 from pathlib import Path
 import geopandas as gpd
 from shapely.prepared import prep
-from shapely.geometry import box, Polygon, MultiPolygon
+from shapely.geometry import box, Polygon
 
 import rioxarray as rxr
 import xarray as xr

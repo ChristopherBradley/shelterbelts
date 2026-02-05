@@ -4,10 +4,7 @@ import glob
 import argparse
 
 import rioxarray as rxr
-from shapely.geometry import box
-import geopandas as gpd
 
-from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 
 

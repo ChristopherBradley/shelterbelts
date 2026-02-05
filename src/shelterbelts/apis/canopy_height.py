@@ -11,14 +11,11 @@ import numpy as np
 import requests
 import rasterio
 import xarray as xr
-import rioxarray as rxr
 import geopandas as gpd
 from pyproj import Transformer
-from pyproj import CRS as PyprojCRS
 from rasterio.merge import merge
-from rasterio.transform import Affine
 from rasterio.windows import from_bounds
-from shapely.geometry import Polygon, box      
+from shapely.geometry import box      
 
 import matplotlib.pyplot as plt
 from matplotlib import colors

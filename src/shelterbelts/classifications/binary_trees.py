@@ -2,7 +2,6 @@ import os
 import gc
 import argparse
 import glob
-import xarray as xr
 import rioxarray as rxr
 import rasterio
 
@@ -22,7 +21,6 @@ import rasterio
 # # print(src_dir)
 
 from shelterbelts.utils.visualization import tif_categorical
-from shelterbelts.apis.worldcover import worldcover_labels
 # -
 
 cmap_woody_veg = {

@@ -12,7 +12,6 @@ import fiona
 from pyproj import Transformer
 import geopandas as gpd
 from shapely.geometry import box
-import ast
 
 pd.set_option('display.max_columns', 100)
 

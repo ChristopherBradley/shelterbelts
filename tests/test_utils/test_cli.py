@@ -10,6 +10,11 @@ from shelterbelts.indices.cover_categories import cover_categories, parse_argume
 from shelterbelts.indices.buffer_categories import buffer_categories, parse_arguments as parse_buffer_args
 from shelterbelts.indices.shelter_metrics import patch_metrics, class_metrics, parse_arguments as parse_shelter_metrics_args
 
+from shelterbelts.apis.worldcover import worldcover, parse_arguments as parse_worldcover_args
+from shelterbelts.apis.barra_daily import barra_daily, parse_arguments as parse_barra_daily_args
+from shelterbelts.apis.canopy_height import canopy_height, parse_arguments as parse_canopy_height_args
+from shelterbelts.apis.catchments import catchments, parse_arguments as parse_catchments_args
+
 
 @pytest.mark.parametrize('func,parser_func', [
     (tree_categories, parse_tree_args),
@@ -18,6 +23,10 @@ from shelterbelts.indices.shelter_metrics import patch_metrics, class_metrics, p
     (buffer_categories, parse_buffer_args),
     (patch_metrics, parse_shelter_metrics_args),
     (class_metrics, parse_shelter_metrics_args),
+    # (worldcover, parse_worldcover_args),  # Need to update the parse_args to the sphinx version first I think.
+    # (barra_daily, parse_barra_daily_args),
+    # (canopy_height, parse_canopy_height_args),
+    # (catchments, parse_catchments_args),
 ])
 def test_cli_defaults_match_function_defaults(func, parser_func):
     """Verify CLI argument defaults match function signature defaults"""
@@ -43,4 +52,3 @@ def test_cli_defaults_match_function_defaults(func, parser_func):
         actual_val = getattr(args, arg_name, None)
         assert actual_val == expected_val, \
             f"{func.__name__}.{arg_name}: CLI default {actual_val} != function default {expected_val}"
-

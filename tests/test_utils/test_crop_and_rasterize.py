@@ -1,7 +1,6 @@
 """Tests for crop_and_rasterize utility."""
 
 import tempfile
-import pytest
 import rioxarray as rxr
 
 from shelterbelts.utils.crop_and_rasterize import crop_and_rasterize

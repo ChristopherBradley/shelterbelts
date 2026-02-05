@@ -13,8 +13,6 @@ import argparse
 import numpy as np
 import xarray as xr
 import pandas as pd
-import geopandas as gpd
-from shapely.geometry import box
 import matplotlib.pyplot as plt
 
 # -

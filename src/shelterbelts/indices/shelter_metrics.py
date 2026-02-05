@@ -6,20 +6,15 @@ import pandas as pd
 import rioxarray as rxr
 import xarray as xr
 from scipy import ndimage
-from scipy.stats import mode
-from skimage.morphology import skeletonize, disk
-from skimage.measure import regionprops, label
+from skimage.morphology import skeletonize
+from skimage.measure import regionprops
 from skimage.draw import ellipse_perimeter
 from skimage.graph import route_through_array
 
-from matplotlib.patches import Ellipse
-import matplotlib.pyplot as plt
-from scipy.ndimage import binary_erosion, binary_dilation, distance_transform_edt
 # -
 
 from shelterbelts.indices.buffer_categories import buffer_categories_labels, buffer_categories_cmap
 from shelterbelts.indices.tree_categories import tree_clusters
-from shelterbelts.indices.opportunities import segmentation
 
 from shelterbelts.utils.visualization import visualise_categories, tif_categorical
 

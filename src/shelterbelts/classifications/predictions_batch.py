@@ -13,10 +13,8 @@ import pandas as pd
 import geopandas as gpd
 from pyproj import Transformer
 from shapely.geometry import Point
-from shapely.ops import nearest_points
 
 import xarray as xr
-import rioxarray as rxr
 import rasterio
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors

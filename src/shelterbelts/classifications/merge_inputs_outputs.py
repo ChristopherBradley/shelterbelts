@@ -11,20 +11,15 @@ import gc
 import shutil
 
 import numpy as np
-import pandas as pd
 import geopandas as gpd
 import rioxarray as rxr
 import xarray as xr
 import scipy.ndimage as ndimage
 from scipy.signal import fftconvolve
-import rasterio
-from rasterio.transform import from_origin
-from rasterio.crs import CRS
 
 # -
 
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import traceback, sys
+import sys
 
 # Monkey fix to load the new pickle files in an older version of numpy
 import sys, numpy

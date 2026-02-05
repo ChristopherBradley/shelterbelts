@@ -2,16 +2,13 @@
 import glob
 import os
 import rioxarray as rxr
-import geopandas as gpd
 import pandas as pd
 import numpy as np
 import re
-from pyproj import CRS as PyprojCRS
-from shapely.geometry import box      
 
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds, transform_bbox, identify_relevant_tiles_bbox
+from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 
 
 def extract_year(name):

@@ -12,7 +12,6 @@ from shapely.geometry import box
 # Trying to avoid memory issues
 import gc
 import psutil
-import resource
 import subprocess, sys
 
 repo_name = "shelterbelts"
@@ -44,8 +43,7 @@ from shelterbelts.utils.filepaths import (
     hydrolines_gdb,
     roads_gdb,
     default_outdir,
-    default_tmpdir,
-    canopy_height_dir
+    default_tmpdir
 )
 
 process = psutil.Process(os.getpid())

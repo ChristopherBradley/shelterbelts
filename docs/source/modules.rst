@@ -7,7 +7,7 @@ Indices
 Tree Categories
 ---------------
 
-.. autofunction:: shelterbelts.indices.tree_categories
+.. autofunction:: shelterbelts.indices.tree_categories.tree_categories
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -20,7 +20,7 @@ Command Line Interface
 Shelter Categories
 ------------------
 
-.. autofunction:: shelterbelts.indices.shelter_categories
+.. autofunction:: shelterbelts.indices.shelter_categories.shelter_categories
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -33,7 +33,7 @@ Command Line Interface
 Cover Categories
 ----------------
 
-.. autofunction:: shelterbelts.indices.cover_categories
+.. autofunction:: shelterbelts.indices.cover_categories.cover_categories
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -46,7 +46,7 @@ Command Line Interface
 Buffer Categories
 -----------------
 
-.. autofunction:: shelterbelts.indices.buffer_categories
+.. autofunction:: shelterbelts.indices.buffer_categories.buffer_categories
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -62,12 +62,12 @@ Shelter Metrics
 Patch Metrics
 ~~~~~~~~~~~~~
 
-.. autofunction:: shelterbelts.indices.patch_metrics
+.. autofunction:: shelterbelts.indices.shelter_metrics.patch_metrics
 
 Class Metrics
 ~~~~~~~~~~~~~
 
-.. autofunction:: shelterbelts.indices.class_metrics
+.. autofunction:: shelterbelts.indices.shelter_metrics.class_metrics
 
 Command Line Interface
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -76,3 +76,19 @@ Command Line Interface
    :module: shelterbelts.indices.shelter_metrics
    :func: parse_arguments
    :prog: python -m shelterbelts.indices.shelter_metrics
+
+APIs
+====
+
+WorldCover
+----------
+
+.. autofunction:: shelterbelts.apis.worldcover.worldcover
+
+Command Line Interface
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. argparse::
+   :module: shelterbelts.apis.worldcover
+   :func: parse_arguments
+   :prog: python -m shelterbelts.apis.worldcover

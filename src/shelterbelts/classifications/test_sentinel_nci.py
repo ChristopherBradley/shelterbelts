@@ -12,7 +12,6 @@ dc = datacube.Datacube(app='sentinel_download')
 
 from shelterbelts.indices.full_pipelines import run_pipeline_tif
 
-from shelterbelts.classifications.sentinel_nci import download_ds2_bbox
 
 import geopandas as gpd
 

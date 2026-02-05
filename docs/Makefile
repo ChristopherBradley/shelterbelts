@@ -18,7 +18,7 @@ html:
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html"
 
 doctest:
-	cd .. && conda run -n shelterbelts_pdal pytest --doctest-modules src/shelterbelts/indices/tree_categories.py src/shelterbelts/indices/shelter_categories.py src/shelterbelts/indices/buffer_categories.py src/shelterbelts/indices/cover_categories.py -v
+	cd .. && conda run -n shelterbelts_pdal pytest --doctest-modules src/shelterbelts/indices src/shelterbelts/apis -v
 
 
 clean:

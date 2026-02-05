@@ -4,40 +4,18 @@
 import argparse
 import os
 import sys
-import psutil
-import ast
-import glob
 
-import math
-import csv
 import pickle
-import numpy as np
-import xarray as xr
 import rioxarray as rxr
 import datacube
-import hdstats
-import pandas as pd
 import geopandas as gpd
-from shapely.ops import transform
-from pyproj import Transformer
-import rasterio
 
 
 # I should get rid of all the imports that don't get used (basically everything except load_ard)
-from dea_tools.temporal import xr_phenology, temporal_statistics
 from dea_tools.datahandling import load_ard
-from dea_tools.bandindices import calculate_indices
 # from dea_tools.plotting import display_map, rgb
 # from dea_tools.dask import create_local_dask_cluster  # Not creating a dask cluster, because I'm doing parallelisation using lots of tiles
-from shapely.geometry import box
-from pyproj import CRS, Transformer
-from itertools import combinations
-from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import subprocess
 
-import networkx as nx
-import logging
 import warnings
 import contextlib
 import io

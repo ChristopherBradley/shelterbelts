@@ -8,10 +8,3 @@ Welcome to the Shelterbelts documentation. This project uses satellite imagery t
    :caption: Contents:
 
    modules
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

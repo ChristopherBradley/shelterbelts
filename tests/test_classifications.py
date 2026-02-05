@@ -2,7 +2,6 @@ import time
 
 from shelterbelts.classifications.lidar import lidar
 from shelterbelts.classifications.sentinel_dea import download_ds2  # Couldn't decide if this belonged in the 'APIs' folder or 'classifications' 
-from shelterbelts.classifications.merge_inputs_outputs import tile_csv
 
 def test_basic():
     """Quickly test all the functions"""

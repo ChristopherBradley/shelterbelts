@@ -8,8 +8,6 @@ import glob
 import pdal, json
 import rioxarray as rxr
 import numpy as np
-import geopandas as gpd
-from shapely.geometry import box
 
 from shelterbelts.utils.visualization import tif_categorical
 from shelterbelts.classifications.binary_trees import cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work

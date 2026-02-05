@@ -9,7 +9,6 @@ from pyproj import Transformer
 import geopandas as gpd
 import rioxarray as rxr
 import numpy as np
-import xarray as xr
 
 
 

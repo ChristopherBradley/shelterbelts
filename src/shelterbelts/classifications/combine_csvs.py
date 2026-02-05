@@ -5,7 +5,6 @@ import joblib
 import geopandas as gpd
 import pandas as pd
 from tensorflow import keras
-from shapely.geometry import Point
 from pyproj import Transformer
 
 
