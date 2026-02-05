@@ -14,14 +14,15 @@ import gc
 import psutil
 import subprocess, sys
 
-repo_name = "shelterbelts"
-import sys, os
-if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-    src_dir = os.path.join(repo_dir, 'src')
-    os.chdir(src_dir)
-    sys.path.append(src_dir)
-    # print(src_dir)
+# This breaks the pytests
+# repo_name = "shelterbelts"
+# import sys, os
+# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
+#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
+#     src_dir = os.path.join(repo_dir, 'src')
+#     os.chdir(src_dir)
+#     sys.path.append(src_dir)
+#     # print(src_dir)
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.visualization import tif_categorical
