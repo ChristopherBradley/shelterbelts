@@ -1,7 +1,24 @@
 """Utilities for file paths and data location management."""
 
 from pathlib import Path
+import os
 import rioxarray as rxr
+
+# Local test file paths (used by tests and local runs)
+test_worldcover_dir = 'data'
+test_worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
+test_hydrolines_gdb = 'data/g2_26729_hydrolines_cropped.gpkg'
+test_roads_gdb = 'data/g2_26729_roads_cropped.gpkg'
+
+IS_GADI = Path('/scratch').exists()
+if IS_GADI:
+    # NCI/Gadi file paths
+    default_outdir = '/scratch/xe2/cb8590/tmp'
+    default_tmpdir = '/scratch/xe2/cb8590/tmp'
+else:
+    # Local defaults
+    default_outdir = 'outdir'
+    default_tmpdir = 'tmp'
 
 # NCI/Gadi file paths - Core pipeline data
 worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
@@ -9,16 +26,13 @@ worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
 hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
 roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 
-# NCI/Gadi file paths - Default directories
-default_outdir = '/scratch/xe2/cb8590/tmp'
-default_tmpdir = '/scratch/xe2/cb8590/tmp'
-
 # NCI/Gadi file paths - Canopy height data
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
 canopy_height_geojson = 'tiles_global.geojson'
 
-# NCI/Gadi file paths - Analysis and comparison data
-tmpdir = '/scratch/xe2/cb8590/tmp'
+# Analysis and comparison data
+# `tmpdir` should follow the chosen default_tmpdir so local runs don't target /scratch
+tmpdir = default_tmpdir
 worldcover_folder = '/scratch/xe2/cb8590/Nick_worldcover_reprojected'
 my_prediction_dir = '/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders/'
 my_prediction_geojson = 'barra_trees_s4_aus_4326_weightings_median_2020_subfolders__footprints.gpkg'

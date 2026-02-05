@@ -39,12 +39,12 @@ from shelterbelts.indices.shelter_metrics import patch_metrics, linear_categorie
 # 11 secs for all these imports
 # -
 from shelterbelts.utils.filepaths import (
-    worldcover_dir,
-    worldcover_geojson,
-    hydrolines_gdb,
-    roads_gdb,
     default_outdir,
-    default_tmpdir
+    default_tmpdir,
+    test_worldcover_dir,
+    test_worldcover_geojson,
+    test_hydrolines_gdb,
+    test_roads_gdb,
 )
 
 process = psutil.Process(os.getpid())
@@ -56,8 +56,8 @@ def run_pipeline_tif(percent_tif, outdir=default_outdir,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
-                     worldcover_dir=worldcover_dir, worldcover_geojson=worldcover_geojson, 
-                     hydrolines_gdb=hydrolines_gdb, roads_gdb=roads_gdb):
+                     worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson, 
+                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
     """Starting from a percent_cover tif, go through the whole pipeline
     
     Parameters
@@ -133,8 +133,8 @@ def run_pipeline_csv(csv, outdir=default_outdir,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
-                     worldcover_dir=worldcover_dir, worldcover_geojson=worldcover_geojson,
-                     hydrolines_gdb=hydrolines_gdb, roads_gdb=roads_gdb):
+                     worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
+                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
     """Run the pipeline for every tif in a csv"""
     df = pd.read_csv(csv)
     for percent_tif in df['filename']:
@@ -147,8 +147,8 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                       crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6, merge_outputs=False, suffix='tif',
-                      worldcover_dir=worldcover_dir, worldcover_geojson=worldcover_geojson,
-                      hydrolines_gdb=hydrolines_gdb, roads_gdb=roads_gdb):
+                      worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
+                      hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 

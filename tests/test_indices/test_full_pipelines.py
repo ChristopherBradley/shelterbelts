@@ -22,12 +22,11 @@ def test_run_pipeline_tif_basic():
             outdir=outdir,
             tmpdir=tmpdir,
             stub='test_pipeline',
-            wind_method=None,
-            worldcover_dir='data',
-            worldcover_geojson='g2_26729_worldcover_footprints.geojson',
-            hydrolines_gdb='data/g2_26729_hydrolines_cropped.gpkg',
-            roads_gdb='data/g2_26729_roads_cropped.gpkg'
+            wind_method=None
         )
         
         # Function returns None but should complete without errors
         assert result is None, "run_pipeline_tif should return None"
+
+
+# --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2
