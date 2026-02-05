@@ -26,7 +26,7 @@ if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.visualization import tif_categorical
-from shelterbelts.apis.crop_and_rasterize import crop_and_rasterize
+from shelterbelts.utils.crop_and_rasterize import crop_and_rasterize
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 from shelterbelts.apis.barra_daily import barra_daily
 

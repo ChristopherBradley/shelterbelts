@@ -10,7 +10,6 @@ from rasterio.features import rasterize
 from shapely.geometry import box
 
 from shelterbelts.utils.visualization import tif_categorical
-# from shelterbelts.apis.catchments import gullies_cmap  # This won't work with the DEA environment, since it needs DAESIM_preprocess to be pip installed
 
 gullies_cmap = {
     0: (255, 255, 255),
@@ -26,20 +25,31 @@ def crop_and_rasterize(geotif, feature_gdb, outdir=".", stub="TEST", save_gpkg=T
     
     Parameters
     ----------
-        geotif: String of filename to be used for the bounding box to crop the features, or xarray DataArray
-        feature_gdb: Path to GDB or GPKG file containing the vector features
-        outdir: Output directory to save results
-        stub: Prefix for output files
-        save_gpkg: Whether to save cropped features as GPKG
-        savetif: Whether to save rasterized output as GeoTIFF
-        layer: Layer name within the GDB (e.g., 'HydroLines', 'NationalRoads_2025_09')
-        feature_name: Name for the rasterized feature (e.g., 'gullies', 'roads'). 
-                     Defaults to layer name converted to lowercase
+    geotif : str or xarray.DataArray
+        Path to a raster file (GeoTIFF, etc.) or an xarray DataArray with geospatial metadata.
+        Used to determine the bounding box and CRS for cropping vector features.
+    feature_gdb : str
+        Path to GDB or GPKG file containing the vector features
+    outdir : str, default='.'
+        Output directory to save results
+    stub : str, default='TEST'
+        Prefix for output files
+    save_gpkg : bool, default=True
+        Whether to save cropped features as GPKG
+    savetif : bool, default=True
+        Whether to save rasterized output as GeoTIFF
+    layer : str, default='HydroLines'
+        Layer name within the GDB (e.g., 'HydroLines', 'NationalRoads_2025_09')
+    feature_name : str, optional
+        Name for the rasterized feature (e.g., 'gullies', 'roads'). 
+        Defaults to layer name converted to lowercase
 
     Returns
     -------
-    gdf: geodataframe of the features in the region of interest
-    ds: xarray.DataSet with rasterized feature layer
+    gdf : geopandas.GeoDataFrame
+        Geodataframe of the features in the region of interest
+    ds : xarray.Dataset
+        Dataset with rasterized feature layer
 
     """
     if feature_name is None:
