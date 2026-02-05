@@ -13,7 +13,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
-from shelterbelts.apis.worldcover import tif_categorical, worldcover_cmap
+from shelterbelts.utils import tif_categorical
+from shelterbelts.apis import worldcover_cmap
 from shelterbelts.classifications.merge_inputs_outputs import jittered_grid
 
 
@@ -21,27 +22,29 @@ np.random.seed(0)
 random.seed(0)
 
 # +
-tmpdir = '/scratch/xe2/cb8590/tmp'
-
-worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'  # Should move these to gdata so they don't disappear.
-worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
-worldcover_folder = '/scratch/xe2/cb8590/Nick_worldcover_reprojected'
-
-my_prediction_dir = '/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders/'
-my_prediction_geojson = 'barra_trees_s4_aus_4326_weightings_median_2020_subfolders__footprints.gpkg'
-my_prediction_folder = '/scratch/xe2/cb8590/Nick_2020_predicted'
-
-canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
-canopy_height_geojson = 'tiles_global.geojson'
-canopy_height_folder = '/scratch/xe2/cb8590/Nick_GCH'
+from shelterbelts.utils.filepaths import (
+    worldcover_dir,
+    worldcover_geojson,
+    tmpdir,
+    worldcover_folder,
+    my_prediction_dir,
+    my_prediction_geojson,
+    my_prediction_folder,
+    canopy_height_dir,
+    canopy_height_geojson,
+    canopy_height_folder,
+    nick_outlines,
+    nick_aus_treecover_10m,
+    koppen_australia
+)
 
 # +
 # Load Nick's raster footprints
-filename = '/g/data/xe2/cb8590/Nick_outlines/tiff_footprints_years.gpkg'
+filename = f'{nick_outlines}/tiff_footprints_years.gpkg'
 gdf_years = gpd.read_file(filename)
 
 # I don't trust the geometry of the current gdf_percent because it was using a utm crs, when the tiles span many utms. 
-gdf_percent = gpd.read_file('/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg')
+gdf_percent = gpd.read_file(f'{nick_aus_treecover_10m}/cb8590_Nick_Aus_treecover_10m_footprints.gpkg')
 
 # Taking the useful features from both gpkgs
 gdf_good = gdf_percent[~gdf_percent['bad_tif']].drop(columns='geometry')
@@ -64,10 +67,10 @@ gdf_merged_3857 = gpd.GeoDataFrame(
 # Visualising the centroids
 gdf_centroids = gdf_merged_3857.copy()
 gdf_centroids['geometry'] = gdf_merged_3857.geometry.centroid
-# gdf_centroids.to_file('/scratch/xe2/cb8590/tmp/Nick_training_centroids.gpkg')
+# gdf_centroids.to_file(f'{tmpdir}/Nick_training_centroids.gpkg')
 # -
 # Attach the koppen classes
-gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg')
+gdf_koppen = gpd.read_file(koppen_australia)
 gdf_koppen_3857 = gdf_koppen.to_crs("EPSG:3857")
 gdf_joined = gdf_merged_3857.sjoin_nearest(
     gdf_koppen_3857[['geometry', 'Name']],
@@ -148,18 +151,18 @@ def create_df_evaluation():
             print(f"Working on {i}/{len(gdf_subset)}")
         tile = row['stub']
         koppen_class = row['Name']
-        tree_cover_filename = f'/g/data/xe2/cb8590/Nick_Aus_treecover_10m/{tile}.tiff'
+        tree_cover_filename = f'{nick_aus_treecover_10m}/{tile}.tiff'
         ds_nick_trees = rxr.open_rasterio(tree_cover_filename).isel(band=0).drop_vars('band').astype(int)
         
-        worldcover_filename = f'/scratch/xe2/cb8590/Nick_worldcover_reprojected/{tile}_worldcover.tif'
+        worldcover_filename = f'{worldcover_folder}/{tile}_worldcover.tif'
         ds_worldcover = rxr.open_rasterio(worldcover_filename).isel(band=0).drop_vars('band')
         ds_worldcover_trees = ((ds_worldcover == 10) | (ds_worldcover == 20)).astype(int)  # 10 is trees, and 20 is shrubs
         
-        gch_filename = f'/scratch/xe2/cb8590/Nick_GCH/{tile}_canopy_height.tif'
+        gch_filename = f'{canopy_height_folder}/{tile}_canopy_height.tif'
         ds_gch = rxr.open_rasterio(gch_filename).isel(band=0).drop_vars('band')
         ds_gch_trees = (ds_gch >= 1).astype(int)
         
-        prediction_filename = f'/scratch/xe2/cb8590/Nick_2020_predicted/{tile}_my_prediction.tif'
+        prediction_filename = f'{my_prediction_folder}/{tile}_my_prediction.tif'
         ds_pred = rxr.open_rasterio(prediction_filename).isel(band=0).drop_vars('band')
         ds_pred_trees = (ds_pred >= 50).astype(int)
         
@@ -180,15 +183,15 @@ def create_df_evaluation():
         dfs.append(df)
     
     df_all = pd.concat(dfs)
-    filename = f'/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_resamplingmax.csv'
+    filename = f'{nick_outlines}/df_evaluation_10%-90%_2017-2024_resamplingmax.csv'
     df_all.to_csv(filename)
     # Took 15 mins
     
 create_df_evaluation()
 # -
 
-# df_all = pd.read_csv('/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_limit5000.csv')
-df_all = pd.read_csv('/g/data/xe2/cb8590/Nick_outlines/df_evaluation_10%-90%_2017-2024_resamplingmax.csv')
+# df_all = pd.read_csv(f'{nick_outlines}/df_evaluation_10%-90%_2017-2024_limit5000.csv')
+df_all = pd.read_csv(f'{nick_outlines}/df_evaluation_10%-90%_2017-2024_resamplingmax.csv')
 
 len(df_all)
 
@@ -293,7 +296,7 @@ poly = Polygon(coords)
 
 gdf = gpd.GeoDataFrame({"id": [1]}, geometry=[poly], crs="EPSG:4326")
 
-gdf.to_file("/scratch/xe2/cb8590/tmp/WA_sample.gpkg", driver="GPKG")
+gdf.to_file(f"{tmpdir}/WA_sample.gpkg", driver="GPKG")
 
 # -
 

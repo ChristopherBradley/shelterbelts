@@ -17,23 +17,17 @@ from skimage.measure import find_contours
 
 import matplotlib.pyplot as plt
 
-from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
-from shelterbelts.apis.hydrolines import hydrolines
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.utils import tif_categorical, visualise_categories
+from shelterbelts.apis import crop_and_rasterize, merge_tiles_bbox, merged_ds
 from shelterbelts.apis.catchments import catchments  # This takes a while to import
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
+from shelterbelts.utils.filepaths import nsw_dem_dir
 
 # -
 
 # from shelterbelts.indices.full_pipelines import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
-worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'  # Should move these to gdata so they don't disappear.
-worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
-# worldcover_footprints = '/scratch/xe2/cb8590/Worldcover_Australia/Worldcover_Australia_footprints.gpkg'
-hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
-roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 
 # +
-nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
 nsw_dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
 
 opportunity_cmap = {  # Should refactor to make this plural for consistency

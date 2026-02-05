@@ -24,35 +24,61 @@ if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
     sys.path.append(src_dir)
     # print(src_dir)
 
-from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.apis.worldcover import tif_categorical
-from shelterbelts.apis.hydrolines import hydrolines
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
-from shelterbelts.apis.barra_daily import barra_daily
+from shelterbelts.classifications import bounding_boxes
+from shelterbelts.utils import tif_categorical
+from shelterbelts.apis import crop_and_rasterize, merge_tiles_bbox, merged_ds, barra_daily
 
-from shelterbelts.indices import tree_categories, shelter_categories, cover_categories
-from shelterbelts.indices.buffer_categories import buffer_categories
-from shelterbelts.indices.shelter_metrics import patch_metrics, linear_categories_cmap
+from shelterbelts.indices import (
+    tree_categories,
+    shelter_categories,
+    cover_categories,
+    buffer_categories,
+    patch_metrics,
+    linear_categories_cmap
+)
 
 # 11 secs for all these imports
 # -
-from shelterbelts.indices.opportunities import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb  # Should make sure no other files import from this one, to avoid circular imports
+from shelterbelts.utils.filepaths import (
+    worldcover_dir,
+    worldcover_geojson,
+    hydrolines_gdb,
+    roads_gdb,
+    default_outdir,
+    default_tmpdir,
+    canopy_height_dir
+)
 
 process = psutil.Process(os.getpid())
-canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
 
 
-def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
-                     tmpdir='/scratch/xe2/cb8590/tmp', stub=None,
+def run_pipeline_tif(percent_tif, outdir=default_outdir,
+                     tmpdir=default_tmpdir, stub=None,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6):
-    """Starting from a percent_cover tif, go through the whole pipeline"""
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
+                     worldcover_dir=worldcover_dir, worldcover_geojson=worldcover_geojson, 
+                     hydrolines_gdb=hydrolines_gdb, roads_gdb=roads_gdb):
+    """Starting from a percent_cover tif, go through the whole pipeline
+    
+    Parameters
+    ----------
+        percent_tif: Path to input percent cover tif
+        worldcover_dir: Directory containing worldcover data (defaults to NCI path)
+        worldcover_geojson: Filename of worldcover footprints (defaults to NCI filename)
+        hydrolines_gdb: Path to hydrolines geodatabase (defaults to NCI path)
+        roads_gdb: Path to roads geodatabase (defaults to NCI path)
+    """
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
         stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
-    data_folder = percent_tif[percent_tif.find('DATA'):percent_tif.find('DATA') + 11] # Bespoke for when using the ELVIS filenaming system
+    # Extract data_folder from ELVIS filenaming system, or use a generic stub if not found
+    data_folder_idx = percent_tif.find('DATA')
+    if data_folder_idx != -1:
+        data_folder = percent_tif[data_folder_idx:data_folder_idx + 11]
+    else:
+        data_folder = 'generic'
 
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
     da_trees = da_percent > cover_threshold
@@ -67,8 +93,8 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-    gdf_hydrolines, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
-    gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
+    gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies')
+    gdf_roads, ds_roads = crop_and_rasterize(da_percent, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, layer='NationalRoads_2025_09', feature_name='roads')
 
     if wind_method and wind_method != "None":  # Handling conversion of None to "None" when using subprocess
         lat = (bbox_4326[1] + bbox_4326[3])/2
@@ -81,10 +107,10 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
     ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False)
     ds_shelter = shelter_categories(ds_tree_categories, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, crop_pixels=crop_pixels)
-    ds_cover = cover_categories(None, None, outdir=outdir, stub=stub, ds=ds_shelter, savetif=False, plot=False, da_worldcover=da_worldcover)
+    ds_cover = cover_categories(ds_shelter, da_worldcover, outdir=outdir, stub=stub, savetif=False, plot=False)
 
-    ds_buffer = buffer_categories(None, None, buffer_width=buffer_width, outdir=outdir, stub=stub, savetif=False, plot=False, ds=ds_cover, ds_gullies=ds_hydrolines, ds_roads=ds_roads)
-    ds_linear, df_patches = patch_metrics(None, outdir, stub, ds=ds_buffer, plot=False, save_csv=False, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width) 
+    ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=False, plot=False)
+    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=False, save_csv=False, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width) 
 
     # Trying to avoid memory accumulation
     for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_shelter, ds_cover, ds_buffer, ds_linear]:
@@ -103,24 +129,28 @@ def run_pipeline_tif(percent_tif, outdir='/scratch/xe2/cb8590/tmp',
     # print("Number of open files:", len(psutil.Process(os.getpid()).open_files()))
     return None
 
-def run_pipeline_csv(csv, outdir='/scratch/xe2/cb8590/tmp',
-                     tmpdir='/scratch/xe2/cb8590/tmp', stub=None,
+def run_pipeline_csv(csv, outdir=default_outdir,
+                     tmpdir=default_tmpdir, stub=None,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6):
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
+                     worldcover_dir=worldcover_dir, worldcover_geojson=worldcover_geojson,
+                     hydrolines_gdb=hydrolines_gdb, roads_gdb=roads_gdb):
     """Run the pipeline for every tif in a csv"""
     df = pd.read_csv(csv)
     for percent_tif in df['filename']:
         # The provided stub needs to be None, because we want to use the percent_tif filename instead. 
-        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width)
+        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb)
 
 
-def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch/xe2/cb8590/tmp', param_stub='', 
+def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, param_stub='', 
                       wind_method=None, wind_threshold=20,
                       cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6, merge_outputs=False, suffix='tif'):
+                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6, merge_outputs=False, suffix='tif',
+                      worldcover_dir=worldcover_dir, worldcover_geojson=worldcover_geojson,
+                      hydrolines_gdb=hydrolines_gdb, roads_gdb=roads_gdb):
     """
     Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
 
@@ -191,7 +221,11 @@ def run_pipeline_tifs(folder, outdir='/scratch/xe2/cb8590/tmp', tmpdir='/scratch
             "--crop_pixels", str(crop_pixels),
             "--min_core_size", str(min_core_size),
             "--min_shelterbelt_length", str(min_shelterbelt_length),
-            "--max_shelterbelt_width", str(max_shelterbelt_width)
+            "--max_shelterbelt_width", str(max_shelterbelt_width),
+            "--worldcover_dir", str(worldcover_dir) if worldcover_dir else "",
+            "--worldcover_geojson", str(worldcover_geojson) if worldcover_geojson else "",
+            "--hydrolines_gdb", str(hydrolines_gdb) if hydrolines_gdb else "",
+            "--roads_gdb", str(roads_gdb) if roads_gdb else ""
         ]
         if strict_core_area:
             cmd += ["--strict_core_area"]
@@ -228,8 +262,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Run the shelterbelt delineation pipeline on a folder of percent_cover.tifs.")
 
     parser.add_argument("folder", help="Input folder containing percent_cover.tifs")
-    parser.add_argument("--outdir", default="/scratch/xe2/cb8590/tmp", help="Output folder for linear_categories.tifs (default: /scratch/xe2/cb8590/tmp)")
-    parser.add_argument("--tmpdir", default="/scratch/xe2/cb8590/tmp", help="Temporary working folder (default: /scratch/xe2/cb8590/tmp)")
+    parser.add_argument("--outdir", default=default_outdir, help=f"Output folder for linear_categories.tifs (default: {default_outdir})")
+    parser.add_argument("--tmpdir", default=default_tmpdir, help=f"Temporary working folder (default: {default_tmpdir})")
     parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")
     parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
     parser.add_argument("--wind_threshold", type=int, default=20, help="Windspeed that causes damage to crops/pasture in km/hr (default: 20)")
@@ -247,6 +281,10 @@ def parse_arguments():
     parser.add_argument("--min_shelterbelt_length", type=int, default=20, help="The minimum length to be classified as a shelterbelt. (default: 20)")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
+    parser.add_argument("--worldcover_dir", default=None, help="Directory containing worldcover data")
+    parser.add_argument("--worldcover_geojson", default=None, help="Filename of worldcover footprints")
+    parser.add_argument("--hydrolines_gdb", default=None, help="Path to hydrolines geodatabase")
+    parser.add_argument("--roads_gdb", default=None, help="Path to roads geodatabase")
 
     return parser.parse_args()
 
@@ -272,7 +310,11 @@ if __name__ == "__main__":
             crop_pixels=args.crop_pixels,
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
-            max_shelterbelt_width=args.max_shelterbelt_width
+            max_shelterbelt_width=args.max_shelterbelt_width,
+            worldcover_dir=args.worldcover_dir,
+            worldcover_geojson=args.worldcover_geojson,
+            hydrolines_gdb=args.hydrolines_gdb,
+            roads_gdb=args.roads_gdb
         )
     elif args.folder.endswith('.csv'):
             run_pipeline_csv(
@@ -293,7 +335,11 @@ if __name__ == "__main__":
             crop_pixels=args.crop_pixels,
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
-            max_shelterbelt_width=args.max_shelterbelt_width
+            max_shelterbelt_width=args.max_shelterbelt_width,
+            worldcover_dir=args.worldcover_dir,
+            worldcover_geojson=args.worldcover_geojson,
+            hydrolines_gdb=args.hydrolines_gdb,
+            roads_gdb=args.roads_gdb
         )
     else:
         run_pipeline_tifs(
@@ -316,5 +362,9 @@ if __name__ == "__main__":
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
-            suffix=args.suffix
+            suffix=args.suffix,
+            worldcover_dir=args.worldcover_dir,
+            worldcover_geojson=args.worldcover_geojson,
+            hydrolines_gdb=args.hydrolines_gdb,
+            roads_gdb=args.roads_gdb
         )

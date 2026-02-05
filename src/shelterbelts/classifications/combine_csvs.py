@@ -22,7 +22,7 @@ src_dir = os.path.join(repo_dir, 'src')
 os.chdir(src_dir)
 sys.path.append(src_dir)
 
-from shelterbelts.classifications.neural_network import my_train_test_split, inputs_outputs_split, class_accuracies_overall # Might need to adjust this to work with the random forst model
+from shelterbelts.classifications import my_train_test_split, inputs_outputs_split, class_accuracies_overall # Might need to adjust this to work with the random forst model
 
 
 def combine_csvs(csv_folder, limit=None):

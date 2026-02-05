@@ -1,5 +1,6 @@
 # +
 import os
+import glob
 import shutil
 import re
 import math
@@ -8,12 +9,21 @@ import geopandas as gpd
 from shapely.prepared import prep
 from shapely.geometry import box, Polygon, MultiPolygon
 
+import rioxarray as rxr
 import xarray as xr
 import numpy as np
 
+from shelterbelts.utils.filepaths import (
+    barra_bboxs_dir,
+    barra_bboxs_full,
+    state_boundaries,
+    aus_boundaries,
+    elvis_outputs_dir
+)
+
 def single_boundary():
     """Creating a single boundary for NSW (missing jervis bay)"""
-    gdf = gpd.read_file('/Users/christopherbradley/Documents/PHD/Data/Australia_datasets/Australia State Boundaries/STE_2021_AUST_GDA2020.shp')
+    gdf = gpd.read_file(state_boundaries)
     multipolygon = gdf.iloc[0]['geometry']
     largest_polygon = max(multipolygon.geoms, key=lambda p: p.area)
     polygon_no_holes = Polygon(largest_polygon.exterior)
@@ -26,7 +36,7 @@ def single_boundary():
 
 
 # +
-def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=30000, crs=7855, outdir='/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/'):
+def geopackage_km(filename_state_boundaries, state='New South Wales', tile_size=30000, crs=7855, outdir=elvis_outputs_dir):
     """Create a geopackage of bounding boxes of a given size covering a given area for ELVIS downloads"""
     gdf2 = gpd.read_file(filename_state_boundaries)
     nsw = gdf2.loc[gdf2['STE_NAME21'] == state].to_crs(crs)
@@ -112,11 +122,9 @@ def get_barra_bboxs(filename=None):
 
 def crop_barra_bboxs():
     # This is the code I used to create barra_bboxs_aus and the state versions
-    filepath_barra_bbox_full = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg' # Takes 3 mins to load
-    gdf = gpd.read_file(filepath_barra_bbox_full)
+    gdf = gpd.read_file(barra_bboxs_full)
 
-    filename_state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-    gdf2 = gpd.read_file(filename_state_boundaries)
+    gdf2 = gpd.read_file(state_boundaries)
 
     state_mapping = {"New South Wales": "nsw",
                      "Victoria":"vic",
@@ -151,17 +159,16 @@ def crop_barra_bboxs():
         mask = possible_matches.geometry.map(geom_prep.intersects)
         gdf_state = possible_matches[mask]
 
-        filename = os.path.join('/g/data/xe2/cb8590/Outlines/BARRA_bboxs', f'barra_bboxs_{abbreviation}.gpkg')
+        filename = os.path.join(barra_bboxs_dir, f'barra_bboxs_{abbreviation}.gpkg')
         gdf_state.to_file(filename)
         print(f"Saved: {filename}")
 
     # Create a geopackage of the tiles inside Australia
-    filename_aus = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
-    gdf3 = gpd.read_file(filename_aus)
+    gdf3 = gpd.read_file(aus_boundaries)
     geom_prep = prep(gdf3.loc[0,'geometry'])
     mask = gdf.geometry.map(geom_prep.intersects) # Only took 1 min, I love shapely's prep function
     gdf_aus = gdf[mask]
-    filename = os.path.join('/g/data/xe2/cb8590/Outlines/BARRA_bboxs', f'barra_bboxs_aus.gpkg')
+    filename = os.path.join(barra_bboxs_dir, f'barra_bboxs_aus.gpkg')
     gdf_aus.to_file(filename)
     print(f"Saved: {filename}")
 

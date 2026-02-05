@@ -1,19 +1,7 @@
 # Will add jupyter notebooks at the end once I'm happy with everything
 *.ipynb
 
-# Track specific files in data/ even though their types are ignored globally
-# These files are used for testing and examples
-!data/
-!data/**
-
-outdir
-pbs_outputs
-pbs__success
-pbs_errors
-pbs_saving
-pbs_results
-pbs_predictions
-.DS_Store
+# Ignore file types globally
 *.nc
 *.tif*
 *.png
@@ -26,6 +14,20 @@ pbs_predictions
 *.gpkg*
 *.kml
 *.pkl
+
+# BUT track all files in data/ folder (test data)
+!data/
+!data/**
+
+# Ignore directories
+outdir
+pbs_outputs
+pbs__success
+pbs_errors
+pbs_saving
+pbs_results
+pbs_predictions
+.DS_Store
 credentials.py
 snowflake/cache
 *.xml

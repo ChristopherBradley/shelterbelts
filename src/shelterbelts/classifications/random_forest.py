@@ -29,7 +29,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 # -
 
-from shelterbelts.classifications.neural_network import my_train_test_split, inputs_outputs_split, class_accuracies_overall # Might need to adjust this to work with the random forst model
+from shelterbelts.classifications import my_train_test_split, inputs_outputs_split, class_accuracies_overall # Might need to adjust this to work with the random forst model
 
 
 def random_forest(training_file, outdir=".", stub="TEST", output_column='tree_cover', drop_columns=['x', 'y', 'tile_id'], n_estimators=100, min_samples_split=10, batch_size=32, random_state=1, stratification_columns=['tree_cover'], train_frac = 0.7, limit=None):

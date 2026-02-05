@@ -13,7 +13,7 @@ import rasterio
 import rioxarray as rxr
 
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
-from shelterbelts.apis.worldcover import tif_categorical
+from shelterbelts.utils import tif_categorical
 # -
 
 import matplotlib.pyplot as plt

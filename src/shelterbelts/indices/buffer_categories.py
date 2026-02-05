@@ -8,7 +8,7 @@ from scipy.ndimage import binary_dilation
 from rasterio.enums import Resampling
 from skimage.morphology import skeletonize # I think skeletonize centers the result slightly better than thinning
 
-from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
+from shelterbelts.utils import tif_categorical, visualise_categories
 from shelterbelts.indices.cover_categories import cover_categories_cmap, cover_categories_labels
 
 buffer_cmap = {
@@ -170,7 +170,7 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
         elif isinstance(roads_data, xr.Dataset):
             da_roads = roads_data['roads']
         else:
-            da_roads = roads_data
+            da_roads = roads_data  # xr.DataArray
     if da_roads is not None:
         da_roads_reprojected = da_roads.rio.reproject_match(da_cover, resampling=Resampling.max)
         roads_thinned = skeletonize(da_roads_reprojected.values)

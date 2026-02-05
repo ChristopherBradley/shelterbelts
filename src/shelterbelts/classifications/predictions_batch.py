@@ -48,8 +48,7 @@ os.chdir(src_dir)
 sys.path.append(src_dir)
 # print(src_dir)
 
-from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
-from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
+from shelterbelts.classifications import aggregated_metrics, download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
 # -
 
@@ -60,7 +59,9 @@ cmap_binary = {
 }
 
 # Loading this once instead of every time in tif_prediction_ds. Could instead load once in predictions_batch and pass as an argument
-gdf_koppen = gpd.read_file('/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg')
+from shelterbelts.utils.filepaths import koppen_australia
+
+gdf_koppen = gpd.read_file(koppen_australia)
 
 
 # +
@@ -218,7 +219,9 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, conf
     gc.collect()
     return None
 
-def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', multi_model=False, confidence=False):
+from shelterbelts.utils.filepaths import koppen_australia, nn_models_dir
+
+def run_worker(rows, nn_dir=nn_models_dir, nn_stub='fft_89a_92s_85r_86p', multi_model=False, confidence=False):
     """Abstracting the for loop & try except for each worker"""
     model, scaler, model_weightings = None, None, None
 
@@ -294,7 +297,7 @@ def run_worker(rows, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85
 
 # -
 
-def predictions_batch(gpkg, outdir, year=2020, nn_dir='/g/data/xe2/cb8590/models', nn_stub='fft_89a_92s_85r_86p', limit=None, multi_model=False, confidence=False):
+def predictions_batch(gpkg, outdir, year=2020, nn_dir=nn_models_dir, nn_stub='fft_89a_92s_85r_86p', limit=None, multi_model=False, confidence=False):
     """Use the model to make tree classifications based on sentinel imagery for that year
     
     Parameters
@@ -336,7 +339,7 @@ def parse_arguments():
     parser.add_argument("--gpkg", type=str, required=True, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
     parser.add_argument("--outdir", type=str, required=True, help="Output directory for the final classified tifs")
     parser.add_argument("--year", type=int, default=2020, help="Year of satellite imagery to download for doing the classification")
-    parser.add_argument("--nn_dir", type=str, default='/g/data/xe2/cb8590/models', help="The stub of the neural network model and preprocessing scaler")
+    parser.add_argument("--nn_dir", type=str, default=nn_models_dir, help=f"The stub of the neural network model and preprocessing scaler (default: {nn_models_dir})")
     parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
     parser.add_argument("--limit", type=int, default=None, help="Number of rows to process")
     parser.add_argument("--multi_model", action="store_true", help="Use a separate model for each koppen region. Default: False")

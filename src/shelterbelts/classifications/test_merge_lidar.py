@@ -1,4 +1,4 @@
-from shelterbelts.classifications.merge_lidar import merge_lidar
+from shelterbelts.classifications import merge_lidar
 
 
 # %%time

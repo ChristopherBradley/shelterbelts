@@ -140,7 +140,9 @@ def jittered_grid(ds, spacing=10):
     return df
 
 
-def visualise_jittered_grid(ds, spacing=10, outdir='/scratch/xe2/cb8590/tmp', stub="TEST"):
+from shelterbelts.utils.filepaths import tmpdir
+
+def visualise_jittered_grid(ds, spacing=10, outdir=tmpdir, stub="TEST"):
     """Save a geopackage so you can visualise the jittered grid in QGIS"""
     df = jittered_grid(ds, spacing)
     gdf = gpd.GeoDataFrame(

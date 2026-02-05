@@ -7,11 +7,13 @@ import rioxarray as rxr
 from shapely.geometry import box
 import geopandas as gpd
 
-from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.classifications import bounding_boxes
+from shelterbelts.apis import merge_tiles_bbox, merged_ds
 
 
-def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir='/scratch/xe2/cb8590/tmp', num_pixels=20, pixel_size=10):
+from shelterbelts.utils.filepaths import default_tmpdir
+
+def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir=default_tmpdir, num_pixels=20, pixel_size=10):
     """Expand the tif by a certain number of pixels, to avoid edge effects when running indices at scale
     
     Parameters

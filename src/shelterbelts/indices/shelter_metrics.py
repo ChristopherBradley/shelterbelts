@@ -21,7 +21,7 @@ from shelterbelts.indices.buffer_categories import buffer_categories_labels, buf
 from shelterbelts.indices.tree_categories import tree_clusters
 from shelterbelts.indices.opportunities import segmentation
 
-from shelterbelts.apis.worldcover import visualise_categories, tif_categorical
+from shelterbelts.utils import visualise_categories, tif_categorical
 
 
 linear_cmap = {

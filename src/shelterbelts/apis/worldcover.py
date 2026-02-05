@@ -82,33 +82,6 @@ def worldcover_centerpoint(lat=-34.3890427, lon=148.469499, buffer=0.05):
     return da
 
 
-def tif_categorical(da, filename= "TEST.tif", colormap=None, tiled=False):
-    """Save a tif file using a categorical colour scheme"""
-    with rasterio.open(
-        filename,
-        "w",
-        driver="GTiff",
-        height=da.shape[0],
-        width=da.shape[1],
-        count=1,
-        dtype="uint8",
-        crs=da.rio.crs,
-        transform=da.rio.transform(),
-        compress="LZW",  # "deflate" gives slightly smaller filesize but slower
-        photometric="palette",
-        tiled=tiled,      # Don't bother tiling unless it's a really big area (maybe bigger than 10kmx10km)
-        nodata=da.rio.nodata 
-    ) as dst:
-        dst.write(da.values, 1)
-        if colormap:
-            dst.write_colormap(1, colormap)
-            
-    print(f"Saved: {filename}")
-    
-    # If it's a really big area then you can speed up visualisation in QGIS using gdaladdo 
-    # # !gdaladdo {filename_worldcover_output} 2 4 8 16 32 64
-
-
 def visualise_categories(da, filename=None, colormap=worldcover_cmap, labels=worldcover_labels, title="ESA WorldCover"):
     """Pretty visualisation using the worldcover colour scheme"""
     worldcover_classes = sorted(colormap.keys())
