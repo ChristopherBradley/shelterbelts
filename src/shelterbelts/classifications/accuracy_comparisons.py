@@ -13,8 +13,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
-from shelterbelts.utils import tif_categorical
-from shelterbelts.apis import worldcover_cmap
+from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.apis.worldcover import worldcover_cmap
 from shelterbelts.classifications.merge_inputs_outputs import jittered_grid
 
 

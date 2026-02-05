@@ -48,7 +48,8 @@ os.chdir(src_dir)
 sys.path.append(src_dir)
 # print(src_dir)
 
-from shelterbelts.classifications import aggregated_metrics, download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
+from shelterbelts.classifications.neural_network import aggregated_metrics
+from shelterbelts.classifications.sentinel_nci import download_ds2_bbox  # Will probably have to create a predictions_nci, and predictions_dea to avoid datacube import issues
 
 # -
 

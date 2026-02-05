@@ -7,8 +7,8 @@ import rioxarray as rxr
 from shapely.geometry import box
 import geopandas as gpd
 
-from shelterbelts.classifications import bounding_boxes
-from shelterbelts.apis import merge_tiles_bbox, merged_ds
+from shelterbelts.classifications.bounding_boxes import bounding_boxes
+from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 
 
 from shelterbelts.utils.filepaths import default_tmpdir

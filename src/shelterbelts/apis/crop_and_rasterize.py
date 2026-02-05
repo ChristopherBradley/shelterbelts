@@ -9,7 +9,7 @@ from rasterio.features import rasterize
 
 from shapely.geometry import box
 
-from shelterbelts.utils import tif_categorical
+from shelterbelts.utils.visualization import tif_categorical
 # from shelterbelts.apis.catchments import gullies_cmap  # This won't work with the DEA environment, since it needs DAESIM_preprocess to be pip installed
 
 gullies_cmap = {

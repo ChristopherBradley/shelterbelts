@@ -8,7 +8,7 @@ from scipy.ndimage import binary_dilation
 from rasterio.enums import Resampling
 from skimage.morphology import skeletonize # I think skeletonize centers the result slightly better than thinning
 
-from shelterbelts.utils import tif_categorical, visualise_categories
+from shelterbelts.utils.visualization import tif_categorical, visualise_categories
 from shelterbelts.indices.cover_categories import cover_categories_cmap, cover_categories_labels
 
 buffer_cmap = {
@@ -67,7 +67,7 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
     --------
     Using file paths as input:
     
-    >>> from shelterbelts.utils import get_filename
+    >>> from shelterbelts.utils.filepaths import get_filename
     >>> cover_file = get_filename('g2_26729_cover_categories.tif')
     >>> gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
     >>> ds = buffer_categories(cover_file, gullies_file, outdir='/tmp', plot=False, savetif=False)
@@ -89,8 +89,9 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
     
     .. plot::
 
-        from shelterbelts.indices import buffer_categories, buffer_categories_cmap, buffer_categories_labels
-        from shelterbelts.utils import get_filename, visualise_categories_sidebyside
+        from shelterbelts.indices.buffer_categories import buffer_categories, buffer_categories_cmap, buffer_categories_labels
+        from shelterbelts.utils.filepaths import get_filename
+        from shelterbelts.utils.visualization import visualise_categories_sidebyside
 
         cover_file = get_filename('g2_26729_cover_categories.tif')
         gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')

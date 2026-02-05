@@ -1,4 +1,4 @@
-from shelterbelts.classifications import bounding_boxes
+from shelterbelts.classifications.bounding_boxes import bounding_boxes
 
 
 # Working

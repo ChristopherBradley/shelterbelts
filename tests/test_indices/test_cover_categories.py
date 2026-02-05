@@ -1,6 +1,6 @@
 import os
 
-from shelterbelts.indices import cover_categories
+from shelterbelts.indices.cover_categories import cover_categories
 
 
 stub = 'g2_26729'

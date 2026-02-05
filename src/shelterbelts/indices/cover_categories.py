@@ -5,7 +5,7 @@ import argparse
 import xarray as xr
 import rioxarray as rxr
 
-from shelterbelts.utils import tif_categorical, visualise_categories
+from shelterbelts.utils.visualization import tif_categorical, visualise_categories
 from shelterbelts.apis.worldcover import worldcover_cmap, worldcover_labels
 from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
 from shelterbelts.indices.shelter_categories import shelter_categories_labels as shelter_labels, shelter_categories_cmap
@@ -67,7 +67,7 @@ def cover_categories(shelter_data, worldcover_data, outdir='.', stub='TEST', sav
     --------
     Using file paths as input:
     
-    >>> from shelterbelts.utils import get_filename
+    >>> from shelterbelts.utils.filepaths import get_filename
     >>> shelter_file = get_filename('g2_26729_shelter_categories.tif')
     >>> worldcover_file = get_filename('g2_26729_worldcover.tif')
     >>> ds_cover = cover_categories(shelter_file, worldcover_file, outdir='/tmp', plot=False, savetif=False)
@@ -87,8 +87,9 @@ def cover_categories(shelter_data, worldcover_data, outdir='.', stub='TEST', sav
     
     .. plot::
 
-        from shelterbelts.indices import cover_categories, cover_categories_cmap, cover_categories_labels
-        from shelterbelts.utils import get_filename, visualise_categories
+        from shelterbelts.indices.cover_categories import cover_categories, cover_categories_cmap, cover_categories_labels
+        from shelterbelts.utils.filepaths import get_filename
+        from shelterbelts.utils.visualization import visualise_categories
         
         shelter_file = get_filename('g2_26729_shelter_categories.tif')
         worldcover_file = get_filename('g2_26729_worldcover.tif')

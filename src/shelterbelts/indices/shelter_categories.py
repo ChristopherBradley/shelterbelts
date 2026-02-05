@@ -8,7 +8,7 @@ import scipy
 
 from shelterbelts.apis.barra_daily import wind_dataframe, dominant_wind_direction
 from shelterbelts.indices.tree_categories import tree_categories_labels, tree_categories_cmap
-from shelterbelts.utils import tif_categorical, visualise_categories
+from shelterbelts.utils.visualization import tif_categorical, visualise_categories
 
 
 shelter_categories_cmap = {
@@ -191,7 +191,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     --------
     Using a file path as input:
     
-    >>> from shelterbelts.utils import get_filename
+    >>> from shelterbelts.utils.filepaths import get_filename
     >>> filename = get_filename('g2_26729_tree_categories.tif')
     >>> ds_shelter = shelter_categories(filename, outdir='/tmp', plot=False, savetif=False)
     >>> set(ds_shelter.data_vars) == {'tree_categories', 'shelter_categories'}  # No woody_veg layer because we loaded the tree_categories.tif directly
@@ -199,7 +199,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     
     Using a Dataset as input:
 
-    >>> from shelterbelts.utils import get_example_tree_categories_data
+    >>> from shelterbelts.utils.filepaths import get_example_tree_categories_data
     >>> ds_cat = get_example_tree_categories_data()
     >>> ds_shelter = shelter_categories(ds_cat, outdir='/tmp', plot=False, savetif=False)
     >>> set(ds_shelter.data_vars) == {'woody_veg', 'tree_categories', 'shelter_categories'} # Includes woody_veg layer because the full pipeline was executed
@@ -209,8 +209,9 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     
     .. plot::
 
-        from shelterbelts.indices import shelter_categories, shelter_categories_cmap, shelter_categories_labels
-        from shelterbelts.utils import get_filename, get_example_tree_categories_data, visualise_categories_sidebyside
+        from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
+        from shelterbelts.utils.filepaths import get_filename, get_example_tree_categories_data
+        from shelterbelts.utils.visualization import visualise_categories_sidebyside
 
         ds_cat = get_example_tree_categories_data()
         wind_file = get_filename('g2_26729_barra_daily.nc')

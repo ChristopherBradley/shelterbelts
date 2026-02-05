@@ -17,8 +17,9 @@ from skimage.measure import find_contours
 
 import matplotlib.pyplot as plt
 
-from shelterbelts.utils import tif_categorical, visualise_categories
-from shelterbelts.apis import crop_and_rasterize, merge_tiles_bbox, merged_ds
+from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.apis.crop_and_rasterize import crop_and_rasterize
+from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 from shelterbelts.apis.catchments import catchments  # This takes a while to import
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.filepaths import nsw_dem_dir

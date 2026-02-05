@@ -5,7 +5,7 @@ import numpy as np
 import rioxarray as rxr
 from scipy.ndimage import label, binary_erosion, binary_dilation
 
-from shelterbelts.utils import visualise_categories, tif_categorical
+from shelterbelts.utils.visualization import visualise_categories, tif_categorical
 
 # Create a single array with all the layers
 tree_categories_cmap = {
@@ -154,7 +154,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     --------
     Using a file path as input:
 
-    >>> from shelterbelts.utils import get_filename
+    >>> from shelterbelts.utils.filepaths import get_filename
     >>> filename_string = get_filename('g2_26729_binary_tree_cover_10m.tiff')
     >>> ds_cat = tree_categories(filename_string, plot=False, save_tif=False)
     >>> set(ds_cat.data_vars) == {'woody_veg', 'tree_categories'}
@@ -162,7 +162,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     
     Using a Dataset as input:
     
-    >>> from shelterbelts.utils import create_test_woody_veg_dataset
+    >>> from shelterbelts.utils.filepaths import create_test_woody_veg_dataset
     >>> ds_input = create_test_woody_veg_dataset()
     >>> ds_cat = tree_categories(ds_input, stub="TEST", plot=False, save_tif=False)
     >>> set(ds_cat.data_vars) == {'woody_veg', 'tree_categories'}
@@ -172,8 +172,9 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     
     .. plot::
 
-        from shelterbelts.indices import tree_categories, tree_categories_cmap, tree_categories_labels
-        from shelterbelts.utils import visualise_categories_sidebyside, get_filename
+        from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
+        from shelterbelts.utils.visualization import visualise_categories_sidebyside
+        from shelterbelts.utils.filepaths import get_filename
         
         test_filename = get_filename('g2_26729_binary_tree_cover_10m.tiff')
         

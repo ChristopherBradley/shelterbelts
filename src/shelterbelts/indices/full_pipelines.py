@@ -24,18 +24,17 @@ if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
     sys.path.append(src_dir)
     # print(src_dir)
 
-from shelterbelts.classifications import bounding_boxes
-from shelterbelts.utils import tif_categorical
-from shelterbelts.apis import crop_and_rasterize, merge_tiles_bbox, merged_ds, barra_daily
+from shelterbelts.classifications.bounding_boxes import bounding_boxes
+from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.apis.crop_and_rasterize import crop_and_rasterize
+from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.apis.barra_daily import barra_daily
 
-from shelterbelts.indices import (
-    tree_categories,
-    shelter_categories,
-    cover_categories,
-    buffer_categories,
-    patch_metrics,
-    linear_categories_cmap
-)
+from shelterbelts.indices.tree_categories import tree_categories
+from shelterbelts.indices.shelter_categories import shelter_categories
+from shelterbelts.indices.cover_categories import cover_categories
+from shelterbelts.indices.buffer_categories import buffer_categories
+from shelterbelts.indices.shelter_metrics import patch_metrics, linear_categories_cmap
 
 # 11 secs for all these imports
 # -

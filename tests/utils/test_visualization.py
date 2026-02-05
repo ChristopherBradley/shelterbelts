@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import pytest
 
-from shelterbelts.utils import visualise_categories
+from shelterbelts.utils.visualization import visualise_categories
 from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
 
 
@@ -54,7 +54,7 @@ def test_visualise_categories_colors(sample_categorical_data):
 
 def test_visualise_categories_sidebyside(sample_categorical_data):
     """Test side-by-side visualization."""
-    from shelterbelts.utils import visualise_categories_sidebyside
+    from shelterbelts.utils.visualization import visualise_categories_sidebyside
     
     with tempfile.TemporaryDirectory() as tmpdir:
         filepath = os.path.join(tmpdir, "test_sidebyside.png")

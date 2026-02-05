@@ -21,8 +21,8 @@ import rasterio
 # sys.path.append(src_dir)
 # # print(src_dir)
 
-from shelterbelts.utils import tif_categorical
-from shelterbelts.apis import worldcover_labels
+from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.apis.worldcover import worldcover_labels
 # -
 
 cmap_woody_veg = {

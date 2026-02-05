@@ -21,7 +21,7 @@ from shelterbelts.indices.buffer_categories import buffer_categories_labels, buf
 from shelterbelts.indices.tree_categories import tree_clusters
 from shelterbelts.indices.opportunities import segmentation
 
-from shelterbelts.utils import visualise_categories, tif_categorical
+from shelterbelts.utils.visualization import visualise_categories, tif_categorical
 
 
 linear_cmap = {
@@ -395,7 +395,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     --------
     Using file paths as input:
     
-    >>> from shelterbelts.utils import get_filename
+    >>> from shelterbelts.utils.filepaths import get_filename
     >>> buffer_file = get_filename('g2_26729_buffer_categories.tif')
     >>> ds, df = patch_metrics(buffer_file, outdir='/tmp', stub='test', plot=False, save_csv=False, save_tif=False)
     >>> 'linear_categories' in set(ds.data_vars)
@@ -543,7 +543,7 @@ def class_metrics(buffer_data, outdir=".", stub="TEST", save_excel=True):
     --------
     Using file paths as input:
     
-    >>> from shelterbelts.utils import get_filename
+    >>> from shelterbelts.utils.filepaths import get_filename
     >>> linear_file = get_filename('g2_26729_linear_categories.tif')
     >>> dfs = class_metrics(linear_file, outdir='/tmp', stub='test', save_excel=False)
     >>> len(dfs) == 4
