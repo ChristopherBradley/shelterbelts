@@ -53,11 +53,11 @@ process = psutil.Process(os.getpid())
 def run_pipeline_tif(percent_tif, outdir=default_outdir,
                      tmpdir=default_tmpdir, stub=None,
                      wind_method=None, wind_threshold=20,
-                     cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
+                     cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
                      worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson, 
-                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
+                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb, debug=True):
     """Starting from a percent_cover tif, go through the whole pipeline
     
     Parameters
@@ -79,7 +79,7 @@ def run_pipeline_tif(percent_tif, outdir=default_outdir,
         data_folder = 'generic'
 
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
-    da_trees = da_percent > cover_threshold
+    da_trees = da_percent >= cover_threshold
 
     gs_bounds = gpd.GeoSeries([box(*da_percent.rio.bounds())], crs=da_percent.rio.crs)
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
@@ -103,12 +103,12 @@ def run_pipeline_tif(percent_tif, outdir=default_outdir,
         ds_wind = None
 
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
-    ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=False, plot=False)
-    ds_shelter = shelter_categories(ds_tree_categories, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=False, plot=False, crop_pixels=crop_pixels)
-    ds_cover = cover_categories(ds_shelter, da_worldcover, outdir=outdir, stub=stub, savetif=False, plot=False)
+    ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=debug, plot=debug)
+    ds_shelter = shelter_categories(ds_tree_categories, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug, crop_pixels=crop_pixels)
+    ds_cover = cover_categories(ds_shelter, da_worldcover, outdir=outdir, stub=stub, savetif=debug, plot=debug)
 
-    ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=False, plot=False)
-    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=False, save_csv=False, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width) 
+    ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=debug, plot=debug)
+    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width) 
 
     # Trying to avoid memory accumulation
     for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_shelter, ds_cover, ds_buffer, ds_linear]:
