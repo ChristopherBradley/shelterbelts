@@ -35,6 +35,7 @@ snowflake/cache
 *cache*
 *.laz
 *.virtual_documents*
+.vscode
 
 # qsub logging files
 *.o*

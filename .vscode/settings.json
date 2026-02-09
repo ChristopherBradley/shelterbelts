@@ -13,23 +13,14 @@
     "explorer.autoReveal": false,
     "explorer.autoRevealDelay": 5000,
     "files.exclude": {
-        "**/__pycache__": true,
-        "**/.git": true,
-        "**/site-packages": true,
-        "**/miniconda": true
+    "**/__pycache__": true,
+    "**/.git": true,
+    "**/site-packages": true,
+    "**/miniconda": true
     },
     "python.analysis.exclude": [
         "**/miniconda/**",
-        "**/__pycache__/**",
-        "**/x_jobs/**",
-        "**/y_jobs_archived/**",
-        "**/gavin/**"
-    ],
-    "python.analysis.extraPaths": [
-        "${workspaceFolder}/src"
-    ],
-    "python.analysis.indexing": true,
-    "python.analysis.typeCheckingMode": "basic",
-    "python.analysis.diagnosticMode": "workspace",
-    "python.languageServer": "Pylance"
+        "**/envs/**",
+        "**/__pycache__/**"
+    ]
 }
