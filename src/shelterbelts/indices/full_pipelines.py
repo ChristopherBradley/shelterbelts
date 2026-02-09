@@ -14,16 +14,6 @@ import gc
 import psutil
 import subprocess, sys
 
-# This breaks the pytests
-# repo_name = "shelterbelts"
-# import sys, os
-# if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-#     repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-#     src_dir = os.path.join(repo_dir, 'src')
-#     os.chdir(src_dir)
-#     sys.path.append(src_dir)
-#     # print(src_dir)
-
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.visualization import tif_categorical
 from shelterbelts.utils.crop_and_rasterize import crop_and_rasterize
@@ -85,7 +75,7 @@ def run_pipeline_tif(percent_tif, outdir=default_outdir,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
                      worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson, 
-                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb, debug=True):
+                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb, debug=False):
     """Starting from a percent_cover tif, go through the whole pipeline
     
     Parameters
@@ -222,15 +212,16 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
         filename = os.path.join(tmpdir, f"{param_stub}_{all_the_params}_run_pipeline_tifs_{i}.csv")
         chunk.to_csv(filename, index=False)
         csv_filenames.append(filename)
-        print("Saved:", filename)
+        print("Saved:", filename, flush=True)
 
     for i, filename in enumerate(csv_filenames):
-        print(f"Launching Popen subprocess for filename {i}/{len(csv_filenames)}:", filename)
+        print(f"Launching Popen subprocess for filename {i}/{len(csv_filenames)}:", filename, flush=True)
 
+        script = os.path.join(os.path.dirname(__file__), "full_pipelines.py") # Might want to change the "full_pipelines.py" to this "script" for robustness
         cmd = [
             sys.executable,
-            # "full_pipelines.py", 
-            "shelterbelts/indices/full_pipelines.py",  
+            "full_pipelines.py", 
+            # "shelterbelts/indices/full_pipelines.py",  
             str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),
