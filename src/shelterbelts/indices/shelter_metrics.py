@@ -429,7 +429,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     assigned_labels = split_disconnected_clusters(assigned_labels)  # The ellipses go haywire if the clusters are not connected
     
     # Find the skeleton of each cluster
-    df_patch_metrics, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels)
+    df_patch_metrics, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels, min_patch_size=min_patch_size, save_labels=save_labels)
 
     # Save these intermediate rasters
     if save_tif and save_labels:

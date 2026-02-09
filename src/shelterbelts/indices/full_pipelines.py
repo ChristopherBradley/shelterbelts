@@ -108,7 +108,7 @@ def run_pipeline_tif(percent_tif, outdir=default_outdir,
     ds_cover = cover_categories(ds_shelter, da_worldcover, outdir=outdir, stub=stub, savetif=debug, plot=debug)
 
     ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=debug, plot=debug)
-    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width) 
+    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size) 
 
     # Trying to avoid memory accumulation
     for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_shelter, ds_cover, ds_buffer, ds_linear]:
@@ -130,7 +130,7 @@ def run_pipeline_tif(percent_tif, outdir=default_outdir,
 def run_pipeline_csv(csv, outdir=default_outdir,
                      tmpdir=default_tmpdir, stub=None,
                      wind_method=None, wind_threshold=20,
-                     cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
+                     cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
                      worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
@@ -144,7 +144,7 @@ def run_pipeline_csv(csv, outdir=default_outdir,
 
 def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, param_stub='', 
                       wind_method=None, wind_threshold=20,
-                      cover_threshold=10, min_patch_size=20, edge_size=3, max_gap_size=1,
+                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                       crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6, merge_outputs=False, suffix='tif',
                       worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
@@ -225,9 +225,9 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
             "--hydrolines_gdb", str(hydrolines_gdb) if hydrolines_gdb else "",
             "--roads_gdb", str(roads_gdb) if roads_gdb else ""
         ]
-        if strict_core_area:
-            cmd += ["--strict_core_area"]
-        
+        if not strict_core_area:
+            cmd += ["--no-strict-core-area"]
+    
         # Popen a subprocess to hopefully avoid memory accumulation
         p = subprocess.Popen(cmd)
         p.wait()
@@ -265,7 +265,7 @@ def parse_arguments():
     parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")
     parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
     parser.add_argument("--wind_threshold", type=int, default=20, help="Windspeed that causes damage to crops/pasture in km/hr (default: 20)")
-    parser.add_argument("--cover_threshold", type=int, default=10, help="Percentage tree cover within a pixel to classify as tree (default: 10)")
+    parser.add_argument("--cover_threshold", type=int, default=1, help="Percentage tree cover within a pixel to classify as tree (default: 1)")
     parser.add_argument("--min_patch_size", type=int, default=20, help="Minimum patch size in pixels (default: 20)")
     parser.add_argument("--edge_size", type=int, default=3, help="Buffer distance at patch edges for core area (default: 3)")
     parser.add_argument("--max_gap_size", type=int, default=1, help="Maximum gap between tree clusters (default: 1)")
@@ -273,7 +273,7 @@ def parse_arguments():
     parser.add_argument("--density_threshold", type=int, default=5, help="Tree cover %% within distance_threshold that counts as sheltered (default: 5)")
     parser.add_argument("--buffer_width", type=int, default=3, help="Buffer width for sheltered area (default: 3)")
     parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
-    parser.add_argument("--strict_core_area", default=False, action="store_true", help="Boolean to determine whether to enforce core areas to be fully connected.")
+    parser.add_argument('--no-strict-core-area', dest='strict_core_area', action='store_false', default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
     parser.add_argument("--min_core_size", type=int, default=1000, help="The minimum area to be classified as a core, rather than just a patch or corridor. (default: 100)")
     parser.add_argument("--min_shelterbelt_length", type=int, default=20, help="The minimum length to be classified as a shelterbelt. (default: 20)")
