@@ -50,12 +50,40 @@ from shelterbelts.utils.filepaths import (
 process = psutil.Process(os.getpid())
 
 
+GEE_legend = {
+  0: 'Not Trees',
+  10: 'Tree cover',
+  11: 'Scattered Trees',
+  12: 'Patch Core',
+  13: 'Patch Edge',
+  14: 'Other Trees',
+  15: 'Trees in Gullies',
+  16: 'Trees on Ridges',
+  17: 'Trees next to Roads',
+  18: 'Linear Patches',
+  19: 'Non-linear Patches',
+  20: 'Shrubland',
+  30: 'Grassland',
+  31: 'Unsheltered Grassland',
+  32: 'Sheltered Grassland',
+  40: 'Cropland',
+  41: 'Unsheltered Cropland',
+  42: 'Sheltered Cropland',
+  50: 'Built-up',
+  60: 'Bare',
+  70: 'Snow and ice',
+  80: 'Permanent water bodies',
+  90: 'Herbaceous wetland',
+  95: 'Mangroves',
+  100: 'Moss and lichen'
+}
+
 def run_pipeline_tif(percent_tif, outdir=default_outdir,
                      tmpdir=default_tmpdir, stub=None,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
                      worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson, 
                      hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb, debug=True):
     """Starting from a percent_cover tif, go through the whole pipeline
@@ -132,7 +160,7 @@ def run_pipeline_csv(csv, outdir=default_outdir,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
                      worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
                      hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
     """Run the pipeline for every tif in a csv"""
@@ -146,7 +174,7 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
                       wind_method=None, wind_threshold=20,
                       cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6, merge_outputs=False, suffix='tif',
+                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, merge_outputs=False, suffix='tif',
                       worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
                       hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
     """
@@ -276,7 +304,7 @@ def parse_arguments():
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action='store_false', default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
     parser.add_argument("--min_core_size", type=int, default=1000, help="The minimum area to be classified as a core, rather than just a patch or corridor. (default: 100)")
-    parser.add_argument("--min_shelterbelt_length", type=int, default=20, help="The minimum length to be classified as a shelterbelt. (default: 20)")
+    parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="The minimum length to be classified as a shelterbelt. (default: 15)")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
     parser.add_argument("--worldcover_dir", default=None, help="Directory containing worldcover data")

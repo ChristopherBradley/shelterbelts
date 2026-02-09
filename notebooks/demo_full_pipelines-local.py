@@ -24,7 +24,7 @@ stub = 'g2_26729'
 test_filename = get_filename(f'{stub}_binary_tree_cover_10m.tiff')
 
 # Mostly default parameters
-run_pipeline_tif(test_filename, min_shelterbelt_length=15)
+run_pipeline_tif(test_filename)
 # -
 
 
@@ -32,7 +32,6 @@ run_pipeline_tif(
     test_filename,
     stub="more-shelterbelts",
     min_patch_size=5,  # Less scattered trees
-    min_core_size=10000,  # Less core areas (no change in this small example)
     edge_size=5,  # Thicker core edges
     distance_threshold=30,  # Larger shelter radius
     density_threshold=3,  # Allows more sheltered areas

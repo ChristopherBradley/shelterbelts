@@ -335,7 +335,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
 
 
 def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True, save_tif=True, save_labels=True, 
-                  min_shelterbelt_length=20, max_shelterbelt_width=6, min_patch_size=20, crop_pixels=None):
+                  min_shelterbelt_length=15, max_shelterbelt_width=6, min_patch_size=20, crop_pixels=None):
     """Calculate patch metrics and cleanup the tree pixel categories.
     
     Parameters
@@ -633,7 +633,7 @@ def parse_arguments():
     parser.add_argument('--no-save-tif', dest='save_tif', action='store_false', default=True, help='Disable GeoTIFF output (default: enabled)')
     parser.add_argument('--no-save-labels', dest='save_labels', action='store_false', default=True, help='Disable label raster output (default: enabled)')
     parser.add_argument('--no-save-excel', dest='save_excel', action='store_false', default=True, help='Disable Excel output (default: enabled)')
-    parser.add_argument('--min_shelterbelt_length', default=20, type=int, help='Minimum skeleton length to classify as linear (default: 20)')
+    parser.add_argument('--min_shelterbelt_length', default=15, type=int, help='Minimum skeleton length to classify as linear (default: 15)')
     parser.add_argument('--max_shelterbelt_width', default=6, type=int, help='Maximum skeleton width to classify as linear (default: 6)')
     parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum patch size to keep (default: 20)')
     parser.add_argument('--crop_pixels', default=None, type=int, help='Number of pixels to crop from edges (default: None)')
