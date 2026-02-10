@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import rioxarray as rxr
 
-from shelterbelts.indices.full_pipelines import run_pipeline_tif
+from shelterbelts.indices.indices import run_pipeline_tif
 
 # Configuration
 stub = 'g2_26729'

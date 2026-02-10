@@ -217,11 +217,10 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
     for i, filename in enumerate(csv_filenames):
         print(f"Launching Popen subprocess for filename {i}/{len(csv_filenames)}:", filename, flush=True)
 
-        script = os.path.join(os.path.dirname(__file__), "full_pipelines.py") # Might want to change the "full_pipelines.py" to this "script" for robustness
+        script = os.path.join(os.path.dirname(__file__), "indices.py") # Use the module filename for robustness
         cmd = [
             sys.executable,
-            "full_pipelines.py", 
-            # "shelterbelts/indices/full_pipelines.py",  
+            "indices.py", 
             str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),
@@ -259,7 +258,7 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
             suffix_stems = ['linear_categories', 'densities']
         for suffix_stem in suffix_stems:
             filetype=f'{suffix_stem}.tif'
-            stub_original = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"  # The filename and one folder above with the suffix. 
+            stub_original = f"{ '_'.join(folder.split('/')[-2:]).split('.')[0] }_{suffix_stem}"  # The filename and one folder above with the suffix. 
             
             stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
             gdf = bounding_boxes(outdir, stub=stub, filetype=filetype, verbose=False)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 

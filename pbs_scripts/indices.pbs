@@ -24,7 +24,7 @@ param_stub=lat_34_lon_148
 # year=2020
 tmpdir='/scratch/xe2/cb8590/tmp'
 
-# Paths for full_pipelines.py CLI
+# Paths for indices.py CLI
 WORLDCOVER_DIR='/scratch/xe2/cb8590/Worldcover_Australia'
 WORLDCOVER_GEOJSON='cb8590_Worldcover_Australia_footprints.gpkg'
 HYDROLINES_GDB='/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
@@ -33,15 +33,15 @@ ROADS_GDB='/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 # Nick Trees - seemed to work
 # folder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m/${param_stub}  # folder=/g/data/xe2/cb8590/Nick_Aus_treecover_10m/ # param_stub="Serialized"
 # outdir=/scratch/xe2/cb8590/Nick_indices
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 0 --suffix tiff
+# python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 0 --suffix tiff
 
 # # Aus Trees
 # year=2024
 # folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
 # echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
-# # python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --limit 2
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20
+# # python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --limit 2
+# python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20
 
 # # NSW Trees
 year=2020
@@ -49,24 +49,24 @@ folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/
 
 # echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_default_percentmethod
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --hydrolines_gdb "$HYDROLINES_GDB" --roads_gdb "$ROADS_GDB" --worldcover_dir "$WORLDCOVER_DIR" --worldcover_geojson "$WORLDCOVER_GEOJSON"
+# python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --hydrolines_gdb "$HYDROLINES_GDB" --roads_gdb "$ROADS_GDB" --worldcover_dir "$WORLDCOVER_DIR" --worldcover_geojson "$WORLDCOVER_GEOJSON"
 
 # echo "More shelterbelts percent_method"
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_more_percentmethod
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2 --hydrolines_gdb "$HYDROLINES_GDB" --roads_gdb "$ROADS_GDB" --worldcover_dir "$WORLDCOVER_DIR" --worldcover_geojson "$WORLDCOVER_GEOJSON"
+# python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2 --hydrolines_gdb "$HYDROLINES_GDB" --roads_gdb "$ROADS_GDB" --worldcover_dir "$WORLDCOVER_DIR" --worldcover_geojson "$WORLDCOVER_GEOJSON"
 
 echo "Less shelterbelts percent_method"
 outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_less_percentmethod
-python full_pipelines.py "$folder" --limit 2501 --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0 --hydrolines_gdb "$HYDROLINES_GDB" --roads_gdb "$ROADS_GDB" --worldcover_dir "$WORLDCOVER_DIR" --worldcover_geojson "$WORLDCOVER_GEOJSON"
+python indices.py "$folder" --limit 2501 --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0 --hydrolines_gdb "$HYDROLINES_GDB" --roads_gdb "$ROADS_GDB" --worldcover_dir "$WORLDCOVER_DIR" --worldcover_geojson "$WORLDCOVER_GEOJSON"
 
 # echo "default wind"
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_default_windmethod
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD
+# python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD
 
 # echo "More shelterbelts wind"
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_more_windmethod
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method ALL --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2
+# python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method ALL --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2
 
 # echo "Less shelterbelts wind"
 # outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_less_windmethod
-# python full_pipelines.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0
+# python indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0

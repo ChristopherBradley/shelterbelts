@@ -23,7 +23,7 @@ from shelterbelts.utils.filepaths import nsw_dem_dir
 
 # -
 
-# from shelterbelts.indices.full_pipelines import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
+# from shelterbelts.indices.indices import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
 
 # +
 nsw_dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
@@ -346,7 +346,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, unique_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-    da_worldcover2 = da_worldcover.rio.reproject_match(da_trees) # Should do this within full_pipelines so it doesn't need to happen twice
+    da_worldcover2 = da_worldcover.rio.reproject_match(da_trees) # Should do this within indices (formerly full_pipelines) so it doesn't need to happen twice
 
     # Create a cropped/stitching dem for the region of interest
     dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
@@ -400,7 +400,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     return ds_opportunities
 
 
-# Could generalise and reuse the run_pipeline_tifs function from full_pipelines.py. The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
+# Could generalise and reuse the run_pipeline_tifs function from indices.py (previously full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
 def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
@@ -440,7 +440,7 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
 
 
 # +
-# Would be slightly more computationally efficient to generate the opportunities from within full_pipelines than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
+# Would be slightly more computationally efficient to generate the opportunities from within indices.py than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
 import argparse
 def parse_arguments():
     parser = argparse.ArgumentParser(

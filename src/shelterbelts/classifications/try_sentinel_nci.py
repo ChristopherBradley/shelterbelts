@@ -10,7 +10,7 @@ import datacube
 dc = datacube.Datacube(app='sentinel_download')
 
 
-from shelterbelts.indices.full_pipelines import run_pipeline_tif
+from shelterbelts.indices.indices import run_pipeline_tif
 
 
 import geopandas as gpd

@@ -18,7 +18,7 @@ if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
 
-from shelterbelts.indices.full_pipelines import run_pipeline_tif
+from shelterbelts.indices.indices import run_pipeline_tif
 from shelterbelts.utils.filepaths import get_filename
 
 # +
