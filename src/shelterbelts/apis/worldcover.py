@@ -168,12 +168,13 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--lat', default='-34.389', help='Latitude in EPSG:4326 (default: -34.389)')
-    parser.add_argument('--lon', default='148.469', help='Longitude in EPSG:4326 (default: 148.469)')
-    parser.add_argument('--buffer', default='0.1', help='Buffer in each direction in degrees (default is 0.1, or about 20kmx20km)')
+    parser.add_argument('--lat', default=-34.389, type=float, help='Latitude in EPSG:4326 (default: -34.389)')
+    parser.add_argument('--lon', default=148.469, type=float, help='Longitude in EPSG:4326 (default: 148.469)')
+    parser.add_argument('--buffer', default=0.05, type=float, help='Buffer in each direction in degrees (default is 0.05, or about 10kmx10km)')
     parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
     parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
-    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file that isn't geolocated, but can be opened in Preview. (Default: False)")
+    parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
 
     return parser
 
@@ -183,11 +184,4 @@ if __name__ == '__main__':
     parser = parse_arguments()
     args = parser.parse_args()
     
-    lat = float(args.lat)
-    lon = float(args.lon)
-    buffer = float(args.buffer)
-    outdir = args.outdir
-    stub = args.stub
-    plot = args.plot
-    
-    worldcover(lat, lon, buffer, outdir, stub, plot=plot)
+    worldcover(args.lat, args.lon, args.buffer, args.outdir, args.stub, save_tif=args.save_tif, plot=args.plot)

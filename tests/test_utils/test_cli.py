@@ -23,9 +23,9 @@ from shelterbelts.apis.catchments import catchments, parse_arguments as parse_ca
     (buffer_categories, parse_buffer_args),
     (patch_metrics, parse_shelter_metrics_args),
     (class_metrics, parse_shelter_metrics_args),
-    # (worldcover, parse_worldcover_args),  # Need to update the parse_args to the sphinx version first I think.
-    # (barra_daily, parse_barra_daily_args),
-    # (canopy_height, parse_canopy_height_args),
+    (worldcover, parse_worldcover_args),  
+    (barra_daily, parse_barra_daily_args),
+    # (canopy_height, parse_canopy_height_args), # Need to update the parse_args to the sphinx version first I think.
     # (catchments, parse_catchments_args),
 ])
 def test_cli_defaults_match_function_defaults(func, parser_func):
@@ -49,6 +49,9 @@ def test_cli_defaults_match_function_defaults(func, parser_func):
     
     # Verify each default matches
     for arg_name, expected_val in func_defaults.items():
+        # Skip 'variables' for barra_daily (intentially inconsistent because typing lists in the command line is awkward)
+        if func.__name__ == 'barra_daily' and arg_name == 'variables':
+            continue
         actual_val = getattr(args, arg_name, None)
         assert actual_val == expected_val, \
             f"{func.__name__}.{arg_name}: CLI default {actual_val} != function default {expected_val}"

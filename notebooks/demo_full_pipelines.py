@@ -18,7 +18,7 @@ if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
 
-from shelterbelts.indices.indices import run_pipeline_tif
+from shelterbelts.indices.all_indices import indices_tif
 from shelterbelts.utils.filepaths import get_filename
 
 # +
@@ -27,11 +27,11 @@ stub = 'g2_26729'
 test_filename = get_filename(f'{stub}_binary_tree_cover_10m.tiff')
 
 # Mostly default parameters
-run_pipeline_tif(test_filename)
+indices_tif(test_filename)
 # -
 
 
-run_pipeline_tif(
+indices_tif(
     test_filename,
     stub="more-shelterbelts",
     min_patch_size=5,  # Less scattered trees
@@ -43,7 +43,7 @@ run_pipeline_tif(
 )
 
 
-run_pipeline_tif(
+indices_tif(
     test_filename,
     stub="less-shelterbelts",
     min_patch_size=30,  # More scattered trees

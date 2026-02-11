@@ -14,8 +14,6 @@ import gc
 import psutil
 import subprocess, sys
 
-from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.utils.visualization import tif_categorical
 from shelterbelts.utils.crop_and_rasterize import crop_and_rasterize
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
 from shelterbelts.apis.barra_daily import barra_daily
@@ -24,17 +22,17 @@ from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
 from shelterbelts.indices.cover_categories import cover_categories
 from shelterbelts.indices.buffer_categories import buffer_categories
-from shelterbelts.indices.shelter_metrics import patch_metrics, linear_categories_cmap
+from shelterbelts.indices.shelter_metrics import patch_metrics
 
 # 11 secs for all these imports
 # -
 from shelterbelts.utils.filepaths import (
     default_outdir,
     default_tmpdir,
-    test_worldcover_dir,
-    test_worldcover_geojson,
-    test_hydrolines_gdb,
-    test_roads_gdb,
+    worldcover_dir,
+    worldcover_geojson,
+    hydrolines_gdb,
+    roads_gdb,
 )
 
 process = psutil.Process(os.getpid())
@@ -68,23 +66,69 @@ GEE_legend = {
   100: 'Moss and lichen'
 }
 
-def run_pipeline_tif(percent_tif, outdir=default_outdir,
+def indices_tif(percent_tif, outdir=default_outdir,
                      tmpdir=default_tmpdir, stub=None,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
-                     worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson, 
-                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb, debug=False):
-    """Starting from a percent_cover tif, go through the whole pipeline
-    
+                     debug=False):
+    """
+    Run the complete indices pipeline for a single percent-cover GeoTIFF. 
+
     Parameters
     ----------
-        percent_tif: Path to input percent cover tif
-        worldcover_dir: Directory containing worldcover data (defaults to NCI path)
-        worldcover_geojson: Filename of worldcover footprints (defaults to NCI filename)
-        hydrolines_gdb: Path to hydrolines geodatabase (defaults to NCI path)
-        roads_gdb: Path to roads geodatabase (defaults to NCI path)
+    percent_tif : str
+        Path to the input percent-cover GeoTIFF (one-band, percent tree cover). 
+    outdir : str, optional
+        Output directory for saving results (default is in utils.filepaths).
+    tmpdir : str, optional
+        Directory for temporary files (default is in utils.filepaths).
+    stub : str, optional
+        Prefix for output filenames. If not provided it is derived from ``percent_tif``.
+    wind_method : str or None, optional
+        Method used to infer shelter direction. Can be ``None``,
+        ``'WINDWARD'``, ``'MOST_COMMON'``, ``'MAX'``, ``'HAPPENED'`` or
+        ``'ANY'``. See :func:`shelter_categories` for details.
+    wind_threshold : int, optional
+        Wind speed threshold in km/hr. Default 20.
+    cover_threshold : int, optional
+        Pixel percent cover threshold to treat a pixel as 'tree'. Default 1.
+        - If input is a binary tif use ``cover_threshold=1``.
+        - For percent-cover tifs typical values are 10 or 20.
+        - For confidence tifs a value like 50 is reasonable.
+    min_patch_size : int, optional
+        Minimum area (pixels) to classify as a patch rather than scattered trees.
+        Default is 20.
+    edge_size : int, optional
+        Distance (pixels) defining the edge region around patch cores.
+        Default is 3.
+    max_gap_size : int, optional
+        Maximum gap (pixels) to bridge when connecting tree clusters.
+        Default is 2.
+    distance_threshold : int, optional
+        Distance from trees that counts as sheltered.
+        Units are either 'tree heights' or 'number of pixels', depending on if a height_tif is provided.
+        Default is 20.
+    density_threshold : int, optional
+        Percentage tree cover within the ``distance_threshold`` that counts as sheltered.
+        Only applies if the ``wind_data`` is not provided. Default is 5.
+    buffer_width : int, optional
+        Number of pixels away from the feature that still counts as within the buffer. Default is 3.
+    strict_core_area : bool, optional
+        If True, enforce that core areas exceed the edge_size at all points.
+        If False, use dilation and erosion to allow some irregularity. Default is True.
+    crop_pixels : int, optional
+        Number of pixels to crop from each edge of the output. Default is 0.
+    min_core_size : int, optional
+        Minimum area (pixels) to classify as a core area. Default is 1000.
+    min_shelterbelt_length : int, optional
+        Minimum skeleton length (in pixels) to classify a cluster as linear. Default is 15.
+    max_shelterbelt_width : int, optional
+        Maximum skeleton width (in pixels) to classify a cluster as linear. Default is 6.
+    debug : bool, optional
+        If True, intermediate TIFFs/plots are saved for debugging. Default False.
+
     """
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
@@ -145,48 +189,56 @@ def run_pipeline_tif(percent_tif, outdir=default_outdir,
     # print("Number of open files:", len(psutil.Process(os.getpid()).open_files()))
     return None
 
-def run_pipeline_csv(csv, outdir=default_outdir,
+def indices_csv(csv, outdir=default_outdir,
                      tmpdir=default_tmpdir, stub=None,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
-                     worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
-                     hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
-    """Run the pipeline for every tif in a csv"""
-    df = pd.read_csv(csv)
-    for percent_tif in df['filename']:
-        # The provided stub needs to be None, because we want to use the percent_tif filename instead. 
-        run_pipeline_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb)
-
-
-def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, param_stub='', 
-                      wind_method=None, wind_threshold=20,
-                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
-                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, merge_outputs=False, suffix='tif',
-                      worldcover_dir=test_worldcover_dir, worldcover_geojson=test_worldcover_geojson,
-                      hydrolines_gdb=test_hydrolines_gdb, roads_gdb=test_roads_gdb):
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6):
     """
-    Starting from a folder of percent_cover tifs, go through the whole shelterbelt delineation pipeline
+    Run the indices pipeline for every file listed in a CSV.
+
+    The CSV is expected to contain a column named ``filename`` with full paths
+    to percent-cover GeoTIFFs. Each row is processed sequentially by
+    `indices_tif` using the provided parameters.
 
     Parameters
     ----------
-        folder: The input folder with the percent_cover.tifs.
-        outdir: The folder to save the output linear_categories.tifs.
-        tmpdir: A folder where it's ok to save temporary files to be deleted later.
-        cover_threshold: Percentage tree cover within a 10m pixel to be classified as a boolean 'tree'.
-        min_patch_size: The minimum area to be classified as a patch/corrider rather than just scattered trees.
-        edge_size: The buffer distance at the edge of a patch, with pixels inside this being the 'core area'. 
-        max_gap_size: The allowable gap between two tree clusters before considering them separate patches.
-        distance_threshold: The distance from trees that counts as sheltered.
-        density_threshold: The percentage tree cover within a radius of distance_threshold that counts as sheltered.
-        buffer_width: Number of pixels away from the feature that still counts as being within the buffer.
+    csv : str
+        Path to a CSV file containing a `filename` column with input TIFF paths.
+    Other parameters
+        Passed through to :func:`indices_tif` (see that function for details).
 
-    Downloads
-    ---------
-        merged.tif: A combined tif after applying the full pipeline to every individual tif
-    
+    """
+    df = pd.read_csv(csv)
+    for percent_tif in df['filename']:
+        # The provided stub needs to be None, because we want to use the percent_tif filename instead. 
+        indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width)
+
+
+def indices_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, param_stub='', 
+                      wind_method=None, wind_threshold=20,
+                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
+                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
+                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif'):
+    """
+    Run the indices pipeline over a folder of binary or integer tifs representing percentage tree cover.
+
+    Parameters
+    ----------
+    folder : str
+        Input directory containing binary or integer TIFFs.
+    outdir : str, optional
+        Output directory for generated linear/category TIFFs.
+    tmpdir : str, optional
+        Directory used for temporary CSVs and intermediate files.
+    param_stub : str, optional
+        Extra stub for csv filenames and downstream tifs.
+    tiles_per_csv : int, optional
+        Number of tiles grouped per subprocess CSV. Default is 100.
+    Other parameters
+        Passed through to :func:`indices_tif` (see that function for details).
+
     """
     os.makedirs(outdir, exist_ok=True)
     percent_tifs = glob.glob(f'{folder}/*.{suffix}')
@@ -237,11 +289,7 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
             "--crop_pixels", str(crop_pixels),
             "--min_core_size", str(min_core_size),
             "--min_shelterbelt_length", str(min_shelterbelt_length),
-            "--max_shelterbelt_width", str(max_shelterbelt_width),
-            "--worldcover_dir", str(worldcover_dir) if worldcover_dir else "",
-            "--worldcover_geojson", str(worldcover_geojson) if worldcover_geojson else "",
-            "--hydrolines_gdb", str(hydrolines_gdb) if hydrolines_gdb else "",
-            "--roads_gdb", str(roads_gdb) if roads_gdb else ""
+            "--max_shelterbelt_width", str(max_shelterbelt_width)
         ]
         if not strict_core_area:
             cmd += ["--no-strict-core-area"]
@@ -249,29 +297,6 @@ def run_pipeline_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, para
         # Popen a subprocess to hopefully avoid memory accumulation
         p = subprocess.Popen(cmd)
         p.wait()
-
-    if merge_outputs:
-        # Merge the outputs
-        if wind_method:
-            suffix_stems = ['linear_categories', 'distances']
-        else:
-            suffix_stems = ['linear_categories', 'densities']
-        for suffix_stem in suffix_stems:
-            filetype=f'{suffix_stem}.tif'
-            stub_original = f"{ '_'.join(folder.split('/')[-2:]).split('.')[0] }_{suffix_stem}"  # The filename and one folder above with the suffix. 
-            
-            stub = f'{stub_original}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
-            gdf = bounding_boxes(outdir, stub=stub, filetype=filetype, verbose=False)  # Exclude the shelter_distances.tif from the merging. Need to include this filetype in the gpkg name so I can merge the densities/distances too. 
-            
-            footprint_gpkg = f"{stub}_footprints.gpkg"
-            bbox =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
-            mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, footprint_gpkg, id_column='filename', verbose=False)  
-            ds = merged_ds(mosaic, out_meta, suffix_stem)
-            basedir = os.path.dirname(outdir)
-            
-            filename_linear = os.path.join(basedir, f'{stub}_merged_{param_stub}.tif')
-            tif_categorical(ds[suffix_stem], filename_linear, linear_categories_cmap) # The distances and densities should use a continuous cmap ranging from 0-100 instead
-        return ds
 
 
 def parse_arguments():
@@ -297,18 +322,15 @@ def parse_arguments():
     parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="The minimum length to be classified as a shelterbelt. (default: 15)")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
-    parser.add_argument("--worldcover_dir", default=None, help="Directory containing worldcover data")
-    parser.add_argument("--worldcover_geojson", default=None, help="Filename of worldcover footprints")
-    parser.add_argument("--hydrolines_gdb", default=None, help="Path to hydrolines geodatabase")
-    parser.add_argument("--roads_gdb", default=None, help="Path to roads geodatabase")
 
-    return parser.parse_args()
+    return parser
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    parser = parse_arguments()
+    args = parser.parse_args()
     if args.folder.endswith('.tif'):
-        run_pipeline_tif(
+        indices_tif(
             args.folder,
             outdir=args.outdir,
             tmpdir=args.tmpdir,
@@ -326,14 +348,10 @@ if __name__ == "__main__":
             crop_pixels=args.crop_pixels,
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
-            max_shelterbelt_width=args.max_shelterbelt_width,
-            worldcover_dir=args.worldcover_dir,
-            worldcover_geojson=args.worldcover_geojson,
-            hydrolines_gdb=args.hydrolines_gdb,
-            roads_gdb=args.roads_gdb
+            max_shelterbelt_width=args.max_shelterbelt_width
         )
     elif args.folder.endswith('.csv'):
-            run_pipeline_csv(
+            indices_csv(
             args.folder,
             outdir=args.outdir,
             tmpdir=args.tmpdir,
@@ -351,14 +369,10 @@ if __name__ == "__main__":
             crop_pixels=args.crop_pixels,
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
-            max_shelterbelt_width=args.max_shelterbelt_width,
-            worldcover_dir=args.worldcover_dir,
-            worldcover_geojson=args.worldcover_geojson,
-            hydrolines_gdb=args.hydrolines_gdb,
-            roads_gdb=args.roads_gdb
+            max_shelterbelt_width=args.max_shelterbelt_width
         )
     else:
-        run_pipeline_tifs(
+        indices_tifs(
             folder=args.folder,
             outdir=args.outdir,
             tmpdir=args.tmpdir,
@@ -378,9 +392,5 @@ if __name__ == "__main__":
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
-            suffix=args.suffix,
-            worldcover_dir=args.worldcover_dir,
-            worldcover_geojson=args.worldcover_geojson,
-            hydrolines_gdb=args.hydrolines_gdb,
-            roads_gdb=args.roads_gdb
+            suffix=args.suffix
         )

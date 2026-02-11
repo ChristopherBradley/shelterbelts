@@ -1,25 +1,25 @@
 """
-Test for run_pipeline_tif function in full_pipelines.py
+Test for indices_tif, indices_csv, and indices_tifs functions in all_indices.py
 """
 import os
 import tempfile
 import numpy as np
 import rioxarray as rxr
 
-from shelterbelts.indices.indices import run_pipeline_tif
+from shelterbelts.indices.all_indices import indices_tif
 
 # Configuration
 stub = 'g2_26729'
 test_filename = f'data/{stub}_binary_tree_cover_10m.tiff'
 
 
-def test_run_pipeline_tif_basic():
-    """Test basic execution of run_pipeline_tif with local data files"""
+def test_indices_tif():
+    """Test basic execution of indices_tif with local data files"""
     with tempfile.TemporaryDirectory() as tmpdir:
         outdir = os.path.join(tmpdir, 'output')
         os.makedirs(outdir, exist_ok=True)
         
-        result = run_pipeline_tif(
+        result = indices_tif(
             test_filename,
             outdir=outdir,
             tmpdir=tmpdir,
@@ -30,14 +30,14 @@ def test_run_pipeline_tif_basic():
         assert result is None, "run_pipeline_tif should return None"
 
 
-def test_run_pipeline_tif_more_shelterbelts():
+def test_indices_tif_more_shelterbelts():
     """Test more-shelterbelts configuration against default, comparing each parameter's effect"""
     with tempfile.TemporaryDirectory() as tmpdir:
         outdir = os.path.join(tmpdir, 'output')
         os.makedirs(outdir, exist_ok=True)
         
         # Run default configuration
-        run_pipeline_tif(
+        indices_tif(
             test_filename,
             outdir=outdir,
             tmpdir=tmpdir,
@@ -45,7 +45,7 @@ def test_run_pipeline_tif_more_shelterbelts():
         )
         
         # Run more-shelterbelts configuration
-        run_pipeline_tif(
+        indices_tif(
             test_filename,
             outdir=outdir,
             tmpdir=tmpdir,
@@ -102,14 +102,14 @@ def test_run_pipeline_tif_more_shelterbelts():
             f"min_shelterbelt_length=10 should increase linear patches: default={default_linear}, more={more_linear}"
 
 
-def test_run_pipeline_tif_less_shelterbelts():
+def test_indices_tif_less_shelterbelts():
     """Test less-shelterbelts configuration against default, comparing each parameter's effect"""
     with tempfile.TemporaryDirectory() as tmpdir:
         outdir = os.path.join(tmpdir, 'output')
         os.makedirs(outdir, exist_ok=True)
         
         # Run default configuration
-        run_pipeline_tif(
+        indices_tif(
             test_filename,
             outdir=outdir,
             tmpdir=tmpdir,
@@ -117,7 +117,7 @@ def test_run_pipeline_tif_less_shelterbelts():
         )
         
         # Run less-shelterbelts configuration
-        run_pipeline_tif(
+        indices_tif(
             test_filename,
             outdir=outdir,
             tmpdir=tmpdir,

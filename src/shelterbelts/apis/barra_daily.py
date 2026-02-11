@@ -25,7 +25,7 @@ barra_abbreviations = {
 
 # +
 # %%time
-def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", month="01", gdata=False, temporal='day'):
+def barra_singlemonth(var="uas", latitude=-34.389, longitude=148.469, buffer=0.01, year="2020", month="01", gdata=False, temporal='day'):
     temporals = ['20min', '1hr', 'day', 'mon'] # 3hr doesn't have uas
 
     if gdata:
@@ -59,7 +59,7 @@ def barra_singlemonth(var="uas", latitude=-34.3890427, longitude=148.469499, buf
 
 # +
 # %%time
-def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, year="2020", gdata=False, temporal='day'):
+def barra_single_year(var="uas", latitude=-34.389, longitude=148.469, buffer=0.01, year="2020", gdata=False, temporal='day'):
     months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
     dss = []
     for month in months:
@@ -74,7 +74,7 @@ def barra_single_year(var="uas", latitude=-34.3890427, longitude=148.469499, buf
 
 
 # +
-def barra_multiyear(var="uas", latitude=-34.3890427, longitude=148.469499, buffer=0.01, years=["2020", "2021"], gdata=False, temporal='day'):
+def barra_multiyear(var="uas", latitude=-34.389, longitude=148.469, buffer=0.01, years=["2020", "2021"], gdata=False, temporal='day'):
     dss = []
     for year in years:
         ds_year = barra_single_year(var, latitude, longitude, buffer, year, gdata, temporal)
@@ -212,24 +212,55 @@ def wind_dataframe(ds):
 
 # -
 
-def barra_daily(variables=["uas", "vas"], lat=-34.3890427, lon=148.469499, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True, gdata=False, temporal='day'):
-    """Download 8day variables from BARRA at 4.4km resolution for the region/time of interest
+def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01, start_year="2020", end_year="2021", outdir=".", stub="TEST", save_netcdf=True, plot=True, gdata=False, temporal='day'):
+    """Download 8day variables from BARRA at 4.4km resolution for the region and time of interest
 
     Parameters
     ----------
-        variables: uas = Eastward Near Surface Wind, vas = Northward Near Surface Wind. See links at the top of this file for more details.
-        lat, lon: Coordinates in WGS 84 (EPSG:4326)
-        buffer: Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so would give a ~2kmx2km area.
-        start_year, end_year: Inclusive, so setting both to 2020 would give data for the full year.
-        outdir: The directory that the final .NetCDF gets saved.
-        stub: The name to be prepended to each file download.
-        save_netcdf: Boolean to save the final result to file.
-        plot: Boolean to generate an output png image.
-    
+    variables : list of str, optional
+        Default is ["uas", "vas"] for Eastward and Northward Near-Surface Wind, respectively. 
+        See links at the top of this file for more details.
+    lat : float, optional
+        Latitude in WGS 84 (EPSG:4326). Default is -34.389.
+    lon : float, optional
+        Longitude in WGS 84 (EPSG:4326). Default is 148.469.
+    buffer : float, optional
+        Distance in degrees in a single direction (0.01 ≈ 1 km),
+        resulting in an approximately square area of size 2*buffer.
+    start_year : str, optional
+        Start year (inclusive). The minimum available year is 1889.
+        Default is "2020".
+    end_year : str, optional
+        End year (inclusive). Data beyond the available range will be capped
+        at the most recent available date. Default is "2021".
+    outdir : str, optional
+        Output directory for saving results. Default is the current directory.
+    stub : str, optional
+        Prefix for output filenames. Default is "TEST".
+    save_netcdf : bool, optional
+        Whether to save results as a NetCDF file. Default is True.
+    plot : bool, optional
+        Whether to generate a wind rose visualization (PNG). Default is True.
+    gdata : bool, optional
+        Whether to access data via NCI /g/data/xe2 path (requires NCI access).
+        If False, uses public THREDDS server. Default is False.
+    temporal : str, optional
+        Temporal resolution of the data. Options are '20min', '1hr', 'day', 'mon'.
+        Default is 'day'.
+
     Returns
     -------
-        ds_concat: an xarray containing the requested variables in the region of interest for the time period specified
-        A NetCDF file of this xarray gets downloaded to outdir/(stub)_barra_daily.nc'
+    xarray.Dataset
+        Dataset containing the requested variables with dimensions for time,
+        latitude, and longitude.
+
+    Notes
+    -----
+    When ``save_netcdf=True``, it writes:
+    ``{stub}_barra_daily.nc``
+
+    When ``plot=True``, it writes:
+    ``{stub}_barra_daily.png`` (a wind rose visualization)
     """
     dss = []
     years = [str(year) for year in list(range(int(start_year), int(end_year) + 1))]
@@ -258,32 +289,27 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--lat', default='-34.389', help='Latitude in EPSG:4326 (default: -34.389)')
-    parser.add_argument('--lon', default='148.469', help='Longitude in EPSG:4326 (default: 148.469)')
-    parser.add_argument('--buffer', default='0.1', help='Buffer in each direction in degrees (default is 0.1, or about 20kmx20km)')
+    parser.add_argument('--lat', default=-34.389, type=float, help='Latitude in EPSG:4326 (default: -34.389)')
+    parser.add_argument('--lon', default=148.469, type=float, help='Longitude in EPSG:4326 (default: 148.469)')
+    parser.add_argument('--buffer', default=0.01, type=float, help='Buffer in each direction in degrees (default is 0.01, or about 2kmx2km)')
     parser.add_argument('--start_year', default='2020', help='Inclusive, and the minimum start year is 1889. Setting the start and end year to the same value will get all data for that year.')
     parser.add_argument('--end_year', default='2021', help='Specifying a larger end_year than available will automatically give data up to the most recent date (currently 2025)')
     parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
     parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
-    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file that isn't geolocated, but can be opened in Preview. (Default: False)")
+    parser.add_argument('--no-save-netcdf', dest='save_netcdf', action="store_false", default=True, help='Disable saving NetCDF output (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
+    parser.add_argument('--gdata', action="store_true", default=False, help='Access data via NCI /g/data path (requires NCI access). Default: False')
+    parser.add_argument('--temporal', default='day', help='Temporal resolution of the data. Options are 20min, 1hr, day, mon. Default: day')
 
-    return parser.parse_args()
+    return parser
 
 
 # %%time
 if __name__ == '__main__':
-    args = parse_arguments()
+    parser = parse_arguments()
+    args = parser.parse_args()
     
-    lat = float(args.lat)
-    lon = float(args.lon)
-    buffer = float(args.buffer)
-    start_year = args.start_year
-    end_year = args.end_year
-    outdir = args.outdir
-    stub = args.stub
-    plot = args.plot
-    
-    barra_daily(["uas", "vas"], lat, lon, buffer, start_year, end_year, outdir, stub, save_netcdf=True, plot=plot)
+    barra_daily(["uas", "vas"], args.lat, args.lon, args.buffer, args.start_year, args.end_year, args.outdir, args.stub, save_netcdf=args.save_netcdf, plot=args.plot, gdata=args.gdata, temporal=args.temporal)
 
 # +
 # In my experiments comparing thredds and gdata with the default arguments, these were the times taken.

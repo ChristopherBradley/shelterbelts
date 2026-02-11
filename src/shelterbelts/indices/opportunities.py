@@ -23,7 +23,7 @@ from shelterbelts.utils.filepaths import nsw_dem_dir
 
 # -
 
-# from shelterbelts.indices.indices import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
+# from shelterbelts.indices.all_indices import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
 
 # +
 nsw_dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
@@ -400,7 +400,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     return ds_opportunities
 
 
-# Could generalise and reuse the run_pipeline_tifs function from indices.py (previously full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
+# Could generalise and reuse the indices_tifs function from indices.py (previously run_pipeline_tifs/full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
 def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 

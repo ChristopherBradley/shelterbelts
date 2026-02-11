@@ -4,10 +4,11 @@ API Reference
 Indices
 =======
 
+
 Tree Categories
----------------
 
 .. autofunction:: shelterbelts.indices.tree_categories.tree_categories
+
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -77,6 +78,25 @@ Command Line Interface
    :func: parse_arguments
    :prog: python -m shelterbelts.indices.shelter_metrics
 
+Full Indices Pipeline
+----------------------
+
+Run the end-to-end indices pipeline on percent-cover rasters.
+
+.. autofunction:: shelterbelts.indices.all_indices.indices_tif
+
+.. autofunction:: shelterbelts.indices.all_indices.indices_csv
+
+.. autofunction:: shelterbelts.indices.all_indices.indices_tifs
+
+Command Line Interface
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. argparse::
+   :module: shelterbelts.indices.all_indices
+   :func: parse_arguments
+   :prog: python -m shelterbelts.indices.all_indices
+
 APIs
 ====
 
@@ -92,3 +112,16 @@ Command Line Interface
    :module: shelterbelts.apis.worldcover
    :func: parse_arguments
    :prog: python -m shelterbelts.apis.worldcover
+
+BARRA Daily
+-----------
+
+.. autofunction:: shelterbelts.apis.barra_daily.barra_daily
+
+Command Line Interface
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. argparse::
+   :module: shelterbelts.apis.barra_daily
+   :func: parse_arguments
+   :prog: python -m shelterbelts.apis.barra_daily

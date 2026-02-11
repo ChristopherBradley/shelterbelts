@@ -4,27 +4,24 @@ from pathlib import Path
 import os
 import rioxarray as rxr
 
-# Local test file paths (used by tests and local runs)
-test_worldcover_dir = 'data'
-test_worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
-test_hydrolines_gdb = 'data/g2_26729_hydrolines_cropped.gpkg'
-test_roads_gdb = 'data/g2_26729_roads_cropped.gpkg'
 
 IS_GADI = Path('/scratch').exists()
 if IS_GADI:
     # NCI/Gadi file paths
     default_outdir = '/scratch/xe2/cb8590/tmp'
     default_tmpdir = '/scratch/xe2/cb8590/tmp'
+    worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
+    worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
+    hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
+    roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 else:
     # Local defaults
     default_outdir = 'outdir'
     default_tmpdir = 'tmp'
-
-# NCI/Gadi file paths - Core pipeline data
-worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
-worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
-hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
-roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
+    worldcover_dir = 'data'
+    worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
+    hydrolines_gdb = 'data/g2_26729_hydrolines_cropped.gpkg'
+    roads_gdb = 'data/g2_26729_roads_cropped.gpkg'
 
 # NCI/Gadi file paths - Canopy height data
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'

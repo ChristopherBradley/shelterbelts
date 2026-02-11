@@ -10,7 +10,7 @@ import datacube
 dc = datacube.Datacube(app='sentinel_download')
 
 
-from shelterbelts.indices.indices import run_pipeline_tif
+from shelterbelts.indices.all_indices import indices_tif
 
 
 import geopandas as gpd
@@ -61,7 +61,7 @@ gdf.to_file(f"{barra_bboxs_dir}/yasar_experiment.gpkg", layer="poly", driver="GP
 
 tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/35_93-148_38_y2018_predicted_expanded20.tif'
 
-run_pipeline_tif(tif)
+indices_tif(tif)
 
 # + endofcell="--"
 # # +
