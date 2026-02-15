@@ -218,27 +218,56 @@ def plot_catchments(ds, filename=None):
 
 
 def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=10, savetif=True, plot=True):
-    """Generate gully and ridge tifs from a digital elevation model
-    
+    """
+    Generate gully and ridge tifs from a digital elevation model.
+
     Parameters
     ----------
-        terrain_tif: string filename of the DEM
-        outdir: The output directory to save the results
-        stub: Prefix for output files
-        num_catchments: The number of catchments to look for when assigning gullies and ridges
-        savetifs: Whether to download the ridges and gullies as tif files
-        plot: Whether to generate a png with ridges and gullies overlaid on the dem
-        
+    terrain_tif : str
+        Path to the DEM (Digital Elevation Model) GeoTIFF file.
+    outdir : str, optional
+        Output directory for saving results. Default is current directory.
+    stub : str, optional
+        Prefix for output filenames. Default is "TEST".
+    tmpdir : str, optional
+        Temporary folder to save the terrain_tif as float64 for pysheds.
+        Default is current directory.
+    num_catchments : int, optional
+        The number of catchments to find when assigning gullies and ridges.
+        Default is 10.
+    savetif : bool, optional
+        Whether to save the gullies and ridges as GeoTIFF files.
+        Default is True.
+    plot : bool, optional
+        Whether to generate a PNG visualization with ridges and gullies
+        on the DEM. Default is True.
+
     Returns
     -------
-        ds: An xarray.DataSet with layers terrain, gullies, and ridges
+    xarray.Dataset
+        Dataset containing:
+        
+        - **terrain**: The input DEM (float)
+        - **gullies**: Boolean array of gullies
+        - **ridges**: Boolean array of catchment boundaries
+
+    Notes
+    -----
+    When ``savetif=True``, it writes:
     
-    Downloads
-    ---------
-        gullies.tif
-        ridges.tif
-        gullies_and_ridges.png
-    
+    - ``{stub}_gullies.tif``
+    - ``{stub}_ridges.tif``
+
+    When ``plot=True``, it writes:
+    ``{stub}_gullies_and_ridges.png``
+
+    Examples
+    --------
+    Generate catchments from a DEM file:
+
+    >>> ds = catchments('dem.tif', outdir='.', stub='test', plot=False, savetif=False)
+    >>> set(ds.data_vars) == {'terrain', 'gullies', 'ridges'}
+    True
     """
     da = rxr.open_rasterio(terrain_tif).isel(band=0).drop_vars('band')
     
@@ -275,28 +304,22 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--terrain_tif', help='String of filename to be used for the bounding box to crop the hydrolines')
-    parser.add_argument('--outdir', default='.', help='The output directory to save the results')
-    parser.add_argument('--stub', default=None, help='Prefix for output files.')
-    parser.add_argument('--tmpdir', default='.', help='Temporary folder to save the terrain_tif as a float64 for pysheds')
-    parser.add_argument('--num_catchments', default=10, help='The number of catchments to look for when assigning gullies and ridges')
-    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file along with the tif")
+    parser.add_argument('--terrain_tif', help='Path to the DEM (Digital Elevation Model) GeoTIFF file')
+    parser.add_argument('--outdir', default='.', help='The output directory to save the results (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output files (default: TEST)')
+    parser.add_argument('--tmpdir', default='.', help='Temporary folder to save terrain_tif as float64 for pysheds (default: current directory)')
+    parser.add_argument('--num_catchments', default=10, type=int, help='The number of catchments to find (default: 10)')
+    parser.add_argument('--no-save-tif', dest='savetif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
 
-    return parser.parse_args()
+    return parser
 
 
 if __name__ == '__main__':
-
-    args = parse_arguments()
+    parser = parse_arguments()
+    args = parser.parse_args()
     
-    terrain_tif = args.terrain_tif
-    outdir = args.outdir
-    stub = args.stub
-    tmpdir = args.tmpdir
-    num_catchments = int(args.num_catchments)
-    plot = args.plot
-    
-    catchments(terrain_tif, outdir, stub, tmpdir, num_catchments, savetif=True, plot=plot)
+    catchments(args.terrain_tif, outdir=args.outdir, stub=args.stub, tmpdir=args.tmpdir, num_catchments=args.num_catchments, savetif=args.savetif, plot=args.plot)
 
 
 # outdir = '../../../outdir/'

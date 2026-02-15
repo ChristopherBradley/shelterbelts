@@ -125,12 +125,3 @@ visualise_categories_sidebyside(
     colormap=tree_categories_cmap, labels=tree_categories_labels,
     title1="strict_core_area=False", title2="strict_core_area=True"
 )
-
-# %% [markdown]
-# ## Summary
-#
-# This notebook demonstrated how each parameter affects tree categorization:
-# - `edge_size`: Controls the width of edge zones
-# - `min_patch_size`: Sets minimum size for patches vs scattered trees
-# - `max_gap_size`: Determines gap bridging for connectivity
-# - `strict_core_area`: Enforces core area connectivity rules

@@ -83,7 +83,7 @@ def worldcover_centerpoint(lat=-34.389, lon=148.469, buffer=0.05):
     return da
 
 
-def worldcover(lat=-34.389, lon=148.469, buffer=0.05, outdir=".", stub="TEST", save_tif=True, plot=True):
+def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", save_tif=True, plot=True):
     """
     Download ESA WorldCover imagery from the Microsoft Planetary Computer API.
 
@@ -96,7 +96,7 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.05, outdir=".", stub="TEST", s
     buffer : float, optional
         Distance in degrees in a single direction (0.01 ≈ 1 km),
         resulting in an approximately square area of size 2*buffer.
-        Default is 0.05.
+        Default is 0.01.
     outdir : str, optional
         Output directory for saving results. Default is current directory.
     stub : str, optional
@@ -170,7 +170,7 @@ def parse_arguments():
     
     parser.add_argument('--lat', default=-34.389, type=float, help='Latitude in EPSG:4326 (default: -34.389)')
     parser.add_argument('--lon', default=148.469, type=float, help='Longitude in EPSG:4326 (default: 148.469)')
-    parser.add_argument('--buffer', default=0.05, type=float, help='Buffer in each direction in degrees (default is 0.05, or about 10kmx10km)')
+    parser.add_argument('--buffer', default=0.01, type=float, help='Buffer in each direction in degrees (default: 0.01 ≈ 1 km)')
     parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
     parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')

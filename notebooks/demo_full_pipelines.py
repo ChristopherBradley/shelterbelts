@@ -2,21 +2,8 @@
 # When running tests, it runs from the repo root. 
 # When running a notebook locally, it runs from within the notebooks folder. 
 # When running a notebook on gadi, it runs from the home directory
-import sys, os
-from pathlib import Path
-cwd = Path.cwd()
-if (cwd / 'src').exists():  # Running from repo root
-    repo_dir = cwd
-elif (cwd.parent / 'src').exists():  # Running from notebook locally
-    repo_dir = cwd.parent
-elif (Path.home() / 'Projects' / 'shelterbelts' / 'src').exists():  # Running on Gadi from home directory
-    repo_dir = Path.home() / 'Projects' / 'shelterbelts'
-repo_dir = str(repo_dir)
-src_dir = os.path.join(repo_dir, 'src')
-os.chdir(repo_dir)
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
-
+from shelterbelts.utils.filepaths import setup_repo_path
+setup_repo_path()
 
 from shelterbelts.indices.all_indices import indices_tif
 from shelterbelts.utils.filepaths import get_filename

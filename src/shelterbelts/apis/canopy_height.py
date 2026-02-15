@@ -148,7 +148,7 @@ def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojs
     
     return mosaic, out_meta
 
-def identify_relevant_tiles(lat=-34.3890427, lon=148.469499, buffer=0.005, canopy_height_dir="."):
+def identify_relevant_tiles(lat=-34.389, lon=148.469, buffer=0.005, canopy_height_dir="."):
     """Find the tiles that overlap with the region of interest"""
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
     relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
@@ -284,27 +284,43 @@ def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True,
 
 
 
-def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True):
-    """Downlaod and create a merged canopy height raster from the Meta/Tolan dataset
-    
+def canopy_height(lat=-34.389, lon=148.469, buffer=0.005, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True):
+    """Download and create a merged canopy height raster from the Meta/Tolan dataset.
+
     Parameters
     ----------
-        lat, lon: Coordinates in WGS 84 (EPSG:4326).
-        buffer: Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so would give a ~2kmx2km area.
-        outdir: The directory to save the final cleaned tiff file.
-        stub: The name to be prepended to each file download.
-        tmpdir: The directory to copy the original uncropped canopy height files.
-        savetif: Boolean to save the final result to file.
-        plot: Save a png file (not geolocated, but can be opened in Preview).
+    lat : float, optional
+        Latitude in WGS 84 (EPSG:4326). Default is -34.389.
+    lon : float, optional
+        Longitude in WGS 84 (EPSG:4326). Default is 148.469.
+    buffer : float, optional
+        Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so
+        a buffer of 0.01 gives an approx 2km x 2km area. Default is 0.005.
+    outdir : str, optional
+        Directory to save the final cleaned tiff and png. Default is the current
+        directory.
+    stub : str, optional
+        Prefix to use for output filenames. Default is ``"Test"``.
+    tmpdir : str, optional
+        Directory to cache downloaded tiles. Default is the current directory.
+    save_tif : bool, optional
+        Whether to save the merged canopy height GeoTIFF. Default is True.
+    plot : bool, optional
+        Whether to save a PNG visualization of the canopy height. Default is True.
 
     Returns
     -------
-        ds: xarray.DataSet with coords (latitude, longitude), and variable (canopy_height) of type int in metres. 
-    
-    Downloads
-    ---------
-        A Tiff file of the canopy height xarray with colours embedded.
-        A png of the canopy height map including a legend.
+    xarray.Dataset
+        Dataset with coordinates (latitude, longitude) and variable (canopy_height)
+        of type int in metres.
+
+    Notes
+    -----
+    When ``save_tif=True``, it writes:
+    ``{stub}_canopy_height.tif``
+
+    When ``plot=True``, it writes:
+    ``{stub}_canopy_height.png``
     
     """
     minimum_buffer = 0.0001
@@ -319,29 +335,31 @@ def canopy_height(lat=-34.3890427, lon=148.469499, buffer=0.005, outdir=".", stu
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
-    
-    parser.add_argument('--lat', default='-34.389', help='Latitude in EPSG:4326 (default: -34.389)')
-    parser.add_argument('--lon', default='148.469', help='Longitude in EPSG:4326 (default: 148.469)')
-    parser.add_argument('--buffer', default='0.1', help='Buffer in each direction in degrees (default is 0.1, or about 20kmx20km)')
-    parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
-    parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
-    parser.add_argument('--tmpdir', default='.', help='The directory to copy the original uncropped canopy height files. (Default is the current directory)')
-    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file that isn't geolocated, but can be opened in Preview. (Default: False)")
 
-    return parser.parse_args()
+    parser.add_argument('--lat', type=float, default=-34.389, help='Latitude in EPSG:4326 (default: -34.389)')
+    parser.add_argument('--lon', type=float, default=148.469, help='Longitude in EPSG:4326 (default: 148.469)')
+    parser.add_argument('--buffer', type=float, default=0.005, help='Buffer in each direction in degrees (default: 0.005)')
+    parser.add_argument('--outdir', default='.', help='Directory to save outputs (default: current directory)')
+    parser.add_argument('--stub', default='Test', help='Prefix for output filenames (default: Test)')
+    parser.add_argument('--tmpdir', default='.', help='Directory to cache downloaded tiles (default: current directory)')
+    parser.add_argument('--no-save-tif', dest='save_tif', action='store_false', default=True, help='Disable saving GeoTIFF (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action='store_false', default=True, help='Disable PNG visualization (default: enabled)')
+
+    return parser
 
 
 # %%time
 if __name__ == '__main__':
+    parser = parse_arguments()
+    args = parser.parse_args()
 
-    args = parse_arguments()
-    
     lat = float(args.lat)
     lon = float(args.lon)
     buffer = float(args.buffer)
     outdir = args.outdir
     tmpdir = args.tmpdir
     stub = args.stub
+    save_tif = args.save_tif
     plot = args.plot
-    
-    canopy_height(lat, lon, buffer, outdir, stub, tmpdir, plot=plot)
+
+    canopy_height(lat, lon, buffer, outdir, stub, tmpdir, save_tif=save_tif, plot=plot)
