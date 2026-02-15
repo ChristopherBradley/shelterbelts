@@ -5,7 +5,7 @@ import numpy as np
 import rioxarray as rxr
 from scipy.ndimage import label, binary_erosion, binary_dilation
 
-from shelterbelts.utils.visualization import visualise_categories, tif_categorical
+from shelterbelts.utils.visualisation import visualise_categories, tif_categorical
 
 # Create a single array with all the layers
 tree_categories_cmap = {
@@ -123,10 +123,10 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         If True, enforce that core areas exceed the edge_size at all points.
         If False, use dilation and erosion to allow some irregularity. Default is True.
     save_tif : bool, optional
-        Whether to save the categorized result as a GeoTIFF file.
+        Whether to save the categorised result as a GeoTIFF file.
         Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualization of the results.
+        Whether to generate a PNG visualisation of the results.
         Default is True.
     
     Returns
@@ -135,14 +135,14 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         Dataset containing:
         
         - **woody_veg**: Original binary tree/no-tree classification
-        - **tree_categories**: Categorized tree types (values 0, 11, 12, 13, 14)
+        - **tree_categories**: Categorised tree types (values 0, 11, 12, 13, 14)
         
     Notes
     -------
     When save_tif=True, it outputs a GeoTIFF file with embedded color map:
     ``{stub}_tree_categories.tif``
     
-    When plot=True, it outputs a PNG visualization with legend:
+    When plot=True, it outputs a PNG visualisation with legend:
     ``{stub}_tree_categories.png``
     
     References
@@ -173,7 +173,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     .. plot::
 
         from shelterbelts.indices.tree_categories import tree_categories, tree_categories_cmap, tree_categories_labels
-        from shelterbelts.utils.visualization import visualise_categories_sidebyside
+        from shelterbelts.utils.visualisation import visualise_categories_sidebyside
         from shelterbelts.utils.filepaths import get_filename
         
         test_filename = get_filename('g2_26729_binary_tree_cover_10m.tiff')
@@ -270,7 +270,7 @@ def parse_arguments():
     parser.add_argument('--max_gap_size', default=2, type=int, help='The allowable gap between two tree clusters before considering them as separate patches.')
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action="store_false", default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
  
     return parser
 

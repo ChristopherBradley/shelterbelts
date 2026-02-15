@@ -245,10 +245,10 @@ def run_worker(rows, nn_dir=nn_models_dir, nn_stub='fft_89a_92s_85r_86p', multi_
         try:
             if multi_model:
                 
-                # Choose which of the 6 models to use based on the center coordinate
+                # Choose which of the 6 models to use based on the centre coordinate
                 bbox = row[3]
-                center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
-                point = Point(center)
+                centre = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
+                point = Point(centre)
 
 #                 # Using the nearest polygon instead of contains because the koppen boundaries miss quite a bit of landmass near the coastlines
 #                 nearest_geom = min(gdf_koppen.geometry, key=lambda g: point.distance(g))
@@ -301,7 +301,7 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir=nn_models_dir, nn_stub='ff
     
     Parameters
     ----------
-        gpkg: Geopackage with the bounding box for each tile to download. A stub gets automatically assigned based on the center of the bbox.
+        gpkg: Geopackage with the bounding box for each tile to download. A stub gets automatically assigned based on the centre of the bbox.
         outdir: Folder to save the output tifs.
         year: The year of sentinel imagery to use as input for the tree predictions.
         nn_dir: The directory containing the neural network model and scaler.

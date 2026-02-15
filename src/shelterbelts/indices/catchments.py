@@ -13,7 +13,7 @@ import rasterio
 import rioxarray as rxr
 
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
-from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical
 # -
 
 import matplotlib.pyplot as plt
@@ -239,7 +239,7 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
         Whether to save the gullies and ridges as GeoTIFF files.
         Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualization with ridges and gullies
+        Whether to generate a PNG visualisation with ridges and gullies
         on the DEM. Default is True.
 
     Returns
@@ -310,7 +310,7 @@ def parse_arguments():
     parser.add_argument('--tmpdir', default='.', help='Temporary folder to save terrain_tif as float64 for pysheds (default: current directory)')
     parser.add_argument('--num_catchments', default=10, type=int, help='The number of catchments to find (default: 10)')
     parser.add_argument('--no-save-tif', dest='savetif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
 
     return parser
 

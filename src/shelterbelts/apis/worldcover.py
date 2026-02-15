@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.patches import Patch
 
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 # -
 
 worldcover_cmap = {
@@ -75,7 +75,7 @@ def worldcover_bbox(bbox=[147.736, -42.912, 147.786, -42.862], crs="EPSG:4326"):
     return da
 
 
-def worldcover_centerpoint(lat=-34.389, lon=148.469, buffer=0.05):
+def worldcover_centrepoint(lat=-34.389, lon=148.469, buffer=0.05):
     """Download worldcover using a lat, lon & buffer"""
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
     crs="EPSG:4326"
@@ -104,7 +104,7 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", s
     save_tif : bool, optional
         Whether to save a GeoTIFF with embedded color map. Default is True.
     plot : bool, optional
-        Whether to save a PNG visualization (not geolocated). Default is True.
+        Whether to save a PNG visualisation (not geolocated). Default is True.
 
     Returns
     -------
@@ -135,7 +135,7 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", s
 
         from shelterbelts.apis.worldcover import worldcover_cmap, worldcover_labels
         from shelterbelts.utils.filepaths import get_filename
-        from shelterbelts.utils.visualization import visualise_categories
+        from shelterbelts.utils.visualisation import visualise_categories
         import rioxarray as rxr
 
         worldcover_file = get_filename('g2_26729_worldcover.tif')
@@ -150,7 +150,7 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", s
         buffer = max_buffer
         print(f"Area too large, please download in smaller tiles. Reducing buffer to {max_buffer}.") 
         print(f"Estimated filesize = 10MB, estimated download time = 2 mins")
-    da = worldcover_centerpoint(lat, lon, buffer)
+    da = worldcover_centrepoint(lat, lon, buffer)
     ds = da.to_dataset().drop_vars(['time']).rename({'map': 'worldcover'})
 
     if save_tif:
@@ -174,7 +174,7 @@ def parse_arguments():
     parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
     parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
 
     return parser
 

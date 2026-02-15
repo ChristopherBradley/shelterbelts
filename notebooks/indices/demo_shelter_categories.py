@@ -23,7 +23,7 @@
 
 # %%
 from shelterbelts.utils.filepaths import get_filename as get_example_data, get_example_tree_categories_data
-from shelterbelts.utils.visualization import visualise_categories_sidebyside, visualise_categories
+from shelterbelts.utils.visualisation import visualise_categories_sidebyside, visualise_categories
 from shelterbelts.indices.shelter_categories import shelter_categories
 from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 

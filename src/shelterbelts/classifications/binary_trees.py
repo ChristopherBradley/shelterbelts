@@ -20,7 +20,7 @@ import rasterio
 # sys.path.append(src_dir)
 # # print(src_dir)
 
-from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical
 # -
 
 cmap_woody_veg = {

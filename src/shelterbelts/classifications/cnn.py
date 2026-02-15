@@ -317,13 +317,13 @@ def make_weight_mask(patch_size, min_value=0.1):
     ax = np.linspace(-1, 1, patch_size)
     xx, yy = np.meshgrid(ax, ax)
 
-    # radial distance (0 at center → sqrt(2) at corners)
+    # radial distance (0 at centre → sqrt(2) at corners)
     rr = np.sqrt(xx**2 + yy**2)
 
     # normalize so corners = 1
     rr = rr / rr.max()   # now full patch is inside the circle
 
-    # cosine falloff: 1 at center → 0 at edges/corners
+    # cosine falloff: 1 at centre → 0 at edges/corners
     mask = 0.5 * (1 + np.cos(rr * np.pi))
 
     # impose minimum value
@@ -335,7 +335,7 @@ def make_weight_mask(patch_size, min_value=0.1):
 def reconstruct_from_patches(patches_y, image_shape, patch_size=64, stride=32):
     """
         Reconstruct full-size image from patches. 
-        When patches overlap, use the patch where the pixel is closest to the center. 
+        When patches overlap, use the patch where the pixel is closest to the centre. 
     
         Parameters
         ----------

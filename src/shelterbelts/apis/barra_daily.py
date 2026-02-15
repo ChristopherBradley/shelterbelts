@@ -240,7 +240,7 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
     save_netcdf : bool, optional
         Whether to save results as a NetCDF file. Default is True.
     plot : bool, optional
-        Whether to generate a wind rose visualization (PNG). Default is True.
+        Whether to generate a wind rose visualisation (PNG). Default is True.
     gdata : bool, optional
         Whether to access data via NCI /g/data/xe2 path (requires NCI access).
         If False, uses public THREDDS server. Default is False.
@@ -260,7 +260,7 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
     ``{stub}_barra_daily.nc``
 
     When ``plot=True``, it writes:
-    ``{stub}_barra_daily.png`` (a wind rose visualization)
+    ``{stub}_barra_daily.png`` (a wind rose visualisation)
     """
     dss = []
     years = [str(year) for year in list(range(int(start_year), int(end_year) + 1))]
@@ -297,7 +297,7 @@ def parse_arguments():
     parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
     parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
     parser.add_argument('--no-save-netcdf', dest='save_netcdf', action="store_false", default=True, help='Disable saving NetCDF output (default: enabled)')
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualization (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
     parser.add_argument('--gdata', action="store_true", default=False, help='Access data via NCI /g/data path (requires NCI access). Default: False')
     parser.add_argument('--temporal', default='day', help='Temporal resolution of the data. Options are 20min, 1hr, day, mon. Default: day')
 

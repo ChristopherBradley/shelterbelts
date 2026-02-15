@@ -15,9 +15,9 @@ from skimage.morphology import skeletonize
 from skimage.measure import find_contours
 
 
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
-from shelterbelts.apis.catchments import catchments  # This takes a while to import
+from shelterbelts.indices.catchments import catchments  # This takes a while to import
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.filepaths import nsw_dem_dir
 
@@ -58,7 +58,7 @@ def segmentation(river_mask, min_branch_length=10):
     
     for y, x in river_pixels:
         G.add_node((y, x))
-        # Check 8-connectivity neighbors
+        # Check 8-connectivity neighbours
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
                 if dy == dx == 0:
@@ -68,7 +68,7 @@ def segmentation(river_mask, min_branch_length=10):
                     if river_mask[ny, nx_] == 1:
                         G.add_edge((y, x), (ny, nx_))
     
-    # Identify junctions (>=3 neighbors) and endpoints (==1 neighbor)
+    # Identify junctions (>=3 neighbours) and endpoints (==1 neighbour)
     junctions = {n for n, d in G.degree() if d >= 3}
     endpoints = {n for n, d in G.degree() if d == 1}
     
@@ -77,14 +77,14 @@ def segmentation(river_mask, min_branch_length=10):
     visited_edges = set()
     
     for start in endpoints | junctions:
-        for neighbor in G.neighbors(start):
-            edge = frozenset([start, neighbor])
+        for neighbour in G.neighbors(start):
+            edge = frozenset([start, neighbour])
             if edge in visited_edges:
                 continue
     
-            branch = [start, neighbor]
+            branch = [start, neighbour]
             visited_edges.add(edge)
-            prev, current = start, neighbor
+            prev, current = start, neighbour
     
             # Walk until we hit a junction or endpoint
             while current not in (endpoints | junctions):
@@ -129,16 +129,16 @@ def segmentation(river_mask, min_branch_length=10):
             if not np.any(mask):
                 continue  # already merged this branch
     
-            # Find neighboring branches
+            # Find neighbouring branches
             dilated = binary_dilation(mask, structure=np.ones((3, 3)))
-            neighbors = np.unique(branch_labels_new[dilated & (branch_labels_new != bid) & (branch_labels_new != 0)])
+            neighbours = np.unique(branch_labels_new[dilated & (branch_labels_new != bid) & (branch_labels_new != 0)])
     
-            if len(neighbors) == 0:
+            if len(neighbours) == 0:
                 continue
     
-            # Merge into largest neighboring branch
-            largest_neighbor = max(neighbors, key=lambda n: branch_sizes.get(n, 0))
-            branch_labels_new[mask] = largest_neighbor
+            # Merge into largest neighbouring branch
+            largest_neighbour = max(neighbours, key=lambda n: branch_sizes.get(n, 0))
+            branch_labels_new[mask] = largest_neighbour
             merged_this_round = True
     
         if not merged_this_round:

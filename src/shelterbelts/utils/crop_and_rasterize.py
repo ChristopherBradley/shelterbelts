@@ -9,7 +9,7 @@ from rasterio.features import rasterize
 
 from shapely.geometry import box
 
-from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical
 
 gullies_cmap = {
     0: (255, 255, 255),

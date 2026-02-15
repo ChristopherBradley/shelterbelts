@@ -6,9 +6,9 @@ import xarray as xr
 import rioxarray as rxr
 from scipy.ndimage import binary_dilation
 from rasterio.enums import Resampling
-from skimage.morphology import skeletonize # I think skeletonize centers the result slightly better than thinning
+from skimage.morphology import skeletonize # I think skeletonize centres the result slightly better than thinning
 
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 from shelterbelts.indices.cover_categories import cover_categories_cmap, cover_categories_labels
 
 buffer_cmap = {
@@ -48,7 +48,7 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
     savetif : bool, optional
         Whether to save the results as a GeoTIFF file. Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualization of the results. Default is True.
+        Whether to generate a PNG visualisation of the results. Default is True.
 
     Returns
     -------
@@ -60,7 +60,7 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
     When savetif=True, it outputs a GeoTIFF file with embedded color map:
     ``{stub}_buffer_categories.tif``
     
-    When plot=True, it outputs a PNG visualization with legend:
+    When plot=True, it outputs a PNG visualisation with legend:
     ``{stub}_buffer_categories.png``
     
     Examples
@@ -91,7 +91,7 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
 
         from shelterbelts.indices.buffer_categories import buffer_categories, buffer_categories_cmap, buffer_categories_labels
         from shelterbelts.utils.filepaths import get_filename
-        from shelterbelts.utils.visualization import visualise_categories_sidebyside
+        from shelterbelts.utils.visualisation import visualise_categories_sidebyside
 
         cover_file = get_filename('g2_26729_cover_categories.tif')
         gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
@@ -208,7 +208,7 @@ def parse_arguments():
     parser.add_argument('--stub', default='TEST', help='Prefix for output files.')
     parser.add_argument('--buffer_width', default=3, type=int, help='Number of pixels away from the feature that still counts as within the buffer')
     parser.add_argument('--no-savetif', dest='savetif', action="store_false", default=True, help="Disable saving GeoTIFF output (default: enabled)")
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualization (default: enabled)")
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualisation (default: enabled)")
 
     return parser
 

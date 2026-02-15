@@ -17,13 +17,13 @@ ds = worldcover()
 # You can view the results inside the notebook, or in preview as a PNG or TIF, or properly geolocated in QGIS.
 
 # %%
-from shelterbelts.utils.visualization import visualise_categories
+from shelterbelts.utils.visualisation import visualise_categories
 
 visualise_categories(ds['worldcover'], colormap=worldcover_cmap, labels=worldcover_labels, title="Default Values")
 
 # %% [markdown]
 # ## Changing Buffer Size
-# You can adjust the buffer parameter to change the size of the downloaded region. The buffer is in degrees (~1 degree ≈ 100 km depending on the latitude) in each direction from the center point. A 10km x 10km region should take about 1 min to load.
+# You can adjust the buffer parameter to change the size of the downloaded region. The buffer is in degrees (~1 degree ≈ 100 km depending on the latitude) in each direction from the centre point. A 10km x 10km region should take about 1 min to load.
 
 # %%
 # %%time
@@ -63,8 +63,8 @@ ds = worldcover(stub="DEMO", outdir=outdir)
 ds = worldcover(save_tif=False)
 
 # %% [markdown]
-# ## Disabling Visualization Plot
-# Set `plot=False` to skip generating and saving the PNG visualization. This can be used in combination with `savetif=False` to avoid any outputs.
+# ## Disabling Visualisation Plot
+# Set `plot=False` to skip generating and saving the PNG visualisation. This can be used in combination with `savetif=False` to avoid any outputs.
 
 # %%
 ds = worldcover(plot=False)

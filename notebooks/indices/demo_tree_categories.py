@@ -24,7 +24,7 @@
 # %%
 import rioxarray as rxr
 
-from shelterbelts.utils.visualization import visualise_categories_sidebyside, visualise_categories
+from shelterbelts.utils.visualisation import visualise_categories_sidebyside, visualise_categories
 from shelterbelts.utils.filepaths import get_filename as get_example_data
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels

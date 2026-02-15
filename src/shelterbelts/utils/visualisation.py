@@ -1,4 +1,4 @@
-"""Visualization utilities for shelterbelts analysis."""
+"""Visualisation utilities for shelterbelts analysis."""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -87,7 +87,7 @@ def visualise_canopy_height(ds, filename=None):
     bin_edges = np.arange(0, 16, 1) 
     categories = np.digitize(image, bin_edges, right=True)
     
-    # Define a color for each category
+    # Define a colour for each category
     colours = plt.cm.viridis(np.linspace(0, 1, len(bin_edges) - 2))
     cmap = ListedColormap(['white'] + list(colours))
     
@@ -121,7 +121,7 @@ def visualise_canopy_height(ds, filename=None):
 
 
 def tif_categorical(da, filename="output.tif", colormap=None, tiled=False):
-    """Save a GeoTIFF with categorical color scheme.
+    """Save a GeoTIFF with categorical colour scheme.
     
     Parameters
     ----------
@@ -130,7 +130,7 @@ def tif_categorical(da, filename="output.tif", colormap=None, tiled=False):
     filename : str, optional
         Output filename (default: output.tif)
     colormap : dict, optional
-        Color map dictionary mapping values to RGB tuples (0-255)
+        Colour map dictionary mapping values to RGB tuples (0-255)
     tiled : bool, optional
         Whether to use tiled compression (default: False)
     """

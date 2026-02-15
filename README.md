@@ -36,7 +36,7 @@ After the predictions, pixels were categorised using the following method:
 
 ## Parameter Reference
 
-The main parameters for categorizing shelterbelts can be tuned. Below are the default values along with some suggested low and high thresholds:
+The main parameters for categorising shelterbelts can be tuned. Below are the default values along with some suggested low and high thresholds:
 
 | Parameter | Default | Low Threshold | High Threshold | Description |
 |-----------|---------|---------------|----------------|-------------|

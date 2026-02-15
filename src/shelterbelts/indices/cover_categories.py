@@ -5,7 +5,7 @@ import argparse
 import xarray as xr
 import rioxarray as rxr
 
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 from shelterbelts.apis.worldcover import worldcover_cmap, worldcover_labels
 from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
 from shelterbelts.indices.shelter_categories import shelter_categories_labels as shelter_labels, shelter_categories_cmap
@@ -47,7 +47,7 @@ def cover_categories(shelter_data, worldcover_data, outdir='.', stub='TEST', sav
     savetif : bool, optional
         Whether to save the results as a GeoTIFF file. Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualization of the results. Default is True.
+        Whether to generate a PNG visualisation of the results. Default is True.
             
     Returns
     -------
@@ -60,7 +60,7 @@ def cover_categories(shelter_data, worldcover_data, outdir='.', stub='TEST', sav
     When savetif=True, it outputs a GeoTIFF file with embedded color map:
     ``{stub}_cover_categories.tif``
     
-    When plot=True, it outputs a PNG visualization with legend:
+    When plot=True, it outputs a PNG visualisation with legend:
     ``{stub}_cover_categories.png``
 
     Examples
@@ -89,7 +89,7 @@ def cover_categories(shelter_data, worldcover_data, outdir='.', stub='TEST', sav
 
         from shelterbelts.indices.cover_categories import cover_categories, cover_categories_cmap, cover_categories_labels
         from shelterbelts.utils.filepaths import get_filename
-        from shelterbelts.utils.visualization import visualise_categories
+        from shelterbelts.utils.visualisation import visualise_categories
         
         shelter_file = get_filename('g2_26729_shelter_categories.tif')
         worldcover_file = get_filename('g2_26729_worldcover.tif')
@@ -165,7 +165,7 @@ def parse_arguments():
     parser.add_argument('--outdir', default='.', help='The output directory to save the results')
     parser.add_argument('--stub', default='TEST', help='Prefix for output files.')
     parser.add_argument('--no-savetif', dest='savetif', action="store_false", default=True, help="Disable saving GeoTIFF output (default: enabled)")
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualization (default: enabled)")
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualisation (default: enabled)")
 
     return parser
 

@@ -9,7 +9,7 @@ import pdal, json
 import rioxarray as rxr
 import numpy as np
 
-from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical
 from shelterbelts.classifications.binary_trees import cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work
 
 

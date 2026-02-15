@@ -8,7 +8,7 @@ import scipy
 
 from shelterbelts.apis.barra_daily import wind_dataframe, dominant_wind_direction
 from shelterbelts.indices.tree_categories import tree_categories_labels, tree_categories_cmap
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 
 
 shelter_categories_cmap = {
@@ -170,7 +170,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     savetif : bool, optional
         Whether to save the results as a GeoTIFF files. Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualization of the results. Default is True.
+        Whether to generate a PNG visualisation of the results. Default is True.
     crop_pixels : int, optional
         Number of pixels to be cropped on each edge.
 
@@ -184,7 +184,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     When savetif=True, it outputs a GeoTIFF file with embedded color map:
     ``{stub}_shelter_categories.tif``
     
-    When plot=True, it outputs a PNG visualization with legend:
+    When plot=True, it outputs a PNG visualisation with legend:
     ``{stub}_shelter_categories.png``
     
     Examples
@@ -211,7 +211,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
 
         from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
         from shelterbelts.utils.filepaths import get_filename, get_example_tree_categories_data
-        from shelterbelts.utils.visualization import visualise_categories_sidebyside
+        from shelterbelts.utils.visualisation import visualise_categories_sidebyside
 
         ds_cat = get_example_tree_categories_data()
         wind_file = get_filename('g2_26729_barra_daily.nc')
@@ -270,7 +270,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     tree_mask = (da_categories >= 10) & (da_categories < 20)
     shelter = da_categories >= 12
 
-    # Since the input tif is categorized, we assume here that any 'tree pixel' is 100% tree cover.
+    # Since the input tif is categorised, we assume here that any 'tree pixel' is 100% tree cover.
     tree_percent = tree_mask.astype(float)
 
     if height_tif:
@@ -417,7 +417,7 @@ def parse_arguments():
     parser.add_argument('--minimum_height', default=10, type=int, help="Assume that all tree pixels are at least this tall.")
     parser.add_argument('--density_threshold', default=5, type=int, help="The minimum percentage tree cover that counts as sheltered.")
     parser.add_argument('--no-savetif', dest='savetif', action="store_false", default=True, help="Disable saving GeoTIFF output (default: enabled)")
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualization (default: enabled)")
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualisation (default: enabled)")
 
     return parser
 

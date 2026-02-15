@@ -70,7 +70,7 @@ def aggregated_metrics(ds, radius=4):
         ds_std_temporal = ds[variable].std(dim="time", skipna=True)
 
         # Focal metrics
-        kernel_size = 2 * radius + 1  # 7 pixel diameter because the radius doesn't include the center pixel
+        kernel_size = 2 * radius + 1  # 7 pixel diameter because the radius doesn't include the centre pixel
         ds_mean_focal_7p = xr.apply_ufunc(
             ndimage.uniform_filter, 
             ds_median_temporal, 

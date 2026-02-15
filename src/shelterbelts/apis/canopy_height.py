@@ -306,7 +306,7 @@ def canopy_height(lat=-34.389, lon=148.469, buffer=0.005, outdir=".", stub="Test
     save_tif : bool, optional
         Whether to save the merged canopy height GeoTIFF. Default is True.
     plot : bool, optional
-        Whether to save a PNG visualization of the canopy height. Default is True.
+        Whether to save a PNG visualisation of the canopy height. Default is True.
 
     Returns
     -------
@@ -343,7 +343,7 @@ def parse_arguments():
     parser.add_argument('--stub', default='Test', help='Prefix for output filenames (default: Test)')
     parser.add_argument('--tmpdir', default='.', help='Directory to cache downloaded tiles (default: current directory)')
     parser.add_argument('--no-save-tif', dest='save_tif', action='store_false', default=True, help='Disable saving GeoTIFF (default: enabled)')
-    parser.add_argument('--no-plot', dest='plot', action='store_false', default=True, help='Disable PNG visualization (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action='store_false', default=True, help='Disable PNG visualisation (default: enabled)')
 
     return parser
 
