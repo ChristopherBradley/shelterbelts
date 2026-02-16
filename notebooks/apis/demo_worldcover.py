@@ -11,6 +11,7 @@ from shelterbelts.apis.worldcover import worldcover, worldcover_cmap, worldcover
 # %%
 # %%time
 ds = worldcover()
+ds
 
 # %% [markdown]
 # ## Visualisating the results

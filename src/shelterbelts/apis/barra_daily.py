@@ -225,8 +225,7 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
     lon : float, optional
         Longitude in WGS 84 (EPSG:4326). Default is 148.469.
     buffer : float, optional
-        Distance in degrees in a single direction (0.01 ≈ 1 km),
-        resulting in an approximately square area of size 2*buffer.
+        -- Note: Buffer option is currently disabled due to a bug in the API, so we just get the nearest point.
     start_year : str, optional
         Start year (inclusive). The minimum available year is 1889.
         Default is "2020".

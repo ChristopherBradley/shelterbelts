@@ -16,9 +16,6 @@ import odc.stac
 import pystac_client
 import planetary_computer
 
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap, BoundaryNorm
-from matplotlib.patches import Patch
 
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 # -
