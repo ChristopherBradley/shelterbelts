@@ -21,30 +21,26 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
         ncolors=len(worldcover_classes)
     )
     
+    extent = [None, None, None, None]
+    aspect_ratio = 'auto'
+    
     # Calculate aspect ratio
     if 'x' in da.coords and 'y' in da.coords and da.rio.crs:
         x, y = da.coords['x'].values, da.coords['y'].values
         left, bottom, right, top = transform_bounds(da.rio.crs, 'EPSG:4326', x.min(), y.min(), x.max(), y.max())
         lons = np.linspace(left, right, len(x))
         lats = np.linspace(top, bottom, len(y))
-
         extent = [lons.min(), lons.max(), lats.min(), lats.max()]
-        lat_range = np.abs(lats.max() - lats.min())
-        lon_range = np.abs(lons.max() - lons.min())
-        aspect_ratio = lon_range / lat_range
-
+        aspect_ratio = (lons.max() - lons.min()) / (lats.max() - lats.min())
     elif 'longitude' in da.coords and 'latitude' in da.coords:
         lons = da.coords['longitude'].values
         lats = da.coords['latitude'].values
-        
         extent = [lons.min(), lons.max(), lats.min(), lats.max()]
-        lat_range = np.abs(lats.max() - lats.min())
-        lon_range = np.abs(lons.max() - lons.min())
         mean_lat = np.mean(lats)
-        aspect_ratio = lat_range / (lon_range * np.cos(np.radians(mean_lat)))
+        aspect_ratio = (lats.max() - lats.min()) / ((lons.max() - lons.min()) * np.cos(np.radians(mean_lat)))
     
     ax.imshow(da.values, cmap=cmap, norm=norm, extent=extent, 
-                    origin='upper', aspect=aspect_ratio, interpolation='nearest')
+              origin='upper', aspect=aspect_ratio, interpolation='nearest')
     
     formatter = FuncFormatter(lambda x, p: f'{x:.2f}')
     ax.xaxis.set_major_formatter(formatter)
@@ -53,12 +49,11 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
     ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
     ax.grid(True, alpha=0.3)
 
-    # Title and legend
     if title:
         ax.set_title(title, fontsize=30, fontweight='bold')    
     if labels:
         legend_elements = [
-            Patch(facecolor=np.array(color), label=labels[class_id])
+            Patch(facecolor=color, label=labels[class_id])
             for class_id, color in zip(worldcover_classes, colors)
         ]
         if legend_inside:
@@ -69,9 +64,6 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
 
 def visualise_categories(da, filename=None, colormap=None, labels=None, title=None):
     """Pretty visualisation using a categorical colour scheme."""
-    if colormap is None:
-        raise ValueError("colormap dictionary must be provided")
-    
     fig, ax = plt.subplots(figsize=(14, 10))
     _plot_categories_on_axis(ax, da, colormap, labels, title)
     plt.tight_layout()
@@ -86,9 +78,6 @@ def visualise_categories(da, filename=None, colormap=None, labels=None, title=No
 
 def visualise_categories_sidebyside(da1, da2, filename=None, colormap=None, labels=None, title1=None, title2=None):
     """Display two categorical maps side by side with shared colormap and labels."""
-    if colormap is None:
-        raise ValueError("colormap dictionary must be provided")
-    
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
     _plot_categories_on_axis(ax1, da1, colormap, labels, title1, legend_inside=True)
     _plot_categories_on_axis(ax2, da2, colormap, labels, title2, legend_inside=True)
@@ -113,8 +102,6 @@ def visualise_canopy_height(ds, filename=None):
         If provided, save the figure to this path
     """
     image = ds['canopy_height']
-
-    # Bin the slope into categories
     bin_edges = np.arange(0, 16, 1) 
     categories = np.digitize(image, bin_edges, right=True)
     
