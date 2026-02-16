@@ -4,8 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.patches import Patch
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 import rasterio
-
+from rasterio.warp import transform_bounds
 
 def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=False):
     """Helper to plot categorical data on a given axis."""
@@ -20,11 +21,41 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
         ncolors=len(worldcover_classes)
     )
     
-    ax.imshow(da.values, cmap=cmap, norm=norm)
-    if title:
-        ax.set_title(title, fontsize=30, fontweight='bold')
-    ax.axis('off')
+    # Calculate aspect ratio
+    if 'x' in da.coords and 'y' in da.coords and da.rio.crs:
+        x, y = da.coords['x'].values, da.coords['y'].values
+        left, bottom, right, top = transform_bounds(da.rio.crs, 'EPSG:4326', x.min(), y.min(), x.max(), y.max())
+        lons = np.linspace(left, right, len(x))
+        lats = np.linspace(top, bottom, len(y))
+
+        extent = [lons.min(), lons.max(), lats.min(), lats.max()]
+        lat_range = np.abs(lats.max() - lats.min())
+        lon_range = np.abs(lons.max() - lons.min())
+        aspect_ratio = lon_range / lat_range
+
+    elif 'longitude' in da.coords and 'latitude' in da.coords:
+        lons = da.coords['longitude'].values
+        lats = da.coords['latitude'].values
+        
+        extent = [lons.min(), lons.max(), lats.min(), lats.max()]
+        lat_range = np.abs(lats.max() - lats.min())
+        lon_range = np.abs(lons.max() - lons.min())
+        mean_lat = np.mean(lats)
+        aspect_ratio = lat_range / (lon_range * np.cos(np.radians(mean_lat)))
     
+    ax.imshow(da.values, cmap=cmap, norm=norm, extent=extent, 
+                    origin='upper', aspect=aspect_ratio, interpolation='nearest')
+    
+    formatter = FuncFormatter(lambda x, p: f'{x:.2f}')
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax.grid(True, alpha=0.3)
+
+    # Title and legend
+    if title:
+        ax.set_title(title, fontsize=30, fontweight='bold')    
     if labels:
         legend_elements = [
             Patch(facecolor=np.array(color), label=labels[class_id])

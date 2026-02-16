@@ -14,8 +14,7 @@ import gc
 import psutil
 import subprocess, sys
 
-from shelterbelts.utils.crop_and_rasterize import crop_and_rasterize
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize
 from shelterbelts.apis.barra_daily import barra_daily
 
 from shelterbelts.indices.tree_categories import tree_categories

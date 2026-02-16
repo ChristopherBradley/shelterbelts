@@ -133,14 +133,11 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", s
 
     .. plot::
 
-        from shelterbelts.apis.worldcover import worldcover_cmap, worldcover_labels
-        from shelterbelts.utils.filepaths import get_filename
+        from shelterbelts.apis.worldcover import worldcover, worldcover_cmap, worldcover_labels
         from shelterbelts.utils.visualisation import visualise_categories
-        import rioxarray as rxr
-
-        worldcover_file = get_filename('g2_26729_worldcover.tif')
-        da = rxr.open_rasterio(worldcover_file).squeeze('band').drop_vars('band')
-        visualise_categories(da, colormap=worldcover_cmap, labels=worldcover_labels, title="ESA WorldCover")
+        
+        ds = worldcover(buffer=0.01, save_tif=False, plot=False)
+        visualise_categories(ds['worldcover'], colormap=worldcover_cmap, labels=worldcover_labels, title="ESA WorldCover")
 
     """
     print("Starting worldcover.py")

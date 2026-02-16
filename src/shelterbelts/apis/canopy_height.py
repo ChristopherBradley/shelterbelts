@@ -11,148 +11,37 @@ import numpy as np
 import requests
 import rasterio
 import xarray as xr
-import geopandas as gpd
-from pyproj import Transformer
-from rasterio.merge import merge
-from rasterio.windows import from_bounds
-from shapely.geometry import box      
 
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
+from shelterbelts.utils.tiles import identify_relevant_tiles_bbox, merge_tiles_bbox, transform_bbox, merged_ds
 
 # -
 
-def identify_relevant_tiles_bbox(bbox=[147.735717, -42.912122, 147.785717, -42.862122], canopy_height_dir=".", footprints_geojson='tiles_global.geojson', id_column='tile'):
-    """Find the tiles that overlap with the region of interest"""
+def _ensure_footprints_downloaded(canopy_height_dir=".", footprints_geojson='tiles_global.geojson'):
+    """Download the canopy height tile footprints GeoJSON if not already present.
     
-    # Convert the bbox to the same crs as the footprints file
-    # footprints_crs = gpd.read_file(footprints_geojson).crs
-    # bbox_transformed = transform_bbox(bbox, outputEPSG=footprints_crs)
-    # roi_polygon = box(*bbox_transformed)
-    roi_polygon = box(*bbox)
-    
-    # Download the 'tiles_global.geojson' to this folder if we haven't already
+    Parameters
+    ----------
+    canopy_height_dir : str
+        Directory to cache the footprints file
+    footprints_geojson : str
+        Filename for the tile footprints
+    """
     filename = os.path.join(canopy_height_dir, footprints_geojson)
-    # filename = os.path.join(footprints_geojson)  # Now expecting the full filepath to this geojson.
-        
-    if not os.path.exists(filename):
-        assert footprints_geojson == 'tiles_global.geojson', 'Please provide footprints for the tifs in this directory'
-        url = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson"
-        with requests.get(url, stream=True) as stream:
-            with open(filename, "wb") as file:
-                shutil.copyfileobj(stream.raw, file)
-        print(f"Downloaded {filename}", flush=True)
-
-    # Load the canopy height tiles
-    gdf = gpd.read_file(filename)
-
-    # Find any tiles that intersect with this polygon
-    relevant_tiles = []
-    for idx, row in gdf.iterrows():
-        tile_polygon = row['geometry']
-        if tile_polygon.intersects(roi_polygon):  
-            relevant_tiles.append(row[id_column])
-            
-    return relevant_tiles
-
-
-def merge_tiles_bbox(bbox, outdir=".", stub="Test", tmpdir='.', footprints_geojson='tiles_global.geojson', id_column='tile', verbose=True):
-    """Create a tiff file with just the region of interest. This may use just one tile, or merge multiple tiles"""
-
-    os.makedirs(outdir, exist_ok=True)
-    canopy_height_dir = tmpdir
-    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson, id_column)
-    footprints_crs = gpd.read_file(os.path.join(canopy_height_dir, footprints_geojson)).crs
-
-    new_relevant_tiles = []
-    cropped_tif_filenames = []
-    for i, tile in enumerate(relevant_tiles):
-        if (i % 100 == 0) and verbose:
-            print(f"Working on {i}/{len(relevant_tiles)}: {tile}", flush=True)
-            # import pdb; pdb.set_trace()  # Useful for debugging in a jupyter notebook
-
-        original_tilename = tile
-        if tile.endswith('.tif'):
-            tile = tile.strip('.tif')  # I've been formatting the id_column in different ways in the past, so this should make them consistent
-        tiff_file = os.path.join(canopy_height_dir, f"{tile}.tif")
-
-        # Get intersection of the tiff file and the region of interest. (any area outside this tiff file should be covered by another)
-        with rasterio.open(tiff_file) as src:
-            # Get bounds of the TIFF file
-            tiff_bounds = src.bounds
-            tiff_crs = src.crs
-
-            bbox_transformed = transform_bbox(bbox, inputEPSG=footprints_crs, outputEPSG=tiff_crs)  
-            roi_box = box(*bbox_transformed)
-            intersection_bounds = box(*tiff_bounds).intersection(roi_box).bounds
-
-            # If there is no intersection then don't save a cropped image, and remove this from the relevant tiles. 
-            if all(np.isnan(x) for x in intersection_bounds):
-                # print(f"{i}: Tif not in region bounds: {tile}")
-                continue
-            
-            window = from_bounds(*intersection_bounds, transform=src.transform)
-            
-            # Read data within the window
-            out_image = src.read(window=window)
-            
-            # Attempting to solve the 0x418 error. I might need to remove the tile from the candidates if it has 0 pixels after cropping
-            if out_image.size == 0 or out_image.shape[1] == 0 or out_image.shape[2] == 0:
-                # print(f"{i}: Intersection too small (zero-size) for {tile}")
-                continue
+    if os.path.exists(filename):
+        return
     
-            out_transform = src.window_transform(window)
-            out_meta = src.meta.copy()
-            
-            new_relevant_tiles.append(original_tilename)
-
-        # Save cropped image
-        cropped_tiff_filename = os.path.join(outdir, f"{stub}_{tile}_cropped.tif")
-        out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
-
-        with rasterio.open(cropped_tiff_filename, "w", **out_meta) as dest:
-            dest.write(out_image)
-        
-        # Save this cropped_tif_filename to a list to be deleted later
-        cropped_tif_filenames.append(cropped_tiff_filename)
-
-    # Merge the cropped tiffs
-    src_files_to_mosaic = []
-    for tile in new_relevant_tiles:
-        if tile.endswith('.tif'):
-            tile = tile.strip('.tif')
-        tiff_file = os.path.join(outdir, f'{stub}_{tile}_cropped.tif')        
-        src = rasterio.open(tiff_file)
-        src_files_to_mosaic.append(src)
+    if footprints_geojson != 'tiles_global.geojson':
+        raise ValueError('Only tiles_global.geojson is supported for auto-download')
     
-    # This assumes the the crs of all the input geotifs is the same
-    if verbose:
-        print(f"Merging {len(src_files_to_mosaic)} tiles")
-    mosaic, out_trans = merge(src_files_to_mosaic)
-    out_meta = src_files_to_mosaic[0].meta.copy()
-
-    for src in src_files_to_mosaic:
-        src.close()
-
-    # Remove the cropped_tif_filenames so they don't clog up the tmpdir and make us go over the iLimit of 7 million files on xe2/scratch
-    for filename in cropped_tif_filenames:
-        if os.path.exists(filename):
-            os.remove(filename)    
-
-    out_meta.update({
-        "height": mosaic.shape[1],
-        "width": mosaic.shape[2],
-        "transform": out_trans
-    })
-    
-    return mosaic, out_meta
-
-def identify_relevant_tiles(lat=-34.389, lon=148.469, buffer=0.005, canopy_height_dir="."):
-    """Find the tiles that overlap with the region of interest"""
-    bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]  
-    relevant_tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
-    return relevant_tiles
+    os.makedirs(canopy_height_dir, exist_ok=True)
+    url = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson"
+    with requests.get(url, stream=True) as stream:
+        with open(filename, "wb") as file:
+            shutil.copyfileobj(stream.raw, file)
+    print(f"Downloaded {filename}", flush=True)
 
 def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
     """Download any tiles that we haven't already downloaded"""
@@ -180,23 +69,6 @@ def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
                 with open(filename, "wb") as file:
                     shutil.copyfileobj(stream.raw, file)
             print(f"Downloaded {filename}")
-
-# def transform_bbox(bbox=[148.464499, -34.394042, 148.474499, -34.384042], inputEPSG="EPSG:4326", outputEPSG="EPSG:3857"):
-#     transformer = Transformer.from_crs(inputEPSG, outputEPSG)
-#     x1,y1 = transformer.transform(bbox[1], bbox[0])
-#     x2,y2 = transformer.transform(bbox[3], bbox[2])
-#     return (x1, y1, x2, y2)
-
-def transform_bbox(
-    bbox=[148.464499, -34.394042, 148.474499, -34.384042],
-    inputEPSG="EPSG:4326",
-    outputEPSG="EPSG:3857"
-):
-    transformer = Transformer.from_crs(inputEPSG, outputEPSG, always_xy=True)  # This fixes the issue of EPSG:4326 and EPSG:3857 having lat/lon and easting/northing flipped, whereas transforming between projected crs' needs to preserve the ordering.
-    # bbox = (minx, miny, maxx, maxy)
-    x1, y1 = transformer.transform(bbox[0], bbox[1])
-    x2, y2 = transformer.transform(bbox[2], bbox[3])
-    return (x1, y1, x2, y2)
 
 
 def visualise_canopy_height(ds, filename=None):
@@ -244,28 +116,15 @@ def visualise_canopy_height(ds, filename=None):
         plt.show()
 
 
-def merged_ds(mosaic, out_meta, layer_name='canopy_height'):
-    """Create an xr.DataArray from the outputs of merge_tiles_bbox"""
-    transform = out_meta['transform']
-    height, width = mosaic.shape[1:]
-    x = (np.arange(width) + 0.5) * transform.a + transform.c
-    y = (np.arange(height) + 0.5) * transform.e + transform.f
-    
-    coords = {"longitude": x, "latitude": y}
-    da = xr.DataArray(
-        mosaic[0],
-        dims=("latitude", "longitude"),
-        coords=coords,
-        name=layer_name
-    ).rio.write_crs(out_meta['crs'])
-    ds = da.to_dataset()
-    return ds
-
 def canopy_height_bbox(bbox, outdir=".", stub="Test", tmpdir='.', save_tif=True, plot=True, footprints_geojson='tiles_global.geojson'):
     """Create a merged canopy height raster, downloading new tiles if necessary"""
     # Assumes the bbox is in EPSG:4326
     canopy_height_dir = tmpdir
-    tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir)
+    
+    # Ensure the tile footprints are downloaded
+    _ensure_footprints_downloaded(canopy_height_dir, footprints_geojson)
+    
+    tiles = identify_relevant_tiles_bbox(bbox, canopy_height_dir, footprints_geojson)
     download_new_tiles(tiles, canopy_height_dir)
     mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, tmpdir, footprints_geojson)
 

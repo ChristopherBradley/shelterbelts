@@ -16,7 +16,7 @@ from skimage.measure import find_contours
 
 
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
 from shelterbelts.indices.catchments import catchments  # This takes a while to import
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.filepaths import nsw_dem_dir

@@ -5,7 +5,7 @@ import argparse
 
 import rioxarray as rxr
 
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
+from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
 
 
 from shelterbelts.utils.filepaths import default_tmpdir
