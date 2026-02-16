@@ -105,6 +105,7 @@ ds = barra_daily(plot=False)
 # %%time
 ds_monthly = barra_daily(temporal='mon', save_netcdf=False, plot=False)
 print(f"Monthly data shape: {ds_monthly.dims}")
+print(f"Daily data shape: {ds.dims}")
 
 # %% [markdown]
 # ## Command Line Interface

@@ -260,6 +260,24 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
 
     When ``plot=True``, it writes:
     ``{stub}_barra_daily.png`` (a wind rose visualisation)
+
+    Examples
+    --------
+    Download wind data with default parameters:
+
+    >>> ds = barra_daily(save_netcdf=False, plot=False)
+    >>> 'uas' in ds.data_vars and 'vas' in ds.data_vars  # Eastward and northward wind speed
+    True
+    
+    Visualising the wind rose:
+
+    .. plot::
+
+        from shelterbelts.apis.barra_daily import barra_daily, wind_rose
+        
+        ds = barra_daily(save_netcdf=False, plot=False)
+        wind_rose(ds)
+
     """
     dss = []
     years = [str(year) for year in list(range(int(start_year), int(end_year) + 1))]
@@ -270,7 +288,6 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
 
     vars_to_drop = ['time_bnds', 'height', 'crs']
     ds = ds.drop_vars([v for v in vars_to_drop if v in ds])
-    # ds = ds.drop_vars(['time_bnds', 'height', 'crs'])
     ds = ds.rename({'lat':'latitude', 'lon':'longitude'})
 
     if save_netcdf:
