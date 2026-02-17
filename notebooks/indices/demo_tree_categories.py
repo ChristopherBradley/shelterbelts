@@ -56,9 +56,6 @@ visualise_categories(
 #
 # The `edge_size` parameter defines the distance (in pixels) from the edge of a patch.
 # Areas beyond this distance from edges are classified as "Patch Core".
-#
-# - **Low value (1)**: Thin edges
-# - **High value (5)**: Thick edges
 
 # %%
 ds_edge1 = tree_categories(ds_input, stub='edge1', outdir='/tmp', plot=False, save_tif=False, edge_size=1)
@@ -75,9 +72,6 @@ visualise_categories_sidebyside(
 #
 # The `min_patch_size` parameter sets the minimum area (in pixels) for a cluster to be
 # considered a patch rather than scattered trees.
-#
-# - **Low value (10)**: Less scattered trees
-# - **High value (30)**: More scattered trees
 
 # %%
 ds_patch10 = tree_categories(ds_input, stub='patch10', outdir='/tmp', plot=False, save_tif=False, min_patch_size=10)
@@ -94,9 +88,6 @@ visualise_categories_sidebyside(
 #
 # The `max_gap_size` parameter determines the maximum gap (in pixels) that can be bridged
 # when connecting tree clusters into patches.
-#
-# - **Low value (0)**: More scattered trees and smaller patches
-# - **High value (2)**: Less scattered trees and larger patches
 
 # %%
 ds_gap0 = tree_categories(ds_input, stub='gap0', outdir='/tmp', plot=False, save_tif=False, max_gap_size=0)
@@ -112,9 +103,6 @@ visualise_categories_sidebyside(
 # ## Parameter: strict_core_area
 #
 # The `strict_core_area` parameter changes the method for defining core areas.
-#
-# - **False**: Use dilation and erosion to allow some irregularity.
-# - **True**: Enforce that core areas exceed the edge_size at all points.
 
 # %%
 ds_strict_false = tree_categories(ds_input, stub='strict_false', outdir='/tmp', plot=False, save_tif=False, strict_core_area=False)

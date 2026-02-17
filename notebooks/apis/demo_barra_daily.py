@@ -1,5 +1,5 @@
 # %% [markdown]
-# # BARRA Daily API Demo
+# # BARRA API Demo
 
 # %%
 from shelterbelts.apis.barra_daily import barra_daily
@@ -69,7 +69,7 @@ wind_rose(ds_canberra)
 
 # %%
 import os
-outdir = "../outdir"
+outdir = "outdir"
 os.makedirs(outdir, exist_ok=True)
 ds = barra_daily(outdir=outdir)
 
@@ -123,4 +123,15 @@ setup_repo_path()
 # !python shelterbelts/apis/barra_daily.py
 
 # %%
-# !python shelterbelts/apis/barra_daily.py --lat -35.287 --lon 149.117 --start_year 2020 --end_year 2020 --stub command_line --outdir ../outdir
+# !python shelterbelts/apis/barra_daily.py --lat -35.287 --lon 149.117 --start_year 2020 --end_year 2020 --stub command_line --outdir ../notebooks/apis/outdir
+
+# %% [markdown]
+# ### Cleanup
+# Remove the output files created by this notebook
+
+# %%
+# !rm ../notebooks/apis/*.nc
+# !rm ../notebooks/apis/*.png
+
+# %%
+# !rm -r ../notebooks/apis/outdir

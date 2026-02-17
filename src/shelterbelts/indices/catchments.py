@@ -261,13 +261,6 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
     When ``plot=True``, it writes:
     ``{stub}_gullies_and_ridges.png``
 
-    Examples
-    --------
-    Generate catchments from a DEM file:
-
-    >>> ds = catchments('dem.tif', outdir='.', stub='test', plot=False, savetif=False)
-    >>> set(ds.data_vars) == {'terrain', 'gullies', 'ridges'}
-    True
     """
     da = rxr.open_rasterio(terrain_tif).isel(band=0).drop_vars('band')
     
