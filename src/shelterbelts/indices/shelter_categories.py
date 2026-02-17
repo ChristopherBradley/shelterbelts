@@ -277,9 +277,9 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
         da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
         da_heights_reprojected = da_heights.rio.reproject_match(da_categories) 
 
-        # Using da.where instead of xr.where to preserve the xr.rio.crs
-        da_heights_nan = da_heights_reprojected.where(~shelter, np.nan)  
-        shelter_heights = da_heights_nan.where(da_heights_nan <= minimum_height, minimum_height)
+        maximum_tree_height = 60  # Anecdotally, heights greater than this are more likely to be data errors than really tall trees
+        da_heights_nan = da_heights_reprojected.where(shelter, np.nan)  
+        shelter_heights = da_heights_nan.clip(min=minimum_height, max=maximum_tree_height)
 
         pixel_size = 10 # metres
         shelter_heights = (shelter_heights / pixel_size) * distance_threshold  # Scale the tree heights by the distance threshold
