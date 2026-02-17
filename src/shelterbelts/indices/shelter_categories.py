@@ -391,6 +391,11 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
         filename = os.path.join(outdir,f"{stub}_shelter_categories.tif")
         tif_categorical(ds['shelter_categories'], filename, shelter_categories_cmap)
         
+        # Saving shelter heights for debugging
+        filename_shelter_heights = os.path.join(outdir,f"{stub}_shelter_heights.tif")
+        shelter_heights.rio.to_raster(filename_shelter_heights)
+        print(f"Saved: {filename_shelter_heights}")
+        
         # Saving the shelter densities or distances
         da_distance_or_percent.fillna(0).astype('uint8').rio.to_raster(filename_distance_or_density)  # TODO: I should probably use LZW compression here.
         print(f"Saved: {filename_distance_or_density}")

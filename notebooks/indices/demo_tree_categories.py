@@ -25,12 +25,12 @@
 import rioxarray as rxr
 
 from shelterbelts.utils.visualisation import visualise_categories_sidebyside, visualise_categories
-from shelterbelts.utils.filepaths import get_filename as get_example_data
+from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
 
-# Load test data
-test_file = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
+# Load example data
+test_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
 da_trees = rxr.open_rasterio(test_file).isel(band=0).drop_vars('band')
 ds_input = da_trees.to_dataset(name='woody_veg')
 print(f"Input dimensions: {ds_input['woody_veg'].shape}")
