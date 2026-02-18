@@ -249,6 +249,8 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     else:
         shelter_heights = shelter.where(shelter, other=np.nan) * distance_threshold # preserving the rio.crs
 
+    distance_threshold = 100  # Now that we've defined tree heights, the distance threshold should be redundant so long as it's greater than the maximum tree height.
+
     if isinstance(wind_data, xr.Dataset):
         ds_wind = wind_data
     elif wind_data:

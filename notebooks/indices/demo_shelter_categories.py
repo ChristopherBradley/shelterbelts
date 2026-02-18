@@ -113,15 +113,15 @@ visualise_categories_sidebyside(
 # %%
 # Example height tif (Canopy Height Model)
 chm = rxr.open_rasterio(height_file).isel(band=0).drop_vars('band')
-p = chm.plot(vmin=0, vmax=40, cmap='Set1')
+p = chm.plot()
 p.axes.set_title('Canopy Height Model')
 p.axes.axis('off');
 
 # %%
-# This comparison shows that tall trees provide more shelter than the default of 20 pixels, 
+# This comparison shows that some taller trees provide more shelter than the default, 
 # whereas some shorter trees (like in the centre) provide less shelter than the default.
-ds1 = shelter_categories(ds_cat, wind_data=wind_file, wind_method='MOST_COMMON', stub='default')
-ds2 = shelter_categories(ds_cat, wind_data=wind_file, wind_method='MOST_COMMON', height_tif=height_file, stub='heights_provided', distance_threshold=10)
+ds1 = shelter_categories(ds_cat, wind_data=wind_file, wind_method='MOST_COMMON', stub='default')  # distance threshold represents the number of pixels (10m each)
+ds2 = shelter_categories(ds_cat, wind_data=wind_file, wind_method='MOST_COMMON', height_tif=height_file, stub='heights_provided', distance_threshold=15)  # distance_threshold represents the number of "tree_heights"
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
