@@ -142,3 +142,30 @@ visualise_categories_sidebyside(
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="wind_threshold=10 km/h", title2="wind_threshold=30 km/h"
 )
+
+# %% [markdown]
+# ## Command Line Interface
+# You can also use the function from the command line with the same defaults and parameters.
+
+# %%
+from shelterbelts.utils.filepaths import setup_repo_path
+setup_repo_path()
+
+# %%
+# !python shelterbelts/indices/shelter_categories.py --help
+
+# %%
+# %%time
+# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --stub command_line_defaults --outdir ../notebooks/indices
+
+# %%
+# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --wind_data {wind_file} --height_tif {height_file} --wind_method MOST_COMMON --distance_threshold 10 --stub command_line --outdir ../notebooks/indices
+
+# %% [markdown]
+# ### Cleanup
+# Remove the output files created by this notebook
+
+# %%
+# !rm ../notebooks/indices/*.tif
+# !rm ../notebooks/indices/*.png
+# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
