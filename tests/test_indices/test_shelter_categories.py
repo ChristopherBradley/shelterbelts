@@ -1,7 +1,9 @@
 import os
 import pytest
+import numpy as np
+import xarray as xr
 
-from shelterbelts.indices.shelter_categories import shelter_categories
+from shelterbelts.indices.shelter_categories import compute_distance_to_tree_TH, shelter_categories
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.utils.filepaths import create_test_woody_veg_dataset
 
@@ -145,3 +147,33 @@ def test_shelter_categories_from_dataset():
 
     ds = shelter_categories(ds_cat, outdir='outdir', stub=f"{stub}_ds", plot=False, savetif=False)
     assert 'shelter_categories' in set(ds.data_vars)
+
+# Convert 1D lists to 2D xarray DataArrays with x and y dimensions
+def to_dataarray(heights):
+    arr = np.array([heights], dtype=float)  # Create 2D array (1, n) with float dtype
+    return xr.DataArray(arr, dims=['y', 'x'])
+
+def test_tree_height_method():
+    """Test the shelter categories using tree heights.
+    Each tree of height h shelters h pixels downwind (wind_dir='E' by default).
+    Returns the distance to the nearest upwind tree that can shelter each pixel.
+    NaN for tree pixels and unsheltered pixels.
+    """
+    N = np.nan
+    heights_small_trees =           to_dataarray([1,0,0,1,0,0,0])
+    heights_single_tree =           to_dataarray([0,3,0,0,0,0,0])
+    heights_two_trees =             to_dataarray([0,4,1,0,0,0,0])
+    heights_two_trees_separated =   to_dataarray([0,4,0,1,0,0,0])
+
+    expected_small_trees =          to_dataarray([N,1,N,N,1,N,N])
+    expected_single_tree =          to_dataarray([N,N,1,2,3,N,N])
+    expected_two_trees =            to_dataarray([N,N,N,1,3,4,N])
+    expected_two_trees_separated =  to_dataarray([N,N,1,N,1,4,N])
+
+    xr.testing.assert_equal(compute_distance_to_tree_TH(heights_small_trees), expected_small_trees)
+    xr.testing.assert_equal(compute_distance_to_tree_TH(heights_single_tree), expected_single_tree)
+    xr.testing.assert_equal(compute_distance_to_tree_TH(heights_two_trees), expected_two_trees)
+    xr.testing.assert_equal(compute_distance_to_tree_TH(heights_two_trees_separated), expected_two_trees_separated)
+
+def test_pytest():
+    print("Hello world!")

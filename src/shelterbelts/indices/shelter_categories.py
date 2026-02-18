@@ -28,68 +28,31 @@ inverted_labels = {v: k for k, v in shelter_categories_labels.items()}
 direction_map = {
     'N': (-1, 0),
     'S': (1, 0),
-    'E': (0, -1),
-    'W': (0, 1),
-    'NE': (-1, -1),
-    'NW': (-1, 1),
-    'SE': (1, -1),
-    'SW': (1, 1),
+    'E': (0, 1),
+    'W': (0, -1),
+    'NE': (-1, 1),
+    'NW': (-1, -1),
+    'SE': (1, 1),
+    'SW': (1, -1),
 }
 inverted_direction_map = {v: k for k, v in direction_map.items()}
-def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, multi_heights=True):
-    """Compute the distance from each pixel.
-       shelter_heights is an array of tree heights, with non-trees being np.nan.
-    """
-    distance_threshold = max_distance
-    dy, dx = direction_map[wind_dir]
-    
-    # Finding the height of the edge sheltering each pixel
-    shifted = shelter_heights.copy()
-    shifted_full_max = shelter_heights.copy()
-    for d in range(1, distance_threshold + 1):
-        shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-        shifted = shifted.where(shifted_full_max.isnull(), np.nan)
-        shifted = shifted.where(shifted > 0, np.nan)
-        shifted_full_max = shifted_full_max.where(~shifted_full_max.isnull(), shifted)
-    
-    # Finding the distance from the edge sheltering each pixel
-    shifted = shelter_heights.copy()
-    shifted_full = shelter_heights.copy()
-    for d in range(1, distance_threshold + 1):
-        shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-        shifted = shifted.where(shifted_full.isnull(), np.nan)
-        shifted = shifted - 1
-        shifted = shifted.where(shifted > 0, np.nan)
-        shifted_full = shifted_full.where(~shifted_full.isnull(), shifted)
-    
-    new_hits = xr.where(shelter_heights.isnull(), shifted_full, np.nan) 
-    distances = (shifted_full_max - new_hits)
 
-    # If multi_heights is False, than we assume only the edge trees can provide shelter.
-    # Otherwise, we also incorporate trees inside the edge if they're tall enough to provide shelter when the edge trees are not.
-    if multi_heights:
-        # Finding the height of the centre tree sheltering each pixel
-        shifted = shelter_heights.copy()
-        shifted_full = shelter_heights.copy()
-        for d in range(1, distance_threshold + 1):
-            shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-            shifted = shifted.where(shifted > 0, np.nan)
-            shifted_full_max_centre = shifted_full.where(~shifted_full.isnull(), shifted)
-        
-        # Finding the distance from the centre tree sheltering each pixel
-        shifted = shelter_heights.copy()
-        shifted_full = shelter_heights.copy()
-        for d in range(1, distance_threshold + 1):
-            shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-            shifted = shifted - 1
-            shifted = shifted.where(shifted > 0, np.nan)
-            shifted_full_centre = shifted_full.where(~shifted_full.isnull(), shifted)
-        
-        new_hits = xr.where(shelter_heights.isnull(), shifted_full_centre, np.nan) 
-        distances_centre = (shifted_full_max_centre - new_hits)
-        
-        distances = distances.where(~distances.isnull(), distances_centre)
-    
+
+def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
+    """For each non-tree pixel, find the distance to the nearest upwind tree tall enough to shelter it.
+    A tree of height h shelters pixels up to h pixels downwind.
+    Returns NaN for tree pixels and unsheltered pixels.
+    """
+    dy, dx = direction_map[wind_dir]
+    distances = xr.full_like(shelter_heights, np.nan)
+    is_tree = shelter_heights > 0
+
+    for d in range(1, max_distance + 1):
+        shifted = shelter_heights.shift(x=dx * d, y=dy * d, fill_value=0)
+        can_shelter = shifted >= d
+        unassigned = ~is_tree & distances.isnull()
+        distances = xr.where(unassigned & can_shelter, float(d), distances)
+
     return distances
 
 
@@ -127,7 +90,7 @@ def compute_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_a
     return da_percent_trees
 
 
-def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=20, distance_threshold=20, density_threshold=5, minimum_height=10, savetif=True, plot=True, crop_pixels=None):
+def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=20, distance_threshold=20, density_threshold=5, minimum_height=0, savetif=True, plot=True, crop_pixels=None):
     """Define sheltered and unsheltered pixels
 
     - **Unsheltered** (0): Pixels not protected from wind or without sufficient tree cover
