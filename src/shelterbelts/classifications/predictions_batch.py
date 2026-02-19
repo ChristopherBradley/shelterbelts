@@ -335,8 +335,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--gpkg", type=str, required=True, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
-    parser.add_argument("--outdir", type=str, required=True, help="Output directory for saving results")
+    parser.add_argument("gpkg", type=str, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
+    parser.add_argument("outdir", type=str, help="Output directory for saving results")
     parser.add_argument("--year", type=int, default=2020, help="Year of satellite imagery to download for doing the classification")
     parser.add_argument("--nn_dir", type=str, default=nn_models_dir, help=f"The stub of the neural network model and preprocessing scaler (default: {nn_models_dir})")
     parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
@@ -352,15 +352,7 @@ if __name__ == '__main__':
 
     args = parse_arguments()
     
-    gpkg = args.gpkg
-    outdir = args.outdir
-    year = int(args.year)
-    nn_dir = args.nn_dir
-    nn_stub = args.nn_stub
-    limit = args.limit
-    multi_model = args.multi_model
-    
-    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model, args.confidence)
+    predictions_batch(args.gpkg, args.outdir, int(args.year), args.nn_dir, args.nn_stub, args.limit, args.multi_model, args.confidence)
 
 # +
 # # %%time

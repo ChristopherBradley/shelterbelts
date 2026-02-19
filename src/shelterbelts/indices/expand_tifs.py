@@ -76,9 +76,9 @@ def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None, gpkg=None):
 def parse_arguments():
     """Parse command line arguments for expand_tifs."""
     parser = argparse.ArgumentParser(description="Expand a collection of TIFs in subfolders to reduce edge effects.")
-    parser.add_argument("--folder_to_expand", required=True, help="Root folder containing subfolders of TIF files to expand.")
-    parser.add_argument("--folder_merged", required=True, help="Folder containing wall-to-wall merged TIFs for context.")
-    parser.add_argument("--outdir", required=True, help="Output directory to save expanded TIFs (folder structure will be preserved).")
+    parser.add_argument("folder_to_expand", help="Root folder containing subfolders of TIF files to expand.")
+    parser.add_argument("folder_merged", help="Folder containing wall-to-wall merged TIFs for context.")
+    parser.add_argument("outdir", help="Output directory to save expanded TIFs (folder structure will be preserved).")
     parser.add_argument("--limit", type=int, default=None, help="Optional limit on the number of subfolders to process.")
     parser.add_argument("--gpkg", type=str, default=None, help="Provide your own gpkg instead of assuming it from the folder structure.")
     return parser.parse_args()

@@ -225,13 +225,4 @@ if __name__ == '__main__':
     parser = parse_arguments()
     args = parser.parse_args()
 
-    lat = float(args.lat)
-    lon = float(args.lon)
-    buffer = float(args.buffer)
-    outdir = args.outdir
-    tmpdir = args.tmpdir
-    stub = args.stub
-    save_tif = args.save_tif
-    plot = args.plot
-
-    canopy_height(lat, lon, buffer, outdir, stub, tmpdir, save_tif=save_tif, plot=plot)
+    canopy_height(args.lat, args.lon, args.buffer, args.outdir, args.stub, args.tmpdir, save_tif=args.save_tif, plot=args.plot)

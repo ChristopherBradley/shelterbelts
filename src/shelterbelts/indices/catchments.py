@@ -295,7 +295,7 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--terrain_tif', help='Path to the DEM (Digital Elevation Model) GeoTIFF file')
+    parser.add_argument('terrain_tif', help='Path to the DEM (Digital Elevation Model) GeoTIFF file')
     parser.add_argument('--outdir', default='.', help='Output directory for saving results')
     parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
     parser.add_argument('--tmpdir', default='.', help='Temporary folder to save terrain_tif as float64 for pysheds (default: current directory)')

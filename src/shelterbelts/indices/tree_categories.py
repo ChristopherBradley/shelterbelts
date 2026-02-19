@@ -259,7 +259,7 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--input_data', help='A binary tif file containing tree/no tree information')
+    parser.add_argument('input_data', help='A binary tif file containing tree/no tree information')
     parser.add_argument('--outdir', default='.', help='Output directory for saving results')
     parser.add_argument('--stub', default=None, help='Prefix for output filenames')
     parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees')

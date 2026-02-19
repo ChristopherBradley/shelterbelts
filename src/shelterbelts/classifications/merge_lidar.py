@@ -154,7 +154,7 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--base_dir', required=True, help='Directory containing all the tif files to be merged')
+    parser.add_argument('base_dir', help='Directory containing all the tif files to be merged')
     parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
     parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
     parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')

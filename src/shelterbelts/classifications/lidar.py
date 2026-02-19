@@ -258,42 +258,31 @@ if __name__ == '__main__':
 
     args = parse_arguments()
     
-    laz_file = args.laz_file
-    outdir = args.outdir
-    stub = args.stub
-    resolution = args.resolution
-    height_threshold = args.height_threshold
-    category5 = args.category5
-    epsg = args.epsg
-    binary = args.binary
-    cleanup = args.cleanup
-    just_chm = args.just_chm
-    
-    if laz_file.endswith('.laz'):
+    if args.laz_file.endswith('.laz'):
         lidar(
-            laz_file,
-            outdir=outdir,
-            stub=stub,
-            resolution=resolution,
-            height_threshold=height_threshold,
-            category5=category5,
-            epsg=epsg,
-            binary=binary,
-            cleanup=cleanup,
-            just_chm=just_chm
+            args.laz_file,
+            outdir=args.outdir,
+            stub=args.stub,
+            resolution=args.resolution,
+            height_threshold=args.height_threshold,
+            category5=args.category5,
+            epsg=args.epsg,
+            binary=args.binary,
+            cleanup=args.cleanup,
+            just_chm=args.just_chm
         )
     else:
         lidar_folder(
-            laz_file, 
+            args.laz_file,
             # We don't specify the stub, because the name of each file gets used as the stub
-            outdir=outdir, 
-            resolution=resolution, 
-            height_threshold=height_threshold, 
-            category5=category5, 
-            epsg=epsg, 
-            binary=binary,
-            cleanup=cleanup,
-            just_chm=just_chm,
+            outdir=args.outdir,
+            resolution=args.resolution,
+            height_threshold=args.height_threshold,
+            category5=args.category5,
+            epsg=args.epsg,
+            binary=args.binary,
+            cleanup=args.cleanup,
+            just_chm=args.just_chm,
             limit=args.limit
             )
 

@@ -127,8 +127,8 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--folder', help='The folder containing all of the input tiffs')
-    parser.add_argument('--func_string', help="Either 'worldcover_trees' or 'canopy_height_trees'")
+    parser.add_argument('folder', help='The folder containing all of the input tiffs')
+    parser.add_argument('func_string', help="Either 'worldcover_trees' or 'canopy_height_trees'")
     parser.add_argument('--outdir', default='.', help='Output directory for saving results')
     parser.add_argument('--limit', default=None)
 

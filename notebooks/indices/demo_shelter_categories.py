@@ -148,7 +148,7 @@ from shelterbelts.utils.filepaths import setup_repo_path
 setup_repo_path()
 
 # %%
-# !python shelterbelts/indices/shelter_categories.py --help
+# !python shelterbelts/indices/shelter_categories.py --help  # Could use -m to avoid needing the setup_repo_path (but we need this anyway for the file removing later)
 
 # %%
 # %%time
