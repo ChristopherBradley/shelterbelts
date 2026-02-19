@@ -76,19 +76,13 @@ def visualise_categories(da, filename=None, colormap=None, labels=None, title=No
         plt.show()
 
 
-def visualise_categories_sidebyside(da1, da2, filename=None, colormap=None, labels=None, title1=None, title2=None):
+def visualise_categories_sidebyside(da1, da2, colormap=None, labels=None, title1=None, title2=None):
     """Display two categorical maps side by side with shared colormap and labels."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
     _plot_categories_on_axis(ax1, da1, colormap, labels, title1, legend_inside=True)
     _plot_categories_on_axis(ax2, da2, colormap, labels, title2, legend_inside=True)
     plt.tight_layout()
-    
-    if filename:
-        plt.savefig(filename, bbox_inches='tight')
-        plt.close()
-        print(f"Saved: {filename}")
-    else:
-        plt.show()
+    plt.show()
 
 
 def visualise_canopy_height(ds, filename=None):
@@ -172,3 +166,87 @@ def tif_categorical(da, filename="output.tif", colormap=None, tiled=False):
             dst.write_colormap(1, colormap)
     
     print(f"Saved: {filename}")
+
+
+def _plot_catchments_on_axis(ax, ds, title=None):
+    """Helper to plot terrain with ridges and gullies on a given axis"""
+    dem = ds['terrain']
+
+    # Geographic extent and aspect ratio
+    extent = None
+    aspect_ratio = 'auto'
+    if 'x' in dem.coords and 'y' in dem.coords and dem.rio.crs:
+        x, y = dem.coords['x'].values, dem.coords['y'].values
+        left, bottom, right, top = transform_bounds(dem.rio.crs, 'EPSG:4326', x.min(), y.min(), x.max(), y.max())
+        lons = np.linspace(left, right, len(x))
+        lats = np.linspace(top, bottom, len(y))
+        extent = [lons.min(), lons.max(), lats.min(), lats.max()]
+        aspect_ratio = (lons.max() - lons.min()) / (lats.max() - lats.min())
+
+    # Background DEM
+    im = ax.imshow(dem.values, cmap='terrain', interpolation='bilinear',
+                   extent=extent, origin='upper', aspect=aspect_ratio)
+    plt.colorbar(im, ax=ax, label='height above sea level (m)', shrink=0.7)
+
+    # Contours
+    if extent:
+        contour_x = np.linspace(extent[0], extent[1], dem.shape[1])
+        contour_y = np.linspace(extent[2], extent[3], dem.shape[0])
+    else:
+        contour_x = np.arange(dem.shape[1])
+        contour_y = np.arange(dem.shape[0])
+    contour_levels = np.arange(np.floor(np.nanmin(dem.values)), np.ceil(np.nanmax(dem.values)), 10)
+    contours = ax.contour(contour_x, contour_y, dem.values, levels=contour_levels,
+                          colors='black', linewidths=0.5, alpha=0.5)
+    ax.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
+
+    # Ridges & Gullies as geographic scatter
+    if extent:
+        rows_g, cols_g = np.where(ds['gullies'].values)
+        gully_lons = np.interp(cols_g, np.arange(len(lons)), lons)
+        gully_lats = np.interp(rows_g, np.arange(len(lats)), lats)
+        rows_r, cols_r = np.where(ds['ridges'].values)
+        ridge_lons = np.interp(cols_r, np.arange(len(lons)), lons)
+        ridge_lats = np.interp(rows_r, np.arange(len(lats)), lats)
+    else:
+        rows_g, cols_g = np.where(ds['gullies'].values)
+        gully_lons, gully_lats = cols_g, rows_g
+        rows_r, cols_r = np.where(ds['ridges'].values)
+        ridge_lons, ridge_lats = cols_r, rows_r
+
+    ax.scatter(gully_lons, gully_lats, marker='.', linewidths=0.01, c='blue', label='Gullies')
+    ax.scatter(ridge_lons, ridge_lats, marker='.', linewidths=0.01, c='red', label='Ridges')
+
+    # Axis formatting
+    formatter = FuncFormatter(lambda x, p: f'{x:.2f}')
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax.legend(loc='upper right', markerscale=2)
+
+    if title:
+        ax.set_title(title, fontsize=14, fontweight='bold')
+
+
+def plot_catchments(ds, filename=None, title=None):
+    """Pretty visualisation of terrain with ridges and gullies overlaid"""
+    fig, ax = plt.subplots() # figsize=(14, 10))
+    _plot_catchments_on_axis(ax, ds, title)
+    plt.tight_layout()
+
+    if filename:
+        plt.savefig(filename, bbox_inches='tight')
+        plt.close()
+        print(f"Saved: {filename}")
+    else:
+        plt.show()
+
+
+def plot_catchments_sidebyside(ds1, ds2, title1=None, title2=None):
+    """Display two catchment maps side by side."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
+    _plot_catchments_on_axis(ax1, ds1, title1)
+    _plot_catchments_on_axis(ax2, ds2, title2)
+    plt.tight_layout()
+    plt.show()

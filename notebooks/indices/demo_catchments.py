@@ -23,8 +23,9 @@
 # ## Setup
 
 # %%
+from shelterbelts.indices.catchments import catchments
 from shelterbelts.utils.filepaths import get_filename
-from shelterbelts.indices.catchments import catchments, plot_catchments
+from shelterbelts.utils.visualisation import plot_catchments, plot_catchments_sidebyside
 
 # Example data
 dem_file = get_filename('g2_26729_DEM-H.tif')
@@ -37,7 +38,7 @@ ds = catchments(dem_file)
 ds
 
 # %%
-plot_catchments(ds)
+plot_catchments(ds, title="num_catchments=10")
 
 # %% [markdown]
 # ## Changing num_catchments
@@ -49,14 +50,7 @@ ds5 = catchments(dem_file, stub='num_catchments5', num_catchments=5)
 ds20 = catchments(dem_file, stub='num_catchments20', num_catchments=20)
 
 # %%
-# Can we have two side-by-side plots here using the existing plot_catchments function?
-import matplotlib.pyplot as plt
-fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-ds5['gullies'].plot(ax=axes[0], cmap='Blues')
-axes[0].set_title('num_catchments=5')
-ds20['gullies'].plot(ax=axes[1], cmap='Blues')
-axes[1].set_title('num_catchments=20')
-plt.tight_layout()
+plot_catchments_sidebyside(ds5, ds20, title1='num_catchments=5', title2='num_catchments=20')
 
 # %% [markdown]
 # ## Command Line Interface
@@ -65,3 +59,13 @@ plt.tight_layout()
 # !python -m shelterbelts.indices.catchments --help
 
 # %%
+# !python -m shelterbelts.indices.catchments {dem_file} --num_catchments 7 --stub command_line --outdir ../notebooks/indices
+
+# %% [markdown]
+# ### Cleanup
+# Remove the output files created by this notebook
+
+# %%
+# !rm ../notebooks/indices/*.tif
+# !rm ../notebooks/indices/*.png
+# !rm ../notebooks/indices/*.xml

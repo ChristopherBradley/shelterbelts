@@ -13,10 +13,8 @@ import rasterio
 import rioxarray as rxr
 
 from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
-from shelterbelts.utils.visualisation import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical, plot_catchments
 # -
-
-import matplotlib.pyplot as plt
 
 gullies_cmap = {
     0: (255, 255, 255),
@@ -178,42 +176,6 @@ def catchment_ridges(grid, fdir, acc, full_branches):
     # ridges = skeletonize(edges > 0) # This is another option that looks similar to thinning
 
     return ridges
-
-
-def plot_catchments(ds, filename=None):
-    """Pretty visualisation of the terrain and ridges and gullies
-    ds needs to have at least 3 bands: terrain (int or float), gullies (bool), ridges (bool)"""
-    left, bottom, right, top = ds.rio.bounds()
-    extent = (left, right, bottom, top)
-    
-    # Background
-    dem = ds['terrain']
-    plt.imshow(dem, cmap='terrain', interpolation='bilinear', extent=extent)
-    plt.colorbar(label='height above sea level (m)')
-    
-    # Contours
-    contour_levels = np.arange(np.floor(np.nanmin(dem)), np.ceil(np.nanmax(dem)), 10)
-    contours = plt.contour(dem, levels=contour_levels, colors='black',
-                           linewidths=0.5, alpha=0.5, extent=extent)
-    plt.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
-    
-    # Ridges & Gullies
-    transform = ds.rio.transform()
-    rows, cols = np.where(ds['gullies'])
-    xs, ys = rasterio.transform.xy(transform, rows, cols)
-    rows_r, cols_r = np.where(ds['ridges'])
-    xr, yr = rasterio.transform.xy(transform, rows_r, cols_r)
-    plt.scatter(xs, ys, marker='.', linewidths=0.01, c="blue", label='Gullies')
-    plt.scatter(xr, yr, marker='.', linewidths=0.01, c="red", label='Catchments')
-
-    plt.legend(loc='upper right', markerscale=2)
-
-    if filename:
-        plt.savefig(filename, bbox_inches='tight')
-        plt.close()
-        print(f"Saved: {filename}")
-    else:
-        plt.show()
 
 
 
