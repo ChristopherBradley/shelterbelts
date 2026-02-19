@@ -25,7 +25,7 @@ tree_categories_labels = {
 inverted_labels = {v: k for k, v in tree_categories_labels.items()}
 
 
-def tree_clusters(woody_veg, max_gap_size=2):
+def tree_clusters(woody_veg, max_gap_size=1):
     """Assign cluster labels to trees within a given distance of each other."""
 
     # Create the circular kernel
@@ -87,7 +87,7 @@ def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False
     return core_area, core_kernel
 
 
-def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=2, strict_core_area=True, save_tif=True, plot=True):
+def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=1, strict_core_area=True, save_tif=True, plot=True):
     """
     Classifies a boolean woody vegetation map into four categories based on the
     Fragstats landscape ecology approach:
@@ -118,16 +118,14 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         Default is 3.
     max_gap_size : int, optional
         Maximum gap (pixels) to bridge when connecting tree clusters.
-        Default is 2.
+        Default is 1.
     strict_core_area : bool, optional
         If True, enforce that core areas exceed the edge_size at all points.
         If False, use dilation and erosion to allow some irregularity. Default is True.
     save_tif : bool, optional
-        Whether to save the categorised result as a GeoTIFF file.
-        Default is True.
+        Whether to save the results as a GeoTIFF. Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualisation of the results.
-        Default is True.
+        Whether to generate a PNG visualisation. Default is True.
     
     Returns
     -------
@@ -262,12 +260,12 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--input_data', help='A binary tif file containing tree/no tree information')
-    parser.add_argument('--outdir', default='.', help='The output directory to save the results')
-    parser.add_argument('--stub', default=None, help='Prefix for output files.')
-    parser.add_argument('--min_patch_size', default=20, type=int, help='The minimum area to be classified as a patch/corrider rather than just scattered trees.')
-    parser.add_argument('--min_core_size', default=1000, type=int, help='Minimum area (pixels) to classify as a core area.')
-    parser.add_argument('--edge_size', default=3, type=int, help='The buffer distance at the edge of a patch, with pixels inside this being the core area')
-    parser.add_argument('--max_gap_size', default=2, type=int, help='The allowable gap between two tree clusters before considering them as separate patches.')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
+    parser.add_argument('--stub', default=None, help='Prefix for output filenames')
+    parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees')
+    parser.add_argument('--min_core_size', default=1000, type=int, help='Minimum area (pixels) to classify as a core area')
+    parser.add_argument('--edge_size', default=3, type=int, help='Distance (pixels) defining the edge region around patch cores')
+    parser.add_argument('--max_gap_size', default=1, type=int, help='Maximum gap (pixels) to bridge when connecting tree clusters')
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action="store_false", default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')

@@ -129,7 +129,7 @@ def parse_arguments():
     
     parser.add_argument('--folder', help='The folder containing all of the input tiffs')
     parser.add_argument('--func_string', help="Either 'worldcover_trees' or 'canopy_height_trees'")
-    parser.add_argument('--outdir', default='.', help='The folder containing all of the output tiffs')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
     parser.add_argument('--limit', default=None)
 
     return parser.parse_args()

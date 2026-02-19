@@ -38,14 +38,10 @@ def test_cli_defaults_match_function_defaults(func, parser_func):
         if param.default != inspect.Parameter.empty
     }
     
-    # Parse arguments with no CLI args (using defaults)
-    original_argv = sys.argv
-    try:
-        sys.argv = ['test']
-        parser = parser_func()
-        args = parser.parse_args()
-    finally:
-        sys.argv = original_argv
+    # Parse arguments with dummy values for positional args (which have no defaults)
+    parser = parser_func()
+    positional = [a.dest for a in parser._actions if not a.option_strings]
+    args = parser.parse_args(['dummy'] * len(positional))
     
     # Verify each default matches
     for arg_name, expected_val in func_defaults.items():

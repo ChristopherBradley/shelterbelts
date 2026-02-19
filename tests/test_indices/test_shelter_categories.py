@@ -86,7 +86,6 @@ def test_shelter_categories_distance_threshold(distance_threshold, suffix):
         outdir='outdir',
         stub=f'{stub}_{suffix}',
         distance_threshold=distance_threshold,
-        minimum_height=1,
         plot=False
     )
     _assert_shelter_output(ds)

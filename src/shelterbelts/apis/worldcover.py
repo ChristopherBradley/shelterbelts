@@ -99,9 +99,9 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", s
     stub : str, optional
         Prefix for output filenames. Default is "TEST".
     save_tif : bool, optional
-        Whether to save a GeoTIFF with embedded color map. Default is True.
+        Whether to save the results as a GeoTIFF. Default is True.
     plot : bool, optional
-        Whether to save a PNG visualisation (not geolocated). Default is True.
+        Whether to generate a PNG visualisation. Default is True.
 
     Returns
     -------
@@ -166,8 +166,8 @@ def parse_arguments():
     parser.add_argument('--lat', default=-34.389, type=float, help='Latitude in EPSG:4326 (default: -34.389)')
     parser.add_argument('--lon', default=148.469, type=float, help='Longitude in EPSG:4326 (default: 148.469)')
     parser.add_argument('--buffer', default=0.01, type=float, help='Buffer in each direction in degrees (default: 0.01 ≈ 1 km)')
-    parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
-    parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
 

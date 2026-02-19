@@ -35,10 +35,6 @@ da_tree_categories = rxr.open_rasterio(tree_categories_file).isel(band=0).drop_v
 ds_tree_categories = da_tree_categories.to_dataset(name='tree_categories')
 
 
-# %%
-# Should update all the variable names from ds_cat to ds_tree_categories for readability
-ds_cat = ds_tree_categories
-
 # %% [markdown]
 # ## Default Parameters
 # The default location is a ~2km x 2km region near Milgadara, NSW, Australia. 
@@ -57,8 +53,8 @@ visualise_categories(
 # The `density_threshold` parameter sets the minimum percentage tree cover (within a radius) that counts as sheltered.
 
 # %%
-ds1 = shelter_categories(ds_cat, stub='density3', density_threshold=3)
-ds2 = shelter_categories(ds_cat, stub='density10', density_threshold=10)
+ds1 = shelter_categories(ds_tree_categories, stub='density3', density_threshold=3)
+ds2 = shelter_categories(ds_tree_categories, stub='density10', density_threshold=10)
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
@@ -74,8 +70,8 @@ visualise_categories_sidebyside(
 # - **ANY**: Shelter from all 8 compass directions regardless of wind
 
 # %%
-ds1 = shelter_categories(ds_cat, wind_data=wind_file, stub='wind_MOST_COMMON', wind_method='MOST_COMMON')
-ds2 = shelter_categories(ds_cat, wind_data=wind_file, stub='wind_WINDWARD', wind_method='WINDWARD')
+ds1 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='wind_MOST_COMMON', wind_method='MOST_COMMON')
+ds2 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='wind_WINDWARD', wind_method='WINDWARD')
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
@@ -83,8 +79,8 @@ visualise_categories_sidebyside(
 )
 
 # %%
-ds1 = shelter_categories(ds_cat, wind_data=wind_file, stub='wind_HAPPENED', wind_method='HAPPENED', wind_threshold=28)
-ds2 = shelter_categories(ds_cat, wind_data=wind_file, stub='wind_ANY', wind_method='ANY')
+ds1 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='wind_HAPPENED', wind_method='HAPPENED', wind_threshold=28)
+ds2 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='wind_ANY', wind_method='ANY')
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
@@ -98,8 +94,8 @@ visualise_categories_sidebyside(
 # Units are either pixels (without height data) or tree heights (with height data).
 
 # %%
-ds1 = shelter_categories(ds_cat, wind_data=wind_file, stub='distance10', distance_threshold=10)
-ds2 = shelter_categories(ds_cat, wind_data=wind_file, stub='distance30', distance_threshold=30)
+ds1 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='distance10', distance_threshold=10)
+ds2 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='distance30', distance_threshold=30)
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
@@ -120,8 +116,8 @@ p.axes.axis('off');
 # %%
 # This comparison shows that some taller trees provide more shelter than the default, 
 # whereas some shorter trees (like in the centre) provide less shelter than the default.
-ds1 = shelter_categories(ds_cat, wind_data=wind_file, wind_method='MOST_COMMON', stub='default')  # distance threshold represents the number of pixels (10m each)
-ds2 = shelter_categories(ds_cat, wind_data=wind_file, wind_method='MOST_COMMON', height_tif=height_file, stub='heights_provided', distance_threshold=15)  # distance_threshold represents the number of "tree_heights"
+ds1 = shelter_categories(ds_tree_categories, wind_data=wind_file, wind_method='MOST_COMMON', stub='default')  # distance threshold represents the number of pixels (10m each)
+ds2 = shelter_categories(ds_tree_categories, wind_data=wind_file, wind_method='MOST_COMMON', height_tif=height_file, stub='heights_provided', distance_threshold=15)  # distance_threshold represents the number of "tree_heights"
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
@@ -135,8 +131,8 @@ visualise_categories_sidebyside(
 # Only used when `wind_data` is provided.
 
 # %%
-ds1 = shelter_categories(ds_cat, wind_data=wind_file, stub='wind_threshold10', wind_threshold=10)
-ds2 = shelter_categories(ds_cat, wind_data=wind_file, stub='wind_threshold30', wind_threshold=30)
+ds1 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='wind_threshold10', wind_threshold=10)
+ds2 = shelter_categories(ds_tree_categories, wind_data=wind_file, stub='wind_threshold30', wind_threshold=30)
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,

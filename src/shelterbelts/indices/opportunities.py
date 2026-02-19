@@ -214,8 +214,8 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
     ----------
         da_trees, da_roads, da_gullies, da_ridges, da_contours: binary xarrays 
         da_worldcover: Int xarray for grass and crop categories
-        outdir: The output directory to save the results.
-        stub: Prefix for output files. If not specified, then it appends 'categorised' to the original filename.
+        outdir: Output directory for saving results.
+        stub: Prefix for output filenames.
         width: Number of pixels away from the feature that still counts as within the buffer
             - May want different widths for different buffers later
         
@@ -293,8 +293,8 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     ----------
         percent_tif: Percentage cover tree tif file
             - A binary tif should also work if you set the cover threshold to 0
-        outdir: The output directory to save the results.
-        stub: Prefix for output files. If not specified, then it appends 'categorised' to the original filename.
+        outdir: Output directory for saving results.
+        stub: Prefix for output filenames.
         cover_threshold: Percentage tree cover within a 10m pixel to be classified as a boolean 'tree'.
         width: Number of pixels away from the feature that still counts as within the buffer
             - May want different widths for different buffers later
@@ -448,8 +448,8 @@ def parse_arguments():
     )
 
     parser.add_argument("percent_tif", help="Input percentage cover tree tif file")
-    parser.add_argument("--outdir", default=".", help="Output directory for results (default: current directory)")
-    parser.add_argument("--stub", default=None, help="Prefix for output files (default: None)")
+    parser.add_argument("--outdir", default=".", help="Output directory for saving results")
+    parser.add_argument("--stub", default=None, help="Prefix for output filenames")
     parser.add_argument("--tmpdir", default=".", help="Temporary working directory (default: current directory)")
     parser.add_argument("--cover_threshold", type=int, default=0, help="Tree cover threshold percentage (default: 0)")
     parser.add_argument("--width", type=int, default=3, help="Buffer width in pixels (default: 3)")
@@ -460,7 +460,7 @@ def parse_arguments():
     parser.add_argument("--min_contour_length", type=int, default=100, help="Minimum contour length to consider (default: 100)")
     parser.add_argument("--equal_area", action="store_true", help="Use equal-area contours instead of fixed elevation spacing (default: False)")
     parser.add_argument("--plot", action="store_true", help="Show diagnostic plots (default: False)")
-    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
+    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from each edge of the output")
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
 
     return parser.parse_args()

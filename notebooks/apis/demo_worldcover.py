@@ -1,3 +1,18 @@
+# ---
+# jupyter:
+#   jupytext:
+#     formats: ipynb,py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.17.3
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
+# ---
+
 # %% [markdown]
 # # WorldCover API Demo
 
@@ -65,7 +80,7 @@ ds = worldcover(save_tif=False)
 
 # %% [markdown]
 # ## Disabling Visualisation Plot
-# Set `plot=False` to skip generating and saving the PNG visualisation. This can be used in combination with `savetif=False` to avoid any outputs.
+# Set `plot=False` to skip generating and saving the PNG visualisation. This can be used in combination with `save_tif=False` to avoid any outputs.
 
 # %%
 ds = worldcover(plot=False)

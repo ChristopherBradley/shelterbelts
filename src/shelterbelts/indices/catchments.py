@@ -236,11 +236,9 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
         The number of catchments to find when assigning gullies and ridges.
         Default is 10.
     savetif : bool, optional
-        Whether to save the gullies and ridges as GeoTIFF files.
-        Default is True.
+        Whether to save the results as a GeoTIFF. Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualisation with ridges and gullies
-        on the DEM. Default is True.
+        Whether to generate a PNG visualisation. Default is True.
 
     Returns
     -------
@@ -298,8 +296,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--terrain_tif', help='Path to the DEM (Digital Elevation Model) GeoTIFF file')
-    parser.add_argument('--outdir', default='.', help='The output directory to save the results (default: current directory)')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output files (default: TEST)')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
     parser.add_argument('--tmpdir', default='.', help='Temporary folder to save terrain_tif as float64 for pysheds (default: current directory)')
     parser.add_argument('--num_catchments', default=10, type=int, help='The number of catchments to find (default: 10)')
     parser.add_argument('--no-save-tif', dest='savetif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')

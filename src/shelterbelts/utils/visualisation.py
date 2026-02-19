@@ -21,7 +21,7 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
         ncolors=len(worldcover_classes)
     )
     
-    extent = [None, None, None, None]
+    extent = None
     aspect_ratio = 'auto'
     
     # Calculate aspect ratio

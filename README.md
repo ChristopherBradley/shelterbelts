@@ -25,8 +25,6 @@ After the predictions, pixels were categorised using the following method:
 - Assign linear vs non-linear patches by fitting an ellipse and skeleton to each group and applying length and width thresholds (the EE App currently has an outdated version of this)
 
 ### Upcoming Plans
-- Resolve issue with tree predictions in Western Australia
-- Tune thresholds for choosing linear/non-linear/core areas
 - Expand shelter categories to the rest of Australia, for each year 2017-2025
 - Calculate summary statistics for different regions (states, local govdernment areas, IBRA regions)
 - Cleanup demoes and tests and publish in the Journal of Open Source Software
@@ -36,22 +34,22 @@ After the predictions, pixels were categorised using the following method:
 
 ## Parameter Reference
 
-The main parameters for categorising shelterbelts can be tuned. Below are the default values along with some suggested low and high thresholds:
+The main parameters for categorising shelterbelts are below:
 
 | Parameter | Default | Low Threshold | High Threshold | Description |
 |-----------|---------|---------------|----------------|-------------|
-| `min_patch_size` | 20 | 10 | 30 | Minimum pixels to classify as a patch (vs scattered trees) |
-| `min_core_size` | 1000 | 100 | 10000 | Minimum pixels to classify as a core area |
+| `min_patch_size` | 20 | 10 | 30 | Minimum area (pixels) to classify as a patch rather than scattered trees |
+| `min_core_size` | 1000 | 100 | 10000 | Minimum patch size (pixels) to classify as a core area |
 | `edge_size` | 3 | 1 | 5 | Distance (pixels) defining the edge region around patch cores |
 | `max_gap_size` | 1 | 0 | 2 | Maximum gap (pixels) to bridge when connecting tree clusters |
-| `buffer_width` | 3 | 1 | 5 | Distance (pixels) defining buffer zones around features |
-| `distance_threshold` | 20 | 10 | 30 | Distance from trees that counts as sheltered (pixels or heights) |
-| `density_threshold` | 5 | 3 | 10 | Minimum percentage tree cover that counts as sheltered |
-| `wind_threshold` | 20 | 10 | 30 | Wind speed (km/h) used to determine dominant wind direction |
+| `buffer_width` | 3 | 1 | 5 | Number of pixels away from the feature that still counts as within the buffer |
+| `distance_threshold` | 20 | 10 | 30 | Distance from trees that counts as sheltered |
+| `density_threshold` | 5 | 3 | 10 | Percentage tree cover within distance_threshold that counts as sheltered |
+| `wind_threshold` | 20 | 10 | 30 | Wind speed threshold in km/h |
 | `wind_method` | WINDWARD | MOST_COMMON | ALL | Method to determine primary wind direction |
 | `strict_core_area` | strict | non-strict | strict | Whether to enforce strict connectivity for core areas |
-| `min_shelterbelt_length` | 20 | 10 | 30 | Minimum length to classify as a shelterbelt |
-| `max_shelterbelt_width` | 6 | 4 | 8 | Maximum width to classify as a shelterbelt |
+| `min_shelterbelt_length` | 15 | 10 | 30 | Minimum skeleton length (in pixels) to classify a cluster as linear |
+| `max_shelterbelt_width` | 6 | 4 | 8 | Maximum skeleton width (in pixels) to classify a cluster as linear |
 
 Parameters can be modified when calling functions directly in Python or via command-line arguments. For example:
 
@@ -81,11 +79,10 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 3. Right click any .py file and open as a jupyter notebook. Currently some debugging arguments are usually commented out at the bottom of each file. I'm planning to move these to tests/demos.
 
 # Examples
-There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting synchronous jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
+There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
 
 # Testing
 From the project root:
 `qsub -I -P xe2 -q copyq -l ncpus=1 -l mem=8GB -l walltime=02:00:00 -l storage=gdata/xe2+scratch/xe2 -l wd`
 `conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts`
-`pytest tests/test_indices`
-
+`pytest tests`

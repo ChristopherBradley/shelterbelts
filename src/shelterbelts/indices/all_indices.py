@@ -90,7 +90,7 @@ def indices_tif(percent_tif, outdir=default_outdir,
         ``'WINDWARD'``, ``'MOST_COMMON'``, ``'MAX'``, ``'HAPPENED'`` or
         ``'ANY'``. See :func:`shelter_categories` for details.
     wind_threshold : int, optional
-        Wind speed threshold in km/hr. Default 20.
+        Wind speed threshold in km/h. Default 20.
     cover_threshold : int, optional
         Pixel percent cover threshold to treat a pixel as 'tree'. Default 1.
         - If input is a binary tif use ``cover_threshold=1``.
@@ -104,7 +104,7 @@ def indices_tif(percent_tif, outdir=default_outdir,
         Default is 3.
     max_gap_size : int, optional
         Maximum gap (pixels) to bridge when connecting tree clusters.
-        Default is 2.
+        Default is 1.
     distance_threshold : int, optional
         Distance from trees that counts as sheltered.
         Units are either 'tree heights' or 'number of pixels', depending on if a height_tif is provided.
@@ -305,21 +305,21 @@ def parse_arguments():
     parser.add_argument("--outdir", default=default_outdir, help=f"Output folder for linear_categories.tifs (default: {default_outdir})")
     parser.add_argument("--tmpdir", default=default_tmpdir, help=f"Temporary working folder (default: {default_tmpdir})")
     parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")
-    parser.add_argument("--wind_method", default=None, help="Method to use to determine shelter direction")
-    parser.add_argument("--wind_threshold", type=int, default=20, help="Windspeed that causes damage to crops/pasture in km/hr (default: 20)")
+    parser.add_argument("--wind_method", default=None, help="Method used to infer shelter direction")
+    parser.add_argument("--wind_threshold", type=int, default=20, help="Wind speed threshold in km/h")
     parser.add_argument("--cover_threshold", type=int, default=1, help="Percentage tree cover within a pixel to classify as tree (default: 1)")
-    parser.add_argument("--min_patch_size", type=int, default=20, help="Minimum patch size in pixels (default: 20)")
-    parser.add_argument("--edge_size", type=int, default=3, help="Buffer distance at patch edges for core area (default: 3)")
-    parser.add_argument("--max_gap_size", type=int, default=1, help="Maximum gap between tree clusters (default: 1)")
-    parser.add_argument("--distance_threshold", type=int, default=20, help="Distance from trees that counts as sheltered (default: 20)")
-    parser.add_argument("--density_threshold", type=int, default=5, help="Tree cover %% within distance_threshold that counts as sheltered (default: 5)")
-    parser.add_argument("--buffer_width", type=int, default=3, help="Buffer width for sheltered area (default: 3)")
-    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
+    parser.add_argument("--min_patch_size", type=int, default=20, help="Minimum area (pixels) to classify as a patch rather than scattered trees")
+    parser.add_argument("--edge_size", type=int, default=3, help="Distance (pixels) defining the edge region around patch cores")
+    parser.add_argument("--max_gap_size", type=int, default=1, help="Maximum gap (pixels) to bridge when connecting tree clusters")
+    parser.add_argument("--distance_threshold", type=int, default=20, help="Distance from trees that counts as sheltered")
+    parser.add_argument("--density_threshold", type=int, default=5, help="Percentage tree cover within distance_threshold that counts as sheltered")
+    parser.add_argument("--buffer_width", type=int, default=3, help="Number of pixels away from the feature that still counts as within the buffer")
+    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from each edge of the output")
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action='store_false', default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
-    parser.add_argument("--min_core_size", type=int, default=1000, help="The minimum area to be classified as a core, rather than just a patch or corridor. (default: 100)")
-    parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="The minimum length to be classified as a shelterbelt. (default: 15)")
-    parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="The maximum average width to be classified as a shelterbelt. (default: 4)")
+    parser.add_argument("--min_core_size", type=int, default=1000, help="Minimum area (pixels) to classify as a core area")
+    parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="Minimum skeleton length (in pixels) to classify a cluster as linear")
+    parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="Maximum skeleton width (in pixels) to classify a cluster as linear")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
 
     return parser

@@ -302,7 +302,7 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir=nn_models_dir, nn_stub='ff
     Parameters
     ----------
         gpkg: Geopackage with the bounding box for each tile to download. A stub gets automatically assigned based on the centre of the bbox.
-        outdir: Folder to save the output tifs.
+        outdir: Output directory for saving results.
         year: The year of sentinel imagery to use as input for the tree predictions.
         nn_dir: The directory containing the neural network model and scaler.
         nn_stub: The stub of the neural network and preprocessing scaler model to make the predictions.
@@ -336,7 +336,7 @@ def parse_arguments():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("--gpkg", type=str, required=True, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
-    parser.add_argument("--outdir", type=str, required=True, help="Output directory for the final classified tifs")
+    parser.add_argument("--outdir", type=str, required=True, help="Output directory for saving results")
     parser.add_argument("--year", type=int, default=2020, help="Year of satellite imagery to download for doing the classification")
     parser.add_argument("--nn_dir", type=str, default=nn_models_dir, help=f"The stub of the neural network model and preprocessing scaler (default: {nn_models_dir})")
     parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
