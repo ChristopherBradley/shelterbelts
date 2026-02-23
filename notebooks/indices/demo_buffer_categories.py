@@ -27,7 +27,8 @@ from shelterbelts.indices.buffer_categories import buffer_categories_cmap, buffe
 
 # Example data
 cover_file = get_filename('g2_26729_cover_categories.tif')
-gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
+# gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
+gullies_file = get_filename('g2_26729_hydrolines.tif')
 ridges_file = get_filename('g2_26729_DEM-S_ridges.tif')
 roads_file = get_filename('g2_26729_roads.tif')
 
@@ -65,8 +66,8 @@ visualise_categories_sidebyside(
 # Providing `ridges_data` and `roads_data` adds ridge buffer and road buffer categories.
 
 # %%
-ds_gullies = buffer_categories(cover_file, gullies_file, roads_data=roads_file, stub='gullies_and_roads')
-ds_all = buffer_categories(cover_file, gullies_file, ridges_data=ridges_file, roads_data=roads_file, stub='all_buffers')
+ds_gullies = buffer_categories(cover_file, gullies_file, roads_data=roads_file, stub='gullies_and_roads', buffer_width=5)
+ds_all = buffer_categories(cover_file, gullies_file, ridges_data=ridges_file, roads_data=roads_file, stub='all_buffers', buffer_width=5)
 visualise_categories_sidebyside(
     ds_gullies['buffer_categories'], ds_all['buffer_categories'],
     colormap=buffer_categories_cmap, labels=buffer_categories_labels,

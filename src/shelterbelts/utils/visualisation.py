@@ -8,23 +8,13 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator
 import rasterio
 from rasterio.warp import transform_bounds
 
-def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=False):
-    """Helper to plot categorical data on a given axis."""
-    worldcover_classes = sorted(colormap.keys())
-    present_classes = np.unique(da.values[~np.isnan(da.values)]).astype(int)
-    worldcover_classes = [cls for cls in worldcover_classes if cls in present_classes]
-    
-    colors = [np.array(colormap[k]) / 255.0 for k in worldcover_classes]
-    cmap = ListedColormap(colors)
-    norm = BoundaryNorm(
-        boundaries=[v - 0.5 for v in worldcover_classes] + [worldcover_classes[-1] + 0.5],
-        ncolors=len(worldcover_classes)
-    )
-    
+
+def _get_geo_extent(da):
+    """Compute geographic extent and aspect ratio from a DataArray."""
     extent = None
     aspect_ratio = 'auto'
-    
-    # Calculate aspect ratio
+    lons = lats = None
+
     if 'x' in da.coords and 'y' in da.coords and da.rio.crs:
         x, y = da.coords['x'].values, da.coords['y'].values
         left, bottom, right, top = transform_bounds(da.rio.crs, 'EPSG:4326', x.min(), y.min(), x.max(), y.max())
@@ -38,19 +28,56 @@ def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=Fals
         extent = [lons.min(), lons.max(), lats.min(), lats.max()]
         mean_lat = np.mean(lats)
         aspect_ratio = (lats.max() - lats.min()) / ((lons.max() - lons.min()) * np.cos(np.radians(mean_lat)))
-    
-    ax.imshow(da.values, cmap=cmap, norm=norm, extent=extent, 
-              origin='upper', aspect=aspect_ratio, interpolation='nearest')
-    
+
+    return extent, aspect_ratio, lons, lats
+
+
+def _format_axes(ax):
+    """Apply consistent geographic coordinate formatting to an axis."""
     formatter = FuncFormatter(lambda x, p: f'{x:.2f}')
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(formatter)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
     ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+
+
+def _save_or_show(filename):
+    """Save the current figure to file, or display it interactively."""
+    if filename:
+        plt.savefig(filename, bbox_inches='tight')
+        plt.close()
+        print(f"Saved: {filename}")
+    else:
+        plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Categorical maps
+# ---------------------------------------------------------------------------
+
+def _plot_categories_on_axis(ax, da, colormap, labels, title, legend_inside=False):
+    """Helper to plot categorical data on a given axis."""
+    worldcover_classes = sorted(colormap.keys())
+    present_classes = np.unique(da.values[~np.isnan(da.values)]).astype(int)
+    worldcover_classes = [cls for cls in worldcover_classes if cls in present_classes]
+
+    colors = [np.array(colormap[k]) / 255.0 for k in worldcover_classes]
+    cmap = ListedColormap(colors)
+    norm = BoundaryNorm(
+        boundaries=[v - 0.5 for v in worldcover_classes] + [worldcover_classes[-1] + 0.5],
+        ncolors=len(worldcover_classes)
+    )
+
+    extent, aspect_ratio, _, _ = _get_geo_extent(da)
+
+    ax.imshow(da.values, cmap=cmap, norm=norm, extent=extent,
+              origin='upper', aspect=aspect_ratio, interpolation='nearest')
+
+    _format_axes(ax)
     ax.grid(True, alpha=0.3)
 
     if title:
-        ax.set_title(title, fontsize=30, fontweight='bold')    
+        ax.set_title(title, fontsize=30, fontweight='bold')
     if labels:
         legend_elements = [
             Patch(facecolor=color, label=labels[class_id])
@@ -67,27 +94,21 @@ def visualise_categories(da, filename=None, colormap=None, labels=None, title=No
     fig, ax = plt.subplots(figsize=(14, 10))
     _plot_categories_on_axis(ax, da, colormap, labels, title)
     plt.tight_layout()
-    
-    if filename:
-        plt.savefig(filename, bbox_inches='tight')
-        plt.close()
-        print(f"Saved: {filename}")
-    else:
-        plt.show()
+    _save_or_show(filename)
 
 
-def visualise_categories_sidebyside(da1, da2, colormap=None, labels=None, title1=None, title2=None):
+def visualise_categories_sidebyside(da1, da2, filename=None, colormap=None, labels=None, title1=None, title2=None):
     """Display two categorical maps side by side with shared colormap and labels."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
     _plot_categories_on_axis(ax1, da1, colormap, labels, title1, legend_inside=True)
     _plot_categories_on_axis(ax2, da2, colormap, labels, title2, legend_inside=True)
     plt.tight_layout()
-    plt.show()
+    _save_or_show(filename)
 
 
 def visualise_canopy_height(ds, filename=None):
     """Pretty visualisation of the canopy height.
-    
+
     Parameters
     ----------
     ds : xarray.Dataset
@@ -96,14 +117,13 @@ def visualise_canopy_height(ds, filename=None):
         If provided, save the figure to this path
     """
     image = ds['canopy_height']
-    bin_edges = np.arange(0, 16, 1) 
+    bin_edges = np.arange(0, 16, 1)
     categories = np.digitize(image, bin_edges, right=True)
     
     # Define a colour for each category
     colours = plt.cm.viridis(np.linspace(0, 1, len(bin_edges) - 2))
     cmap = ListedColormap(['white'] + list(colours))
-    
-    # Plot the values
+
     fig, ax = plt.subplots(figsize=(8, 6))
     im = ax.imshow(categories, cmap=cmap)
     
@@ -115,7 +135,7 @@ def visualise_canopy_height(ds, filename=None):
     num_categories = len(bin_edges)
     start_position = 0.5
     end_position = num_categories + 0.5
-    step = (end_position - start_position)/(num_categories)
+    step = (end_position - start_position) / num_categories
     tick_positions = np.arange(start_position, end_position, step)
     
     cbar = plt.colorbar(im, ticks=tick_positions)
@@ -123,18 +143,16 @@ def visualise_canopy_height(ds, filename=None):
     
     plt.title('Canopy Height (m)', size=14)
     plt.tight_layout()
+    _save_or_show(filename)
 
-    if filename:
-        plt.savefig(filename)
-        plt.close()
-        print("Saved:", filename)
-    else:
-        plt.show()
 
+# ---------------------------------------------------------------------------
+# GeoTIFF output
+# ---------------------------------------------------------------------------
 
 def tif_categorical(da, filename="output.tif", colormap=None, tiled=False):
     """Save a GeoTIFF with categorical colour scheme.
-    
+
     Parameters
     ----------
     da : xarray.DataArray
@@ -164,24 +182,14 @@ def tif_categorical(da, filename="output.tif", colormap=None, tiled=False):
         dst.write(da.values, 1)
         if colormap:
             dst.write_colormap(1, colormap)
-    
+
     print(f"Saved: {filename}")
 
 
 def _plot_catchments_on_axis(ax, ds, title=None):
     """Helper to plot terrain with ridges and gullies on a given axis"""
     dem = ds['terrain']
-
-    # Geographic extent and aspect ratio
-    extent = None
-    aspect_ratio = 'auto'
-    if 'x' in dem.coords and 'y' in dem.coords and dem.rio.crs:
-        x, y = dem.coords['x'].values, dem.coords['y'].values
-        left, bottom, right, top = transform_bounds(dem.rio.crs, 'EPSG:4326', x.min(), y.min(), x.max(), y.max())
-        lons = np.linspace(left, right, len(x))
-        lats = np.linspace(top, bottom, len(y))
-        extent = [lons.min(), lons.max(), lats.min(), lats.max()]
-        aspect_ratio = (lons.max() - lons.min()) / (lats.max() - lats.min())
+    extent, aspect_ratio, lons, lats = _get_geo_extent(dem)
 
     # Background DEM
     im = ax.imshow(dem.values, cmap='terrain', interpolation='bilinear',
@@ -189,9 +197,8 @@ def _plot_catchments_on_axis(ax, ds, title=None):
     plt.colorbar(im, ax=ax, label='height above sea level (m)', shrink=0.7)
 
     # Contours
-    if extent:
-        contour_x = np.linspace(extent[0], extent[1], dem.shape[1])
-        contour_y = np.linspace(extent[2], extent[3], dem.shape[0])
+    if lons is not None:
+        contour_x, contour_y = lons, lats
     else:
         contour_x = np.arange(dem.shape[1])
         contour_y = np.arange(dem.shape[0])
@@ -201,28 +208,21 @@ def _plot_catchments_on_axis(ax, ds, title=None):
     ax.clabel(contours, inline=True, fontsize=8, fmt='%1.0f')
 
     # Ridges & Gullies as geographic scatter
-    if extent:
-        rows_g, cols_g = np.where(ds['gullies'].values)
+    rows_g, cols_g = np.where(ds['gullies'].values)
+    rows_r, cols_r = np.where(ds['ridges'].values)
+    if lons is not None:
         gully_lons = np.interp(cols_g, np.arange(len(lons)), lons)
         gully_lats = np.interp(rows_g, np.arange(len(lats)), lats)
-        rows_r, cols_r = np.where(ds['ridges'].values)
         ridge_lons = np.interp(cols_r, np.arange(len(lons)), lons)
         ridge_lats = np.interp(rows_r, np.arange(len(lats)), lats)
     else:
-        rows_g, cols_g = np.where(ds['gullies'].values)
         gully_lons, gully_lats = cols_g, rows_g
-        rows_r, cols_r = np.where(ds['ridges'].values)
         ridge_lons, ridge_lats = cols_r, rows_r
 
     ax.scatter(gully_lons, gully_lats, marker='.', linewidths=0.01, c='blue', label='Gullies')
     ax.scatter(ridge_lons, ridge_lats, marker='.', linewidths=0.01, c='red', label='Ridges')
 
-    # Axis formatting
-    formatter = FuncFormatter(lambda x, p: f'{x:.2f}')
-    ax.xaxis.set_major_formatter(formatter)
-    ax.yaxis.set_major_formatter(formatter)
-    ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    _format_axes(ax)
     ax.legend(loc='upper right', markerscale=2)
 
     if title:
@@ -234,13 +234,7 @@ def plot_catchments(ds, filename=None, title=None):
     fig, ax = plt.subplots() # figsize=(14, 10))
     _plot_catchments_on_axis(ax, ds, title)
     plt.tight_layout()
-
-    if filename:
-        plt.savefig(filename, bbox_inches='tight')
-        plt.close()
-        print(f"Saved: {filename}")
-    else:
-        plt.show()
+    _save_or_show(filename)
 
 
 def plot_catchments_sidebyside(ds1, ds2, title1=None, title2=None):

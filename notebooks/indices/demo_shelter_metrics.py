@@ -1,11 +1,12 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: py:percent
+#     formats: ipynb,py:percent
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -15,12 +16,8 @@
 # %% [markdown]
 # # Shelter Metrics Demo
 #
-# Demonstrates `patch_metrics` and `class_metrics` from `shelter_metrics.py`.
-# - `patch_metrics` classifies tree clusters as linear (shelterbelts) vs non-linear (patches)
+# - `patch_metrics` classifies tree clusters as linear (shelterbelts) vs non-linear (patches) and outputs the number of patches in each category
 # - `class_metrics` calculates percentage cover in each category
-
-# %% [markdown]
-# ## Setup
 
 # %%
 from shelterbelts.utils.filepaths import get_filename
@@ -29,15 +26,16 @@ from shelterbelts.indices.shelter_metrics import patch_metrics, class_metrics
 from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
 
 # Example data
-buffer_file = get_filename('g2_26729_buffer_categories.tif')
+buffer_file = get_filename('g2_26729_gullies_and_roads_buffer_categories.tif')
 
 # %% [markdown]
 # ## Default Parameters
 
 # %%
-ds, df = patch_metrics(buffer_file, outdir='/tmp', stub='default', plot=False, save_csv=False, save_tif=False, save_labels=False)
-print(f"Output variables: {set(ds.data_vars)}")
-print(f"Number of patches: {len(df)}")
+ds, df = patch_metrics(buffer_file)
+
+# %%
+df.head()
 
 # %%
 visualise_categories(
@@ -47,56 +45,59 @@ visualise_categories(
 )
 
 # %% [markdown]
-# ## Patch metrics DataFrame
-#
-# Each row represents a tree cluster with its geometric properties.
-
-# %%
-df.head(10)
-
-# %% [markdown]
 # ## Changing min_shelterbelt_length and max_shelterbelt_width
-#
-# These parameters control which clusters are classified as linear (shelterbelts).
 
 # %%
-ds1, _ = patch_metrics(buffer_file, outdir='/tmp', stub='short', plot=False, save_csv=False, save_tif=False, save_labels=False,
-                        min_shelterbelt_length=10, max_shelterbelt_width=4)
-ds2, _ = patch_metrics(buffer_file, outdir='/tmp', stub='long', plot=False, save_csv=False, save_tif=False, save_labels=False,
-                        min_shelterbelt_length=25, max_shelterbelt_width=8)
+ds1, _ = patch_metrics(buffer_file, max_shelterbelt_width=8)
+ds2, _ = patch_metrics(buffer_file, min_shelterbelt_length=25)
 visualise_categories_sidebyside(
     ds1['linear_categories'], ds2['linear_categories'],
     colormap=linear_categories_cmap, labels=linear_categories_labels,
-    title1="length=10, width=4", title2="length=25, width=8"
+    title1="max width=8", title2="min length=25"
 )
 
 # %% [markdown]
 # ## Class Metrics
-#
-# `class_metrics` calculates the percentage cover in each category.
 
 # %%
 linear_file = get_filename('g2_26729_linear_categories.tif')
-dfs = class_metrics(linear_file, outdir='/tmp', stub='test', save_excel=False)
+dfs = class_metrics(linear_file)
 
 # %%
-# Overall category breakdown
 dfs['Overall']
 
 # %%
-# Landcover summary
 dfs['Landcover']
 
 # %%
-# Tree category breakdown
 dfs['Trees']
 
 # %%
-# Shelter statistics
 dfs['Shelter']
 
 # %% [markdown]
 # ## Command Line Interface
 
 # %%
+from shelterbelts.utils.filepaths import setup_repo_path
+setup_repo_path()
+
+# %%
 # !python -m shelterbelts.indices.shelter_metrics --help
+
+# %%
+# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --outdir ../notebooks/indices --stub command_line
+
+# %%
+# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --min_shelterbelt_length 25 --max_shelterbelt_width 8 --outdir ../notebooks/indices --stub command_line
+
+# %% [markdown]
+# ### Cleanup
+# Remove the output files created by this notebook
+
+# %%
+# !rm ../notebooks/indices/*.tif
+# !rm ../notebooks/indices/*.png
+# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
+# !rm ../notebooks/indices/*.xlsx
+# !rm ../notebooks/indices/*.csv

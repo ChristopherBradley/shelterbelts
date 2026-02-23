@@ -56,6 +56,10 @@ plot_catchments_sidebyside(ds5, ds20, title1='num_catchments=5', title2='num_cat
 # ## Command Line Interface
 
 # %%
+from shelterbelts.utils.filepaths import setup_repo_path
+setup_repo_path()
+
+# %%
 # !python -m shelterbelts.indices.catchments --help
 
 # %%
