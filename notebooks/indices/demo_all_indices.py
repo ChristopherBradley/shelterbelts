@@ -6,6 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -15,13 +16,8 @@
 # %% [markdown]
 # # All Indices Demo
 #
-# Demonstrates the `indices_tif` function, which runs the complete pipeline:
+# This notebook demonstrates the full indices pipeline:  
 # tree_categories → shelter_categories → cover_categories → buffer_categories → patch_metrics
-#
-# This is the main entry point for processing a single percent-cover GeoTIFF.
-
-# %% [markdown]
-# ## Setup
 
 # %%
 from shelterbelts.utils.filepaths import get_filename
@@ -29,18 +25,16 @@ from shelterbelts.utils.visualisation import visualise_categories
 from shelterbelts.indices.all_indices import indices_tif
 from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
 
-# Example data - a binary tree cover tif
+# Example data
 tree_cover_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
 
 # %% [markdown]
 # ## Default Parameters
-# Runs the full pipeline with default settings (no wind data).
 
 # %%
 # %%time
-ds, df = indices_tif(tree_cover_file, outdir='/tmp', stub='demo_defaults', debug=False)
-print(f"Output variables: {set(ds.data_vars)}")
-print(f"Number of patches: {len(df)}")
+ds, df = indices_tif(tree_cover_file)
+df
 
 # %%
 visualise_categories(

@@ -458,6 +458,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
             most_common = values[np.argmax(counts)]
             dominant_categories.append(most_common)
         df_patch_metrics["category_id"] = dominant_categories
+        df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)
     
         # Save the patch metrics
         if save_csv:
