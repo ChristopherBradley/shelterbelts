@@ -17,13 +17,13 @@
 # # All Indices Demo
 #
 # This notebook demonstrates the full indices pipeline:  
-# tree_categories → shelter_categories → cover_categories → buffer_categories → patch_metrics & class_metrics
+# tree_categories → shelter_categories → cover_categories → buffer_categories → patch_metrics
 
 # %%
 from shelterbelts.utils.filepaths import get_filename, setup_repo_path
 from shelterbelts.utils.visualisation import visualise_categories_sidebyside, visualise_categories
 from shelterbelts.indices.all_indices import indices_tif
-from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
+from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels, class_metrics
 
 setup_repo_path(subdir='')
 
@@ -38,14 +38,14 @@ tree_cover_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
 ds, df = indices_tif(tree_cover_file)
 
 # %%
-df.head()
-
-# %%
 visualise_categories(
     ds['linear_categories'],
     colormap=linear_categories_cmap,
     labels=linear_categories_labels
 )
+
+# %%
+df.head()
 
 # %% [markdown]
 # ## Changing min_patch_size
@@ -53,8 +53,8 @@ visualise_categories(
 # In this example some of the smaller groups of trees are "Non-linear Patches" on the left and "Scattered Trees" on the right.
 
 # %%
-ds1, _ = indices_tif(tree_cover_file, outdir='/tmp', stub='patch10', min_patch_size=10)
-ds2, _ = indices_tif(tree_cover_file, outdir='/tmp', stub='patch40', min_patch_size=40)
+ds1, _ = indices_tif(tree_cover_file, stub='min_patch_size10', min_patch_size=10)
+ds2, _ = indices_tif(tree_cover_file, stub='min_patch_size40', min_patch_size=40)
 visualise_categories_sidebyside(
     ds1['linear_categories'], ds2['linear_categories'],
     colormap=linear_categories_cmap, labels=linear_categories_labels,
@@ -78,10 +78,7 @@ visualise_categories_sidebyside(
 # %% [markdown]
 # ## Changing buffer_width
 #
-# In this example the riparian zone & road zone are 3 pixels wide (1 pixel buffer on each side) on the left, and 
-
-# %%
-# !ls
+# In this example the riparian zone & road zone are 3 pixels wide (1 pixel buffer on each side) on the left, and 11 pixels wide (5 + 1 + 5) on the right.
 
 # %%
 ds1, _ = indices_tif(tree_cover_file, stub='buffer1', buffer_width=1)
@@ -95,11 +92,11 @@ visualise_categories_sidebyside(
 # %% [markdown]
 # ## Changing min_shelterbelt_length and max_shelterbelt_width
 #
-# These parameters control the classification of tree clusters as linear (shelterbelts) vs non-linear (patches).
+# In this example there is just 1 Linear Patch on the left because the others don't meet the requirement of 25 pixels long. In addition, there is a 4th (wider) Linear Patch on the right compared to just 3 Linear Patches with the default values.
 
 # %%
-ds1, _ = indices_tif(tree_cover_file, outdir='/tmp', stub='length25', min_shelterbelt_length=25)
-ds2, _ = indices_tif(tree_cover_file, outdir='/tmp', stub='width8', max_shelterbelt_width=8)
+ds1, _ = indices_tif(tree_cover_file, outdir='/tmp', stub='length25', min_shelterbelt_length=25, buffer_width=5)
+ds2, _ = indices_tif(tree_cover_file, outdir='/tmp', stub='width8', max_shelterbelt_width=8, buffer_width=5)
 visualise_categories_sidebyside(
     ds1['linear_categories'], ds2['linear_categories'],
     colormap=linear_categories_cmap, labels=linear_categories_labels,
@@ -107,16 +104,25 @@ visualise_categories_sidebyside(
 )
 
 # %% [markdown]
+# ## Class Metrics
+
+# %%
+dfs = class_metrics(ds)
+
+# %%
+dfs['Overall']
+
+# %%
+dfs['Landcover']
+
+# %%
+dfs['Trees']
+
+# %%
+dfs['Shelter']
+
+# %% [markdown]
 # ## Command Line Interface
 
 # %%
 # !python -m shelterbelts.indices.all_indices --help
-
-# %% [markdown]
-# ### Cleanup
-
-# %%
-# !rm /tmp/gap*.tif /tmp/patch*.tif /tmp/edge*.tif /tmp/length*.tif /tmp/width*.tif /tmp/dist*.tif /tmp/buf*.tif 2>/dev/null
-# !rm /tmp/gap*.png /tmp/patch*.png /tmp/edge*.png /tmp/length*.png /tmp/width*.png /tmp/dist*.png /tmp/buf*.png 2>/dev/null
-# !rm /tmp/gap*.csv /tmp/patch*.csv /tmp/edge*.csv /tmp/length*.csv /tmp/width*.csv /tmp/dist*.csv /tmp/buf*.csv 2>/dev/null
-# !rm /tmp/gap*.xlsx /tmp/patch*.xlsx /tmp/edge*.xlsx /tmp/length*.xlsx /tmp/width*.xlsx /tmp/dist*.xlsx /tmp/buf*.xlsx 2>/dev/null

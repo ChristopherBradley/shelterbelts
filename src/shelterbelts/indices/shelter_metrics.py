@@ -577,6 +577,8 @@ def class_metrics(buffer_data, outdir=".", stub="TEST", save_excel=True):
         'percentage': (counts.values / total_pixels) * 100
     })
     df_overall = df_overall.set_index('label')
+    df_overall['percentage'] = df_overall['percentage'].round(2)
+    df_overall = df_overall.sort_values(by='percentage', ascending=False)
     
     # Landcover groups
     df_overall['landcover_group'] = df_overall['category_id'].apply(group_label) # Not sure why this was commented out?
