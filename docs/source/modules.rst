@@ -4,57 +4,25 @@ API Reference
 Indices
 =======
 
+
 Tree Categories
----------------
 
 .. autofunction:: shelterbelts.indices.tree_categories.tree_categories
-
-Command Line Interface
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. argparse::
-   :module: shelterbelts.indices.tree_categories
-   :func: parse_arguments
-   :prog: python -m shelterbelts.indices.tree_categories
 
 Shelter Categories
 ------------------
 
 .. autofunction:: shelterbelts.indices.shelter_categories.shelter_categories
 
-Command Line Interface
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. argparse::
-   :module: shelterbelts.indices.shelter_categories
-   :func: parse_arguments
-   :prog: python -m shelterbelts.indices.shelter_categories
-
 Cover Categories
 ----------------
 
 .. autofunction:: shelterbelts.indices.cover_categories.cover_categories
 
-Command Line Interface
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. argparse::
-   :module: shelterbelts.indices.cover_categories
-   :func: parse_arguments
-   :prog: python -m shelterbelts.indices.cover_categories
-
 Buffer Categories
 -----------------
 
 .. autofunction:: shelterbelts.indices.buffer_categories.buffer_categories
-
-Command Line Interface
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. argparse::
-   :module: shelterbelts.indices.buffer_categories
-   :func: parse_arguments
-   :prog: python -m shelterbelts.indices.buffer_categories
 
 Shelter Metrics
 ---------------
@@ -69,13 +37,21 @@ Class Metrics
 
 .. autofunction:: shelterbelts.indices.shelter_metrics.class_metrics
 
-Command Line Interface
-^^^^^^^^^^^^^^^^^^^^^^
+Full Indices Pipeline
+----------------------
 
-.. argparse::
-   :module: shelterbelts.indices.shelter_metrics
-   :func: parse_arguments
-   :prog: python -m shelterbelts.indices.shelter_metrics
+Run the end-to-end indices pipeline on percent-cover rasters.
+
+.. autofunction:: shelterbelts.indices.all_indices.indices_tif
+
+.. autofunction:: shelterbelts.indices.all_indices.indices_csv
+
+.. autofunction:: shelterbelts.indices.all_indices.indices_tifs
+
+Catchments
+----------
+
+.. autofunction:: shelterbelts.indices.catchments.catchments
 
 APIs
 ====
@@ -85,10 +61,12 @@ WorldCover
 
 .. autofunction:: shelterbelts.apis.worldcover.worldcover
 
-Command Line Interface
-~~~~~~~~~~~~~~~~~~~~~~
+BARRA Daily
+-----------
 
-.. argparse::
-   :module: shelterbelts.apis.worldcover
-   :func: parse_arguments
-   :prog: python -m shelterbelts.apis.worldcover
+.. autofunction:: shelterbelts.apis.barra_daily.barra_daily
+
+Canopy Height
+-------------
+
+.. autofunction:: shelterbelts.apis.canopy_height.canopy_height

@@ -20,7 +20,7 @@ import rasterio
 # sys.path.append(src_dir)
 # # print(src_dir)
 
-from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical
 # -
 
 cmap_woody_veg = {
@@ -127,9 +127,9 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--folder', help='The folder containing all of the input tiffs')
-    parser.add_argument('--func_string', help="Either 'worldcover_trees' or 'canopy_height_trees'")
-    parser.add_argument('--outdir', default='.', help='The folder containing all of the output tiffs')
+    parser.add_argument('folder', help='The folder containing all of the input tiffs')
+    parser.add_argument('func_string', help="Either 'worldcover_trees' or 'canopy_height_trees'")
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
     parser.add_argument('--limit', default=None)
 
     return parser.parse_args()

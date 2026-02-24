@@ -16,11 +16,8 @@ import odc.stac
 import pystac_client
 import planetary_computer
 
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap, BoundaryNorm
-from matplotlib.patches import Patch
 
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 # -
 
 worldcover_cmap = {
@@ -75,7 +72,7 @@ def worldcover_bbox(bbox=[147.736, -42.912, 147.786, -42.862], crs="EPSG:4326"):
     return da
 
 
-def worldcover_centerpoint(lat=-34.389, lon=148.469, buffer=0.05):
+def worldcover_centrepoint(lat=-34.389, lon=148.469, buffer=0.05):
     """Download worldcover using a lat, lon & buffer"""
     bbox = [lon - buffer, lat - buffer, lon + buffer, lat + buffer]
     crs="EPSG:4326"
@@ -83,7 +80,7 @@ def worldcover_centerpoint(lat=-34.389, lon=148.469, buffer=0.05):
     return da
 
 
-def worldcover(lat=-34.389, lon=148.469, buffer=0.05, outdir=".", stub="TEST", save_tif=True, plot=True):
+def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", save_tif=True, plot=True):
     """
     Download ESA WorldCover imagery from the Microsoft Planetary Computer API.
 
@@ -96,15 +93,15 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.05, outdir=".", stub="TEST", s
     buffer : float, optional
         Distance in degrees in a single direction (0.01 ≈ 1 km),
         resulting in an approximately square area of size 2*buffer.
-        Default is 0.05.
+        Default is 0.01.
     outdir : str, optional
         Output directory for saving results. Default is current directory.
     stub : str, optional
         Prefix for output filenames. Default is "TEST".
     save_tif : bool, optional
-        Whether to save a GeoTIFF with embedded color map. Default is True.
+        Whether to save the results as a GeoTIFF. Default is True.
     plot : bool, optional
-        Whether to save a PNG visualization (not geolocated). Default is True.
+        Whether to generate a PNG visualisation. Default is True.
 
     Returns
     -------
@@ -126,21 +123,19 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.05, outdir=".", stub="TEST", s
     Download a small tile without saving files:
 
     >>> ds = worldcover(buffer=0.01, save_tif=False, plot=False)
+    Starting worldcover.py
     >>> 'worldcover' in ds.data_vars
-    True  # Note: Currently working with pytest but not doctest
+    True
 
     Visualising the WorldCover output:
 
     .. plot::
 
-        from shelterbelts.apis.worldcover import worldcover_cmap, worldcover_labels
-        from shelterbelts.utils.filepaths import get_filename
-        from shelterbelts.utils.visualization import visualise_categories
-        import rioxarray as rxr
-
-        worldcover_file = get_filename('g2_26729_worldcover.tif')
-        da = rxr.open_rasterio(worldcover_file).squeeze('band').drop_vars('band')
-        visualise_categories(da, colormap=worldcover_cmap, labels=worldcover_labels, title="ESA WorldCover")
+        from shelterbelts.apis.worldcover import worldcover, worldcover_cmap, worldcover_labels
+        from shelterbelts.utils.visualisation import visualise_categories
+        
+        ds = worldcover(buffer=0.01, save_tif=False, plot=False)
+        visualise_categories(ds['worldcover'], colormap=worldcover_cmap, labels=worldcover_labels, title="ESA WorldCover")
 
     """
     print("Starting worldcover.py")
@@ -150,7 +145,7 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.05, outdir=".", stub="TEST", s
         buffer = max_buffer
         print(f"Area too large, please download in smaller tiles. Reducing buffer to {max_buffer}.") 
         print(f"Estimated filesize = 10MB, estimated download time = 2 mins")
-    da = worldcover_centerpoint(lat, lon, buffer)
+    da = worldcover_centrepoint(lat, lon, buffer)
     ds = da.to_dataset().drop_vars(['time']).rename({'map': 'worldcover'})
 
     if save_tif:
@@ -168,12 +163,13 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--lat', default='-34.389', help='Latitude in EPSG:4326 (default: -34.389)')
-    parser.add_argument('--lon', default='148.469', help='Longitude in EPSG:4326 (default: 148.469)')
-    parser.add_argument('--buffer', default='0.1', help='Buffer in each direction in degrees (default is 0.1, or about 20kmx20km)')
-    parser.add_argument('--outdir', default='.', help='The directory to save the outputs. (Default is the current directory)')
-    parser.add_argument('--stub', default='TEST', help='The name to be prepended to each file download. (default: TEST)')
-    parser.add_argument('--plot', default=False, action="store_true", help="Boolean to Save a png file that isn't geolocated, but can be opened in Preview. (Default: False)")
+    parser.add_argument('--lat', default=-34.389, type=float, help='Latitude in EPSG:4326 (default: -34.389)')
+    parser.add_argument('--lon', default=148.469, type=float, help='Longitude in EPSG:4326 (default: 148.469)')
+    parser.add_argument('--buffer', default=0.01, type=float, help='Buffer in each direction in degrees (default: 0.01 ≈ 1 km)')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
+    parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
 
     return parser
 
@@ -183,11 +179,4 @@ if __name__ == '__main__':
     parser = parse_arguments()
     args = parser.parse_args()
     
-    lat = float(args.lat)
-    lon = float(args.lon)
-    buffer = float(args.buffer)
-    outdir = args.outdir
-    stub = args.stub
-    plot = args.plot
-    
-    worldcover(lat, lon, buffer, outdir, stub, plot=plot)
+    worldcover(args.lat, args.lon, args.buffer, args.outdir, args.stub, save_tif=args.save_tif, plot=args.plot)

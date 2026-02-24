@@ -1,6 +1,6 @@
-"""Tests for catchments API."""
+"""Tests for catchments function."""
 
-from shelterbelts.apis.catchments import catchments
+from shelterbelts.indices.catchments import catchments
 
 # Ran these commands in the terminal to get rid of postgres errors (they didn't prevent the code from running, just clogged up the outputs).
 # rm $CONDA_PREFIX/lib/gdalplugins/ogr_PG.dylib

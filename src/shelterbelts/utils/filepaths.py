@@ -1,30 +1,28 @@
 """Utilities for file paths and data location management."""
 
+import sys
 from pathlib import Path
 import os
 import rioxarray as rxr
 
-# Local test file paths (used by tests and local runs)
-test_worldcover_dir = 'data'
-test_worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
-test_hydrolines_gdb = 'data/g2_26729_hydrolines_cropped.gpkg'
-test_roads_gdb = 'data/g2_26729_roads_cropped.gpkg'
 
 IS_GADI = Path('/scratch').exists()
 if IS_GADI:
     # NCI/Gadi file paths
     default_outdir = '/scratch/xe2/cb8590/tmp'
     default_tmpdir = '/scratch/xe2/cb8590/tmp'
+    worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
+    worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
+    hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
+    roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 else:
     # Local defaults
     default_outdir = 'outdir'
     default_tmpdir = 'tmp'
-
-# NCI/Gadi file paths - Core pipeline data
-worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
-worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
-hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
-roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
+    worldcover_dir = 'data'
+    worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
+    hydrolines_gdb = 'data/g2_26729_hydrolines_cropped.gpkg'
+    roads_gdb = 'data/g2_26729_roads_cropped.gpkg'
 
 # NCI/Gadi file paths - Canopy height data
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
@@ -117,3 +115,40 @@ def get_filename(filename):
         f"Data file '{filename}' not found in any expected location. "
         f"Checked: {[str(p) for p in possible_paths]}"
     )
+
+
+def setup_repo_path(repo_name='shelterbelts'):
+    """Set up repository path for notebooks running in different environments.
+    
+    Detects whether running from repo root, local notebook, or Gadi,
+    updates sys.path with src directory, and changes cwd to src directory.
+    
+    Parameters
+    ----------
+    repo_name : str, optional
+        Name of the repository directory. Default is 'shelterbelts'.
+    
+    Returns
+    -------
+    str
+        Path to the repository root directory
+    """
+    cwd = Path.cwd()
+    if cwd.name == repo_name: # Tests
+        repo_dir = cwd
+    elif cwd.parent.name == repo_name: # Notebooks
+        repo_dir = cwd.parent
+    elif cwd.parent.parent.name == repo_name: # Could make this recursive, but notebooks only go 2 levels deep.
+        repo_dir = cwd.parent.parent
+    elif (Path.home() / 'Projects' / repo_name).exists():
+        repo_dir = Path.home() / 'Projects' / repo_name  # Gadi
+    else:
+        raise RuntimeError("Could not find repository root")
+    
+    repo_dir = str(repo_dir)
+    src_dir = os.path.join(repo_dir, 'src')
+    os.chdir(src_dir)
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+    
+    return repo_dir

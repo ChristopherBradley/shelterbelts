@@ -15,15 +15,15 @@ from skimage.morphology import skeletonize
 from skimage.measure import find_contours
 
 
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
-from shelterbelts.apis.canopy_height import merge_tiles_bbox, merged_ds
-from shelterbelts.apis.catchments import catchments  # This takes a while to import
+from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
+from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
+from shelterbelts.indices.catchments import catchments  # This takes a while to import
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.filepaths import nsw_dem_dir
 
 # -
 
-# from shelterbelts.indices.full_pipelines import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
+# from shelterbelts.indices.all_indices import worldcover_dir, worldcover_geojson, hydrolines_gdb, roads_gdb
 
 # +
 nsw_dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
@@ -58,7 +58,7 @@ def segmentation(river_mask, min_branch_length=10):
     
     for y, x in river_pixels:
         G.add_node((y, x))
-        # Check 8-connectivity neighbors
+        # Check 8-connectivity neighbours
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
                 if dy == dx == 0:
@@ -68,7 +68,7 @@ def segmentation(river_mask, min_branch_length=10):
                     if river_mask[ny, nx_] == 1:
                         G.add_edge((y, x), (ny, nx_))
     
-    # Identify junctions (>=3 neighbors) and endpoints (==1 neighbor)
+    # Identify junctions (>=3 neighbours) and endpoints (==1 neighbour)
     junctions = {n for n, d in G.degree() if d >= 3}
     endpoints = {n for n, d in G.degree() if d == 1}
     
@@ -77,14 +77,14 @@ def segmentation(river_mask, min_branch_length=10):
     visited_edges = set()
     
     for start in endpoints | junctions:
-        for neighbor in G.neighbors(start):
-            edge = frozenset([start, neighbor])
+        for neighbour in G.neighbors(start):
+            edge = frozenset([start, neighbour])
             if edge in visited_edges:
                 continue
     
-            branch = [start, neighbor]
+            branch = [start, neighbour]
             visited_edges.add(edge)
-            prev, current = start, neighbor
+            prev, current = start, neighbour
     
             # Walk until we hit a junction or endpoint
             while current not in (endpoints | junctions):
@@ -129,16 +129,16 @@ def segmentation(river_mask, min_branch_length=10):
             if not np.any(mask):
                 continue  # already merged this branch
     
-            # Find neighboring branches
+            # Find neighbouring branches
             dilated = binary_dilation(mask, structure=np.ones((3, 3)))
-            neighbors = np.unique(branch_labels_new[dilated & (branch_labels_new != bid) & (branch_labels_new != 0)])
+            neighbours = np.unique(branch_labels_new[dilated & (branch_labels_new != bid) & (branch_labels_new != 0)])
     
-            if len(neighbors) == 0:
+            if len(neighbours) == 0:
                 continue
     
-            # Merge into largest neighboring branch
-            largest_neighbor = max(neighbors, key=lambda n: branch_sizes.get(n, 0))
-            branch_labels_new[mask] = largest_neighbor
+            # Merge into largest neighbouring branch
+            largest_neighbour = max(neighbours, key=lambda n: branch_sizes.get(n, 0))
+            branch_labels_new[mask] = largest_neighbour
             merged_this_round = True
     
         if not merged_this_round:
@@ -214,8 +214,8 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
     ----------
         da_trees, da_roads, da_gullies, da_ridges, da_contours: binary xarrays 
         da_worldcover: Int xarray for grass and crop categories
-        outdir: The output directory to save the results.
-        stub: Prefix for output files. If not specified, then it appends 'categorised' to the original filename.
+        outdir: Output directory for saving results.
+        stub: Prefix for output filenames.
         width: Number of pixels away from the feature that still counts as within the buffer
             - May want different widths for different buffers later
         
@@ -293,8 +293,8 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     ----------
         percent_tif: Percentage cover tree tif file
             - A binary tif should also work if you set the cover threshold to 0
-        outdir: The output directory to save the results.
-        stub: Prefix for output files. If not specified, then it appends 'categorised' to the original filename.
+        outdir: Output directory for saving results.
+        stub: Prefix for output filenames.
         cover_threshold: Percentage tree cover within a 10m pixel to be classified as a boolean 'tree'.
         width: Number of pixels away from the feature that still counts as within the buffer
             - May want different widths for different buffers later
@@ -346,7 +346,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, unique_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-    da_worldcover2 = da_worldcover.rio.reproject_match(da_trees) # Should do this within full_pipelines so it doesn't need to happen twice
+    da_worldcover2 = da_worldcover.rio.reproject_match(da_trees) # Should do this within indices (formerly full_pipelines) so it doesn't need to happen twice
 
     # Create a cropped/stitching dem for the region of interest
     dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
@@ -400,7 +400,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     return ds_opportunities
 
 
-# Could generalise and reuse the run_pipeline_tifs function from full_pipelines.py. The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
+# Could generalise and reuse the indices_tifs function from indices.py (previously run_pipeline_tifs/full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
 def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
@@ -440,7 +440,7 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
 
 
 # +
-# Would be slightly more computationally efficient to generate the opportunities from within full_pipelines than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
+# Would be slightly more computationally efficient to generate the opportunities from within indices.py than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
 import argparse
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -448,8 +448,8 @@ def parse_arguments():
     )
 
     parser.add_argument("percent_tif", help="Input percentage cover tree tif file")
-    parser.add_argument("--outdir", default=".", help="Output directory for results (default: current directory)")
-    parser.add_argument("--stub", default=None, help="Prefix for output files (default: None)")
+    parser.add_argument("--outdir", default=".", help="Output directory for saving results")
+    parser.add_argument("--stub", default=None, help="Prefix for output filenames")
     parser.add_argument("--tmpdir", default=".", help="Temporary working directory (default: current directory)")
     parser.add_argument("--cover_threshold", type=int, default=0, help="Tree cover threshold percentage (default: 0)")
     parser.add_argument("--width", type=int, default=3, help="Buffer width in pixels (default: 3)")
@@ -460,7 +460,7 @@ def parse_arguments():
     parser.add_argument("--min_contour_length", type=int, default=100, help="Minimum contour length to consider (default: 100)")
     parser.add_argument("--equal_area", action="store_true", help="Use equal-area contours instead of fixed elevation spacing (default: False)")
     parser.add_argument("--plot", action="store_true", help="Show diagnostic plots (default: False)")
-    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from the linear_tif (default: 0)")
+    parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from each edge of the output")
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
 
     return parser.parse_args()

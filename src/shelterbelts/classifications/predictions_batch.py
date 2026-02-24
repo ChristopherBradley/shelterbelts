@@ -245,10 +245,10 @@ def run_worker(rows, nn_dir=nn_models_dir, nn_stub='fft_89a_92s_85r_86p', multi_
         try:
             if multi_model:
                 
-                # Choose which of the 6 models to use based on the center coordinate
+                # Choose which of the 6 models to use based on the centre coordinate
                 bbox = row[3]
-                center = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
-                point = Point(center)
+                centre = (bbox[2] + bbox[0])/2, (bbox[3] + bbox[1])/2
+                point = Point(centre)
 
 #                 # Using the nearest polygon instead of contains because the koppen boundaries miss quite a bit of landmass near the coastlines
 #                 nearest_geom = min(gdf_koppen.geometry, key=lambda g: point.distance(g))
@@ -301,8 +301,8 @@ def predictions_batch(gpkg, outdir, year=2020, nn_dir=nn_models_dir, nn_stub='ff
     
     Parameters
     ----------
-        gpkg: Geopackage with the bounding box for each tile to download. A stub gets automatically assigned based on the center of the bbox.
-        outdir: Folder to save the output tifs.
+        gpkg: Geopackage with the bounding box for each tile to download. A stub gets automatically assigned based on the centre of the bbox.
+        outdir: Output directory for saving results.
         year: The year of sentinel imagery to use as input for the tree predictions.
         nn_dir: The directory containing the neural network model and scaler.
         nn_stub: The stub of the neural network and preprocessing scaler model to make the predictions.
@@ -335,8 +335,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--gpkg", type=str, required=True, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
-    parser.add_argument("--outdir", type=str, required=True, help="Output directory for the final classified tifs")
+    parser.add_argument("gpkg", type=str, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
+    parser.add_argument("outdir", type=str, help="Output directory for saving results")
     parser.add_argument("--year", type=int, default=2020, help="Year of satellite imagery to download for doing the classification")
     parser.add_argument("--nn_dir", type=str, default=nn_models_dir, help=f"The stub of the neural network model and preprocessing scaler (default: {nn_models_dir})")
     parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
@@ -352,15 +352,7 @@ if __name__ == '__main__':
 
     args = parse_arguments()
     
-    gpkg = args.gpkg
-    outdir = args.outdir
-    year = int(args.year)
-    nn_dir = args.nn_dir
-    nn_stub = args.nn_stub
-    limit = args.limit
-    multi_model = args.multi_model
-    
-    predictions_batch(gpkg, outdir, year, nn_dir, nn_stub, limit, multi_model, args.confidence)
+    predictions_batch(args.gpkg, args.outdir, int(args.year), args.nn_dir, args.nn_stub, args.limit, args.multi_model, args.confidence)
 
 # +
 # # %%time

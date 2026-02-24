@@ -8,7 +8,7 @@ import scipy
 
 from shelterbelts.apis.barra_daily import wind_dataframe, dominant_wind_direction
 from shelterbelts.indices.tree_categories import tree_categories_labels, tree_categories_cmap
-from shelterbelts.utils.visualization import tif_categorical, visualise_categories
+from shelterbelts.apis.worldcover import tif_categorical, visualise_categories
 
 
 shelter_categories_cmap = {
@@ -28,68 +28,31 @@ inverted_labels = {v: k for k, v in shelter_categories_labels.items()}
 direction_map = {
     'N': (-1, 0),
     'S': (1, 0),
-    'E': (0, -1),
-    'W': (0, 1),
-    'NE': (-1, -1),
-    'NW': (-1, 1),
-    'SE': (1, -1),
-    'SW': (1, 1),
+    'E': (0, 1),
+    'W': (0, -1),
+    'NE': (-1, 1),
+    'NW': (-1, -1),
+    'SE': (1, 1),
+    'SW': (1, -1),
 }
 inverted_direction_map = {v: k for k, v in direction_map.items()}
-def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20, multi_heights=True):
-    """Compute the distance from each pixel.
-       shelter_heights is an array of tree heights, with non-trees being np.nan.
-    """
-    distance_threshold = max_distance
-    dy, dx = direction_map[wind_dir]
-    
-    # Finding the height of the edge sheltering each pixel
-    shifted = shelter_heights.copy()
-    shifted_full_max = shelter_heights.copy()
-    for d in range(1, distance_threshold + 1):
-        shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-        shifted = shifted.where(shifted_full_max.isnull(), np.nan)
-        shifted = shifted.where(shifted > 0, np.nan)
-        shifted_full_max = shifted_full_max.where(~shifted_full_max.isnull(), shifted)
-    
-    # Finding the distance from the edge sheltering each pixel
-    shifted = shelter_heights.copy()
-    shifted_full = shelter_heights.copy()
-    for d in range(1, distance_threshold + 1):
-        shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-        shifted = shifted.where(shifted_full.isnull(), np.nan)
-        shifted = shifted - 1
-        shifted = shifted.where(shifted > 0, np.nan)
-        shifted_full = shifted_full.where(~shifted_full.isnull(), shifted)
-    
-    new_hits = xr.where(shelter_heights.isnull(), shifted_full, np.nan) 
-    distances = (shifted_full_max - new_hits)
 
-    # If multi_heights is False, than we assume only the edge trees can provide shelter.
-    # Otherwise, we also incorporate trees inside the edge if they're tall enough to provide shelter when the edge trees are not.
-    if multi_heights:
-        # Finding the height of the centre tree sheltering each pixel
-        shifted = shelter_heights.copy()
-        shifted_full = shelter_heights.copy()
-        for d in range(1, distance_threshold + 1):
-            shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-            shifted = shifted.where(shifted > 0, np.nan)
-            shifted_full_max_centre = shifted_full.where(~shifted_full.isnull(), shifted)
-        
-        # Finding the distance from the centre tree sheltering each pixel
-        shifted = shelter_heights.copy()
-        shifted_full = shelter_heights.copy()
-        for d in range(1, distance_threshold + 1):
-            shifted = shifted.shift(x=dx, y=dy, fill_value=np.nan)
-            shifted = shifted - 1
-            shifted = shifted.where(shifted > 0, np.nan)
-            shifted_full_centre = shifted_full.where(~shifted_full.isnull(), shifted)
-        
-        new_hits = xr.where(shelter_heights.isnull(), shifted_full_centre, np.nan) 
-        distances_centre = (shifted_full_max_centre - new_hits)
-        
-        distances = distances.where(~distances.isnull(), distances_centre)
-    
+
+def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
+    """For each non-tree pixel, find the distance to the nearest upwind tree tall enough to shelter it.
+    A tree of height h shelters pixels up to h pixels downwind.
+    Returns NaN for tree pixels and unsheltered pixels.
+    """
+    dy, dx = direction_map[wind_dir]
+    distances = xr.full_like(shelter_heights, np.nan)
+    is_tree = shelter_heights > 0
+
+    for d in range(1, max_distance + 1):
+        shifted = shelter_heights.shift(x=dx * d, y=dy * d, fill_value=0)
+        can_shelter = shifted >= d
+        unassigned = ~is_tree & distances.isnull()
+        distances = xr.where(unassigned & can_shelter, float(d), distances)
+
     return distances
 
 
@@ -127,7 +90,7 @@ def compute_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_a
     return da_percent_trees
 
 
-def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=20, distance_threshold=20, density_threshold=5, minimum_height=10, savetif=True, plot=True, crop_pixels=None):
+def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=20, distance_threshold=20, density_threshold=5, savetif=True, plot=True, crop_pixels=None):
     """Define sheltered and unsheltered pixels
 
     - **Unsheltered** (0): Pixels not protected from wind or without sufficient tree cover
@@ -139,15 +102,15 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
         Integer tif file generated by tree_categories.py, or a Dataset
         containing the 'tree_categories' band.
     wind_data : str or xarray.Dataset, optional
-        NetCDF with eastward and westward wind speed generated by barra_daily.py.
+        NetCDF with eastward and northward wind speed generated by barra_daily.py.
         If not provided, then sheltered/unsheltered is defined by nearby tree density rather than distance from trees.
     height_tif : str, optional
         Integer tif file generated by canopy_height.py.
         If not provided, then sheltered/unsheltered is defined by distance in pixels rather than tree heights.
     outdir : str, optional
-        Output directory to save the results. Default is current directory.
+        Output directory for saving results. Default is current directory.
     stub : str, optional
-        Prefix for output files. Default is 'TEST'.
+        Prefix for output filenames. Default is 'TEST'.
     wind_method : str, optional
         Either 'WINDWARD', 'MOST_COMMON', 'MAX', 'HAPPENED' or 'ANY'. Default is 'WINDWARD'.
         MOST_COMMON assumes only downwind shelter, using the most common wind direction above the wind_threshold.
@@ -156,7 +119,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
         HAPPENED refers to any direction where the winds exceeded the wind_threshold in the wind dataset.
         ANY refers to all 8 compass directions.
     wind_threshold : int, optional
-        Wind speed threshold in km/hr. Default is 20.
+        Wind speed threshold in km/h. Default is 20.
     distance_threshold : int, optional
         Distance from trees that counts as sheltered.
         Units are either 'tree heights' or 'number of pixels', depending on if a height_tif is provided.
@@ -164,15 +127,12 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     density_threshold : int, optional
         Percentage tree cover within the distance_threshold that counts as sheltered.
         Only applies if the wind_data is not provided. Default is 5.
-    minimum_height : int, optional
-        Assume that all tree pixels are at least this tall.
-        Only applies if the height_tif is provided. Default is 10.
     savetif : bool, optional
-        Whether to save the results as a GeoTIFF files. Default is True.
+        Whether to save the results as a GeoTIFF. Default is True.
     plot : bool, optional
-        Whether to generate a PNG visualization of the results. Default is True.
+        Whether to generate a PNG visualisation. Default is True.
     crop_pixels : int, optional
-        Number of pixels to be cropped on each edge.
+        Number of pixels to crop from each edge of the output.
 
     Returns
     -------
@@ -184,7 +144,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     When savetif=True, it outputs a GeoTIFF file with embedded color map:
     ``{stub}_shelter_categories.tif``
     
-    When plot=True, it outputs a PNG visualization with legend:
+    When plot=True, it outputs a PNG visualisation with legend:
     ``{stub}_shelter_categories.png``
     
     Examples
@@ -211,7 +171,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
 
         from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
         from shelterbelts.utils.filepaths import get_filename, get_example_tree_categories_data
-        from shelterbelts.utils.visualization import visualise_categories_sidebyside
+        from shelterbelts.utils.visualisation import visualise_categories_sidebyside
 
         ds_cat = get_example_tree_categories_data()
         wind_file = get_filename('g2_26729_barra_daily.nc')
@@ -270,21 +230,24 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     tree_mask = (da_categories >= 10) & (da_categories < 20)
     shelter = da_categories >= 12
 
-    # Since the input tif is categorized, we assume here that any 'tree pixel' is 100% tree cover.
+    # Since the input tif is categorised, we assume here that any 'tree pixel' is 100% tree cover.
     tree_percent = tree_mask.astype(float)
 
     if height_tif:
         da_heights = rxr.open_rasterio(height_tif).squeeze('band').drop_vars('band')
         da_heights_reprojected = da_heights.rio.reproject_match(da_categories) 
 
-        # Using da.where instead of xr.where to preserve the xr.rio.crs
-        da_heights_nan = da_heights_reprojected.where(~shelter, np.nan)  
-        shelter_heights = da_heights_nan.where(da_heights_nan <= minimum_height, minimum_height)
+        minimum_tree_height = 0
+        maximum_tree_height = 60  # Anecdotally, heights greater than this are more likely to be data errors than really tall trees
+        da_heights_nan = da_heights_reprojected.where(shelter, np.nan)  
+        shelter_heights = da_heights_nan.clip(min=minimum_tree_height, max=maximum_tree_height)
 
         pixel_size = 10 # metres
         shelter_heights = (shelter_heights / pixel_size) * distance_threshold  # Scale the tree heights by the distance threshold
     else:
         shelter_heights = shelter.where(shelter, other=np.nan) * distance_threshold # preserving the rio.crs
+
+    distance_threshold = 100  # Now that we've defined tree heights, the distance threshold should be redundant so long as it's greater than the maximum tree height.
 
     if isinstance(wind_data, xr.Dataset):
         ds_wind = wind_data
@@ -391,6 +354,11 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
         filename = os.path.join(outdir,f"{stub}_shelter_categories.tif")
         tif_categorical(ds['shelter_categories'], filename, shelter_categories_cmap)
         
+        # Saving shelter heights for debugging
+        filename_shelter_heights = os.path.join(outdir,f"{stub}_shelter_heights.tif")
+        shelter_heights.rio.to_raster(filename_shelter_heights)
+        print(f"Saved: {filename_shelter_heights}")
+        
         # Saving the shelter densities or distances
         da_distance_or_percent.fillna(0).astype('uint8').rio.to_raster(filename_distance_or_density)  # TODO: I should probably use LZW compression here.
         print(f"Saved: {filename_distance_or_density}")
@@ -406,18 +374,17 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--category_data', help='Integer tif file generated by tree_categories.py or a pre-loaded Dataset/DataArray')
-    parser.add_argument('--wind_data', help='NetCDF with eastward and westward wind speed generated by barra_daily.py or a pre-loaded Dataset')
-    parser.add_argument('--height_tif', help='Integer tif file generated by apis.canopy_height.py')
-    parser.add_argument('--outdir', default='.', help='The output directory to save the results')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output files.')
+    parser.add_argument('category_data', help='Integer tif file generated by tree_categories.py')
+    parser.add_argument('--wind_data', help='NetCDF with eastward and northward wind speed generated by barra_daily.py')
+    parser.add_argument('--height_tif', help='Integer tif file generated by canopy_height.py')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
     parser.add_argument('--wind_method', default='WINDWARD', help="Either 'WINDWARD', 'MOST_COMMON', 'MAX', 'HAPPENED' or 'ANY'")
-    parser.add_argument('--distance_threshold', default=20, type=int, help='The distance from trees that counts as sheltered.')
-    parser.add_argument('--wind_threshold', default=20, type=int, help='The wind speed used to determine the dominant wind direction.')
-    parser.add_argument('--minimum_height', default=10, type=int, help="Assume that all tree pixels are at least this tall.")
-    parser.add_argument('--density_threshold', default=5, type=int, help="The minimum percentage tree cover that counts as sheltered.")
+    parser.add_argument('--distance_threshold', default=20, type=int, help='Distance from trees that counts as sheltered')
+    parser.add_argument('--wind_threshold', default=20, type=int, help='Wind speed threshold in km/h')
+    parser.add_argument('--density_threshold', default=5, type=int, help='Percentage tree cover within distance_threshold that counts as sheltered')
     parser.add_argument('--no-savetif', dest='savetif', action="store_false", default=True, help="Disable saving GeoTIFF output (default: enabled)")
-    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualization (default: enabled)")
+    parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualisation (default: enabled)")
 
     return parser
 
@@ -437,7 +404,6 @@ if __name__ == '__main__':
         wind_threshold=args.wind_threshold,
         distance_threshold=args.distance_threshold,
         density_threshold=args.density_threshold,
-        minimum_height=args.minimum_height,
         savetif=True,
         plot=args.plot,
     )

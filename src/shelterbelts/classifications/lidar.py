@@ -9,7 +9,7 @@ import pdal, json
 import rioxarray as rxr
 import numpy as np
 
-from shelterbelts.utils.visualization import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical
 from shelterbelts.classifications.binary_trees import cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work
 
 
@@ -200,8 +200,8 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     Parameters
     ----------
     laz_file: The .laz point cloud file
-    outdir: Output directory to store the tifs
-    stub: Prefix for output files
+    outdir: Output directory for saving results
+    stub: Prefix for output filenames
     resolution: Pixel size in the output rasters    
     height_threshold: Cutoff for creating the binary tif
     category_5: If True then it attempts to use the preclassified high vegetation from the LAS 1.4 specifications (category 5): https://www.spatial.nsw.gov.au/__data/assets/pdf_file/0004/218992/Elevation_Data_Product_Specs.pdf  
@@ -239,8 +239,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Convert a laz point cloud to a raster")
 
     parser.add_argument("laz_file", help="The input .laz point cloud file. If the suffix is not .laz then assume it's a folder of laz files instead.")
-    parser.add_argument("--outdir", default=".", help="Output directory to store the tifs (default: current directory)")
-    parser.add_argument("--stub", default="TEST", help="Prefix for output files (default: TEST)")
+    parser.add_argument("--outdir", default=".", help="Output directory for saving results")
+    parser.add_argument("--stub", default="TEST", help="Prefix for output filenames")
     parser.add_argument("--resolution", type=int, default=10, help="Pixel size in the output rasters (default: 10)")
     parser.add_argument("--height_threshold", type=float, default=2, help="Cutoff for creating the binary tif (default: 2)")
     parser.add_argument("--epsg", default=None, help="Option to specify the epsg if the .laz doesn't already have it encoded. Default: None")
@@ -258,42 +258,31 @@ if __name__ == '__main__':
 
     args = parse_arguments()
     
-    laz_file = args.laz_file
-    outdir = args.outdir
-    stub = args.stub
-    resolution = args.resolution
-    height_threshold = args.height_threshold
-    category5 = args.category5
-    epsg = args.epsg
-    binary = args.binary
-    cleanup = args.cleanup
-    just_chm = args.just_chm
-    
-    if laz_file.endswith('.laz'):
+    if args.laz_file.endswith('.laz'):
         lidar(
-            laz_file,
-            outdir=outdir,
-            stub=stub,
-            resolution=resolution,
-            height_threshold=height_threshold,
-            category5=category5,
-            epsg=epsg,
-            binary=binary,
-            cleanup=cleanup,
-            just_chm=just_chm
+            args.laz_file,
+            outdir=args.outdir,
+            stub=args.stub,
+            resolution=args.resolution,
+            height_threshold=args.height_threshold,
+            category5=args.category5,
+            epsg=args.epsg,
+            binary=args.binary,
+            cleanup=args.cleanup,
+            just_chm=args.just_chm
         )
     else:
         lidar_folder(
-            laz_file, 
+            args.laz_file,
             # We don't specify the stub, because the name of each file gets used as the stub
-            outdir=outdir, 
-            resolution=resolution, 
-            height_threshold=height_threshold, 
-            category5=category5, 
-            epsg=epsg, 
-            binary=binary,
-            cleanup=cleanup,
-            just_chm=just_chm,
+            outdir=args.outdir,
+            resolution=args.resolution,
+            height_threshold=args.height_threshold,
+            category5=args.category5,
+            epsg=args.epsg,
+            binary=args.binary,
+            cleanup=args.cleanup,
+            just_chm=args.just_chm,
             limit=args.limit
             )
 

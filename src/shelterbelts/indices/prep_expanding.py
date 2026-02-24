@@ -77,10 +77,9 @@ def parse_arguments():
 
 if __name__ == '__main__':
     args = parse_arguments()
-    folder = args.folder
-    print(f"Mosaicking folder: {folder}")
-    mosaic_subfolders(folder)
-    stems_string = get_subfolders(os.path.join(folder, "subfolders"))
+    print(f"Mosaicking folder: {args.folder}")
+    mosaic_subfolders(args.folder)
+    stems_string = get_subfolders(os.path.join(args.folder, "subfolders"))
     print(f"Created subfolders:\n{stems_string}")
 
 # +

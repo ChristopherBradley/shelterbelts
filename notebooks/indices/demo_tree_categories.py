@@ -24,25 +24,23 @@
 # %%
 import rioxarray as rxr
 
-from shelterbelts.utils.visualization import visualise_categories_sidebyside, visualise_categories
-from shelterbelts.utils.filepaths import get_filename as get_example_data
+from shelterbelts.utils.visualisation import visualise_categories_sidebyside, visualise_categories
+from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.tree_categories import tree_categories_cmap, tree_categories_labels
 
-# Load test data
-test_file = get_example_data('g2_26729_binary_tree_cover_10m.tiff')
-da_trees = rxr.open_rasterio(test_file).isel(band=0).drop_vars('band')
+# Load example data
+binary_tree_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
+da_trees = rxr.open_rasterio(binary_tree_file).isel(band=0).drop_vars('band')
 ds_input = da_trees.to_dataset(name='woody_veg')
 print(f"Input dimensions: {ds_input['woody_veg'].shape}")
 
 # %% [markdown]
 # ## Default Parameters
-#
-# First, let's run with default parameters:
 
 # %%
-ds_default = tree_categories(ds_input, stub='default', outdir='/tmp', plot=False, save_tif=False)
-print(f"Output variables: {set(ds_default.data_vars)}")
+ds_default = tree_categories(ds_input, stub='default')
+ds_default
 
 # %%
 visualise_categories(
@@ -52,13 +50,10 @@ visualise_categories(
 )
 
 # %% [markdown]
-# ## Parameter: edge_size
+# ## Changing the edge_size
 #
 # The `edge_size` parameter defines the distance (in pixels) from the edge of a patch.
 # Areas beyond this distance from edges are classified as "Patch Core".
-#
-# - **Low value (1)**: Thin edges
-# - **High value (5)**: Thick edges
 
 # %%
 ds_edge1 = tree_categories(ds_input, stub='edge1', outdir='/tmp', plot=False, save_tif=False, edge_size=1)
@@ -71,13 +66,10 @@ visualise_categories_sidebyside(
 )
 
 # %% [markdown]
-# ## Parameter: min_patch_size
+# ## Changing the min_patch_size
 #
 # The `min_patch_size` parameter sets the minimum area (in pixels) for a cluster to be
 # considered a patch rather than scattered trees.
-#
-# - **Low value (10)**: Less scattered trees
-# - **High value (30)**: More scattered trees
 
 # %%
 ds_patch10 = tree_categories(ds_input, stub='patch10', outdir='/tmp', plot=False, save_tif=False, min_patch_size=10)
@@ -90,13 +82,10 @@ visualise_categories_sidebyside(
 )
 
 # %% [markdown]
-# ## Parameter: max_gap_size
+# ## Changing the max_gap_size
 #
 # The `max_gap_size` parameter determines the maximum gap (in pixels) that can be bridged
 # when connecting tree clusters into patches.
-#
-# - **Low value (0)**: More scattered trees and smaller patches
-# - **High value (2)**: Less scattered trees and larger patches
 
 # %%
 ds_gap0 = tree_categories(ds_input, stub='gap0', outdir='/tmp', plot=False, save_tif=False, max_gap_size=0)
@@ -109,12 +98,9 @@ visualise_categories_sidebyside(
 )
 
 # %% [markdown]
-# ## Parameter: strict_core_area
+# ## Changing the strict_core_area method
 #
 # The `strict_core_area` parameter changes the method for defining core areas.
-#
-# - **False**: Use dilation and erosion to allow some irregularity.
-# - **True**: Enforce that core areas exceed the edge_size at all points.
 
 # %%
 ds_strict_false = tree_categories(ds_input, stub='strict_false', outdir='/tmp', plot=False, save_tif=False, strict_core_area=False)
@@ -127,10 +113,29 @@ visualise_categories_sidebyside(
 )
 
 # %% [markdown]
-# ## Summary
-#
-# This notebook demonstrated how each parameter affects tree categorization:
-# - `edge_size`: Controls the width of edge zones
-# - `min_patch_size`: Sets minimum size for patches vs scattered trees
-# - `max_gap_size`: Determines gap bridging for connectivity
-# - `strict_core_area`: Enforces core area connectivity rules
+# ## Command Line Interface
+# You can also use the function from the command line with the same defaults and parameters.
+
+# %%
+from shelterbelts.utils.filepaths import setup_repo_path
+setup_repo_path()
+
+# %%
+# !python shelterbelts/indices/tree_categories.py --help
+
+# %%
+# %%time
+# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --stub command_line_defaults --outdir ../notebooks/indices
+
+# %%
+# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --min_patch_size 40 --min_core_size 100 --edge_size 2 --max_gap_size 2 --no-strict-core-area --stub command_line --outdir ../notebooks/indices
+
+# %% [markdown]
+# ### Cleanup
+# Remove the output files created by this notebook
+
+# %%
+# !rm ../notebooks/indices/*.tif
+# !rm ../notebooks/indices/*.png
+# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
+

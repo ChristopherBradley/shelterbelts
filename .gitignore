@@ -41,7 +41,7 @@ snowflake/cache
 *.o*
 *.e*  
 
-# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimised / DLL files
 __pycache__/
 *.py[cod]
 *$py.class

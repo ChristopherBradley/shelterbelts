@@ -56,7 +56,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     
     # Choose the crs for the overall gdf
     if crs is None:
-        da = rxr.open_rasterio(veg_tifs[len(veg_tifs)//2]).isel(band=0).drop_vars("band")  # Using the center tiles crs in an attempt to be the most representative
+        da = rxr.open_rasterio(veg_tifs[len(veg_tifs)//2]).isel(band=0).drop_vars("band")  # Using the centre tiles crs in an attempt to be the most representative
         if da.rio.crs is None:
             da = da.rio.write_crs('EPSG:28355')
         crs = da.rio.crs

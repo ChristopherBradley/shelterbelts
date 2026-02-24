@@ -2,23 +2,10 @@
 # When running tests, it runs from the repo root. 
 # When running a notebook locally, it runs from within the notebooks folder. 
 # When running a notebook on gadi, it runs from the home directory
-import sys, os
-from pathlib import Path
-cwd = Path.cwd()
-if (cwd / 'src').exists():  # Running from repo root
-    repo_dir = cwd
-elif (cwd.parent / 'src').exists():  # Running from notebook locally
-    repo_dir = cwd.parent
-elif (Path.home() / 'Projects' / 'shelterbelts' / 'src').exists():  # Running on Gadi from home directory
-    repo_dir = Path.home() / 'Projects' / 'shelterbelts'
-repo_dir = str(repo_dir)
-src_dir = os.path.join(repo_dir, 'src')
-os.chdir(repo_dir)
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+from shelterbelts.utils.filepaths import setup_repo_path
+setup_repo_path()
 
-
-from shelterbelts.indices.full_pipelines import run_pipeline_tif
+from shelterbelts.indices.all_indices import indices_tif
 from shelterbelts.utils.filepaths import get_filename
 
 # +
@@ -27,11 +14,11 @@ stub = 'g2_26729'
 test_filename = get_filename(f'{stub}_binary_tree_cover_10m.tiff')
 
 # Mostly default parameters
-run_pipeline_tif(test_filename)
+indices_tif(test_filename)
 # -
 
 
-run_pipeline_tif(
+indices_tif(
     test_filename,
     stub="more-shelterbelts",
     min_patch_size=5,  # Less scattered trees
@@ -43,7 +30,7 @@ run_pipeline_tif(
 )
 
 
-run_pipeline_tif(
+indices_tif(
     test_filename,
     stub="less-shelterbelts",
     min_patch_size=30,  # More scattered trees

@@ -3,7 +3,7 @@
 import tempfile
 import rioxarray as rxr
 
-from shelterbelts.utils.crop_and_rasterize import crop_and_rasterize
+from shelterbelts.utils.tiles import crop_and_rasterize
 from shelterbelts.utils.filepaths import get_filename
 
 
