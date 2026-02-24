@@ -9,9 +9,13 @@
 # BASE_DIR="/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2017/subfolders"  # Used this one to merge the predictions
 # FOLDER_SUFFIX=
 
-BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2024/expanded  # Used this one to merge the indices
-# # FOLDER_SUFFIX=less_percentmethod
-FOLDER_SUFFIX=default_percentmethod
+# BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2024/expanded  # Used this one to merge the indices
+BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded
+
+
+FOLDER_SUFFIX=less_percentmethod
+# FOLDER_SUFFIX=default_percentmethod
+# FOLDER_SUFFIX=more_percentmethod
 
 for folder in "$BASE_DIR"/*"$FOLDER_SUFFIX"; do
     if [ -d "$folder" ]; then

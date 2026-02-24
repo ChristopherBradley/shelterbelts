@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N gdata_xe2_storage_report
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/xe2
+#PBS -q normal
+
+# Change to project directory
+cd /home/147/cb8590/Projects/shelterbelts
+
+# # Activate conda environment
+# source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+# conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+# Run the storage report script
+python3 Archive/gdata_xe2_storage_report.py
+
+echo "Storage report job completed"
