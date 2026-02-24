@@ -116,8 +116,7 @@ def get_filename(filename):
         f"Checked: {[str(p) for p in possible_paths]}"
     )
 
-
-def setup_repo_path(repo_name='shelterbelts'):
+def setup_repo_path(repo_name='shelterbelts', subdir='src'):
     """Set up repository path for notebooks running in different environments.
     
     Detects whether running from repo root, local notebook, or Gadi,
@@ -127,6 +126,8 @@ def setup_repo_path(repo_name='shelterbelts'):
     ----------
     repo_name : str, optional
         Name of the repository directory. Default is 'shelterbelts'.
+    subdir : str, optional
+        Subdirectory within the repository to change to. Default is 'src'.
     
     Returns
     -------
@@ -146,9 +147,9 @@ def setup_repo_path(repo_name='shelterbelts'):
         raise RuntimeError("Could not find repository root")
     
     repo_dir = str(repo_dir)
-    src_dir = os.path.join(repo_dir, 'src')
+    src_dir = os.path.join(repo_dir, subdir)
     os.chdir(src_dir)
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
     
-    return repo_dir
+    return src_dir

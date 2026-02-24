@@ -128,6 +128,13 @@ def indices_tif(percent_tif, outdir=default_outdir,
     debug : bool, optional
         If True, intermediate TIFFs/plots are saved for debugging. Default False.
 
+    Returns
+    -------
+    ds : xarray.Dataset
+        Dataset with ``linear_categories`` and ``labelled_categories`` bands.
+    df : pandas.DataFrame
+        Per-cluster patch metrics (skeleton length/width, category, etc.).
+
     """
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
@@ -172,21 +179,15 @@ def indices_tif(percent_tif, outdir=default_outdir,
     ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size) 
 
     # Trying to avoid memory accumulation
-    for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_shelter, ds_cover, ds_buffer, ds_linear]:
+    for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_shelter, ds_cover, ds_buffer]:
         try:
             ds.close()
             del ds
         except Exception:
             pass
-    del df_patches
-    locals().clear()
     gc.collect()
-    # rasterio.shutil.delete_raster_cache()
     mem_info = process.memory_full_info()
-    # print(f"RSS: {mem_info.rss / 1e9:.2f} GB, VMS: {mem_info.vms / 1e9:.2f} GB, Shared: {mem_info.shared / 1e9:.2f} GB")
-    # print("Memory usage:", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, "MB")
-    # print("Number of open files:", len(psutil.Process(os.getpid()).open_files()))
-    return None
+    return ds_linear, df_patches
 
 def indices_csv(csv, outdir=default_outdir,
                      tmpdir=default_tmpdir, stub=None,
