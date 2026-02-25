@@ -269,10 +269,10 @@ def indices_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, param_stu
     for i, filename in enumerate(csv_filenames):
         print(f"Launching Popen subprocess for filename {i}/{len(csv_filenames)}:", filename, flush=True)
 
-        script = os.path.join(os.path.dirname(__file__), "indices.py") # Use the module filename for robustness
+        script = os.path.join(os.path.dirname(__file__), "all_indices.py") # Use the module filename for robustness
         cmd = [
             sys.executable,
-            "indices.py", 
+            "all_indices.py", 
             str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),

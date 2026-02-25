@@ -26,8 +26,10 @@ def test_indices_tif():
             stub='test_pipeline'
         )
         
-        # Function returns None but should complete without errors
-        assert result is None, "run_pipeline_tif should return None"
+        # Function returns (ds_linear, df_patches)
+        ds, df = result
+        assert ds is not None, "indices_tif should return an xarray Dataset"
+        assert df is not None, "indices_tif should return a pandas DataFrame"
 
 
 def test_indices_tif_more_shelterbelts():

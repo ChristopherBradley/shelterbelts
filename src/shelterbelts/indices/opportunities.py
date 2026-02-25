@@ -400,7 +400,7 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
     return ds_opportunities
 
 
-# Could generalise and reuse the indices_tifs function from indices.py (previously run_pipeline_tifs/full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
+# Could generalise and reuse the indices_tifs function from all_indices.py (previously run_pipeline_tifs/full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
 def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
@@ -440,7 +440,7 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
 
 
 # +
-# Would be slightly more computationally efficient to generate the opportunities from within indices.py than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
+# Would be slightly more computationally efficient to generate the opportunities from within all_indices.py than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
 import argparse
 def parse_arguments():
     parser = argparse.ArgumentParser(
