@@ -37,6 +37,11 @@ Class Metrics
 
 .. autofunction:: shelterbelts.indices.shelter_metrics.class_metrics
 
+Catchments
+----------
+
+.. autofunction:: shelterbelts.indices.catchments.catchments
+
 Full Indices Pipeline
 ----------------------
 
@@ -47,11 +52,6 @@ Run the end-to-end indices pipeline on percent-cover rasters.
 .. autofunction:: shelterbelts.indices.all_indices.indices_csv
 
 .. autofunction:: shelterbelts.indices.all_indices.indices_tifs
-
-Catchments
-----------
-
-.. autofunction:: shelterbelts.indices.catchments.catchments
 
 APIs
 ====
