@@ -272,7 +272,7 @@ def indices_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, param_stu
         script = os.path.join(os.path.dirname(__file__), "all_indices.py") # Use the module filename for robustness
         cmd = [
             sys.executable,
-            "all_indices.py", 
+            script,
             str(filename),
             "--outdir", str(outdir),
             "--tmpdir", str(tmpdir),
