@@ -10,9 +10,9 @@ from shelterbelts.indices.all_indices import indices_tif, indices_tifs
 
 # Configuration
 stub = 'g2_26729'
-# test_filename = f'data/{stub}_binary_tree_cover_10m.tiff'
+test_filename = f'data/{stub}_binary_tree_cover_10m.tiff'
 
-test_filename='/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g1_02060_binary_tree_cover_10m.tiff'
+# test_filename='/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g1_02060_binary_tree_cover_10m.tiff'
 
 def test_indices_tif():
     """Test basic execution of indices_tif with local data files"""
@@ -176,10 +176,7 @@ def test_indices_tifs():
     "Check all_indices works on a folder of tifs."
     import shelterbelts.indices.all_indices as all_indices_module
     script_dir = os.path.dirname(os.path.abspath(all_indices_module.__file__))
-    os.chdir(script_dir)
-    print("Chang dir to:", script_dir)
-
-    folder = os.path.abspath('data/multiple_binary_tifs')
+    folder = os.path.join(script_dir, 'data', 'multiple_binary_tifs')
     indices_tifs(folder, suffix='tiff')
 
     # why did this work on one the first time (not both), but is now starting with 0 percent_tifs?
