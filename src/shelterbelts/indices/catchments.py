@@ -7,6 +7,9 @@ import os
 import argparse
 
 import numpy as np
+# np.in1d was removed in NumPy 2.0; pysheds still uses it
+if not hasattr(np, 'in1d'):
+    np.in1d = np.isin
 from scipy import ndimage
 from skimage.morphology import thin
 import rasterio
@@ -48,7 +51,7 @@ def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8,
     kwargs.update(mask_overrides)
     mask = self._input_handler(mask, **kwargs)
     nodata_cells = self._get_nodata_cells(fdir)
-    invalid_cells = ~np.in1d(fdir.ravel(), dirmap).reshape(fdir.shape)
+    invalid_cells = ~np.isin(fdir.ravel(), dirmap).reshape(fdir.shape)
     fdir[nodata_cells] = 0
     fdir[invalid_cells] = 0
     maskleft, maskright, masktop, maskbottom = self._pop_rim(mask, nodata=False)

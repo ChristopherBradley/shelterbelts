@@ -88,3 +88,18 @@ If on gadi:
 Then:
 `conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts`
 `pytest tests`
+
+# Documentation
+Generate the html: 
+`make clean && make html`
+
+You can view the documenation locally in a browser by opening `docs/build/index.html`
+
+Run the doctests: 
+`make doctest`
+
+Upload the html to github pages: 
+`ghp-import -n -p -f docs/build/html`
+
+You can view the published documentation at: 
+https://christopherbradley.github.io/shelterbelts/index.html
