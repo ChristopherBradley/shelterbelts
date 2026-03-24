@@ -36,16 +36,6 @@ exclude_patterns = []
 autodoc_typehints = 'description'
 autosummary_generate = True
 
-# Mock heavy dependencies so they don't need to be installed to build the docs
-autodoc_mock_imports = [
-    'pandas', 'geopandas', 'rioxarray', 'shapely', 'psutil',
-    'numpy', 'rasterio', 'xarray', 'pyproj', 'odc', 'pystac_client',
-    'planetary_computer', 'scipy', 'requests', 'sklearn', 'skimage',
-    'tensorflow', 'seaborn', 'joblib', 'datacube', 'pdal', 'fiona',
-    'windrose', 'pysheds', 'owslib', 'osmnx', 'tqdm', 'dask', 'cql2',
-    'openpyxl', 'xlsxwriter', 'pyarrow', 'DAESIM_preprocess',
-]
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
