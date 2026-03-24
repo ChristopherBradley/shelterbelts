@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>API Reference &#8212; Shelterbelts 0.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+    <script src="_static/documentation_options.js?v=d45e8c67"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Shelterbelts Documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="api-reference">
+<h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h1>
+</section>
+<section id="indices">
+<h1>Indices<a class="headerlink" href="#indices" title="Link to this heading">¶</a></h1>
+<p>Tree Categories</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.tree_categories.tree_categories">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.tree_categories.</span></span><span class="sig-name descname"><span class="pre">tree_categories</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.tree_categories.tree_categories" title="Link to this definition">¶</a></dt>
+<dd><p>Classifies a boolean woody vegetation map into four categories based on the
+Fragstats landscape ecology approach:</p>
+<ul class="simple">
+<li><p><strong>Scattered Trees</strong> (11): Individual trees or clusters below minimum patch size</p></li>
+<li><p><strong>Patch Core</strong> (12): Interior areas of tree patches with buffer from edges</p></li>
+<li><p><strong>Patch Edge</strong> (13): Perimeter areas of tree patches within edge distance</p></li>
+<li><p><strong>Other Trees</strong> (14): Corridor pixels connecting patches</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_data</strong> (<em>str</em><em> or </em><em>xarray.Dataset</em>) – Either a file path to a binary GeoTIFF containing tree/no-tree information,
+or an xarray Dataset with a ‘woody_veg’ band (boolean or integer).</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If input_data is a string and stub is not
+provided, it is derived from the input filename. Required when
+input_data is a Dataset.</p></li>
+<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a patch rather than scattered trees.
+Default is 20.</p></li>
+<li><p><strong>min_core_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a core area. Default is 1000.</p></li>
+<li><p><strong>edge_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance (pixels) defining the edge region around patch cores.
+Default is 3.</p></li>
+<li><p><strong>max_gap_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum gap (pixels) to bridge when connecting tree clusters.
+Default is 1.</p></li>
+<li><p><strong>strict_core_area</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, enforce that core areas exceed the edge_size at all points.
+If False, use dilation and erosion to allow some irregularity. Default is True.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>Dataset containing:</p>
+<ul class="simple">
+<li><p><strong>woody_veg</strong>: Original binary tree/no-tree classification</p></li>
+<li><p><strong>tree_categories</strong>: Categorised tree types (values 0, 11, 12, 13, 14)</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When save_tif=True, it outputs a GeoTIFF file with embedded color map:
+<code class="docutils literal notranslate"><span class="pre">{stub}_tree_categories.tif</span></code></p>
+<p>When plot=True, it outputs a PNG visualisation with legend:
+<code class="docutils literal notranslate"><span class="pre">{stub}_tree_categories.png</span></code></p>
+<p class="rubric">References</p>
+<p>McGarigal, K., &amp; Marks, B. J. (1995). FRAGSTATS: Spatial Pattern Analysis
+Program for Quantifying Landscape Structure. General Technical Report.</p>
+<p class="rubric">Examples</p>
+<p>Using a file path as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">filename_string</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_binary_tree_cover_10m.tiff&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_cat</span> <span class="o">=</span> <span class="n">tree_categories</span><span class="p">(</span><span class="n">filename_string</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">set</span><span class="p">(</span><span class="n">ds_cat</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;woody_veg&#39;</span><span class="p">,</span> <span class="s1">&#39;tree_categories&#39;</span><span class="p">}</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Using a Dataset as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_test_woody_veg_dataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_input</span> <span class="o">=</span> <span class="n">create_test_woody_veg_dataset</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_cat</span> <span class="o">=</span> <span class="n">tree_categories</span><span class="p">(</span><span class="n">ds_input</span><span class="p">,</span> <span class="n">stub</span><span class="o">=</span><span class="s2">&quot;TEST&quot;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">set</span><span class="p">(</span><span class="n">ds_cat</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;woody_veg&#39;</span><span class="p">,</span> <span class="s1">&#39;tree_categories&#39;</span><span class="p">}</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Here’s how different parameters affect the categorization:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/dbb02cc2aabd48bd481466b8f3e9ef3a/modules-1.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-1_00.hires.png" class="plot-directive" src="_images/modules-1_00.hires.png" />
+</figure>
+<figure class="align-default">
+<img alt="_images/modules-1_01.hires.png" class="plot-directive" src="_images/modules-1_01.hires.png" />
+</figure>
+<figure class="align-default">
+<img alt="_images/modules-1_02.hires.png" class="plot-directive" src="_images/modules-1_02.hires.png" />
+</figure>
+<figure class="align-default">
+<img alt="_images/modules-1_03.hires.png" class="plot-directive" src="_images/modules-1_03.hires.png" />
+</figure>
+</dd></dl>
+
+<section id="shelter-categories">
+<h2>Shelter Categories<a class="headerlink" href="#shelter-categories" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.shelter_categories.shelter_categories">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.shelter_categories.</span></span><span class="sig-name descname"><span class="pre">shelter_categories</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">category_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'WINDWARD'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savetif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.shelter_categories.shelter_categories" title="Link to this definition">¶</a></dt>
+<dd><p>Define sheltered and unsheltered pixels</p>
+<ul class="simple">
+<li><p><strong>Unsheltered</strong> (0): Pixels not protected from wind or without sufficient tree cover</p></li>
+<li><p><strong>Sheltered</strong> (2): Pixels within sheltering distance of trees or with sufficient tree cover</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>category_data</strong> (<em>str</em><em> or </em><em>xarray.Dataset</em>) – Integer tif file generated by tree_categories.py, or a Dataset
+containing the ‘tree_categories’ band.</p></li>
+<li><p><strong>wind_data</strong> (<em>str</em><em> or </em><em>xarray.Dataset</em><em>, </em><em>optional</em>) – NetCDF with eastward and northward wind speed generated by barra_daily.py.
+If not provided, then sheltered/unsheltered is defined by nearby tree density rather than distance from trees.</p></li>
+<li><p><strong>height_tif</strong> (<em>str</em><em>, </em><em>optional</em>) – Integer tif file generated by canopy_height.py.
+If not provided, then sheltered/unsheltered is defined by distance in pixels rather than tree heights.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
+<li><p><strong>wind_method</strong> (<em>str</em><em>, </em><em>optional</em>) – Either ‘WINDWARD’, ‘MOST_COMMON’, ‘MAX’, ‘HAPPENED’ or ‘ANY’. Default is ‘WINDWARD’.
+MOST_COMMON assumes only downwind shelter, using the most common wind direction above the wind_threshold.
+WINDWARD assumes downwind shelter to distance_threshold, and upwind shelter to (distance_threshold / 2).
+MAX assumes shelter from the direction of maximum wind speed.
+HAPPENED refers to any direction where the winds exceeded the wind_threshold in the wind dataset.
+ANY refers to all 8 compass directions.</p></li>
+<li><p><strong>wind_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Wind speed threshold in km/h. Default is 20.</p></li>
+<li><p><strong>distance_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance from trees that counts as sheltered.
+Units are either ‘tree heights’ or ‘number of pixels’, depending on if a height_tif is provided.
+Default is 20.</p></li>
+<li><p><strong>density_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Percentage tree cover within the distance_threshold that counts as sheltered.
+Only applies if the wind_data is not provided. Default is 5.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset containing ‘shelter_categories’ band, where the integers represent the categories defined in ‘shelter_category_labels’.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
+<code class="docutils literal notranslate"><span class="pre">{stub}_shelter_categories.tif</span></code></p>
+<p>When plot=True, it outputs a PNG visualisation with legend:
+<code class="docutils literal notranslate"><span class="pre">{stub}_shelter_categories.png</span></code></p>
+<p class="rubric">Examples</p>
+<p>Using a file path as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">filename</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_tree_categories.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_shelter</span> <span class="o">=</span> <span class="n">shelter_categories</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">set</span><span class="p">(</span><span class="n">ds_shelter</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;tree_categories&#39;</span><span class="p">,</span> <span class="s1">&#39;shelter_categories&#39;</span><span class="p">}</span>  <span class="c1"># No woody_veg layer because we loaded the tree_categories.tif directly</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Using a Dataset as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_example_tree_categories_data</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_cat</span> <span class="o">=</span> <span class="n">get_example_tree_categories_data</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_shelter</span> <span class="o">=</span> <span class="n">shelter_categories</span><span class="p">(</span><span class="n">ds_cat</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">set</span><span class="p">(</span><span class="n">ds_shelter</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;woody_veg&#39;</span><span class="p">,</span> <span class="s1">&#39;tree_categories&#39;</span><span class="p">,</span> <span class="s1">&#39;shelter_categories&#39;</span><span class="p">}</span> <span class="c1"># Includes woody_veg layer because the full pipeline was executed</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Here’s how different parameters affect the shelter categorization:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/673ecb2db2dc7b9c43009a5f5479a177/modules-2.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-2_00.hires.png" class="plot-directive" src="_images/modules-2_00.hires.png" />
+</figure>
+<figure class="align-default">
+<img alt="_images/modules-2_01.hires.png" class="plot-directive" src="_images/modules-2_01.hires.png" />
+</figure>
+<figure class="align-default">
+<img alt="_images/modules-2_02.hires.png" class="plot-directive" src="_images/modules-2_02.hires.png" />
+</figure>
+<figure class="align-default">
+<img alt="_images/modules-2_03.hires.png" class="plot-directive" src="_images/modules-2_03.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="cover-categories">
+<h2>Cover Categories<a class="headerlink" href="#cover-categories" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.cover_categories.cover_categories">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.cover_categories.</span></span><span class="sig-name descname"><span class="pre">cover_categories</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shelter_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worldcover_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savetif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.cover_categories.cover_categories" title="Link to this definition">¶</a></dt>
+<dd><p>Reclassify non-tree pixels with categories from worldcover</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>shelter_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – File path to integer tif generated by shelter_categories.py, or a Dataset/DataArray
+containing the ‘shelter_categories’ band.</p></li>
+<li><p><strong>worldcover_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em>) – File path to integer tif generated by apis.worldcover.py, or a DataArray.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset containing ‘cover_categories’ band, where the integers represent the categories
+defined in ‘cover_categories_labels’.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
+<code class="docutils literal notranslate"><span class="pre">{stub}_cover_categories.tif</span></code></p>
+<p>When plot=True, it outputs a PNG visualisation with legend:
+<code class="docutils literal notranslate"><span class="pre">{stub}_cover_categories.png</span></code></p>
+<p class="rubric">Examples</p>
+<p>Using file paths as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">shelter_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_shelter_categories.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">worldcover_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_worldcover.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_cover</span> <span class="o">=</span> <span class="n">cover_categories</span><span class="p">(</span><span class="n">shelter_file</span><span class="p">,</span> <span class="n">worldcover_file</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;cover_categories&#39;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">ds_cover</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Using datasets as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">rioxarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rxr</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">da_shelter</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">shelter_file</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">da_worldcover</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">worldcover_file</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_cover</span> <span class="o">=</span> <span class="n">cover_categories</span><span class="p">(</span><span class="n">da_shelter</span><span class="p">,</span> <span class="n">da_worldcover</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">set</span><span class="p">(</span><span class="n">ds_cover</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;spatial_ref&#39;</span><span class="p">}</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Visualising the cover categories:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/73fed4bcd75f5ecc3004c719055f5d99/modules-3.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-3.hires.png" class="plot-directive" src="_images/modules-3.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="buffer-categories">
+<h2>Buffer Categories<a class="headerlink" href="#buffer-categories" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.buffer_categories.buffer_categories">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.buffer_categories.</span></span><span class="sig-name descname"><span class="pre">buffer_categories</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cover_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gullies_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ridges_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roads_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savetif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.buffer_categories.buffer_categories" title="Link to this definition">¶</a></dt>
+<dd><p>Reclassify relevant corridors as riparian buffers and ridge buffers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cover_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – Integer tif file generated by cover_categories.py.</p></li>
+<li><p><strong>gullies_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – Boolean tif file generated by either hydrolines.py or catchments.py.</p></li>
+<li><p><strong>ridges_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Boolean tif file generated by catchments.py.</p></li>
+<li><p><strong>roads_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Boolean tif file generated by osm.py or hydrolines.py.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
+<li><p><strong>buffer_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within the buffer. Default is 3.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset with ‘buffer_categories’ band, where integers represent categories defined in ‘buffer_categories_labels’.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
+<code class="docutils literal notranslate"><span class="pre">{stub}_buffer_categories.tif</span></code></p>
+<p>When plot=True, it outputs a PNG visualisation with legend:
+<code class="docutils literal notranslate"><span class="pre">{stub}_buffer_categories.png</span></code></p>
+<p class="rubric">Examples</p>
+<p>Using file paths as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cover_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_cover_categories.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">gullies_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_DEM-S_gullies.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">buffer_categories</span><span class="p">(</span><span class="n">cover_file</span><span class="p">,</span> <span class="n">gullies_file</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;buffer_categories&#39;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Using Datasets as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">rioxarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rxr</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">da_cover</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">cover_file</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_cover</span> <span class="o">=</span> <span class="n">da_cover</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;cover_categories&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">da_gullies</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">gullies_file</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_gullies</span> <span class="o">=</span> <span class="n">da_gullies</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;gullies&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">buffer_categories</span><span class="p">(</span><span class="n">ds_cover</span><span class="p">,</span> <span class="n">ds_gullies</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;buffer_categories&#39;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Here’s how different parameters affect the buffer categorization:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/c19d49bfdd7c70f65c785a5b3f55b987/modules-4.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-4_00.hires.png" class="plot-directive" src="_images/modules-4_00.hires.png" />
+</figure>
+<figure class="align-default">
+<img alt="_images/modules-4_01.hires.png" class="plot-directive" src="_images/modules-4_01.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="shelter-metrics">
+<h2>Shelter Metrics<a class="headerlink" href="#shelter-metrics" title="Link to this heading">¶</a></h2>
+<section id="patch-metrics">
+<h3>Patch Metrics<a class="headerlink" href="#patch-metrics" title="Link to this heading">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.shelter_metrics.patch_metrics">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.shelter_metrics.</span></span><span class="sig-name descname"><span class="pre">patch_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_csv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.shelter_metrics.patch_metrics" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate patch metrics and cleanup the tree pixel categories.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – Integer tif file generated by buffer_categories.py.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is ‘.’.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+<li><p><strong>save_csv</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save patch_metrics.csv with cluster statistics. Default is True.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save linear_categories.tif output. Default is True.</p></li>
+<li><p><strong>save_labels</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save label-related tif files (assigned_labels, ellipse_outline_raster,
+shortest_path_raster, perpendicular_raster, widths_raster). Default is True.</p></li>
+<li><p><strong>min_shelterbelt_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum skeleton length (in pixels) to classify a cluster as linear. Default is 15.</p></li>
+<li><p><strong>max_shelterbelt_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum skeleton width (in pixels) to classify a cluster as linear. Default is 6.</p></li>
+<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Clusters smaller than this are merged into nearby larger clusters. Default is 20.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output. Default is None (no cropping).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>ds</strong> (<em>xarray.DataSet</em>) – with linear_categories and labelled_categories.</p></li>
+<li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Individual attributes for each cluster.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Downloads the following files (depending on parameters):</p>
+<ul class="simple">
+<li><p>patch_metrics.csv: Cluster statistics for each patch</p></li>
+<li><p>linear_categories.tif: Reclassified categories (linear=18, non-linear=19) after majority filtering (dtype uint8)</p></li>
+<li><p>linear_categories.png: Visualisation with legend</p></li>
+<li><p>assigned_labels.tif: Unique integer ID for each cluster (dtype int32)</p></li>
+<li><p>ellipse_outline_raster.tif: Ellipse boundary for each cluster</p></li>
+<li><p>shortest_path_raster.tif: Skeleton path along each cluster</p></li>
+<li><p>perpendicular_raster.tif: Perpendicular width measurements</p></li>
+<li><p>widths_raster.tif: Width values at each skeleton pixel</p></li>
+<li><p>labelled_categories.tif: Unique integer ID for each cluster (dtype int32); view in QGIS with Paletted/Unique Values</p></li>
+<li><p>labelled_categories.png: Cluster IDs with ellipse overlays</p></li>
+</ul>
+<p class="rubric">Examples</p>
+<p>Using file paths as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">buffer_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_buffer_categories.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="n">patch_metrics</span><span class="p">(</span><span class="n">buffer_file</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">stub</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_csv</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;linear_categories&#39;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Using Datasets as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">rioxarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rxr</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">da</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">buffer_file</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_buffer</span> <span class="o">=</span> <span class="n">da</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;buffer_categories&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="n">patch_metrics</span><span class="p">(</span><span class="n">ds_buffer</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">stub</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_csv</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;linear_categories&#39;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="class-metrics">
+<h3>Class Metrics<a class="headerlink" href="#class-metrics" title="Link to this heading">¶</a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.shelter_metrics.class_metrics">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.shelter_metrics.</span></span><span class="sig-name descname"><span class="pre">class_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_excel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.shelter_metrics.class_metrics" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the percentage cover in each class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – A tif file, Dataset, or DataArray where the integers represent the categories
+defined in ‘linear_categories_labels’.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – The output directory to save results. Default is ‘.’.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output file names. Default is ‘TEST’.</p></li>
+<li><p><strong>save_excel</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as an Excel file with multiple sheets. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>A dictionary with the following pandas DataFrames:</p>
+<ul class="simple">
+<li><p><strong>Overall</strong>: Count and percentage for each category</p></li>
+<li><p><strong>Landcover</strong>: Aggregated statistics by landcover group (Trees, Grassland, Cropland, Built-up, Water)</p></li>
+<li><p><strong>Trees</strong>: Breakdown of tree categories as percentage of total tree coverage</p></li>
+<li><p><strong>Shelter</strong>: Percentage of grassland and cropland that are sheltered vs unsheltered</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>Using file paths as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">linear_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_linear_categories.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dfs</span> <span class="o">=</span> <span class="n">class_metrics</span><span class="p">(</span><span class="n">linear_file</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">stub</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">,</span> <span class="n">save_excel</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Using linear categories from a Dataset:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">rioxarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rxr</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">da</span> <span class="o">=</span> <span class="n">rxr</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">linear_file</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s1">&#39;band&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds_linear</span> <span class="o">=</span> <span class="n">da</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;linear_categories&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dfs</span> <span class="o">=</span> <span class="n">class_metrics</span><span class="p">(</span><span class="n">ds_linear</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">stub</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">,</span> <span class="n">save_excel</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;Shelter&#39;</span> <span class="ow">in</span> <span class="n">dfs</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<section id="downloads">
+<h4>Downloads<a class="headerlink" href="#downloads" title="Link to this heading">¶</a></h4>
+<blockquote>
+<div><p>class_metrics.xlsx: An excel file with each dataframe in a separate tab.</p>
+</div></blockquote>
+</section>
+</dd></dl>
+
+</section>
+</section>
+<section id="full-indices-pipeline">
+<h2>Full Indices Pipeline<a class="headerlink" href="#full-indices-pipeline" title="Link to this heading">¶</a></h2>
+<p>Run the end-to-end indices pipeline on percent-cover rasters.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_tif">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_tif</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">percent_tif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outdir'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_tif" title="Link to this definition">¶</a></dt>
+<dd><p>Run the complete indices pipeline for a single percent-cover GeoTIFF.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>percent_tif</strong> (<em>str</em>) – Path to the input percent-cover GeoTIFF (one-band, percent tree cover).</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results (default is in utils.filepaths).</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for temporary files (default is in utils.filepaths).</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If not provided it is derived from <code class="docutils literal notranslate"><span class="pre">percent_tif</span></code>.</p></li>
+<li><p><strong>wind_method</strong> (<em>str</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Method used to infer shelter direction. Can be <code class="docutils literal notranslate"><span class="pre">None</span></code>,
+<code class="docutils literal notranslate"><span class="pre">'WINDWARD'</span></code>, <code class="docutils literal notranslate"><span class="pre">'MOST_COMMON'</span></code>, <code class="docutils literal notranslate"><span class="pre">'MAX'</span></code>, <code class="docutils literal notranslate"><span class="pre">'HAPPENED'</span></code> or
+<code class="docutils literal notranslate"><span class="pre">'ANY'</span></code>. See <code class="xref py py-func docutils literal notranslate"><span class="pre">shelter_categories()</span></code> for details.</p></li>
+<li><p><strong>wind_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Wind speed threshold in km/h. Default 20.</p></li>
+<li><p><strong>cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Pixel percent cover threshold to treat a pixel as ‘tree’. Default 1.
+- If input is a binary tif use <code class="docutils literal notranslate"><span class="pre">cover_threshold=1</span></code>.
+- For percent-cover tifs typical values are 10 or 20.
+- For confidence tifs a value like 50 is reasonable.</p></li>
+<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a patch rather than scattered trees.
+Default is 20.</p></li>
+<li><p><strong>edge_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance (pixels) defining the edge region around patch cores.
+Default is 3.</p></li>
+<li><p><strong>max_gap_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum gap (pixels) to bridge when connecting tree clusters.
+Default is 1.</p></li>
+<li><p><strong>distance_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance from trees that counts as sheltered.
+Units are either ‘tree heights’ or ‘number of pixels’, depending on if a height_tif is provided.
+Default is 20.</p></li>
+<li><p><strong>density_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Percentage tree cover within the <code class="docutils literal notranslate"><span class="pre">distance_threshold</span></code> that counts as sheltered.
+Only applies if the <code class="docutils literal notranslate"><span class="pre">wind_data</span></code> is not provided. Default is 5.</p></li>
+<li><p><strong>buffer_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within the buffer. Default is 3.</p></li>
+<li><p><strong>strict_core_area</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, enforce that core areas exceed the edge_size at all points.
+If False, use dilation and erosion to allow some irregularity. Default is True.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output. Default is 0.</p></li>
+<li><p><strong>min_core_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a core area. Default is 1000.</p></li>
+<li><p><strong>min_shelterbelt_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum skeleton length (in pixels) to classify a cluster as linear. Default is 15.</p></li>
+<li><p><strong>max_shelterbelt_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum skeleton width (in pixels) to classify a cluster as linear. Default is 6.</p></li>
+<li><p><strong>debug</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, intermediate TIFFs/plots are saved for debugging. Default False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>ds</strong> (<em>xarray.Dataset</em>) – Dataset with <code class="docutils literal notranslate"><span class="pre">linear_categories</span></code> and <code class="docutils literal notranslate"><span class="pre">labelled_categories</span></code> bands.</p></li>
+<li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Per-cluster patch metrics (skeleton length/width, category, etc.).</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_csv">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">csv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outdir'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_csv" title="Link to this definition">¶</a></dt>
+<dd><p>Run the indices pipeline for every file listed in a CSV.</p>
+<p>The CSV is expected to contain a column named <code class="docutils literal notranslate"><span class="pre">filename</span></code> with full paths
+to percent-cover GeoTIFFs. Each row is processed sequentially by
+<cite>indices_tif</cite> using the provided parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>csv</strong> (<em>str</em>) – Path to a CSV file containing a <cite>filename</cite> column with input TIFF paths.</p></li>
+<li><p><strong>parameters</strong> (<em>Other</em>) – Passed through to <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a> (see that function for details).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_tifs">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_tifs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outdir'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tiles_per_csv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tif'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_tifs" title="Link to this definition">¶</a></dt>
+<dd><p>Run the indices pipeline over a folder of binary or integer tifs representing percentage tree cover.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> (<em>str</em>) – Input directory containing binary or integer TIFFs.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for generated linear/category TIFFs.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory used for temporary CSVs and intermediate files.</p></li>
+<li><p><strong>param_stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Extra stub for csv filenames and downstream tifs.</p></li>
+<li><p><strong>tiles_per_csv</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of tiles grouped per subprocess CSV. Default is 100.</p></li>
+<li><p><strong>parameters</strong> (<em>Other</em>) – Passed through to <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a> (see that function for details).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="catchments">
+<h2>Catchments<a class="headerlink" href="#catchments" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.catchments.catchments">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.catchments.</span></span><span class="sig-name descname"><span class="pre">catchments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">terrain_tif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_catchments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savetif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.catchments.catchments" title="Link to this definition">¶</a></dt>
+<dd><p>Generate gully and ridge tifs from a digital elevation model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>terrain_tif</strong> (<em>str</em>) – Path to the DEM (Digital Elevation Model) GeoTIFF file.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporary folder to save the terrain_tif as float64 for pysheds.
+Default is current directory.</p></li>
+<li><p><strong>num_catchments</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of catchments to find when assigning gullies and ridges.
+Default is 10.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>Dataset containing:</p>
+<ul class="simple">
+<li><p><strong>terrain</strong>: The input DEM (float)</p></li>
+<li><p><strong>gullies</strong>: Boolean array of gullies</p></li>
+<li><p><strong>ridges</strong>: Boolean array of catchment boundaries</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">savetif=True</span></code>, it writes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">{stub}_gullies.tif</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">{stub}_ridges.tif</span></code></p></li>
+</ul>
+<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_gullies_and_ridges.png</span></code></p>
+</dd></dl>
+
+</section>
+</section>
+<section id="apis">
+<h1>APIs<a class="headerlink" href="#apis" title="Link to this heading">¶</a></h1>
+<section id="worldcover">
+<h2>WorldCover<a class="headerlink" href="#worldcover" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.apis.worldcover.worldcover">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.worldcover.</span></span><span class="sig-name descname"><span class="pre">worldcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.worldcover.worldcover" title="Link to this definition">¶</a></dt>
+<dd><p>Download ESA WorldCover imagery from the Microsoft Planetary Computer API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction (0.01 ≈ 1 km),
+resulting in an approximately square area of size 2*buffer.
+Default is 0.01.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset with variable <strong>worldcover</strong> (integer codes) and
+latitude/longitude coordinates. The mapping of codes to classes
+is provided in <code class="docutils literal notranslate"><span class="pre">worldcover_labels</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.tif</span></code></p>
+<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.png</span></code></p>
+<p class="rubric">Examples</p>
+<p>Download a small tile without saving files:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">worldcover</span><span class="p">(</span><span class="n">buffer</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="go">Starting worldcover.py</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;worldcover&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Visualising the WorldCover output:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/0d55f26adaace820c7b6140a9355ba6b/modules-5.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-5.hires.png" class="plot-directive" src="_images/modules-5.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="barra-daily">
+<h2>BARRA Daily<a class="headerlink" href="#barra-daily" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.apis.barra_daily.barra_daily">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.barra_daily.</span></span><span class="sig-name descname"><span class="pre">barra_daily</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['uas',</span> <span class="pre">'vas']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2020'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2021'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_netcdf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gdata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'day'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.barra_daily.barra_daily" title="Link to this definition">¶</a></dt>
+<dd><p>Download 8day variables from BARRA at 4.4km resolution for the region and time of interest</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>variables</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Default is [“uas”, “vas”] for Eastward and Northward Near-Surface Wind, respectively.
+See links at the top of this file for more details.</p></li>
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – – Note: Buffer option is currently disabled due to a bug in the API, so we just get the nearest point.</p></li>
+<li><p><strong>start_year</strong> (<em>str</em><em>, </em><em>optional</em>) – Start year (inclusive). The minimum available year is 1889.
+Default is “2020”.</p></li>
+<li><p><strong>end_year</strong> (<em>str</em><em>, </em><em>optional</em>) – End year (inclusive). Data beyond the available range will be capped
+at the most recent available date. Default is “2021”.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is the current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
+<li><p><strong>save_netcdf</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save results as a NetCDF file. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a wind rose visualisation (PNG). Default is True.</p></li>
+<li><p><strong>gdata</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to access data via NCI /g/data/xe2 path (requires NCI access).
+If False, uses public THREDDS server. Default is False.</p></li>
+<li><p><strong>temporal</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporal resolution of the data. Options are ‘20min’, ‘1hr’, ‘day’, ‘mon’.
+Default is ‘day’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset containing the requested variables with dimensions for time,
+latitude, and longitude.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">save_netcdf=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.nc</span></code></p>
+<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.png</span></code> (a wind rose visualisation)</p>
+<p class="rubric">Examples</p>
+<p>Download wind data with default parameters:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">barra_daily</span><span class="p">(</span><span class="n">save_netcdf</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;uas&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span> <span class="ow">and</span> <span class="s1">&#39;vas&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>  <span class="c1"># Eastward and northward wind speed</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Visualising the wind rose:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/d0700ea45311339d4312feee3f82fa5f/modules-6.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-6.hires.png" class="plot-directive" src="_images/modules-6.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="canopy-height">
+<h2>Canopy Height<a class="headerlink" href="#canopy-height" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.apis.canopy_height.canopy_height">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.canopy_height.</span></span><span class="sig-name descname"><span class="pre">canopy_height</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Test'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.canopy_height.canopy_height" title="Link to this definition">¶</a></dt>
+<dd><p>Download and create a merged canopy height raster from the Meta/Tolan dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so
+a buffer of 0.01 gives an approx 2km x 2km area. Default is 0.005.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is <code class="docutils literal notranslate"><span class="pre">&quot;Test&quot;</span></code>.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory to cache downloaded tiles. Default is the current directory.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset with coordinates (latitude, longitude) and variable (canopy_height)
+of type int in metres.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.tif</span></code></p>
+<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.png</span></code></p>
+<section id="example-visualisation">
+<h3>Example Visualisation<a class="headerlink" href="#example-visualisation" title="Link to this heading">¶</a></h3>
+<p>(<a class="reference download internal" download="" href="_downloads/d6fb2ba17edce2954af7b2ce9927d17a/modules-7.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-7.hires.png" class="plot-directive" src="_images/modules-7.hires.png" />
+</figure>
+</section>
+</dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Shelterbelts</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#indices">Indices</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#shelterbelts.indices.tree_categories.tree_categories"><code class="docutils literal notranslate"><span class="pre">tree_categories()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#shelter-categories">Shelter Categories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cover-categories">Cover Categories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#buffer-categories">Buffer Categories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#shelter-metrics">Shelter Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#full-indices-pipeline">Full Indices Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#catchments">Catchments</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#apis">APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#worldcover">WorldCover</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#barra-daily">BARRA Daily</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#canopy-height">Canopy Height</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Shelterbelts Documentation</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Christopher Bradley.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/modules.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
