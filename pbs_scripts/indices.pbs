@@ -18,7 +18,7 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # percent_tif=/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/35_33-149_46_y2018_predicted_expanded20.tif
 # param_stub=lat_36_lon_144
-param_stub=lat_34_lon_148
+# param_stub=lat_34_lon_148
 
 # year=2018
 # year=2020
