@@ -32,6 +32,7 @@ credentials.py
 snowflake/cache
 *.xml
 *.txt
+!docs/requirements.txt
 *cache*
 *.laz
 *.virtual_documents*
