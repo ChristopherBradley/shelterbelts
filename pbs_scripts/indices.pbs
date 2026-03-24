@@ -18,24 +18,25 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # percent_tif=/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/expanded/lat_34_lon_148/35_33-149_46_y2018_predicted_expanded20.tif
 # param_stub=lat_36_lon_144
-# param_stub=lat_34_lon_148
+param_stub=lat_34_lon_148
 
 # year=2018
 # year=2020
+
 tmpdir='/scratch/xe2/cb8590/tmp'
 
-# Nick Trees - all totally green
-folder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m/${param_stub}
-outdir=/scratch/xe2/cb8590/Nick_indices
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 0 --suffix tiff --buffer_width 5 
+# # Nick Trees - success yay
+# folder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m/${param_stub}
+# outdir=/scratch/xe2/cb8590/Nick_indices
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 
 
-# # Aus Trees
-# year=2024
-# folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
-# echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
-# # python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --limit 2
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20
+# Aus Trees
+year=2024
+folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
+outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
+echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --crop_pixels 20 --buffer_width 5 --limit 2
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --crop_pixels 20 --buffer_width 5 
 
 # # # NSW Trees (done default, want to improve thresholds before running other methods)
 # year=2020

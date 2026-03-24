@@ -27,11 +27,12 @@ from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_
 
 setup_repo_path(subdir='')
 
-# Example data
-tree_cover_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
+# # Example data
+# tree_cover_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
+# tree_cover_file='/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g1_02060_binary_tree_cover_10m.tiff'
 
 # %%
-tree_cover_file='/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g1_02060_binary_tree_cover_10m.tiff'
+tree_cover_file='/scratch/xe2/cb8590/Nick_Aus_treecover_10m/subfolder_8/g2_26729_binary_tree_cover_10m.tiff'
 tree_cover_folder='/scratch/xe2/cb8590/Nick_Aus_treecover_10m/subfolder_1'
 
 
@@ -55,3 +56,5 @@ indices_tifs(folder, suffix='tiff', limit=2)
 
 # %%
 # !ls {folder}
+
+# %%
