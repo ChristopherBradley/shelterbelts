@@ -53,6 +53,11 @@ Catchments
 
 .. autofunction:: shelterbelts.indices.catchments.catchments
 
+Opportunities
+-------------
+
+.. autofunction:: shelterbelts.indices.opportunities.opportunities
+
 APIs
 ====
 
