@@ -90,7 +90,7 @@ def compute_tree_densities(tree_percent, min_distance=0, max_distance=20, mask_a
     return da_percent_trees
 
 
-def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=20, distance_threshold=20, density_threshold=5, savetif=True, plot=True, crop_pixels=None):
+def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.', stub='TEST', wind_method='WINDWARD', wind_threshold=20, distance_threshold=20, density_threshold=5, savetif=True, plot=True, crop_pixels=None, debug=False):
     """Define sheltered and unsheltered pixels
 
     - **Unsheltered** (0): Pixels not protected from wind or without sufficient tree cover
@@ -349,18 +349,19 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
     ds['shelter_categories'] = da_shelter_categories
 
     if savetif:
-        # Saving the shelter categories
-        filename = os.path.join(outdir,f"{stub}_shelter_categories.tif")
-        tif_categorical(ds['shelter_categories'], filename, shelter_categories_cmap)
-        
-        # Saving shelter heights for debugging
-        filename_shelter_heights = os.path.join(outdir,f"{stub}_shelter_heights.tif")
-        shelter_heights.rio.to_raster(filename_shelter_heights)
-        print(f"Saved: {filename_shelter_heights}")
-        
         # Saving the shelter densities or distances
         da_distance_or_percent.fillna(0).astype('uint8').rio.to_raster(filename_distance_or_density)  # TODO: I should probably use LZW compression here.
         print(f"Saved: {filename_distance_or_density}")
+
+        if debug:
+            # Saving the shelter categories
+            filename = os.path.join(outdir,f"{stub}_shelter_categories.tif")
+            tif_categorical(ds['shelter_categories'], filename, shelter_categories_cmap)
+            
+            # Saving shelter heights for debugging
+            filename_shelter_heights = os.path.join(outdir,f"{stub}_shelter_heights.tif")
+            shelter_heights.rio.to_raster(filename_shelter_heights)
+            print(f"Saved: {filename_shelter_heights}")
 
     if plot:
         filename_png = os.path.join(outdir, f"{stub}_shelter_categories.png")
