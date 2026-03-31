@@ -1,4 +1,5 @@
 # The registry is here: https://registry.opendata.aws/dataforgood-fb-forests/
+# v2: s3://dataforgood-fb-data/forests/v2/global/dinov3_global_chm_v2_ml3/
 
 # +
 # Standard Libraries
@@ -37,7 +38,7 @@ def _ensure_footprints_downloaded(canopy_height_dir=".", footprints_geojson='til
         raise ValueError('Only tiles_global.geojson is supported for auto-download')
     
     os.makedirs(canopy_height_dir, exist_ok=True)
-    url = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/tiles.geojson"
+    url = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v2/global/dinov3_global_chm_v2_ml3/tiles.geojson"
     with requests.get(url, stream=True) as stream:
         with open(filename, "wb") as file:
             shutil.copyfileobj(stream.raw, file)
@@ -55,7 +56,7 @@ def download_new_tiles(tiles=["311210203"], canopy_height_dir="."):
     if len(to_download) == 0:
         return
 
-    canopy_baseurl = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/chm/"
+    canopy_baseurl = "https://s3.amazonaws.com/dataforgood-fb-data/forests/v2/global/dinov3_global_chm_v2_ml3/chm/"
 
     # And then download them
     print(f"Downloading {to_download}")

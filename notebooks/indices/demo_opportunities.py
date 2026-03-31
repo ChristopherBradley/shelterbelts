@@ -62,7 +62,7 @@ visualise_categories(
 import rioxarray as rxr
 da_zero = rxr.open_rasterio(roads_file).isel(band=0).drop_vars('band') * 0
 
-ds_roads = opportunities(tree_file, roads_data=roads_file, gullies_data=da_zero, **common, stub='demo_roads', contour_spacing=0)
+ds_roads = opportunities(tree_file, roads_data=roads_file, gullies_data=da_zero, **common, stub='demo_roads', contour_spacing=0, width=5)
 ds_gullies = opportunities(tree_file, roads_data=da_zero, gullies_data=gullies_file, **common, stub='demo_gullies', contour_spacing=0)
 
 visualise_categories_sidebyside(
