@@ -103,3 +103,11 @@ Upload the html to github pages:
 
 You can view the published documentation at: 
 https://christopherbradley.github.io/shelterbelts/index.html
+
+# Uploading to PyPI
+Just a note for myself when I need to republish the library.
+
+1. python3 -m build
+2. twine upload dist/*
+3. Enter the API token
+4. Check it out at https://pypi.org/project/shelterbelts

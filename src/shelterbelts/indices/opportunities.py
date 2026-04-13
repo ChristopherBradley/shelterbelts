@@ -390,7 +390,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         worldcover_file = get_filename('g2_26729_worldcover.tif')
         common = dict(dem_data=dem_file, worldcover_data=worldcover_file, outdir='/tmp', plot=False, savetif=False)
 
-        da_zero = rxr.open_rasterio(roads_file).isel(band=0).drop_vars('band') * 0
+        da_zero = rxr.open_rasterio(roads_file).isel(band=0).drop_vars('band') * 0  # Maybe gullies_data = None should mean no gullies instead of autogenerating the gullies?
 
         ds_roads = opportunities(tree_file, roads_data=roads_file, gullies_data=da_zero, **common, contour_spacing=0)
         ds_gullies = opportunities(tree_file, roads_data=da_zero, gullies_data=gullies_file, **common, contour_spacing=0)
