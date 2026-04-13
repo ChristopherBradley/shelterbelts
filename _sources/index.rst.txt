@@ -62,6 +62,14 @@ ridges identified) on the right.
    _plot_categories_on_axis(ax2, ds_all['buffer_categories'], buffer_categories_cmap, buffer_categories_labels, 'Example Output', legend_inside=True)
    plt.tight_layout()
 
+
+Visualise Results
+-----------------
+
+You can explore results interactively in the
+`Google Earth Engine App <https://christopher-bradley-phd.projects.earthengine.app/view/shelterbelts>`_.
+
+
 Github Repository
 -----------------
 You can find installation instructions on the README of the `GitHub repository <https://github.com/ChristopherBradley/shelterbelts>`_.
@@ -141,12 +149,6 @@ The main parameters for categorising shelterbelts are:
      - 4
      - 8
      - Maximum skeleton width (pixels) to classify a cluster as linear
-
-Visualise Results
------------------
-
-You can explore results interactively in the
-`Google Earth Engine App <https://christopher-bradley-phd.projects.earthengine.app/view/shelterbelts>`_.
 
 
 API Reference
