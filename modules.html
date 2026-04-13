@@ -15,7 +15,7 @@
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Shelterbelts Documentation" href="index.html" />
+    <link rel="prev" title="Shelterbelts" href="index.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -36,9 +36,162 @@
   <section id="api-reference">
 <h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h1>
 </section>
+<section id="apis">
+<h1>APIs<a class="headerlink" href="#apis" title="Link to this heading">¶</a></h1>
+<section id="worldcover">
+<h2>WorldCover<a class="headerlink" href="#worldcover" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.apis.worldcover.worldcover">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.worldcover.</span></span><span class="sig-name descname"><span class="pre">worldcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.worldcover.worldcover" title="Link to this definition">¶</a></dt>
+<dd><p>Download ESA WorldCover imagery from the Microsoft Planetary Computer API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction (0.01 ≈ 1 km),
+resulting in an approximately square area of size 2*buffer.
+Default is 0.01.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset with variable <strong>worldcover</strong> (integer codes) and
+latitude/longitude coordinates. The mapping of codes to classes
+is provided in <code class="docutils literal notranslate"><span class="pre">worldcover_labels</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.tif</span></code></p>
+<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.png</span></code></p>
+<p class="rubric">Examples</p>
+<p>Download a small tile without saving files:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">worldcover</span><span class="p">(</span><span class="n">buffer</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="go">Starting worldcover.py</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;worldcover&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Visualising the WorldCover output:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/dbb02cc2aabd48bd481466b8f3e9ef3a/modules-1.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-1.hires.png" class="plot-directive" src="_images/modules-1.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="barra-daily">
+<h2>BARRA Daily<a class="headerlink" href="#barra-daily" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.apis.barra_daily.barra_daily">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.barra_daily.</span></span><span class="sig-name descname"><span class="pre">barra_daily</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['uas',</span> <span class="pre">'vas']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2020'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2021'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_netcdf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gdata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'day'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.barra_daily.barra_daily" title="Link to this definition">¶</a></dt>
+<dd><p>Download 8day variables from BARRA at 4.4km resolution for the region and time of interest</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>variables</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Default is [“uas”, “vas”] for Eastward and Northward Near-Surface Wind, respectively.
+See links at the top of this file for more details.</p></li>
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – – Note: Buffer option is currently disabled due to a bug in the API, so we just get the nearest point.</p></li>
+<li><p><strong>start_year</strong> (<em>str</em><em>, </em><em>optional</em>) – Start year (inclusive). The minimum available year is 1889.
+Default is “2020”.</p></li>
+<li><p><strong>end_year</strong> (<em>str</em><em>, </em><em>optional</em>) – End year (inclusive). Data beyond the available range will be capped
+at the most recent available date. Default is “2021”.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is the current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
+<li><p><strong>save_netcdf</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save results as a NetCDF file. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a wind rose visualisation (PNG). Default is True.</p></li>
+<li><p><strong>gdata</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to access data via NCI /g/data/xe2 path (requires NCI access).
+If False, uses public THREDDS server. Default is False.</p></li>
+<li><p><strong>temporal</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporal resolution of the data. Options are ‘20min’, ‘1hr’, ‘day’, ‘mon’.
+Default is ‘day’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset containing the requested variables with dimensions for time,
+latitude, and longitude.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">save_netcdf=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.nc</span></code></p>
+<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.png</span></code> (a wind rose visualisation)</p>
+<p class="rubric">Examples</p>
+<p>Download wind data with default parameters:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">barra_daily</span><span class="p">(</span><span class="n">save_netcdf</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;uas&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span> <span class="ow">and</span> <span class="s1">&#39;vas&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>  <span class="c1"># Eastward and northward wind speed</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>Visualising the wind rose:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/673ecb2db2dc7b9c43009a5f5479a177/modules-2.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-2.hires.png" class="plot-directive" src="_images/modules-2.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="canopy-height">
+<h2>Canopy Height<a class="headerlink" href="#canopy-height" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.apis.canopy_height.canopy_height">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.canopy_height.</span></span><span class="sig-name descname"><span class="pre">canopy_height</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Test'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.canopy_height.canopy_height" title="Link to this definition">¶</a></dt>
+<dd><p>Download and create a merged canopy height raster from the Meta/Tolan dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so
+a buffer of 0.01 gives an approx 2km x 2km area. Default is 0.005.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is <code class="docutils literal notranslate"><span class="pre">&quot;Test&quot;</span></code>.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory to cache downloaded tiles. Default is the current directory.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset with coordinates (latitude, longitude) and variable (canopy_height)
+of type int in metres.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.tif</span></code></p>
+<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
+<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.png</span></code></p>
+<section id="example-visualisation">
+<h3>Example Visualisation<a class="headerlink" href="#example-visualisation" title="Link to this heading">¶</a></h3>
+<p>(<a class="reference download internal" download="" href="_downloads/73fed4bcd75f5ecc3004c719055f5d99/modules-3.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-3.hires.png" class="plot-directive" src="_images/modules-3.hires.png" />
+</figure>
+</section>
+</dd></dl>
+
+</section>
+</section>
 <section id="indices">
 <h1>Indices<a class="headerlink" href="#indices" title="Link to this heading">¶</a></h1>
-<p>Tree Categories</p>
+<section id="tree-categories">
+<h2>Tree Categories<a class="headerlink" href="#tree-categories" title="Link to this heading">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="shelterbelts.indices.tree_categories.tree_categories">
 <span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.tree_categories.</span></span><span class="sig-name descname"><span class="pre">tree_categories</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.tree_categories.tree_categories" title="Link to this definition">¶</a></dt>
@@ -110,21 +263,22 @@ Program for Quantifying Landscape Structure. General Technical Report.</p>
 </pre></div>
 </div>
 <p>Here’s how different parameters affect the categorization:</p>
-<p>(<a class="reference download internal" download="" href="_downloads/dbb02cc2aabd48bd481466b8f3e9ef3a/modules-1.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<p>(<a class="reference download internal" download="" href="_downloads/c19d49bfdd7c70f65c785a5b3f55b987/modules-4.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-1_00.hires.png" class="plot-directive" src="_images/modules-1_00.hires.png" />
+<img alt="_images/modules-4_00.hires.png" class="plot-directive" src="_images/modules-4_00.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-1_01.hires.png" class="plot-directive" src="_images/modules-1_01.hires.png" />
+<img alt="_images/modules-4_01.hires.png" class="plot-directive" src="_images/modules-4_01.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-1_02.hires.png" class="plot-directive" src="_images/modules-1_02.hires.png" />
+<img alt="_images/modules-4_02.hires.png" class="plot-directive" src="_images/modules-4_02.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-1_03.hires.png" class="plot-directive" src="_images/modules-1_03.hires.png" />
+<img alt="_images/modules-4_03.hires.png" class="plot-directive" src="_images/modules-4_03.hires.png" />
 </figure>
 </dd></dl>
 
+</section>
 <section id="shelter-categories">
 <h2>Shelter Categories<a class="headerlink" href="#shelter-categories" title="Link to this heading">¶</a></h2>
 <dl class="py function">
@@ -193,18 +347,18 @@ Only applies if the wind_data is not provided. Default is 5.</p></li>
 </pre></div>
 </div>
 <p>Here’s how different parameters affect the shelter categorization:</p>
-<p>(<a class="reference download internal" download="" href="_downloads/673ecb2db2dc7b9c43009a5f5479a177/modules-2.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<p>(<a class="reference download internal" download="" href="_downloads/0d55f26adaace820c7b6140a9355ba6b/modules-5.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-2_00.hires.png" class="plot-directive" src="_images/modules-2_00.hires.png" />
+<img alt="_images/modules-5_00.hires.png" class="plot-directive" src="_images/modules-5_00.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-2_01.hires.png" class="plot-directive" src="_images/modules-2_01.hires.png" />
+<img alt="_images/modules-5_01.hires.png" class="plot-directive" src="_images/modules-5_01.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-2_02.hires.png" class="plot-directive" src="_images/modules-2_02.hires.png" />
+<img alt="_images/modules-5_02.hires.png" class="plot-directive" src="_images/modules-5_02.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-2_03.hires.png" class="plot-directive" src="_images/modules-2_03.hires.png" />
+<img alt="_images/modules-5_03.hires.png" class="plot-directive" src="_images/modules-5_03.hires.png" />
 </figure>
 </dd></dl>
 
@@ -260,9 +414,9 @@ defined in ‘cover_categories_labels’.</p>
 </pre></div>
 </div>
 <p>Visualising the cover categories:</p>
-<p>(<a class="reference download internal" download="" href="_downloads/73fed4bcd75f5ecc3004c719055f5d99/modules-3.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<p>(<a class="reference download internal" download="" href="_downloads/d0700ea45311339d4312feee3f82fa5f/modules-6.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-3.hires.png" class="plot-directive" src="_images/modules-3.hires.png" />
+<img alt="_images/modules-6.hires.png" class="plot-directive" src="_images/modules-6.hires.png" />
 </figure>
 </dd></dl>
 
@@ -321,12 +475,12 @@ defined in ‘cover_categories_labels’.</p>
 </pre></div>
 </div>
 <p>Here’s how different parameters affect the buffer categorization:</p>
-<p>(<a class="reference download internal" download="" href="_downloads/c19d49bfdd7c70f65c785a5b3f55b987/modules-4.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<p>(<a class="reference download internal" download="" href="_downloads/d6fb2ba17edce2954af7b2ce9927d17a/modules-7.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-4_00.hires.png" class="plot-directive" src="_images/modules-4_00.hires.png" />
+<img alt="_images/modules-7_00.hires.png" class="plot-directive" src="_images/modules-7_00.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-4_01.hires.png" class="plot-directive" src="_images/modules-4_01.hires.png" />
+<img alt="_images/modules-7_01.hires.png" class="plot-directive" src="_images/modules-7_01.hires.png" />
 </figure>
 </dd></dl>
 
@@ -459,7 +613,7 @@ defined in ‘linear_categories_labels’.</p></li>
 </section>
 <section id="full-indices-pipeline">
 <h2>Full Indices Pipeline<a class="headerlink" href="#full-indices-pipeline" title="Link to this heading">¶</a></h2>
-<p>Run the end-to-end indices pipeline on percent-cover rasters.</p>
+<p>Run the end-to-end indices pipeline on a single, or multiple percent-cover rasters.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_tif">
 <span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_tif</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">percent_tif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outdir'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_tif" title="Link to this definition">¶</a></dt>
@@ -590,155 +744,96 @@ Default is 10.</p></li>
 </dd></dl>
 
 </section>
-</section>
-<section id="apis">
-<h1>APIs<a class="headerlink" href="#apis" title="Link to this heading">¶</a></h1>
-<section id="worldcover">
-<h2>WorldCover<a class="headerlink" href="#worldcover" title="Link to this heading">¶</a></h2>
+<section id="opportunities">
+<h2>Opportunities<a class="headerlink" href="#opportunities" title="Link to this heading">¶</a></h2>
 <dl class="py function">
-<dt class="sig sig-object py" id="shelterbelts.apis.worldcover.worldcover">
-<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.worldcover.</span></span><span class="sig-name descname"><span class="pre">worldcover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.worldcover.worldcover" title="Link to this definition">¶</a></dt>
-<dd><p>Download ESA WorldCover imagery from the Microsoft Planetary Computer API.</p>
+<dt class="sig sig-object py" id="shelterbelts.indices.opportunities.opportunities">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.opportunities.</span></span><span class="sig-name descname"><span class="pre">opportunities</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">percent_tif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roads_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gullies_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ridges_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worldcover_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ridges</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_catchments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_branch_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contour_spacing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_contour_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">equal_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savetif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.opportunities.opportunities" title="Link to this definition">¶</a></dt>
+<dd><p>Suggest opportunities for new trees based on ridges, gullies and contours.</p>
+<p>Loads a percent-cover GeoTIFF, derives gullies (from hydrolines or DEM
+catchments), roads, ridges and contours, then delegates to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">opportunities_da()</span></code> to classify grass/crop pixels near those
+features as planting opportunities.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
-<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
-<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction (0.01 ≈ 1 km),
-resulting in an approximately square area of size 2*buffer.
-Default is 0.01.</p></li>
+<li><p><strong>percent_tif</strong> (<em>str</em>) – Path to a percent-cover GeoTIFF. A binary tif also works with the
+default <code class="docutils literal notranslate"><span class="pre">cover_threshold</span></code> of 1.</p></li>
+<li><p><strong>roads_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded binary roads raster or path to a GeoTIFF. When None the
+roads are derived from the bounding box of <code class="docutils literal notranslate"><span class="pre">percent_tif</span></code>.</p></li>
+<li><p><strong>gullies_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded binary gullies raster or path to a GeoTIFF. When None
+the gullies are derived from hydrolines or DEM catchments.</p></li>
+<li><p><strong>ridges_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded binary ridges raster or path to a GeoTIFF. When None
+and <code class="docutils literal notranslate"><span class="pre">ridges=True</span></code>, ridges are derived from DEM catchments.</p></li>
+<li><p><strong>worldcover_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded WorldCover land-cover raster or path to a GeoTIFF. When
+None the WorldCover data is derived from the bounding box.</p></li>
+<li><p><strong>dem_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded DEM raster or path to a GeoTIFF. When None the DEM is
+derived from the bounding box.</p></li>
 <li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
-<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If not provided it is derived from
+<code class="docutils literal notranslate"><span class="pre">percent_tif</span></code>.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for temporary files. Default is current directory.</p></li>
+<li><p><strong>cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Pixel percent cover threshold to treat a pixel as ‘tree’. Default is 1.</p></li>
+<li><p><strong>width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within
+the buffer. Default is 1.</p></li>
+<li><p><strong>ridges</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to include opportunities for trees on catchment boundaries
+(ridges). If False, hydrolines are used for gullies only. If True,
+the DEM is used for both gullies and ridges. Default is False.</p></li>
+<li><p><strong>num_catchments</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of catchments when calculating ridges and gullies. If None,
+the number of hydroline segments is used instead. Default is 10.</p></li>
+<li><p><strong>min_branch_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Smallest allowable branch when using hydrolines to determine number
+of catchments. Default is 10.</p></li>
+<li><p><strong>contour_spacing</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels between each contour. If <code class="docutils literal notranslate"><span class="pre">equal_area</span></code> is True,
+this is used as the number of contours instead. Set to 0 to
+disable contour opportunities. Default is 10.</p></li>
+<li><p><strong>min_contour_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Smallest allowable contour to use as an opportunity for planting
+trees. Default is 100.</p></li>
+<li><p><strong>equal_area</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a given number of contours per tile (True), or
+place contours at the same elevations across all tiles (False).
+Default is False.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a visualisation. Default is False.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output. Default is 0.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Dataset with variable <strong>worldcover</strong> (integer codes) and
-latitude/longitude coordinates. The mapping of codes to classes
-is provided in <code class="docutils literal notranslate"><span class="pre">worldcover_labels</span></code>.</p>
+<dd class="field-even"><p><p>Dataset containing:</p>
+<ul class="simple">
+<li><p><strong>woody_veg</strong>: Original binary tree/no-tree classification</p></li>
+<li><p><strong>opportunities</strong>: Opportunity categories (values 0, 5, 6, 7, 8)</p></li>
+</ul>
+</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>xarray.Dataset</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.tif</span></code></p>
-<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.png</span></code></p>
+<p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
+<code class="docutils literal notranslate"><span class="pre">{stub}_opportunities.tif</span></code></p>
 <p class="rubric">Examples</p>
-<p>Download a small tile without saving files:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">worldcover</span><span class="p">(</span><span class="n">buffer</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="go">Starting worldcover.py</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;worldcover&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>
+<p>Using file paths as input:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_binary_tree_cover_10m.tiff&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">roads_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_roads.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">gullies_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_hydrolines.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dem_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_DEM-H.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">worldcover_file</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_worldcover.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">opportunities</span><span class="p">(</span><span class="n">tree_file</span><span class="p">,</span> <span class="n">roads_data</span><span class="o">=</span><span class="n">roads_file</span><span class="p">,</span> <span class="n">gullies_data</span><span class="o">=</span><span class="n">gullies_file</span><span class="p">,</span> <span class="n">dem_data</span><span class="o">=</span><span class="n">dem_file</span><span class="p">,</span> <span class="n">worldcover_data</span><span class="o">=</span><span class="n">worldcover_file</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">set</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span> <span class="o">==</span> <span class="p">{</span><span class="s1">&#39;woody_veg&#39;</span><span class="p">,</span> <span class="s1">&#39;opportunities&#39;</span><span class="p">}</span>
 <span class="go">True</span>
 </pre></div>
 </div>
-<p>Visualising the WorldCover output:</p>
-<p>(<a class="reference download internal" download="" href="_downloads/0d55f26adaace820c7b6140a9355ba6b/modules-5.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<p>(<a class="reference download internal" download="" href="_downloads/48bdb2467c0ad110ebf348830c6e0904/modules-8.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-5.hires.png" class="plot-directive" src="_images/modules-5.hires.png" />
+<img alt="_images/modules-8_00.hires.png" class="plot-directive" src="_images/modules-8_00.hires.png" />
 </figure>
-</dd></dl>
-
-</section>
-<section id="barra-daily">
-<h2>BARRA Daily<a class="headerlink" href="#barra-daily" title="Link to this heading">¶</a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="shelterbelts.apis.barra_daily.barra_daily">
-<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.barra_daily.</span></span><span class="sig-name descname"><span class="pre">barra_daily</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['uas',</span> <span class="pre">'vas']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2020'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2021'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_netcdf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gdata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'day'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.barra_daily.barra_daily" title="Link to this definition">¶</a></dt>
-<dd><p>Download 8day variables from BARRA at 4.4km resolution for the region and time of interest</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>variables</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Default is [“uas”, “vas”] for Eastward and Northward Near-Surface Wind, respectively.
-See links at the top of this file for more details.</p></li>
-<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
-<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
-<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – – Note: Buffer option is currently disabled due to a bug in the API, so we just get the nearest point.</p></li>
-<li><p><strong>start_year</strong> (<em>str</em><em>, </em><em>optional</em>) – Start year (inclusive). The minimum available year is 1889.
-Default is “2020”.</p></li>
-<li><p><strong>end_year</strong> (<em>str</em><em>, </em><em>optional</em>) – End year (inclusive). Data beyond the available range will be capped
-at the most recent available date. Default is “2021”.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is the current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
-<li><p><strong>save_netcdf</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save results as a NetCDF file. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a wind rose visualisation (PNG). Default is True.</p></li>
-<li><p><strong>gdata</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to access data via NCI /g/data/xe2 path (requires NCI access).
-If False, uses public THREDDS server. Default is False.</p></li>
-<li><p><strong>temporal</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporal resolution of the data. Options are ‘20min’, ‘1hr’, ‘day’, ‘mon’.
-Default is ‘day’.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Dataset containing the requested variables with dimensions for time,
-latitude, and longitude.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>xarray.Dataset</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">save_netcdf=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.nc</span></code></p>
-<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.png</span></code> (a wind rose visualisation)</p>
-<p class="rubric">Examples</p>
-<p>Download wind data with default parameters:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">barra_daily</span><span class="p">(</span><span class="n">save_netcdf</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;uas&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span> <span class="ow">and</span> <span class="s1">&#39;vas&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>  <span class="c1"># Eastward and northward wind speed</span>
-<span class="go">True</span>
-</pre></div>
-</div>
-<p>Visualising the wind rose:</p>
-<p>(<a class="reference download internal" download="" href="_downloads/d0700ea45311339d4312feee3f82fa5f/modules-6.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-6.hires.png" class="plot-directive" src="_images/modules-6.hires.png" />
+<img alt="_images/modules-8_01.hires.png" class="plot-directive" src="_images/modules-8_01.hires.png" />
 </figure>
-</dd></dl>
-
-</section>
-<section id="canopy-height">
-<h2>Canopy Height<a class="headerlink" href="#canopy-height" title="Link to this heading">¶</a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="shelterbelts.apis.canopy_height.canopy_height">
-<span class="sig-prename descclassname"><span class="pre">shelterbelts.apis.canopy_height.</span></span><span class="sig-name descname"><span class="pre">canopy_height</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-34.389</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">148.469</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Test'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.apis.canopy_height.canopy_height" title="Link to this definition">¶</a></dt>
-<dd><p>Download and create a merged canopy height raster from the Meta/Tolan dataset.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
-<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
-<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so
-a buffer of 0.01 gives an approx 2km x 2km area. Default is 0.005.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is <code class="docutils literal notranslate"><span class="pre">&quot;Test&quot;</span></code>.</p></li>
-<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory to cache downloaded tiles. Default is the current directory.</p></li>
-<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Dataset with coordinates (latitude, longitude) and variable (canopy_height)
-of type int in metres.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>xarray.Dataset</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.tif</span></code></p>
-<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.png</span></code></p>
-<section id="example-visualisation">
-<h3>Example Visualisation<a class="headerlink" href="#example-visualisation" title="Link to this heading">¶</a></h3>
-<p>(<a class="reference download internal" download="" href="_downloads/d6fb2ba17edce2954af7b2ce9927d17a/modules-7.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-7.hires.png" class="plot-directive" src="_images/modules-7.hires.png" />
+<img alt="_images/modules-8_02.hires.png" class="plot-directive" src="_images/modules-8_02.hires.png" />
 </figure>
-</section>
 </dd></dl>
 
 </section>
@@ -770,23 +865,23 @@ of type int in metres.</p>
     </div>
 </search>
 <script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
-<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#apis">APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#worldcover">WorldCover</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#barra-daily">BARRA Daily</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#canopy-height">Canopy Height</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="#indices">Indices</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#shelterbelts.indices.tree_categories.tree_categories"><code class="docutils literal notranslate"><span class="pre">tree_categories()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tree-categories">Tree Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#shelter-categories">Shelter Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cover-categories">Cover Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#buffer-categories">Buffer Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#shelter-metrics">Shelter Metrics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#full-indices-pipeline">Full Indices Pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#catchments">Catchments</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="#apis">APIs</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#worldcover">WorldCover</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#barra-daily">BARRA Daily</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#canopy-height">Canopy Height</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#opportunities">Opportunities</a></li>
 </ul>
 </li>
 </ul>
@@ -795,7 +890,7 @@ of type int in metres.</p>
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="index.html" title="previous chapter">Shelterbelts Documentation</a></li>
+      <li>Previous: <a href="index.html" title="previous chapter">Shelterbelts</a></li>
   </ul></li>
 </ul>
 </div>

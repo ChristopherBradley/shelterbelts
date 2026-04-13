@@ -1,13 +1,8 @@
-from shelterbelts.indices.cover_categories import cover_categories, cover_categories_cmap, cover_categories_labels
+import rioxarray
+from shelterbelts.apis.canopy_height import visualise_canopy_height
 from shelterbelts.utils.filepaths import get_filename
-from shelterbelts.utils.visualisation import visualise_categories
 
-shelter_file = get_filename('g2_26729_shelter_categories.tif')
-worldcover_file = get_filename('g2_26729_worldcover.tif')
-
-ds_cover = cover_categories(shelter_file, worldcover_file, outdir='/tmp', plot=False, savetif=False)
-visualise_categories(
-    ds_cover['cover_categories'],
-    colormap=cover_categories_cmap, labels=cover_categories_labels,
-    title="Cover Categories"
-)
+chm_tif = get_filename('g2_26729_chm_res10_filled.tif')
+da = rioxarray.open_rasterio(chm_tif)
+ds = da.to_dataset(dim='band').rename({1: 'canopy_height'}).squeeze()
+visualise_canopy_height(ds)
