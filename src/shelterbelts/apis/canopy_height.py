@@ -1,5 +1,6 @@
 # The registry is here: https://registry.opendata.aws/dataforgood-fb-forests/
-# v2: s3://dataforgood-fb-data/forests/v2/global/dinov3_global_chm_v2_ml3/
+# Bucket for v2: s3://dataforgood-fb-data/forests/v2/global/dinov3_global_chm_v2_ml3/
+# Registry for v2: https://registry.opendata.aws/dataforgood-fb-forestsv2/
 
 # +
 # Standard Libraries
