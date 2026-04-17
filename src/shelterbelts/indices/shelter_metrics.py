@@ -236,8 +236,8 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
         # Ellipse parameters
         y0, x0 = prop.centroid
         orientation = prop.orientation
-        a = prop.minor_axis_length / 2.0
-        b = prop.major_axis_length / 2.0
+        a = prop.axis_minor_length / 2.0
+        b = prop.axis_major_length / 2.0
 
         # Force the radius to be at least 1 pixel, for the ellipse_perimeter function to work
         a = max(a, 1)
@@ -312,13 +312,13 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
             skeleton_width = float(np.mean(widths))
             skeleton_area = skel.sum()
             ellipse_ratio = (
-                prop.major_axis_length / prop.minor_axis_length
-                if prop.minor_axis_length != 0 else np.nan
+                prop.axis_major_length / prop.axis_minor_length
+                if prop.axis_minor_length != 0 else np.nan
             )
             stats = {
                 'label': lbl,
-                'ellipse_length': prop.major_axis_length,
-                'ellipse_width': prop.minor_axis_length,
+                'ellipse_length': prop.axis_major_length,
+                'ellipse_width': prop.axis_minor_length,
                 'ellipse len/width': ellipse_ratio,
                 'perimeter': prop.perimeter,
                 'area': prop.area,
