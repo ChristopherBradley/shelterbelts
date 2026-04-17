@@ -135,6 +135,29 @@ def indices_tif(percent_tif, outdir=default_outdir,
     df : pandas.DataFrame
         Per-cluster patch metrics (skeleton length/width, category, etc.).
 
+    Examples
+    --------
+    .. plot::
+
+        import matplotlib.pyplot as plt
+        import rioxarray as rxr
+        from shelterbelts.indices.all_indices import indices_tif
+        from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
+        from shelterbelts.utils.visualisation import _plot_categories_on_axis
+        from shelterbelts.utils.filepaths import get_filename
+
+        tree_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
+        da_trees = rxr.open_rasterio(tree_file).squeeze('band').drop_vars('band')
+        tree_cmap = {0: (255, 255, 255), 1: (14, 138, 0)}
+        tree_labels = {0: 'No Trees', 1: 'Woody Vegetation'}
+
+        ds_linear, _ = indices_tif(tree_file, outdir='/tmp', stub='test')
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+        _plot_categories_on_axis(ax1, da_trees, tree_cmap, tree_labels, 'Example Input', legend_inside=True)
+        _plot_categories_on_axis(ax2, ds_linear['linear_categories'], linear_categories_cmap, linear_categories_labels, 'Example Output', legend_inside=True)
+        plt.tight_layout()
+
     """
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
