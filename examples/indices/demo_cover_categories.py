@@ -79,6 +79,6 @@ setup_repo_path()
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/indices/*.tif
-# !rm ../notebooks/indices/*.png
-# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
+# !rm ../examples/indices/*.tif
+# !rm ../examples/indices/*.png
+# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS

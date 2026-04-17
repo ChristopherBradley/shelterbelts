@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -85,13 +85,13 @@ setup_repo_path()
 # !python -m shelterbelts.indices.buffer_categories --help
 
 # %%
-# !python -m shelterbelts.indices.buffer_categories {cover_file} {gullies_file} --roads_data {roads_file} --buffer_width 4 --outdir ../notebooks/indices --stub command_line
+# !python -m shelterbelts.indices.buffer_categories {cover_file} {gullies_file} --roads_data {roads_file} --buffer_width 4 --outdir ../examples/indices --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/indices/*.tif
-# !rm ../notebooks/indices/*.png
-# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
+# !rm ../examples/indices/*.tif
+# !rm ../examples/indices/*.png
+# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS

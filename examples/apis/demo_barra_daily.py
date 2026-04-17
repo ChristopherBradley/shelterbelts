@@ -138,15 +138,15 @@ setup_repo_path()
 # !python shelterbelts/apis/barra_daily.py
 
 # %%
-# !python shelterbelts/apis/barra_daily.py --lat -35.287 --lon 149.117 --start_year 2020 --end_year 2020 --stub command_line --outdir ../notebooks/apis/outdir
+# !python shelterbelts/apis/barra_daily.py --lat -35.287 --lon 149.117 --start_year 2020 --end_year 2020 --stub command_line --outdir ../examples/apis/outdir
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/apis/*.nc
-# !rm ../notebooks/apis/*.png
+# !rm ../examples/apis/*.nc
+# !rm ../examples/apis/*.png
 
 # %%
-# !rm -r ../notebooks/apis/outdir
+# !rm -r ../examples/apis/outdir

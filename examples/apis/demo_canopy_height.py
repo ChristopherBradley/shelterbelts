@@ -107,19 +107,19 @@ setup_repo_path()
 # !python shelterbelts/apis/canopy_height.py --help
 
 # %%
-# !python shelterbelts/apis/canopy_height.py --lat -35.287 --lon 149.117 --buffer 0.01 --stub command_line --outdir ../notebooks/apis/outdir --tmpdir ../notebooks/apis/tmpdir
+# !python shelterbelts/apis/canopy_height.py --lat -35.287 --lon 149.117 --buffer 0.01 --stub command_line --outdir ../examples/apis/outdir --tmpdir ../examples/apis/tmpdir
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/apis/*.tif
-# !rm ../notebooks/apis/*.png
-# !rm ../notebooks/apis/*.geojson
+# !rm ../examples/apis/*.tif
+# !rm ../examples/apis/*.png
+# !rm ../examples/apis/*.geojson
 
 # %%
-# !rm -r ../notebooks/apis/outdir
+# !rm -r ../examples/apis/outdir
 
 # %%
-# !rm -r ../notebooks/apis/tmpdir
+# !rm -r ../examples/apis/tmpdir

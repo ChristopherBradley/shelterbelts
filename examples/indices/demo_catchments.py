@@ -63,13 +63,13 @@ setup_repo_path()
 # !python -m shelterbelts.indices.catchments --help
 
 # %%
-# !python -m shelterbelts.indices.catchments {dem_file} --num_catchments 7 --stub command_line --outdir ../notebooks/indices
+# !python -m shelterbelts.indices.catchments {dem_file} --num_catchments 7 --stub command_line --outdir ../examples/indices
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/indices/*.tif
-# !rm ../notebooks/indices/*.png
-# !rm ../notebooks/indices/*.xml
+# !rm ../examples/indices/*.tif
+# !rm ../examples/indices/*.png
+# !rm ../examples/indices/*.xml

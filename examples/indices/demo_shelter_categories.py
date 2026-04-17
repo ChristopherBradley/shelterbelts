@@ -152,16 +152,16 @@ setup_repo_path()
 
 # %%
 # %%time
-# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --stub command_line_defaults --outdir ../notebooks/indices
+# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --stub command_line_defaults --outdir ../examples/indices
 
 # %%
-# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --wind_data {wind_file} --height_tif {height_file} --wind_method MOST_COMMON --distance_threshold 10 --stub command_line --outdir ../notebooks/indices
+# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --wind_data {wind_file} --height_tif {height_file} --wind_method MOST_COMMON --distance_threshold 10 --stub command_line --outdir ../examples/indices
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/indices/*.tif
-# !rm ../notebooks/indices/*.png
-# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
+# !rm ../examples/indices/*.tif
+# !rm ../examples/indices/*.png
+# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS

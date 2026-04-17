@@ -94,7 +94,8 @@ def buffer_categories(cover_data, gullies_data, ridges_data=None, roads_data=Non
         from shelterbelts.utils.visualisation import visualise_categories_sidebyside
 
         cover_file = get_filename('g2_26729_cover_categories.tif')
-        gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
+        # gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
+        gullies_file = get_filename('g2_26729_hydrolines.tif')
         ridges_file = get_filename('g2_26729_DEM-S_ridges.tif')
         roads_file = get_filename('g2_26729_roads.tif')
         

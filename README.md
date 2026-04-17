@@ -80,7 +80,7 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 3. Right click any .py file and open as a jupyter notebook. Currently some debugging arguments are usually commented out at the bottom of each file. I'm planning to move these to tests/demos.
 
 # Examples
-There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
+There are jupyter notebooks to demo the functionality of this repo in `examples`. Also, there are .pbs scripts for submitting jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `examples` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
 
 # Testing
 If on gadi:

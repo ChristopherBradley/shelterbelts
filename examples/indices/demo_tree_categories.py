@@ -125,17 +125,17 @@ setup_repo_path()
 
 # %%
 # %%time
-# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --stub command_line_defaults --outdir ../notebooks/indices
+# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --stub command_line_defaults --outdir ../examples/indices
 
 # %%
-# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --min_patch_size 40 --min_core_size 100 --edge_size 2 --max_gap_size 2 --no-strict-core-area --stub command_line --outdir ../notebooks/indices
+# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --min_patch_size 40 --min_core_size 100 --edge_size 2 --max_gap_size 2 --no-strict-core-area --stub command_line --outdir ../examples/indices
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/indices/*.tif
-# !rm ../notebooks/indices/*.png
-# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
+# !rm ../examples/indices/*.tif
+# !rm ../examples/indices/*.png
+# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS
 

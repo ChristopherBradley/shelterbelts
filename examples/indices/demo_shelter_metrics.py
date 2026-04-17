@@ -86,18 +86,18 @@ setup_repo_path()
 # !python -m shelterbelts.indices.shelter_metrics --help
 
 # %%
-# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --outdir ../notebooks/indices --stub command_line
+# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --outdir ../examples/indices --stub command_line
 
 # %%
-# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --min_shelterbelt_length 25 --max_shelterbelt_width 8 --outdir ../notebooks/indices --stub command_line
+# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --min_shelterbelt_length 25 --max_shelterbelt_width 8 --outdir ../examples/indices --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/indices/*.tif
-# !rm ../notebooks/indices/*.png
-# !rm ../notebooks/indices/*.xml  # These get generated if you load the tifs in QGIS
-# !rm ../notebooks/indices/*.xlsx
-# !rm ../notebooks/indices/*.csv
+# !rm ../examples/indices/*.tif
+# !rm ../examples/indices/*.png
+# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS
+# !rm ../examples/indices/*.xlsx
+# !rm ../examples/indices/*.csv

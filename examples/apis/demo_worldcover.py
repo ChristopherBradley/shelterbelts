@@ -100,15 +100,15 @@ setup_repo_path()
 # !python shelterbelts/apis/worldcover.py
 
 # %%
-# !python shelterbelts/apis/worldcover.py --lat -35.287 --lon 149.117 --buffer 0.02 --stub command_line --outdir ../notebooks/apis/outdir
+# !python shelterbelts/apis/worldcover.py --lat -35.287 --lon 149.117 --buffer 0.02 --stub command_line --outdir ../examples/apis/outdir
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../notebooks/apis/*.tif
-# !rm ../notebooks/apis/*.png
+# !rm ../examples/apis/*.tif
+# !rm ../examples/apis/*.png
 
 # %%
-# !rm -r ../notebooks/apis/outdir
+# !rm -r ../examples/apis/outdir

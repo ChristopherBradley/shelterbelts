@@ -49,7 +49,7 @@ ridges identified) on the right.
 
    # Buffer categories with gullies + roads + ridges (right)
    cover_file = get_filename('g2_26729_cover_categories.tif')
-   gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
+   gullies_file = get_filename('g2_26729_hydrolines.tif')
    ridges_file = get_filename('g2_26729_DEM-S_ridges.tif')
    roads_file = get_filename('g2_26729_roads.tif')
    ds_all = buffer_categories(
