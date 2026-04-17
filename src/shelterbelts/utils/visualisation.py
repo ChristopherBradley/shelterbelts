@@ -99,7 +99,7 @@ def visualise_categories(da, filename=None, colormap=None, labels=None, title=No
 
 def visualise_categories_sidebyside(da1, da2, filename=None, colormap=None, labels=None, title1=None, title2=None):
     """Display two categorical maps side by side with shared colormap and labels."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 11))
     _plot_categories_on_axis(ax1, da1, colormap, labels, title1, legend_inside=True)
     _plot_categories_on_axis(ax2, da2, colormap, labels, title2, legend_inside=True)
     plt.tight_layout()
@@ -226,7 +226,7 @@ def _plot_catchments_on_axis(ax, ds, title=None):
     ax.legend(loc='upper right', markerscale=2)
 
     if title:
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_title(title, fontsize=30, fontweight='bold')
 
 
 def plot_catchments(ds, filename=None, title=None):
@@ -239,7 +239,7 @@ def plot_catchments(ds, filename=None, title=None):
 
 def plot_catchments_sidebyside(ds1, ds2, title1=None, title2=None):
     """Display two catchment maps side by side."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 11))
     _plot_catchments_on_axis(ax1, ds1, title1)
     _plot_catchments_on_axis(ax2, ds2, title2)
     plt.tight_layout()

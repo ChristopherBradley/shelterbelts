@@ -153,7 +153,7 @@ def indices_tif(percent_tif, outdir=default_outdir,
 
         ds_linear, _ = indices_tif(tree_file, outdir='/tmp', stub='test')
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 11))
         _plot_categories_on_axis(ax1, da_trees, tree_cmap, tree_labels, 'Example Input', legend_inside=True)
         _plot_categories_on_axis(ax2, ds_linear['linear_categories'], linear_categories_cmap, linear_categories_labels, 'Example Output', legend_inside=True)
         plt.tight_layout()
