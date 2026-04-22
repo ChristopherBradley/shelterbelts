@@ -37,6 +37,18 @@ direction_map = {
 }
 inverted_direction_map = {v: k for k, v in direction_map.items()}
 
+# One distinct colour per compass direction for MULTI_LAYER tifs (clockwise from N)
+_direction_colours = {
+    'N':  (  0,  80, 255),  # Blue
+    'NE': (  0, 200, 255),  # Cyan
+    'E':  (  0, 180,   0),  # Green
+    'SE': (180, 180,   0),  # Yellow
+    'S':  (255, 128,   0),  # Orange
+    'SW': (220,   0,   0),  # Red
+    'W':  (200,   0, 200),  # Magenta
+    'NW': ( 90,   0, 220),  # Purple
+}
+
 
 def compute_distance_to_tree_TH(shelter_heights, wind_dir='E', max_distance=20):
     """For each non-tree pixel, find the distance to the nearest upwind tree tall enough to shelter it.
@@ -279,13 +291,12 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
         ds['shelter_distances'] = da_multi
 
         if savetif:
-            filename = os.path.join(outdir, f"{stub}_shelter_categories.tif")
-            da_multi.rio.to_raster(filename)
-            print(f"Saved: {filename}")
             for direction in directions:
+                band = da_multi.sel(direction=direction).rio.write_nodata(0)
+                colour = _direction_colours[direction]
+                colormap = {0: (0, 0, 0)} | {v: colour for v in range(1, 256)}
                 band_filename = os.path.join(outdir, f"{stub}_shelter_{direction}.tif")
-                da_multi.sel(direction=direction).rio.to_raster(band_filename)
-                print(f"Saved: {band_filename}")
+                tif_categorical(band, band_filename, colormap)
 
         if plot:
             import matplotlib.pyplot as plt
