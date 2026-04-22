@@ -299,9 +299,9 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     terrain_tif = os.path.join(tmpdir, f"{stub}_terrain.tif")
     ds_catch = catchments(terrain_tif, outdir=tmpdir, stub=stub, savetif=debug, plot=debug)
     gullies_tif = os.path.join(tmpdir, f"{stub}_gullies.tif")
-    ridges_tif = os.path.join(tmpdir, f"{stub}_ridges.tif")
+    # ridges_tif = os.path.join(tmpdir, f"{stub}_ridges.tif")
     tif_categorical(ds_catch['gullies'], gullies_tif, colormap=gullies_cmap)
-    tif_categorical(ds_catch['ridges'], ridges_tif, colormap=ridges_cmap)
+    # tif_categorical(ds_catch['ridges'], ridges_tif, colormap=ridges_cmap)
 
     # 5. Roads via OSM; note better Australian data if relevant
     lat_min, lon_min, lat_max, lon_max = _AUSTRALIA_BOUNDS
@@ -331,7 +331,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
         outdir=outdir, stub=stub, savetif=debug, plot=debug, crop_pixels=crop_pixels)
     ds_cover = cover_categories(ds_shelter, da_worldcover, outdir=outdir, stub=stub,
         savetif=debug, plot=debug)
-    ds_buffer = buffer_categories(ds_cover, gullies_tif, ridges_data=ridges_tif,
+    ds_buffer = buffer_categories(ds_cover, gullies_tif, ridges_data=None,
         roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width,
         savetif=debug, plot=debug)
     ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug,
