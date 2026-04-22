@@ -30,8 +30,6 @@ from shelterbelts.indices.catchments import catchments, gullies_cmap, ridges_cma
 # 11 secs for all these imports
 # -
 from shelterbelts.utils.filepaths import (
-    default_outdir,
-    default_tmpdir,
     worldcover_dir,
     worldcover_geojson,
     hydrolines_gdb,
@@ -71,8 +69,8 @@ GEE_legend = {
   100: 'Moss and lichen'
 }
 
-def indices_tif(percent_tif, outdir=default_outdir,
-                     tmpdir=default_tmpdir, stub=None,
+def indices_tif(percent_tif, outdir=".",
+                     tmpdir=".", stub=None,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
@@ -221,7 +219,7 @@ def indices_tif(percent_tif, outdir=default_outdir,
 _AUSTRALIA_BOUNDS = (-44, 113, -10, 154)  # (lat_min, lon_min, lat_max, lon_max)
 
 
-def indices_latlon(lat, lon, buffer=0.05, outdir=default_outdir, tmpdir=default_tmpdir, stub=None,
+def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
                    wind_method=None, wind_threshold=20,
                    height_threshold=1.0, cover_threshold=1,
                    min_patch_size=20, edge_size=3, max_gap_size=1,
@@ -259,9 +257,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=default_outdir, tmpdir=default_
         Minimum percentage of tree-pixels within a 10 m cell to count it as tree. Default 1.
         The 1 m binary raster is average-resampled to 10 m (giving 0–100 % cover) before
         this threshold is applied, matching the behaviour of :func:`indices_tif`.
-    min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold,
-    buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length,
-    max_shelterbelt_width, debug : optional
+    min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, debug : optional
         Same as :func:`indices_tif`.
 
     Returns
@@ -273,7 +269,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=default_outdir, tmpdir=default_
 
     Notes
     -----
-    For locations in Australia, higher-quality roads and hydrolines are available from the
+    For locations in Australia, higher-quality roads and hydrolines are available from the Geoscience
     NationalRoads GDB and SurfaceHydrologyLinesRegional GDB. Set
     ``shelterbelts.utils.filepaths.roads_gdb`` and ``hydrolines_gdb`` to use them.
     """
@@ -287,7 +283,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=default_outdir, tmpdir=default_
     os.makedirs(tmpdir, exist_ok=True)
 
     # 1. Canopy height → binary trees at 1 m resolution (EPSG:4326)
-    ds_chm = canopy_height(lat, lon, buffer, outdir=tmpdir, stub=stub, save_tif=False, plot=False)
+    ds_chm = canopy_height(lat, lon, buffer, outdir=tmpdir, stub=stub, save_tif=debug, plot=debug)
     da_trees_1m = (ds_chm['canopy_height'] >= height_threshold).astype(float)
 
     # 2. WorldCover (EPSG:4326) — provides the reference 10 m grid
@@ -299,9 +295,9 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=default_outdir, tmpdir=default_
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
 
     # 4. DEM → gullies + ridges
-    terrain_tiles(lat, lon, buffer, outdir=tmpdir, stub=stub, tmpdir=tmpdir, verbose=False)
+    terrain_tiles(lat, lon, buffer, outdir=tmpdir, stub=stub, tmpdir=tmpdir, verbose=debug)
     terrain_tif = os.path.join(tmpdir, f"{stub}_terrain.tif")
-    ds_catch = catchments(terrain_tif, outdir=tmpdir, stub=stub, savetif=False, plot=False)
+    ds_catch = catchments(terrain_tif, outdir=tmpdir, stub=stub, savetif=debug, plot=debug)
     gullies_tif = os.path.join(tmpdir, f"{stub}_gullies.tif")
     ridges_tif = os.path.join(tmpdir, f"{stub}_ridges.tif")
     tif_categorical(ds_catch['gullies'], gullies_tif, colormap=gullies_cmap)
@@ -316,12 +312,12 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=default_outdir, tmpdir=default_
                 "NationalRoads GDB and SurfaceHydrologyLinesRegional GDB and set "
                 "shelterbelts.utils.filepaths.roads_gdb / hydrolines_gdb."
             )
-    _, ds_roads = osm_roads(da_trees, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False)
+    _, ds_roads = osm_roads(da_trees, outdir=tmpdir, stub=stub, savetif=debug, save_gpkg=debug)
 
     # 6. Wind — only downloaded when wind_method is set
     if wind_method and wind_method != "None":
         ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020,
-                              gdata=IS_GADI, plot=False, save_netcdf=False)
+                              gdata=IS_GADI, plot=debug, save_netcdf=debug)
     else:
         ds_wind = None
 
@@ -339,15 +335,15 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=default_outdir, tmpdir=default_
         roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width,
         savetif=debug, plot=debug)
     ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug,
-        save_csv=debug, save_labels=False, crop_pixels=crop_pixels,
+        save_csv=debug, save_labels=debug, crop_pixels=crop_pixels,
         min_shelterbelt_length=min_shelterbelt_length,
         max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
 
     return ds_linear, df_patches
 
 
-def indices_csv(csv, outdir=default_outdir,
-                     tmpdir=default_tmpdir, stub=None,
+def indices_csv(csv, outdir=".",
+                     tmpdir=".", stub=None,
                      wind_method=None, wind_threshold=20,
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
@@ -373,7 +369,7 @@ def indices_csv(csv, outdir=default_outdir,
         indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width)
 
 
-def indices_tifs(folder, outdir=default_outdir, tmpdir=default_tmpdir, param_stub='', 
+def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
                       wind_method=None, wind_threshold=20,
                       cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
@@ -460,8 +456,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Run the shelterbelt delineation pipeline on a folder of percent_cover.tifs.")
 
     parser.add_argument("folder", help="Input folder containing percent_cover.tifs")
-    parser.add_argument("--outdir", default=default_outdir, help=f"Output folder for linear_categories.tifs (default: {default_outdir})")
-    parser.add_argument("--tmpdir", default=default_tmpdir, help=f"Temporary working folder (default: {default_tmpdir})")
+    parser.add_argument("--outdir", default=".", help="Output folder for linear_categories.tifs (default: current directory)")
+    parser.add_argument("--tmpdir", default=".", help="Temporary working folder (default: current directory)")
     parser.add_argument("--param_stub", default=None, help="Extra stub for the suffix of the merged tif")
     parser.add_argument("--wind_method", default=None, help="Method used to infer shelter direction")
     parser.add_argument("--wind_threshold", type=int, default=20, help="Wind speed threshold in km/h")

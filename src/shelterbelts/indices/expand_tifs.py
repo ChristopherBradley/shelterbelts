@@ -8,9 +8,7 @@ import rioxarray as rxr
 from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
 
 
-from shelterbelts.utils.filepaths import default_tmpdir
-
-def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir=default_tmpdir, num_pixels=20, pixel_size=10):
+def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir=".", num_pixels=20, pixel_size=10):
     """Expand the tif by a certain number of pixels, to avoid edge effects when running indices at scale
     
     Parameters

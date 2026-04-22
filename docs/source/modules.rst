@@ -66,6 +66,8 @@ Run the end-to-end indices pipeline on a single, or multiple percent-cover raste
 
 .. autofunction:: shelterbelts.indices.all_indices.indices_tifs
 
+.. autofunction:: shelterbelts.indices.all_indices.indices_latlon
+
 Catchments
 ----------
 

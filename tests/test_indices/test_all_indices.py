@@ -153,7 +153,7 @@ def test_indices_latlon():
     """Smoke test for indices_latlon using the ACT test area."""
     ds, df = indices_latlon(
         -34.389, 148.469, buffer=0.02,
-        outdir='outdir', tmpdir='tmpdir', stub='test_latlon'
+        outdir='outdir', tmpdir='tmpdir', stub='test_latlon', debug=True
     )
     assert ds is not None
     assert 'linear_categories' in ds.data_vars
