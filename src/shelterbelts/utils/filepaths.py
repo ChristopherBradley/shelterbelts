@@ -21,7 +21,7 @@ else:
     default_outdir = '.'
     default_tmpdir = '.'
     worldcover_dir = str(_repo_root / 'data')
-    worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
+    worldcover_geojson = str(_repo_root / 'data' / 'g2_26729_worldcover_footprints.geojson')
     hydrolines_gdb = str(_repo_root / 'data' / 'g2_26729_hydrolines_cropped.gpkg')
     roads_gdb = str(_repo_root / 'data' / 'g2_26729_roads_cropped.gpkg')
 

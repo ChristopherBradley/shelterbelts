@@ -88,6 +88,31 @@ visualise_categories_sidebyside(
 )
 
 # %% [markdown]
+# ## MULTI_LAYER: All 8 Directions at Once
+#
+# `wind_method='MULTI_LAYER'` computes shelter distances independently for all 8 compass directions
+# (clockwise: N, NE, E, SE, S, SW, W, NW) and saves them as an 8-band GeoTIFF.
+
+# %%
+ds_multi = shelter_categories(ds_tree_categories, wind_method='MULTI_LAYER', stub='wind_MULTI_LAYER')
+print("shelter_distances shape (direction × y × x):", ds_multi['shelter_distances'].shape)
+print("Band order:", ds_multi['shelter_distances'].direction.values.tolist())
+
+# %%
+import matplotlib.pyplot as plt
+
+directions = ds_multi['shelter_distances'].direction.values.tolist()
+cmaps = ['Blues', 'Greens', 'Oranges', 'Reds', 'Purples', 'YlOrBr', 'GnBu', 'PuRd']
+
+_, axes = plt.subplots(2, 4, figsize=(24, 11))
+for ax, direction, cmap_name in zip(axes.flat, directions, cmaps):
+    band = ds_multi['shelter_distances'].sel(direction=direction)
+    ax.imshow(band.values, cmap=cmap_name)
+    ax.set_title(direction, fontsize=30)
+    ax.axis('off')
+plt.tight_layout()
+
+# %% [markdown]
 # ## Changing the distance_threshold
 #
 # The `distance_threshold` parameter defines how far from trees a pixel is still considered sheltered.
