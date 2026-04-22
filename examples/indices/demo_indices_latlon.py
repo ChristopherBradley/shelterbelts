@@ -36,7 +36,7 @@ lat, lon, buffer = -34.389, 148.469, 0.01  # distance in degrees in each directi
 
 # %% [markdown]
 # ## Default Parameters
-# * Note this may take a while to run the first time at any given location since it needs to download a ~60MB tif file.
+# * Note this may take a while (~10 mins) to run the first time at any given location since it needs to download a ~60MB tif file.
 
 # %%
 # %%time
@@ -72,7 +72,7 @@ visualise_categories_sidebyside(
 # ## Changing the height_threshold
 #
 # The `height_threshold` (metres) controls which pixels in the 1 m canopy height model
-# are classified as trees.
+# are classified as trees or not.
 
 # %%
 ds1, _ = indices_latlon(lat, lon, buffer, height_threshold=1.0, stub='height1')
@@ -88,7 +88,7 @@ visualise_categories_sidebyside(
 #
 # After resampling from 1 m to 10 m, each pixel holds the percentage of 1 m sub-pixels
 # that were classified as trees. `cover_threshold` sets the minimum percentage required
-# to count a 10 m pixel as tree. A higher value requires denser canopy.
+# to count a 10 m pixel as a tree.
 
 # %%
 ds1, _ = indices_latlon(lat, lon, buffer, cover_threshold=1, stub='cover1')
@@ -122,11 +122,10 @@ visualise_categories_sidebyside(
 # Remove output files created by this notebook
 
 # %%
-# !rm ./*.tif
 # !rm ./*.png
 # !rm ./*.csv
 # !rm ./*.xml  # Generated if tifs are opened in QGIS
 # !rm ./*.gpkg
 # !rm ./*.geojson
 
-# %%
+# # !rm ./*.tif # Commenting this out by default so you don't have to redownload the 60MB chm.tif

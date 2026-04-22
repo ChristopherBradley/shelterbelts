@@ -275,8 +275,7 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
             # Windward distances
             windward_scaling_factor = 0.5
             opposite_wind_direction = inverted_direction_map[tuple(np.array(direction_map[primary_wind_direction]) * - 1 )]
-            windward_distance_threshold = int(distance_threshold * windward_scaling_factor)
-            distances2 = compute_distance_to_tree_TH(shelter_heights, opposite_wind_direction, windward_distance_threshold)  
+            distances2 = compute_distance_to_tree_TH(shelter_heights * windward_scaling_factor, opposite_wind_direction, distance_threshold)
             
             # Merge the leeward and windward distances
             distances1 = distances1.fillna(0).clip(0, 255).astype('uint8')
