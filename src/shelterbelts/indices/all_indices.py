@@ -295,6 +295,12 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
 
     # 4. DEM → gullies + ridges
+    # terrain_tiles calls gdalwarp as a subprocess; ensure it can find the PROJ database
+    if 'PROJ_DATA' not in os.environ:
+        import sys
+        _proj_data = os.path.join(os.path.dirname(os.path.dirname(sys.executable)), 'share', 'proj')
+        if os.path.exists(_proj_data):
+            os.environ['PROJ_DATA'] = _proj_data
     terrain_tiles(lat, lon, buffer, outdir=tmpdir, stub=stub, tmpdir=tmpdir, verbose=debug)
     terrain_tif = os.path.join(tmpdir, f"{stub}_terrain.tif")
     ds_catch = catchments(terrain_tif, outdir=tmpdir, stub=stub, savetif=debug, plot=debug)
