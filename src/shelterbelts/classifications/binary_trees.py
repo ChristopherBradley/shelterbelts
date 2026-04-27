@@ -58,13 +58,21 @@ def worldcover_trees(input_data, outdir=".", stub=None, savetif=True, plot=True)
 
     .. plot::
 
+        import matplotlib.pyplot as plt
+        import rioxarray as rxr
         from shelterbelts.classifications.binary_trees import worldcover_trees, cmap_woody_veg, labels_woody_veg
-        from shelterbelts.utils.visualisation import visualise_categories
+        from shelterbelts.apis.worldcover import worldcover_cmap, worldcover_labels
+        from shelterbelts.utils.visualisation import _plot_categories_on_axis
         from shelterbelts.utils.filepaths import get_filename
 
         filename = get_filename('g2_26729_worldcover.tif')
+        da_input = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
         ds = worldcover_trees(filename, savetif=False, plot=False)
-        visualise_categories(ds['woody_veg'], colormap=cmap_woody_veg, labels=labels_woody_veg, title='WorldCover → Binary Tree Cover')
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+        _plot_categories_on_axis(ax1, da_input, worldcover_cmap, worldcover_labels, 'WorldCover Input', legend_inside=True)
+        _plot_categories_on_axis(ax2, ds['woody_veg'], cmap_woody_veg, labels_woody_veg, 'Binary Tree Cover', legend_inside=True)
+        plt.tight_layout()
 
     """
     if isinstance(input_data, str):
@@ -133,13 +141,20 @@ def canopy_height_trees(input_data, outdir=".", stub=None, savetif=True, plot=Tr
 
     .. plot::
 
+        import matplotlib.pyplot as plt
+        import rioxarray as rxr
         from shelterbelts.classifications.binary_trees import canopy_height_trees, cmap_woody_veg, labels_woody_veg
-        from shelterbelts.utils.visualisation import visualise_categories
+        from shelterbelts.utils.visualisation import _plot_canopy_height_on_axis, _plot_categories_on_axis
         from shelterbelts.utils.filepaths import get_filename
 
         filename = get_filename('milgadara_1kmx1km_CHM_1m.tif')
+        da_input = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
         ds = canopy_height_trees(filename, savetif=False, plot=False)
-        visualise_categories(ds['woody_veg'], colormap=cmap_woody_veg, labels=labels_woody_veg, title='Canopy Height → Binary Tree Cover')
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+        _plot_canopy_height_on_axis(ax1, da_input, title='Canopy Height Input (m)')
+        _plot_categories_on_axis(ax2, ds['woody_veg'], cmap_woody_veg, labels_woody_veg, 'Binary Tree Cover', legend_inside=True)
+        plt.tight_layout()
 
     """
     if isinstance(input_data, str):
