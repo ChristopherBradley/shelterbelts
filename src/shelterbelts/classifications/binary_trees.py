@@ -5,7 +5,7 @@ import glob
 import rioxarray as rxr
 import rasterio
 
-from shelterbelts.utils.visualisation import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 
 
 cmap_woody_veg = {
@@ -20,7 +20,7 @@ labels_woody_veg = {
 }
 
 
-def worldcover_trees(filename, outdir=".", stub=None, savetif=True, da=None):
+def worldcover_trees(input_data, outdir=".", stub=None, savetif=True, plot=True):
     """
     Convert an ESA WorldCover classification tif into a binary tree-cover tif.
 
@@ -31,89 +31,125 @@ def worldcover_trees(filename, outdir=".", stub=None, savetif=True, da=None):
 
     Parameters
     ----------
-    filename : str
-        Path to a WorldCover GeoTIFF. Required unless ``da`` is supplied.
+    input_data : str or xarray.DataArray
+        Either a file path to a WorldCover GeoTIFF, or a pre-loaded DataArray.
     outdir : str, optional
-        Output directory for the saved tif. Default is ``"."``.
+        Output directory for saving results. Default is current directory.
     stub : str, optional
-        Prefix for output filenames. If None, derived from ``filename``. Default is None.
+        Prefix for output filenames. If not provided it is derived from ``input_data``
+        when a file path is given; required when passing a DataArray.
     savetif : bool, optional
-        When True, write a GeoTIFF with the woody-vegetation colour map and
-        pyramid overviews. Default is True.
-    da : xarray.DataArray, optional
-        Pre-loaded DataArray. If supplied, ``filename`` is not read from disk.
+        Whether to save the results as a GeoTIFF. Default is True.
+    plot : bool, optional
+        Whether to generate a PNG visualisation. Default is True.
 
     Returns
     -------
     xarray.Dataset
         Dataset with a single ``woody_veg`` variable (uint8, 0/1).
 
-    Notes
-    -----
-    When ``savetif=True``, writes ``{outdir}/{stub}_woody_veg.tif`` with a
-    categorical colour map and overview pyramids for fast display in QGIS.
-
     Examples
     --------
     >>> from shelterbelts.utils.filepaths import get_filename
     >>> filename = get_filename('g2_26729_worldcover.tif')
-    >>> ds = worldcover_trees(filename, outdir='/tmp', stub='example', savetif=False)
+    >>> ds = worldcover_trees(filename, savetif=False, plot=False)
     >>> 'woody_veg' in ds.data_vars
     True
+
+    .. plot::
+
+        from shelterbelts.classifications.binary_trees import worldcover_trees, cmap_woody_veg, labels_woody_veg
+        from shelterbelts.utils.visualisation import visualise_categories
+        from shelterbelts.utils.filepaths import get_filename
+
+        filename = get_filename('g2_26729_worldcover.tif')
+        ds = worldcover_trees(filename, savetif=False, plot=False)
+        visualise_categories(ds['woody_veg'], colormap=cmap_woody_veg, labels=labels_woody_veg, title='WorldCover → Binary Tree Cover')
+
     """
-    if da is None:
-        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+    if isinstance(input_data, str):
+        da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
+        if stub is None:
+            stub = input_data.split('/')[-1].split('.')[0]
+    else:
+        da = input_data
+        if stub is None:
+            raise ValueError("stub must be provided when input_data is a DataArray")
 
     # WorldCover classes 10 (Tree cover) + 20 (Shrubland) both count as "woody".
     da_trees = (da == 10) | (da == 20)
     da_trees = da_trees.astype('uint8')
 
     if savetif:
-        if stub is None:
-            stub = filename.split('/')[-1].split('.')[0]
         outpath = os.path.join(outdir, f"{stub}_woody_veg.tif")
         tif_categorical(da_trees, outpath, cmap_woody_veg, tiled=True)
 
-        # Pyramid overviews keep zoomed-out views fast in QGIS.
+        # Add a pyramid for faster viewing in zoomed out views in QGIS (increases the filesize a bit)
         levels = [2, 4, 8, 16, 32, 64]
         with rasterio.open(outpath, "r+") as src:
             src.build_overviews(levels)
+
+    if plot:
+        outpath_png = os.path.join(outdir, f"{stub}_woody_veg.png")
+        visualise_categories(da_trees, outpath_png, cmap_woody_veg, labels_woody_veg, "Binary Tree Cover")
 
     ds = da_trees.to_dataset(name='woody_veg')
     return ds
 
 
-def canopy_height_trees(filename, outdir=".", stub=None, savetif=True, da=None):
+def canopy_height_trees(input_data, outdir=".", stub=None, savetif=True, plot=True):
     """
     Convert a 1m canopy-height tif into a binary 10m tree-cover tif.
 
-    Any pixel with canopy height ≥ 1m becomes a tree (1); shorter pixels become
-    non-tree (0). The raster is then coarsened from 1m to 10m using
-    :class:`rasterio.enums.Resampling.max` so that a single tall pixel inside a
-    10m cell is enough to mark that cell as treed. The 10m output matches the
-    resolution expected by the ``indices/`` pipeline.
+    Any pixel with canopy height ≥ 1m becomes a tree (1) and others become
+    non-tree (0). Then uses 'max' resampling to coarsen to 10m resolution.
 
     Parameters
     ----------
-    filename : str
-        Path to a 1m canopy-height GeoTIFF. Required unless ``da`` is supplied.
+    input_data : str or xarray.DataArray
+        Either a file path to a 1m canopy-height GeoTIFF, or a pre-loaded DataArray.
     outdir : str, optional
         Output directory for the saved tif. Default is ``"."``.
     stub : str, optional
-        Prefix for output filenames. If None, derived from ``filename``. Default is None.
+        Prefix for output filenames. If None, derived from ``input_data`` when a
+        file path is given; required when passing a DataArray.
     savetif : bool, optional
-        When True, write a GeoTIFF with the woody-vegetation colour map and
-        pyramid overviews. Default is True.
-    da : xarray.DataArray, optional
-        Pre-loaded DataArray. If supplied, ``filename`` is not read from disk.
+        Whether to save the results as a GeoTIFF. Default is True.
+    plot : bool, optional
+        Whether to generate a PNG visualisation. Default is True.
 
     Returns
     -------
     xarray.Dataset
         Dataset with a single ``woody_veg`` variable (uint8, 0/1) at 10m resolution.
+
+    Examples
+    --------
+    >>> from shelterbelts.utils.filepaths import get_filename
+    >>> filename = get_filename('milgadara_1kmx1km_CHM_1m.tif')
+    >>> ds = canopy_height_trees(filename, savetif=False, plot=False)
+    >>> 'woody_veg' in ds.data_vars
+    True
+
+    .. plot::
+
+        from shelterbelts.classifications.binary_trees import canopy_height_trees, cmap_woody_veg, labels_woody_veg
+        from shelterbelts.utils.visualisation import visualise_categories
+        from shelterbelts.utils.filepaths import get_filename
+
+        filename = get_filename('milgadara_1kmx1km_CHM_1m.tif')
+        ds = canopy_height_trees(filename, savetif=False, plot=False)
+        visualise_categories(ds['woody_veg'], colormap=cmap_woody_veg, labels=labels_woody_veg, title='Canopy Height → Binary Tree Cover')
+
     """
-    if da is None:
-        da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
+    if isinstance(input_data, str):
+        da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
+        if stub is None:
+            stub = input_data.split('/')[-1].split('.')[0]
+    else:
+        da = input_data
+        if stub is None:
+            raise ValueError("stub must be provided when input_data is a DataArray")
 
     da_trees = (da >= 1)
     da_trees = da_trees.astype('uint8')
@@ -126,17 +162,19 @@ def canopy_height_trees(filename, outdir=".", stub=None, savetif=True, da=None):
     )
 
     if savetif:
-        if stub is None:
-            stub = filename.split('/')[-1].split('.')[0]
         outpath = os.path.join(outdir, f"{stub}_woody_veg.tif")
         tif_categorical(da_trees, outpath, cmap_woody_veg, tiled=True)
         levels = [2, 4, 8, 16, 32, 64]
         with rasterio.open(outpath, "r+") as src:
             src.build_overviews(levels)
 
+    if plot:
+        outpath_png = os.path.join(outdir, f"{stub}_woody_veg.png")
+        visualise_categories(da_trees, outpath_png, cmap_woody_veg, labels_woody_veg, "Binary Tree Cover")
+
     ds = da_trees.to_dataset(name='woody_veg')
 
-    # Free memory explicitly — canopy-height tiles are often 1m and large.
+    # Trying to avoid memory accumulation
     da.close()
     da_trees.close()
     del da, da_trees
