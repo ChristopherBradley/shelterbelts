@@ -29,20 +29,20 @@ def osm_roads(geotif_or_da, outdir=".", stub="TEST", savetif=True, save_gpkg=Tru
     geotif_or_da : str or xarray.DataArray
         Path to a GeoTIFF, or a DataArray, used to define the bounding box.
     outdir : str, optional
-        Output directory. Default is current directory.
+        Output directory.
     stub : str, optional
-        Prefix for output filenames. Default is "TEST".
+        Prefix for output filenames.
     savetif : bool, optional
-        Whether to save a roads GeoTIFF. Default is True.
+        Whether to save a roads GeoTIFF.
     save_gpkg : bool, optional
-        Whether to save a roads GeoPackage. Default is True.
+        Whether to save a roads GeoPackage.
 
     Returns
     -------
     gdf : geopandas.GeoDataFrame
         Road features in the region of interest.
     ds : xarray.Dataset
-        Dataset with a ``roads`` layer rasterised to the input grid.
+        Dataset with a roads layer rasterised to the input grid.
     """
     if isinstance(geotif_or_da, str):
         da = rxr.open_rasterio(geotif_or_da, masked=True).isel(band=0)
@@ -85,10 +85,10 @@ def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     parser.add_argument('geotif', help='GeoTIFF path used for the bounding box')
-    parser.add_argument('--outdir', default='.', help='Output directory')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output files')
-    parser.add_argument('--no-save-tif', dest='savetif', action='store_false', default=True)
-    parser.add_argument('--no-save-gpkg', dest='save_gpkg', action='store_false', default=True)
+    parser.add_argument('--outdir', default='.', help='Output directory (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output files (default: TEST)')
+    parser.add_argument('--no-save-tif', dest='savetif', action='store_false', default=True, help='Disable saving GeoTIFF output (default: enabled)')
+    parser.add_argument('--no-save-gpkg', dest='save_gpkg', action='store_false', default=True, help='Disable saving GeoPackage output (default: enabled)')
     return parser.parse_args()
 
 
