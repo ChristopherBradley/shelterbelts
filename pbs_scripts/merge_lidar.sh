@@ -14,7 +14,7 @@ BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/e
 
 
 # FOLDER_SUFFIX=less_percentmethod
-FOLDER_SUFFIX=default_percentmethod2
+FOLDER_SUFFIX=default_percentmethod
 # FOLDER_SUFFIX=more_percentmethod
 
 for folder in "$BASE_DIR"/*"$FOLDER_SUFFIX"; do

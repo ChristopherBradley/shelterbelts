@@ -30,7 +30,7 @@ tmpdir="$PBS_JOBFS"  # Opus says using /scratch/xe2/cb8590/tmp causes concurrenc
 # outdir=/scratch/xe2/cb8590/Nick_indices
 # python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --limit 15000
 
-# Aus Trees - Working, but need to run a few times because takes longer than 10 hours per 1000.
+# Aus Trees
 year=2024
 folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
 outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
