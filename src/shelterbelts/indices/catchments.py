@@ -191,19 +191,17 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
     terrain_tif : str
         Path to the DEM (Digital Elevation Model) GeoTIFF file.
     outdir : str, optional
-        Output directory for saving results. Default is current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. Default is "TEST".
+        Prefix for output filenames.
     tmpdir : str, optional
         Temporary folder to save the terrain_tif as float64 for pysheds.
-        Default is current directory.
     num_catchments : int, optional
         The number of catchments to find when assigning gullies and ridges.
-        Default is 10.
     savetif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a PNG visualisation. Default is True.
+        Whether to generate a PNG visualisation.
 
     Returns
     -------
@@ -216,13 +214,27 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
 
     Notes
     -----
-    When ``savetif=True``, it writes:
+    When savetif=True, it writes:
     
-    - ``{stub}_gullies.tif``
-    - ``{stub}_ridges.tif``
+    - {stub}_gullies.tif
+    - {stub}_ridges.tif
 
-    When ``plot=True``, it writes:
-    ``{stub}_gullies_and_ridges.png``
+    When plot=True, it writes:
+    {stub}_gullies_and_ridges.png
+
+    Examples
+    --------
+    .. plot::
+
+        from shelterbelts.indices.catchments import catchments
+        from shelterbelts.utils.filepaths import get_filename
+        from shelterbelts.utils.visualisation import plot_catchments_sidebyside
+
+        dem_file = get_filename('g2_26729_DEM-H.tif')
+
+        ds5 = catchments(dem_file, stub='num_catchments5', num_catchments=5, savetif=False, plot=False)
+        ds20 = catchments(dem_file, stub='num_catchments20', num_catchments=20, savetif=False, plot=False)
+        plot_catchments_sidebyside(ds5, ds20, title1='num_catchments=5', title2='num_catchments=20')
 
     """
     da = rxr.open_rasterio(terrain_tif).isel(band=0).drop_vars('band')
@@ -261,8 +273,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('terrain_tif', help='Path to the DEM (Digital Elevation Model) GeoTIFF file')
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames (default: TEST)')
     parser.add_argument('--tmpdir', default='.', help='Temporary folder to save terrain_tif as float64 for pysheds (default: current directory)')
     parser.add_argument('--num_catchments', default=10, type=int, help='The number of catchments to find (default: 10)')
     parser.add_argument('--no-save-tif', dest='savetif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')

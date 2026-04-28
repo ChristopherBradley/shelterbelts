@@ -17,12 +17,13 @@ if IS_GADI:
     roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 else:
     # Local defaults
-    default_outdir = 'outdir'
-    default_tmpdir = 'tmp'
-    worldcover_dir = 'data'
-    worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
-    hydrolines_gdb = 'data/g2_26729_hydrolines_cropped.gpkg'
-    roads_gdb = 'data/g2_26729_roads_cropped.gpkg'
+    _repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    default_outdir = '.'
+    default_tmpdir = '.'
+    worldcover_dir = str(_repo_root / 'data')
+    worldcover_geojson = str(_repo_root / 'data' / 'g2_26729_worldcover_footprints.geojson')
+    hydrolines_gdb = str(_repo_root / 'data' / 'g2_26729_hydrolines_cropped.gpkg')
+    roads_gdb = str(_repo_root / 'data' / 'g2_26729_roads_cropped.gpkg')
 
 # NCI/Gadi file paths - Canopy height data
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'

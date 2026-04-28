@@ -42,6 +42,10 @@ autosummary_generate = True
 html_theme = 'alabaster'
 # html_theme = 'furo'
 
+html_theme_options = {
+    'sidebar_collapse': False,
+}
+
 html_static_path = ['_static']
 
 # Plot directive settings - show only high-resolution PNG

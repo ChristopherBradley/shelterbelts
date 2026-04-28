@@ -139,6 +139,34 @@ def test_shelter_categories_no_plot():
     assert not os.path.exists(f"outdir/{stub}_shelter_categories.png")
 
 
+def test_shelter_categories_multi_layer():
+    """Test MULTI_LAYER wind method returns 8-band output in clockwise order."""
+    from shelterbelts.indices.shelter_categories import direction_map
+    ds = shelter_categories(
+        test_filename,
+        wind_method='MULTI_LAYER',
+        outdir='outdir',
+        stub=f'{stub}_multilayer',
+        savetif=True,
+        plot=False,
+    )
+    assert 'shelter_distances' in ds.data_vars
+    assert 'shelter_categories' in ds.data_vars
+
+    # 8 bands, one per direction
+    assert ds['shelter_distances'].sizes['direction'] == 8
+
+    # Band order matches clockwise convention: N, NE, E, SE, S, SW, W, NW
+    expected_order = list(direction_map.keys())
+    actual_order = ds['shelter_distances'].direction.values.tolist()
+    assert actual_order == expected_order, f"Expected {expected_order}, got {actual_order}"
+
+    # Saved tif should have 8 bands
+    import rioxarray as rxr
+    da_saved = rxr.open_rasterio(f'outdir/{stub}_multilayer_shelter_categories.tif')
+    assert da_saved.shape[0] == 8
+
+
 def test_shelter_categories_from_dataset():
     """Test shelter_categories using an in-memory dataset."""
     ds_input = create_test_woody_veg_dataset()

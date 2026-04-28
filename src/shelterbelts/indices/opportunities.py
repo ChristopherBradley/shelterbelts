@@ -2,8 +2,10 @@
 import os
 import glob
 import pathlib
+import argparse
 
 import numpy as np
+import xarray as xr
 import rioxarray as rxr
 import geopandas as gpd
 from shapely.geometry import box      
@@ -16,10 +18,10 @@ from skimage.measure import find_contours
 
 
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
-from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
+from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize
 from shelterbelts.indices.catchments import catchments  # This takes a while to import
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.utils.filepaths import nsw_dem_dir
+from shelterbelts.utils.filepaths import nsw_dem_dir, hydrolines_gdb, roads_gdb
 
 # -
 
@@ -206,28 +208,19 @@ def contours_equal_area(Z, num_contours=4, min_contour_length=100):
 
 # -
 
-def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_worldcover, outdir='.', stub='TEST', tmpdir='.', 
-                     width=3, savetif=True, plot=False, crop_pixels=0):
-    """Suggest opportunities for new trees based on gullies, roads, ridges and contours - in that order of priority (bit arbitrary).
-    
-    Parameters
-    ----------
-        da_trees, da_roads, da_gullies, da_ridges, da_contours: binary xarrays 
-        da_worldcover: Int xarray for grass and crop categories
-        outdir: Output directory for saving results.
-        stub: Prefix for output filenames.
-        width: Number of pixels away from the feature that still counts as within the buffer
-            - May want different widths for different buffers later
-        
-    Returns
-    -------
-        ds: an xarray with a band 'opportunities', where the integers represent the categories defined in 'opportunity_labels'.
-    
-    Downloads
-    ---------
-        opportunities.tif: A tif file of the 'opportunities' band in ds, with colours embedded.
-    """
+def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_dem, da_worldcover, outdir='.', stub='TEST', tmpdir='.', 
+                     width=1, contour_spacing=10, min_contour_length=100, equal_area=False,
+                     savetif=True, plot=False, crop_pixels=0):
+    """Classify grass/crop pixels near gullies, roads, ridges and contours as planting opportunities."""
     grass_crops = (da_worldcover == 30) | (da_worldcover == 40)  # Either grass pixels or crop pixels
+    
+    # Generate contours from DEM
+    if not contour_spacing:
+        contours_array = np.zeros_like(da_trees, dtype=np.uint8)
+    elif equal_area:
+        contours_array = contours_equal_area(da_dem, num_contours=contour_spacing + 1, min_contour_length=min_contour_length)
+    else:
+        contours_array = contours_interval(da_dem, contour_spacing, min_contour_length)
     
     # Setup the buffer kernel
     y, x = np.ogrid[-width:width+1, -width:width+1]
@@ -249,7 +242,7 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
         ridge_opportunities = buffered_ridges & grass_crops & ~da_trees & ~gully_opportunities & ~buffered_roads
     
     # Buffered contours
-    buffered_contours = binary_dilation(da_contours.values, structure=gap_kernel)
+    buffered_contours = binary_dilation(contours_array, structure=gap_kernel)
     contour_opportunities = buffered_contours & grass_crops & ~da_trees & ~gully_opportunities & ~buffered_roads & ~buffered_ridges  # Could just override a single numpy array as we go.
     
     # There should be no overlaps, so the order of assigning shouldn't matter
@@ -283,38 +276,144 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_contours, da_
     return ds
 
 
-def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshold=0,
-                  width=3, ridges=False, num_catchments=10, min_branch_length=10, 
+def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=None, worldcover_data=None, dem_data=None,
+                  outdir='.', stub=None, tmpdir='.', cover_threshold=1,
+                  width=1, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
                   savetif=True, plot=False, crop_pixels=0):
-    """Suggest opportunities for new trees based on ridges, gullies and contours.
-    
+    """
+    Suggest opportunities for new trees based on ridges, gullies and contours.
+
+    Loads a percent-cover GeoTIFF, derives gullies (from hydrolines or DEM
+    catchments), roads, ridges and contours, then delegates to
+    :func:`opportunities_da` to classify grass/crop pixels near those
+    features as planting opportunities.
+
     Parameters
     ----------
-        percent_tif: Percentage cover tree tif file
-            - A binary tif should also work if you set the cover threshold to 0
-        outdir: Output directory for saving results.
-        stub: Prefix for output filenames.
-        cover_threshold: Percentage tree cover within a 10m pixel to be classified as a boolean 'tree'.
-        width: Number of pixels away from the feature that still counts as within the buffer
-            - May want different widths for different buffers later
-        ridges: Whether to include opportunities for trees on the catchment boundaries (ridges)
-            - If false, then the hydrolines gets used for gullies. Otherwise, the dem gets used for both gullies and ridges.
-        num_catchments: Number of catchments when calculating the ridges and gullies
-            - If None, then it uses the number of hydrolines in that area
-        min_branch_length: Smallest allowable branch when using hydrolines to determine number of catchments
-        contour_spacing: Number of pixels between each contour
-            - If equal area is true, then this parameter gets used as the number of contours instead
-        min_contour_length: Smallest allowable contour to use as an opportunity for planting trees
-        equal_area: Whether to generate a given number of contours per tile, or just place contours on the same elevations across all tiles.
-        
+    percent_tif : str
+        Path to a percent-cover GeoTIFF. A binary tif also works with the
+        default cover_threshold of 1.
+    roads_data : str or xarray.DataArray, optional
+        Pre-loaded binary roads raster or path to a GeoTIFF. When None the
+        roads are derived from the bounding box of percent_tif.
+    gullies_data : str or xarray.DataArray, optional
+        Pre-loaded binary gullies raster or path to a GeoTIFF. When None
+        the gullies are derived from hydrolines or DEM catchments.
+    ridges_data : str or xarray.DataArray, optional
+        Pre-loaded binary ridges raster or path to a GeoTIFF. When None
+        and ridges=True, ridges are derived from DEM catchments.
+    worldcover_data : str or xarray.DataArray, optional
+        Pre-loaded WorldCover land-cover raster or path to a GeoTIFF. When
+        None the WorldCover data is derived from the bounding box.
+    dem_data : str or xarray.DataArray, optional
+        Pre-loaded DEM raster or path to a GeoTIFF. When None the DEM is
+        derived from the bounding box.
+    outdir : str, optional
+        Output directory for saving results.
+    stub : str, optional
+        Prefix for output filenames. If not provided it is derived from
+        percent_tif.
+    tmpdir : str, optional
+        Directory for temporary files.
+    cover_threshold : int, optional
+        Pixel percent cover threshold to treat a pixel as 'tree'.
+    width : int, optional
+        Number of pixels away from the feature that still counts as within
+        the buffer.
+    ridges : bool, optional
+        Whether to include opportunities for trees on catchment boundaries
+        (ridges). If False, hydrolines are used for gullies only. If True,
+        the DEM is used for both gullies and ridges.
+    num_catchments : int, optional
+        Number of catchments when calculating ridges and gullies. If None,
+        the number of hydroline segments is used instead.
+    min_branch_length : int, optional
+        Smallest allowable branch when using hydrolines to determine number
+        of catchments.
+    contour_spacing : int, optional
+        Number of pixels between each contour. If equal_area is True,
+        this is used as the number of contours instead. Set to 0 to
+        disable contour opportunities.
+    min_contour_length : int, optional
+        Smallest allowable contour to use as an opportunity for planting
+        trees.
+    equal_area : bool, optional
+        Whether to generate a given number of contours per tile (True), or
+        place contours at the same elevations across all tiles (False).
+    savetif : bool, optional
+        Whether to save the results as a GeoTIFF.
+    plot : bool, optional
+        Whether to generate a visualisation.
+    crop_pixels : int, optional
+        Number of pixels to crop from each edge of the output.
+
     Returns
     -------
-        ds: an xarray with a band 'opportunities', where the integers represent the categories defined in 'opportunity_labels'.
-    
-    Downloads
-    ---------
-        opportunities.tif: A tif file of the 'opportunities' band in ds, with colours embedded.
+    xarray.Dataset
+        Dataset containing:
+
+        - **woody_veg**: Original binary tree/no-tree classification
+        - **opportunities**: Opportunity categories (values 0, 5, 6, 7, 8)
+
+    Notes
+    -----
+    When savetif=True, it outputs a GeoTIFF file with embedded color map:
+    {stub}_opportunities.tif
+
+    Examples
+    --------
+    Using file paths as input:
+
+    >>> from shelterbelts.utils.filepaths import get_filename
+    >>> tree_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
+    >>> roads_file = get_filename('g2_26729_roads.tif')
+    >>> gullies_file = get_filename('g2_26729_hydrolines.tif')
+    >>> dem_file = get_filename('g2_26729_DEM-H.tif')
+    >>> worldcover_file = get_filename('g2_26729_worldcover.tif')
+    >>> ds = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, dem_data=dem_file, worldcover_data=worldcover_file, outdir='/tmp', plot=False, savetif=False)
+    >>> set(ds.data_vars) == {'woody_veg', 'opportunities'}
+    True
+
+    .. plot::
+
+        import rioxarray as rxr
+        from shelterbelts.indices.opportunities import opportunities, opportunity_cmap, opportunity_labels
+        from shelterbelts.utils.filepaths import get_filename
+        from shelterbelts.utils.visualisation import visualise_categories_sidebyside
+
+        tree_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
+        roads_file = get_filename('g2_26729_roads.tif')
+        gullies_file = get_filename('g2_26729_hydrolines.tif')
+        dem_file = get_filename('g2_26729_DEM-H.tif')
+        worldcover_file = get_filename('g2_26729_worldcover.tif')
+        common = dict(dem_data=dem_file, worldcover_data=worldcover_file, outdir='/tmp', plot=False, savetif=False)
+
+        da_zero = rxr.open_rasterio(roads_file).isel(band=0).drop_vars('band') * 0  # Maybe gullies_data = None should mean no gullies instead of autogenerating the gullies?
+
+        ds_roads = opportunities(tree_file, roads_data=roads_file, gullies_data=da_zero, **common, contour_spacing=0)
+        ds_gullies = opportunities(tree_file, roads_data=da_zero, gullies_data=gullies_file, **common, contour_spacing=0)
+        visualise_categories_sidebyside(
+            ds_roads['opportunities'], ds_gullies['opportunities'],
+            colormap=opportunity_cmap, labels=opportunity_labels,
+            title1="Just roads", title2="Just gullies"
+        )
+
+        ds_w1 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, width=1)
+        ds_w5 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, width=5)
+        visualise_categories_sidebyside(
+            ds_w1['opportunities'], ds_w5['opportunities'],
+            colormap=opportunity_cmap, labels=opportunity_labels,
+            title1="width=1", title2="width=5"
+        )
+
+        ds_cs5 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, contour_spacing=5)
+        ds_cs20 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, contour_spacing=20)
+        visualise_categories_sidebyside(
+            ds_cs5['opportunities'], ds_cs20['opportunities'],
+            colormap=opportunity_cmap, labels=opportunity_labels,
+            title1="contour_spacing=5", title2="contour_spacing=20"
+        )
     """
 
     if stub is None:
@@ -323,85 +422,93 @@ def opportunities(percent_tif, outdir='.', stub=None, tmpdir='.', cover_threshol
         
     # Load binary trees
     da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
-    da_trees = da_percent > cover_threshold
+    da_trees = da_percent >= cover_threshold
     da_trees = da_trees.astype('uint8')
     ds = da_trees.to_dataset(name='woody_veg')
 
-    # Load hydrolines
-    if not ridges or num_catchments is None:
-        gdf_hydrolines, ds_hydrolines = hydrolines(None, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent)
-        da_hydrolines = ds_hydrolines['gullies']
-        
     # Load roads
-    gdf_roads, ds_roads = hydrolines(None, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, da=da_percent, layer='NationalRoads_2025_09')
-    da_roads = ds_roads['gullies']  # dodgy string hardcoding of 'gullies' in hydrolines that I should fix 
-
-    # Prepare the bboxs for cropping/stitching
-    gs_bounds = gpd.GeoSeries([box(*da_trees.rio.bounds())], crs=da_trees.rio.crs)
-    bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
-    bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
-
-    # Load worldcover 
-    unique_stub = stub
-    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, unique_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
-    ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
-    da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-    da_worldcover2 = da_worldcover.rio.reproject_match(da_trees) # Should do this within indices (formerly full_pipelines) so it doesn't need to happen twice
-
-    # Create a cropped/stitching dem for the region of interest
-    dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
-    
-    # Need to check if the region is inside NSW, and use the Australia version or terrain tiles if not.
-    mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, unique_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=False) 
-    ds_dem = merged_ds(mosaic, out_meta, 'dem')   # This is a 5m dem, as opposed to the 10m tree raster
-    ds_dem = ds_dem.rio.reproject_match(ds)
-
-    dem_tif = os.path.join(tmpdir, f'{dem_stub}_dem.tif')    
-    ds_dem['dem'].astype('float64').rio.to_raster(dem_tif)  # Needs to be float64 for catchments.py to work efficiently
-    # print(f"Saved: {dem_tif}")
-
-    # Use the hydrolines to determine the relevant number of catchments
-    if num_catchments is None:
-        river_mask = skeletonize(da_hydrolines.values)
-        branch_labels = segmentation(river_mask)
-        num_segments = len(np.unique(branch_labels))
-        num_catchments = num_segments * 2/3  # Each intersection in segmentation has 3 segments, whereas in catchments it has 2.    
-
-        # Saving the branches for debugging. Will probably want to do something like this for my shelterbelts too.
-        # ds['branch_labels'] = ('y', 'x'), branch_labels
-        # ds['branch_labels'].astype(float).rio.to_raster('/scratch/xe2/cb8590/tmp/branch_labels_consecutive.tif')
-
-    # Generate the gullies and ridges. 
-    ds_catchments = catchments(dem_tif, outdir=tmpdir, stub="TEST", tmpdir=tmpdir, num_catchments=num_catchments, savetif=False, plot=False) 
-    
-    # Might want to remove really small gullies and ridges like I do with the contours.
-
-    # Generate the contours
-    if equal_area:
-        contours_array = contours_equal_area(ds_dem['dem'], num_contours=contour_spacing, min_contour_length=min_contour_length)
+    if isinstance(roads_data, xr.DataArray):
+        da_roads = roads_data
+    elif isinstance(roads_data, str):
+        da_roads = rxr.open_rasterio(roads_data).isel(band=0).drop_vars('band')
     else:
-        contours_array = contours_interval(ds_dem['dem'], contour_spacing, min_contour_length)
-        
-    # Create a single xarray with all the layers
-    ds['roads'] = da_roads
-    if ridges:
-        ds['gullies'] = ds_catchments['gullies']
-        ds['ridges'] = ds_catchments['ridges']
-        da_ridges = ds['ridges']
+        gdf_roads, ds_roads = crop_and_rasterize(da_percent, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, layer='NationalRoads_2025_09', feature_name='roads')
+        da_roads = ds_roads['roads']
+
+    # Load gullies
+    if isinstance(gullies_data, xr.DataArray):
+        da_gullies = gullies_data
+    elif isinstance(gullies_data, str):
+        da_gullies = rxr.open_rasterio(gullies_data).isel(band=0).drop_vars('band')
     else:
-        ds['gullies'] = da_hydrolines
+        if not ridges or num_catchments is None:
+            gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies')
+            da_gullies = ds_hydrolines['gullies']
+
+    # Load ridges
+    if isinstance(ridges_data, xr.DataArray):
+        da_ridges = ridges_data
+    elif isinstance(ridges_data, str):
+        da_ridges = rxr.open_rasterio(ridges_data).isel(band=0).drop_vars('band')
+    else:
         da_ridges = None
-    ds['contours'] = (["y", "x"], contours_array)  
-    ds['worldcover'] = da_worldcover2 
 
-    ds_opportunities = opportunities_da(ds['woody_veg'], ds['roads'], ds['gullies'], da_ridges, ds['contours'], ds['worldcover'],
-                                       outdir, unique_stub, tmpdir, width, savetif, plot, crop_pixels)
+    # Load worldcover
+    if isinstance(worldcover_data, xr.DataArray):
+        da_worldcover = worldcover_data
+    elif isinstance(worldcover_data, str):
+        da_worldcover = rxr.open_rasterio(worldcover_data).isel(band=0).drop_vars('band')
+        da_worldcover = da_worldcover.rio.reproject_match(da_trees)
+    else:
+        # Prepare the bboxs for cropping/stitching
+        gs_bounds = gpd.GeoSeries([box(*da_trees.rio.bounds())], crs=da_trees.rio.crs)
+        bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
+        unique_stub = stub
+        mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, unique_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
+        ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
+        da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
+        da_worldcover = da_worldcover.rio.reproject_match(da_trees)
+
+    # Load DEM
+    if isinstance(dem_data, xr.DataArray):
+        da_dem = dem_data
+    elif isinstance(dem_data, str):
+        da_dem = rxr.open_rasterio(dem_data).isel(band=0).drop_vars('band')
+    else:
+        gs_bounds = gpd.GeoSeries([box(*da_trees.rio.bounds())], crs=da_trees.rio.crs)
+        bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
+        unique_stub = stub
+        dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'
+        mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, unique_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=False) 
+        ds_dem = merged_ds(mosaic, out_meta, 'dem')
+        ds_dem = ds_dem.rio.reproject_match(ds)
+        da_dem = ds_dem['dem']
+
+    # If gullies/ridges not provided and not using pre-loaded data, derive from catchments
+    if gullies_data is None and ridges_data is None and ridges:
+        dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'
+        dem_tif = os.path.join(tmpdir, f'{dem_stub}_dem.tif')
+        da_dem.astype('float64').rio.to_raster(dem_tif)
+
+        if num_catchments is None:
+            river_mask = skeletonize(da_gullies.values)
+            branch_labels = segmentation(river_mask)
+            num_segments = len(np.unique(branch_labels))
+            num_catchments = num_segments * 2/3
+
+        ds_catchments = catchments(dem_tif, outdir=tmpdir, stub="TEST", tmpdir=tmpdir, num_catchments=num_catchments, savetif=False, plot=False)
+        da_gullies = ds_catchments['gullies']
+        da_ridges = ds_catchments['ridges']
+
+    ds_opportunities = opportunities_da(ds['woody_veg'], da_roads, da_gullies, da_ridges, da_dem, da_worldcover,
+                                       outdir, stub, tmpdir, width, contour_spacing, min_contour_length, equal_area,
+                                       savetif, plot, crop_pixels)
     
     return ds_opportunities
 
 
 # Could generalise and reuse the indices_tifs function from all_indices.py (previously run_pipeline_tifs/full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
-def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
+def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=1,
                   width=3, ridges=False, num_catchments=10, min_branch_length=10, 
                   contour_spacing=10, min_contour_length=100, equal_area=False, 
                   savetif=True, plot=False, crop_pixels=0, limit=None):
@@ -419,13 +526,14 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
     for percent_tif in percent_tifs:
         tif_stem = pathlib.Path(percent_tif).stem
         tif_stub = f"{tif_stem}_{stub}"     # This stub needs to include the exact lat lon of the tile. 
-        opportunities(percent_tif, outdir, tif_stub, tmpdir, cover_threshold,
-                  width, ridges, num_catchments, min_branch_length, 
-                  contour_spacing, min_contour_length, equal_area, 
-                  savetif, plot, crop_pixels)
+        opportunities(percent_tif, outdir=outdir, stub=tif_stub, tmpdir=tmpdir,
+                  cover_threshold=cover_threshold, width=width, ridges=ridges,
+                  num_catchments=num_catchments, min_branch_length=min_branch_length,
+                  contour_spacing=contour_spacing, min_contour_length=min_contour_length,
+                  equal_area=equal_area, savetif=savetif, plot=plot, crop_pixels=crop_pixels)
         
     # outdir = folder
-    # Could just use the merge_lidar function instead of reimplementing like this each time.
+    # Could just use the merge_tifs function instead of reimplementing like this each time.
     gdf = bounding_boxes(outdir, filetype='opportunities.tif', stub=stub)
     
     footprint_gpkg = f"{stub}_footprints.gpkg"
@@ -441,36 +549,37 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=0,
 
 # +
 # Would be slightly more computationally efficient to generate the opportunities from within all_indices.py than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
-import argparse
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Suggest opportunities for new trees based on ridges, gullies, and contours."
     )
 
     parser.add_argument("percent_tif", help="Input percentage cover tree tif file")
-    parser.add_argument("--outdir", default=".", help="Output directory for saving results")
-    parser.add_argument("--stub", default=None, help="Prefix for output filenames")
+    parser.add_argument("--outdir", default=".", help="Output directory for saving results (default: current directory)")
+    parser.add_argument("--stub", default=None, help="Prefix for output filenames (default: derived from input)")
     parser.add_argument("--tmpdir", default=".", help="Temporary working directory (default: current directory)")
-    parser.add_argument("--cover_threshold", type=int, default=0, help="Tree cover threshold percentage (default: 0)")
-    parser.add_argument("--width", type=int, default=3, help="Buffer width in pixels (default: 3)")
+    parser.add_argument("--cover_threshold", type=int, default=1, help="Tree cover threshold percentage (default: 1)")
+    parser.add_argument("--width", type=int, default=1, help="Buffer width in pixels (default: 1)")
     parser.add_argument("--ridges", action="store_true", help="Include opportunities on ridges (default: False)")
     parser.add_argument("--num_catchments", type=int, default=10, help="Number of catchments for ridges/gullies (default: 10)")
     parser.add_argument("--min_branch_length", type=int, default=10, help="Minimum branch length for hydrolines (default: 10)")
     parser.add_argument("--contour_spacing", type=int, default=10, help="Pixel spacing between contours (default: 10)")
     parser.add_argument("--min_contour_length", type=int, default=100, help="Minimum contour length to consider (default: 100)")
     parser.add_argument("--equal_area", action="store_true", help="Use equal-area contours instead of fixed elevation spacing (default: False)")
+    parser.add_argument("--no-savetif", dest="savetif", action="store_false", default=True, help="Disable saving GeoTIFF output (default: enabled)")
     parser.add_argument("--plot", action="store_true", help="Show diagnostic plots (default: False)")
     parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from each edge of the output")
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
 
-    return parser.parse_args()
+    return parser
 
 
 # -
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    parser = parse_arguments()
+    args = parser.parse_args()
 
     if args.percent_tif.endswith('.tif'):
         opportunities(
@@ -486,7 +595,7 @@ if __name__ == "__main__":
             contour_spacing=args.contour_spacing,
             min_contour_length=args.min_contour_length,
             equal_area=args.equal_area,
-            savetif=True,
+            savetif=args.savetif,
             plot=args.plot,
             crop_pixels=args.crop_pixels
         )
@@ -503,7 +612,7 @@ if __name__ == "__main__":
             contour_spacing=args.contour_spacing,
             min_contour_length=args.min_contour_length,
             equal_area=args.equal_area,
-            savetif=True,
+            savetif=args.savetif,
             plot=args.plot,
             crop_pixels=args.crop_pixels,
             limit=args.limit

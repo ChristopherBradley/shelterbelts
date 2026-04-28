@@ -8,7 +8,7 @@ help:
 	@echo "  clean       remove build artifacts"
 
 test:
-	conda run -n shelterbelts_pdal pytest tests/ -v
+	conda run -n shelterbelts pytest tests/ -v
 
 doctest:
 	$(MAKE) -C docs doctest

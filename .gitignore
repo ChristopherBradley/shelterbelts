@@ -37,6 +37,10 @@ snowflake/cache
 *.virtual_documents*
 .vscode
 
+# Might add the CLAUDE.md later so other developers don't need to /init
+CLAUDE.md
+.claude/
+
 # qsub logging files
 *.o*
 *.e*  
@@ -121,7 +125,7 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 # Keep .py notebooks, ignore generated .ipynb for detailed demos
-notebooks/**/demo_*.ipynb
+examples/**/demo_*.ipynb
 
 # IPython
 profile_default/
@@ -217,3 +221,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+

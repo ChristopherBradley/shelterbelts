@@ -1,11 +1,29 @@
 API Reference
 =============
 
+
+WorldCover
+----------
+
+.. autofunction:: shelterbelts.apis.worldcover.worldcover
+
+BARRA Daily
+-----------
+
+.. autofunction:: shelterbelts.apis.barra_daily.barra_daily
+
+Canopy Height
+-------------
+
+.. autofunction:: shelterbelts.apis.canopy_height.canopy_height
+
+
 Indices
 =======
 
 
 Tree Categories
+---------------
 
 .. autofunction:: shelterbelts.indices.tree_categories.tree_categories
 
@@ -40,7 +58,7 @@ Class Metrics
 Full Indices Pipeline
 ----------------------
 
-Run the end-to-end indices pipeline on percent-cover rasters.
+Run the end-to-end indices pipeline on a single, or multiple percent-cover rasters.
 
 .. autofunction:: shelterbelts.indices.all_indices.indices_tif
 
@@ -48,25 +66,15 @@ Run the end-to-end indices pipeline on percent-cover rasters.
 
 .. autofunction:: shelterbelts.indices.all_indices.indices_tifs
 
+.. autofunction:: shelterbelts.indices.all_indices.indices_latlon
+
 Catchments
 ----------
 
 .. autofunction:: shelterbelts.indices.catchments.catchments
 
-APIs
-====
-
-WorldCover
-----------
-
-.. autofunction:: shelterbelts.apis.worldcover.worldcover
-
-BARRA Daily
------------
-
-.. autofunction:: shelterbelts.apis.barra_daily.barra_daily
-
-Canopy Height
+Opportunities
 -------------
 
-.. autofunction:: shelterbelts.apis.canopy_height.canopy_height
+.. autofunction:: shelterbelts.indices.opportunities.opportunities
+

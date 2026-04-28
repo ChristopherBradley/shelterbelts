@@ -11,7 +11,7 @@ https://docs.google.com/presentation/d/1_ItZhrtzTDuZXp-qzwP6mT8-nzrLUdA0sI959rIH
 My poster for the Ecology Society of Australia ESA 2025 is here:
 https://docs.google.com/presentation/d/1oC9jB2WT0nFkxfwlVgvFz6CeqZGZr4pwQr8kT_aS2-k/edit?usp=sharing
 
-### Current Methods & Upcoming Plans
+### Current Methods
 The tree predictions come from annual Sentinel-2 imagery largely following a method by Stewart et al. (2025), using a tree/no-tree training dataset provided by Nicolas Pucino.
 
 After the predictions, pixels were categorised using the following method:
@@ -25,12 +25,13 @@ After the predictions, pixels were categorised using the following method:
 - Assign linear vs non-linear patches by fitting an ellipse and skeleton to each group and applying length and width thresholds (the EE App currently has an outdated version of this)
 
 ### Upcoming Plans
-- Expand shelter categories to the rest of Australia, for each year 2017-2025
-- Calculate summary statistics for different regions (states, local govdernment areas, IBRA regions)
 - Cleanup demoes and tests and publish in the Journal of Open Source Software
+- Evaluate tree predictions against the Lang Model, NSW, QLD & Meta GCH v2, at different distances within and away from tree group boundaries.
+- Apply each shelter categorization method to the rest of Australia
+- Calculate summary statistics for different regions (IBRA, LGAs, GRDC agricultural zones) and write a second publication
 - Include 1m canopy height for all of ACT & NSW
 - Analyse effects on productivity & potential future benefits
-- Add layers with opportunities for more trees
+- Add layers with opportunities for more trees and a corresponding thrid publication.
 
 ## Parameter Reference
 
@@ -79,7 +80,7 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 3. Right click any .py file and open as a jupyter notebook. Currently some debugging arguments are usually commented out at the bottom of each file. I'm planning to move these to tests/demos.
 
 # Examples
-There are jupyter notebooks to demo the functionality of this repo in `notebooks`. Also, there are .pbs scripts for submitting jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `notebooks` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
+There are jupyter notebooks to demo the functionality of this repo in `examples`. Also, there are .pbs scripts for submitting jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `examples` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
 
 # Testing
 If on gadi:
@@ -103,3 +104,11 @@ Upload the html to github pages:
 
 You can view the published documentation at: 
 https://christopherbradley.github.io/shelterbelts/index.html
+
+# Uploading to PyPI
+Just a note for myself when I need to republish the library.
+
+1. python3 -m build
+2. twine upload dist/*
+3. Enter the API token
+4. Check it out at https://pypi.org/project/shelterbelts
