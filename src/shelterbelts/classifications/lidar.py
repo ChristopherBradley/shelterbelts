@@ -1,20 +1,20 @@
-# +
-# Using a separate environment for this to my shelterbelts environment (conda activate pdal)
-# # !conda install -c conda-forge pdal python-pdal rasterio
-# -
-
+# Uses PDAL bindings — requires the shelterbelts conda environment (which bundles python-pdal + rasterio).
 import os
 import glob
-import pdal, json
+import gc
+import json
+import argparse
+
+import pdal
 import rioxarray as rxr
 import numpy as np
 
 from shelterbelts.utils.visualisation import tif_categorical
-from shelterbelts.classifications.binary_trees import cmap_woody_veg # Need to remake my shelterbelts environment with pdal for this to work
+from shelterbelts.classifications.binary_trees import cmap_woody_veg
 
 
 def check_classified(infile, classification_code=5):
-    """Check at least 1 point has this classification code"""
+    """At least one point in the laz file has a classification_code."""
     check_pipeline = {
         "pipeline": [
             infile,
@@ -29,7 +29,7 @@ def check_classified(infile, classification_code=5):
     return classified_bool
 
 
-def use_existing_classifications(infile, outdir, stub, resolution=1, classification_code=5, epsg=None, binary=True, cleanup=False):
+def use_existing_classifications(infile, outdir, stub, resolution=1, classification_code=5, epsg=None, binary=False, cleanup=False):
     """Use the number of points with classification 5 (> 2m) in each pixel to generate a woody_veg tif"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -78,7 +78,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
 
     num_points_threshold = 0
 
-    da_tree = (counts > num_points_threshold).astype('uint8')
+    da_tree = (counts > num_points_threshold).astype('uint8').rio.write_nodata(None)
 
     if not binary:
         # Create the percent cover tif
@@ -99,7 +99,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=True, cleanup=False, just_chm=False):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -129,7 +129,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
                 "type": "filters.assign",
                 "assignment": "NumberOfReturns[:]=1"
             },
-            {"type": "filters.smrf"},  # classify ground
+            {"type": "filters.smrf"},  # classify ground. Should add the option for a user to provide a DEM to skip this step.
             {"type": "filters.hag_nn"},  # compute HeightAboveGround
             {"type": "writers.gdal",
              "filename": chm_tif,
@@ -160,7 +160,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
         print(f"Removing: {chm_tif}")
         os.remove(chm_tif)
 
-    da_tree = (chm > height_threshold).astype(np.uint8) # This gives everything above the height threshold, including buildings. Whereas using their classification code of 5 excludes buildings.
+    da_tree = (chm > height_threshold).astype(np.uint8).rio.write_nodata(None)  # This gives everything above the height threshold (including buildings and powerlines). Whereas using their classification code of 5 should exclude man-mdade objects.
 
     if not binary:
         # Create the percent cover tif
@@ -180,9 +180,8 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     return chm, da_tree
 
-import gc
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False, just_chm=False, limit=None):
-    """Run the classifications on every laz file in a folder"""
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None):
+    """Apply :func:`lidar` to every .laz file in laz_folder, skipping empty files."""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     if limit is not None:
         laz_files = laz_files[:int(limit)]
@@ -194,27 +193,72 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=True, cleanup=False, just_chm=False):
-    """Convert a laz point cloud to a raster
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False):
+    """
+    Convert a LAZ point cloud into a canopy-height and tree-cover raster.
+
+    If category5=True and the LAZ contains at least one point classified
+    as high vegetation (LAS 1.4 category 5, see the
+    `NSW Elevation Data Product Specification
+    <https://www.spatial.nsw.gov.au/__data/assets/pdf_file/0004/218992/Elevation_Data_Product_Specs.pdf>`_),
+    tree pixels are counted directly from those classified points. 
+    
+    Otherwise, PDAL computes a canopy-height model
+    from scratch (filters.smrf to classify ground, then filters.hag_nn
+    for height-above-ground) and thresholds it at the height_threshold.
+
+    The output binary raster is compatible with
+    :func:`shelterbelts.indices.all_indices.indices_tif`.
 
     Parameters
     ----------
-    laz_file: The .laz point cloud file
-    outdir: Output directory for saving results
-    stub: Prefix for output filenames
-    resolution: Pixel size in the output rasters    
-    height_threshold: Cutoff for creating the binary tif
-    category_5: If True then it attempts to use the preclassified high vegetation from the LAS 1.4 specifications (category 5): https://www.spatial.nsw.gov.au/__data/assets/pdf_file/0004/218992/Elevation_Data_Product_Specs.pdf  
-    binary: If False then it generates a percent tree cover raster, instead of a binary raster
+    laz_file : str
+        Path to a .laz point cloud file.
+    outdir : str, optional
+        Output directory for saving results.
+    stub : str, optional
+        Prefix for output filenames.
+    resolution : int, optional
+        Pixel size in metres.
+    height_threshold : float, optional
+        Canopy-height cutoff in metres for the binary tree mask (only used
+        when category5=False).
+    category5 : bool, optional
+        Use preclassified high-vegetation points (LAS category 5 meaning height > 2m) when available.
+        Falls back to the PDAL CHM path if the file has no category-5 points.
+    epsg : str or int, optional
+        Override the LAZ file's CRS.
+    binary : bool, optional
+        Create just a binary tif. By default it creates a percent cover tif instead.
+    cleanup : bool, optional
+        Delete intermediate CHM/counts tifs after the binary raster is written.
+    just_chm : bool, optional
+        Only produce the canopy-height tif; skip the binary/percent-cover step.
 
     Returns
     -------
-    ds: xarray.Dataset with band 'woody_veg'
-    
-    Downloads
-    ---------
-    chm.tif
-    woody_veg.tif
+    tuple
+        (chm, da_tree) — two xarray.DataArray s. chm is the raw
+        canopy-height raster (or point-count raster in category5 mode);
+        da_tree is the binary mask (or percent-cover mask when binary=False).
+
+    Notes
+    -----
+    Writes to outdir:
+
+    - {stub}_chm_res{resolution}.tif — canopy-height model (if category5 = False)
+    - {stub}_counts_res{resolution}_cat5.tif — point-count raster (if category5 = True)
+    - {stub}_percentcover_res{resolution}_height{height_threshold}m.tif — (if binary = False)
+    - {stub}_woodyveg_res{resolution}_height{height_threshold}m.tif — (if binary = True)
+
+    Examples
+    --------
+    Run on the bundled 50m × 50m sample LAZ from Milgadara, NSW:
+
+    >>> from shelterbelts.utils.filepaths import laz_sample
+    >>> chm, da_tree = lidar(laz_sample, outdir='/tmp', stub='milgadara', resolution=5)
+    Saved: /tmp/milgadara_chm_res1.tif
+    Saved: /tmp/milgadara_percentcover_res5_height2m.tif
     """
     if category5:
         # Try to use the existing classifications
@@ -231,16 +275,13 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     return chm, da_tree
 
 
-# +
-import argparse
-
 def parse_arguments():
     """Parse command line arguments for lidar() with default values."""
     parser = argparse.ArgumentParser(description="Convert a laz point cloud to a raster")
 
     parser.add_argument("laz_file", help="The input .laz point cloud file. If the suffix is not .laz then assume it's a folder of laz files instead.")
-    parser.add_argument("--outdir", default=".", help="Output directory for saving results")
-    parser.add_argument("--stub", default="TEST", help="Prefix for output filenames")
+    parser.add_argument("--outdir", default=".", help="Output directory for saving results (default: current directory)")
+    parser.add_argument("--stub", default="TEST", help="Prefix for output filenames (default: TEST)")
     parser.add_argument("--resolution", type=int, default=10, help="Pixel size in the output rasters (default: 10)")
     parser.add_argument("--height_threshold", type=float, default=2, help="Cutoff for creating the binary tif (default: 2)")
     parser.add_argument("--epsg", default=None, help="Option to specify the epsg if the .laz doesn't already have it encoded. Default: None")
@@ -251,8 +292,6 @@ def parse_arguments():
     parser.add_argument("--limit", default=None, help="Number of laz files to process when passing a folder. Default: None")
     return parser.parse_args()
 
-
-# -
 
 if __name__ == '__main__':
 
@@ -283,36 +322,5 @@ if __name__ == '__main__':
             binary=args.binary,
             cleanup=args.cleanup,
             just_chm=args.just_chm,
-            limit=args.limit
-            )
-
-
-# +
-# height_threshold = 2
-# resolution = 10
-# filename = '../../../outdir/g2_26729_chm_res1.tif'
-# chm = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-
-# +
-# # %%time
-# filename = '/Users/christopherbradley/Documents/PHD/Data/ESDALE/NSW_LiDAR_2018_80cm/Point Clouds/AHD/Brindabella201802-LID2-C3-AHD_6746112_55_0002_0002.laz'
-# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Milgadara/Point Clouds/AHD/Young201702-PHO3-C0-AHD_6306194_55_0002_0002.laz'
-# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Cal/ACT Government/Point Clouds/AHD/ACT2015_4ppm-C3-AHD_6926038_55_0002_0002.laz'
-# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Cal/ACT Government 2020/Point Clouds/AHD/ACT2020-12ppm-C3-AHD_6936039_55_0001_0001.laz'
-# filename = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/tif_comparisons/g2_09/ACT2020-12ppm-C3-AHD_6826095_55_0001_0001.laz'
-# da_tree_cat5 = lidar(filename, resolution=1, category_5=True)
-# da_tree = lidar(filename, resolution=1)
-
-# +
-# outdir = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/Tas_tifs'
-
-# +
-# # %%time
-# # laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS Government/Point Clouds/AHD/'
-# # laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS_Government_2/Point Clouds/AHD' 
-# laz_folder = '/Users/christopherbradley/Documents/PHD/Data/ELVIS/TAS_Government_3/Point Clouds/AHD'
-
-# # Took about 10 mins to process 100 tiles
-# lidar_folder(laz_folder, outdir, category5=True)
-# tif_cleanup(outdir)
-# -
+            limit=args.limit,
+        )
