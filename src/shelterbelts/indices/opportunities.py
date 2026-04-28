@@ -293,16 +293,16 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
     ----------
     percent_tif : str
         Path to a percent-cover GeoTIFF. A binary tif also works with the
-        default ``cover_threshold`` of 1.
+        default cover_threshold of 1.
     roads_data : str or xarray.DataArray, optional
         Pre-loaded binary roads raster or path to a GeoTIFF. When None the
-        roads are derived from the bounding box of ``percent_tif``.
+        roads are derived from the bounding box of percent_tif.
     gullies_data : str or xarray.DataArray, optional
         Pre-loaded binary gullies raster or path to a GeoTIFF. When None
         the gullies are derived from hydrolines or DEM catchments.
     ridges_data : str or xarray.DataArray, optional
         Pre-loaded binary ridges raster or path to a GeoTIFF. When None
-        and ``ridges=True``, ridges are derived from DEM catchments.
+        and ridges=True, ridges are derived from DEM catchments.
     worldcover_data : str or xarray.DataArray, optional
         Pre-loaded WorldCover land-cover raster or path to a GeoTIFF. When
         None the WorldCover data is derived from the bounding box.
@@ -310,44 +310,43 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         Pre-loaded DEM raster or path to a GeoTIFF. When None the DEM is
         derived from the bounding box.
     outdir : str, optional
-        Output directory for saving results. Default is current directory.
+        Output directory for saving results.
     stub : str, optional
         Prefix for output filenames. If not provided it is derived from
-        ``percent_tif``.
+        percent_tif.
     tmpdir : str, optional
-        Directory for temporary files. Default is current directory.
+        Directory for temporary files.
     cover_threshold : int, optional
-        Pixel percent cover threshold to treat a pixel as 'tree'. Default is 1.
+        Pixel percent cover threshold to treat a pixel as 'tree'.
     width : int, optional
         Number of pixels away from the feature that still counts as within
-        the buffer. Default is 1.
+        the buffer.
     ridges : bool, optional
         Whether to include opportunities for trees on catchment boundaries
         (ridges). If False, hydrolines are used for gullies only. If True,
-        the DEM is used for both gullies and ridges. Default is False.
+        the DEM is used for both gullies and ridges.
     num_catchments : int, optional
         Number of catchments when calculating ridges and gullies. If None,
-        the number of hydroline segments is used instead. Default is 10.
+        the number of hydroline segments is used instead.
     min_branch_length : int, optional
         Smallest allowable branch when using hydrolines to determine number
-        of catchments. Default is 10.
+        of catchments.
     contour_spacing : int, optional
-        Number of pixels between each contour. If ``equal_area`` is True,
+        Number of pixels between each contour. If equal_area is True,
         this is used as the number of contours instead. Set to 0 to
-        disable contour opportunities. Default is 10.
+        disable contour opportunities.
     min_contour_length : int, optional
         Smallest allowable contour to use as an opportunity for planting
-        trees. Default is 100.
+        trees.
     equal_area : bool, optional
         Whether to generate a given number of contours per tile (True), or
         place contours at the same elevations across all tiles (False).
-        Default is False.
     savetif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a visualisation. Default is False.
+        Whether to generate a visualisation.
     crop_pixels : int, optional
-        Number of pixels to crop from each edge of the output. Default is 0.
+        Number of pixels to crop from each edge of the output.
 
     Returns
     -------
@@ -360,7 +359,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
     Notes
     -----
     When savetif=True, it outputs a GeoTIFF file with embedded color map:
-    ``{stub}_opportunities.tif``
+    {stub}_opportunities.tif
 
     Examples
     --------
@@ -534,7 +533,7 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=1,
                   equal_area=equal_area, savetif=savetif, plot=plot, crop_pixels=crop_pixels)
         
     # outdir = folder
-    # Could just use the merge_lidar function instead of reimplementing like this each time.
+    # Could just use the merge_tifs function instead of reimplementing like this each time.
     gdf = bounding_boxes(outdir, filetype='opportunities.tif', stub=stub)
     
     footprint_gpkg = f"{stub}_footprints.gpkg"
@@ -556,8 +555,8 @@ def parse_arguments():
     )
 
     parser.add_argument("percent_tif", help="Input percentage cover tree tif file")
-    parser.add_argument("--outdir", default=".", help="Output directory for saving results")
-    parser.add_argument("--stub", default=None, help="Prefix for output filenames")
+    parser.add_argument("--outdir", default=".", help="Output directory for saving results (default: current directory)")
+    parser.add_argument("--stub", default=None, help="Prefix for output filenames (default: derived from input)")
     parser.add_argument("--tmpdir", default=".", help="Temporary working directory (default: current directory)")
     parser.add_argument("--cover_threshold", type=int, default=1, help="Tree cover threshold percentage (default: 1)")
     parser.add_argument("--width", type=int, default=1, help="Buffer width in pixels (default: 1)")

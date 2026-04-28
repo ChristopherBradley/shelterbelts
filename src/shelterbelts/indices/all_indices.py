@@ -88,54 +88,50 @@ def indices_tif(percent_tif, outdir=".",
     tmpdir : str, optional
         Directory for temporary files (default is in utils.filepaths).
     stub : str, optional
-        Prefix for output filenames. If not provided it is derived from ``percent_tif``.
+        Prefix for output filenames. If not provided it is derived from percent_tif.
     wind_method : str or None, optional
-        Method used to infer shelter direction. Can be ``None``,
-        ``'WINDWARD'``, ``'MOST_COMMON'``, ``'MAX'``, ``'HAPPENED'`` or
-        ``'ANY'``. See :func:`shelter_categories` for details.
+        Method used to infer shelter direction. Can be None,
+        'WINDWARD', 'MOST_COMMON', 'MAX', 'HAPPENED' or
+        'ANY'. See :func:`shelter_categories` for details.
     wind_threshold : int, optional
-        Wind speed threshold in km/h. Default 20.
+        Wind speed threshold in km/h.
     cover_threshold : int, optional
-        Pixel percent cover threshold to treat a pixel as 'tree'. Default 1.
-        - If input is a binary tif use ``cover_threshold=1``.
+        Pixel percent cover threshold to treat a pixel as 'tree'.
+        - If input is a binary tif use cover_threshold=1.
         - For percent-cover tifs typical values are 10 or 20.
         - For confidence tifs a value like 50 is reasonable.
     min_patch_size : int, optional
         Minimum area (pixels) to classify as a patch rather than scattered trees.
-        Default is 20.
     edge_size : int, optional
         Distance (pixels) defining the edge region around patch cores.
-        Default is 3.
     max_gap_size : int, optional
         Maximum gap (pixels) to bridge when connecting tree clusters.
-        Default is 1.
     distance_threshold : int, optional
         Distance from trees that counts as sheltered.
         Units are either 'tree heights' or 'number of pixels', depending on if a height_tif is provided.
-        Default is 20.
     density_threshold : int, optional
-        Percentage tree cover within the ``distance_threshold`` that counts as sheltered.
-        Only applies if the ``wind_data`` is not provided. Default is 5.
+        Percentage tree cover within the distance_threshold that counts as sheltered.
+        Only applies if the wind_data is not provided.
     buffer_width : int, optional
-        Number of pixels away from the feature that still counts as within the buffer. Default is 3.
+        Number of pixels away from the feature that still counts as within the buffer.
     strict_core_area : bool, optional
         If True, enforce that core areas exceed the edge_size at all points.
-        If False, use dilation and erosion to allow some irregularity. Default is True.
+        If False, use dilation and erosion to allow some irregularity.
     crop_pixels : int, optional
-        Number of pixels to crop from each edge of the output. Default is 0.
+        Number of pixels to crop from each edge of the output.
     min_core_size : int, optional
-        Minimum area (pixels) to classify as a core area. Default is 1000.
+        Minimum area (pixels) to classify as a core area.
     min_shelterbelt_length : int, optional
-        Minimum skeleton length (in pixels) to classify a cluster as linear. Default is 15.
+        Minimum skeleton length (in pixels) to classify a cluster as linear.
     max_shelterbelt_width : int, optional
-        Maximum skeleton width (in pixels) to classify a cluster as linear. Default is 6.
+        Maximum skeleton width (in pixels) to classify a cluster as linear.
     debug : bool, optional
-        If True, intermediate TIFFs/plots are saved for debugging. Default False.
+        If True, intermediate TIFFs/plots are saved for debugging.
 
     Returns
     -------
     ds : xarray.Dataset
-        Dataset with ``linear_categories`` and ``labelled_categories`` bands.
+        Dataset with linear_categories and labelled_categories bands.
     df : pandas.DataFrame
         Per-cluster patch metrics (skeleton length/width, category, etc.).
 
@@ -231,7 +227,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
 
     Downloads canopy height (Meta/Tolan global CHM), ESA WorldCover, terrain tiles for
     gully/ridge delineation, and OpenStreetMap roads. BARRA wind data is only downloaded
-    when ``wind_method`` is set.
+    when wind_method is set.
 
     Parameters
     ----------
@@ -240,21 +236,21 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     lon : float
         Longitude in WGS 84 (EPSG:4326).
     buffer : float, optional
-        Half-width of the region of interest in degrees. Default is 0.05 (~5 km).
+        Half-width of the region of interest in degrees (~5 km at 0.05).
     outdir : str, optional
         Output directory for saving results.
     tmpdir : str, optional
         Directory for temporary/cached files.
     stub : str, optional
-        Prefix for output filenames. Defaults to ``"{lat:.3f}_{lon:.3f}"``.
+        Prefix for output filenames. Defaults to "{lat:.3f}_{lon:.3f}".
     wind_method : str or None, optional
         Method used to infer shelter direction. See :func:`indices_tif` for options.
     wind_threshold : int, optional
-        Wind speed threshold in km/h. Default 20.
+        Wind speed threshold in km/h.
     height_threshold : float, optional
-        Canopy height (metres) above which a 1 m pixel is classified as tree. Default 1.0.
+        Canopy height (metres) above which a 1 m pixel is classified as tree.
     cover_threshold : int, optional
-        Minimum percentage of tree-pixels within a 10 m cell to count it as tree. Default 1.
+        Minimum percentage of tree-pixels within a 10 m cell to count it as tree.
         The 1 m binary raster is average-resampled to 10 m (giving 0–100 % cover) before
         this threshold is applied, matching the behaviour of :func:`indices_tif`.
     min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, debug : optional
@@ -263,7 +259,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     Returns
     -------
     ds : xarray.Dataset
-        Dataset with ``linear_categories`` and ``labelled_categories`` bands.
+        Dataset with linear_categories and labelled_categories bands.
     df : pandas.DataFrame
         Per-cluster patch metrics.
 
@@ -271,7 +267,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     -----
     For locations in Australia, higher-quality roads and hydrolines are available from the Geoscience
     NationalRoads GDB and SurfaceHydrologyLinesRegional GDB. Set
-    ``shelterbelts.utils.filepaths.roads_gdb`` and ``hydrolines_gdb`` to use them.
+    shelterbelts.utils.filepaths.roads_gdb and hydrolines_gdb to use them.
     """
     from rasterio.enums import Resampling
     from DAESIM_preprocess.terrain_tiles import terrain_tiles
@@ -357,7 +353,7 @@ def indices_csv(csv, outdir=".",
     """
     Run the indices pipeline for every file listed in a CSV.
 
-    The CSV is expected to contain a column named ``filename`` with full paths
+    The CSV is expected to contain a column named filename with full paths
     to percent-cover GeoTIFFs. Each row is processed sequentially by
     `indices_tif` using the provided parameters.
 
@@ -394,7 +390,7 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
     param_stub : str, optional
         Extra stub for csv filenames and downstream tifs.
     tiles_per_csv : int, optional
-        Number of tiles grouped per subprocess CSV. Default is 100.
+        Number of tiles grouped per subprocess CSV.
     Other parameters
         Passed through to :func:`indices_tif` (see that function for details).
 
