@@ -218,34 +218,31 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
     Parameters
     ----------
     variables : list of str, optional
-        Default is ["uas", "vas"] for Eastward and Northward Near-Surface Wind, respectively. 
-        See links at the top of this file for more details.
+        Wind variables to download. See links at the top of this file for more details.
     lat : float, optional
-        Latitude in WGS 84 (EPSG:4326). Default is -34.389.
+        Latitude in WGS 84 (EPSG:4326).
     lon : float, optional
-        Longitude in WGS 84 (EPSG:4326). Default is 148.469.
+        Longitude in WGS 84 (EPSG:4326).
     buffer : float, optional
         -- Note: Buffer option is currently disabled due to a bug in the API, so we just get the nearest point.
     start_year : str, optional
         Start year (inclusive). The minimum available year is 1889.
-        Default is "2020".
     end_year : str, optional
         End year (inclusive). Data beyond the available range will be capped
-        at the most recent available date. Default is "2021".
+        at the most recent available date.
     outdir : str, optional
-        Output directory for saving results. Default is the current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. Default is "TEST".
+        Prefix for output filenames.
     save_netcdf : bool, optional
-        Whether to save results as a NetCDF file. Default is True.
+        Whether to save results as a NetCDF file.
     plot : bool, optional
-        Whether to generate a wind rose visualisation (PNG). Default is True.
+        Whether to generate a wind rose visualisation (PNG).
     gdata : bool, optional
         Whether to access data via NCI /g/data/xe2 path (requires NCI access).
-        If False, uses public THREDDS server. Default is False.
+        If False, uses public THREDDS server.
     temporal : str, optional
         Temporal resolution of the data. Options are '20min', '1hr', 'day', 'mon'.
-        Default is 'day'.
 
     Returns
     -------
@@ -255,11 +252,11 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
 
     Notes
     -----
-    When ``save_netcdf=True``, it writes:
-    ``{stub}_barra_daily.nc``
+    When save_netcdf=True, it writes:
+    {stub}_barra_daily.nc
 
-    When ``plot=True``, it writes:
-    ``{stub}_barra_daily.png`` (a wind rose visualisation)
+    When plot=True, it writes:
+    {stub}_barra_daily.png (a wind rose visualisation)
 
     Examples
     --------
@@ -310,8 +307,8 @@ def parse_arguments():
     parser.add_argument('--buffer', default=0.01, type=float, help='Buffer in each direction in degrees (default is 0.01, or about 2kmx2km)')
     parser.add_argument('--start_year', default='2020', help='Inclusive, and the minimum start year is 1889. Setting the start and end year to the same value will get all data for that year.')
     parser.add_argument('--end_year', default='2021', help='Specifying a larger end_year than available will automatically give data up to the most recent date (currently 2025)')
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames (default: TEST)')
     parser.add_argument('--no-save-netcdf', dest='save_netcdf', action="store_false", default=True, help='Disable saving NetCDF output (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
     parser.add_argument('--gdata', action="store_true", default=False, help='Access data via NCI /g/data path (requires NCI access). Default: False')

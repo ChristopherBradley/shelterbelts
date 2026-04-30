@@ -1,14 +1,12 @@
-# +
-# Create a training dataset with satellite imagery inputs and tree cover outputs
-
-# +
 import os
+import sys
 import glob
 import pickle
 import math
 import random
 import gc
 import shutil
+import argparse
 
 import numpy as np
 import geopandas as gpd
@@ -17,36 +15,31 @@ import xarray as xr
 import scipy.ndimage as ndimage
 from scipy.signal import fftconvolve
 
-# -
-
-import sys
+from shelterbelts.utils.filepaths import tmpdir
 
 # Monkey fix to load the new pickle files in an older version of numpy
-import sys, numpy
-sys.modules['numpy._core'] = numpy.core
-sys.modules['numpy._core.numeric'] = numpy.core.numeric
+sys.modules['numpy._core'] = np.core
+sys.modules['numpy._core.numeric'] = np.core.numeric
 
 np.random.seed(0)
 random.seed(0)
 
-# +
-# Much faster method to calculate spatial variation than scipy.ndimage
 def focal_std_fft(array, kernel):
+    """FFT-based rolling standard deviation (much faster than my old version using scipy.ndimage)."""
     radius = kernel.shape[0] // 2
     array = np.pad(array, pad_width=radius, mode='reflect')
-    
+
     kernel = kernel / kernel.sum()
     mean = fftconvolve(array, kernel, mode='same')
     mean_sq = fftconvolve(array**2, kernel, mode='same')
-    
+
     var = mean_sq - mean**2
     var = np.maximum(var, 0)   # prevent negative due to round-off
     std = np.sqrt(var)
 
-    # std = np.sqrt(mean_sq - mean**2)
-    
     std_unpadded = std[radius:-radius or None, radius:-radius or None]
     return std_unpadded
+
 
 def make_circular_kernel(radius):
     y, x = np.ogrid[-radius:radius+1, -radius:radius+1]
@@ -54,9 +47,6 @@ def make_circular_kernel(radius):
     return mask.astype(float)
 
 
-# -
-
-# I kinda want to add the other aggregated metrics option of 12 separate months. 
 def aggregated_metrics(ds, radius=4):
     """Add a temporal median, temporal std, focal mean, and focal std for each temporal band"""
     # Make a list of the variables with a time dimension
@@ -66,14 +56,14 @@ def aggregated_metrics(ds, radius=4):
     for variable in time_vars:
 
         # Temporal metrics
-        ds_median_temporal = ds[variable].median(dim="time", skipna=True)  # Not sure if I should be doing some kind of outlier removal before this. I should try out the geometric median like Dale Roberts demonstrated.
+        ds_median_temporal = ds[variable].median(dim="time", skipna=True)
         ds_std_temporal = ds[variable].std(dim="time", skipna=True)
 
         # Focal metrics
         kernel_size = 2 * radius + 1  # 7 pixel diameter because the radius doesn't include the centre pixel
         ds_mean_focal_7p = xr.apply_ufunc(
-            ndimage.uniform_filter, 
-            ds_median_temporal, 
+            ndimage.uniform_filter,
+            ds_median_temporal,
             kwargs={'size': kernel_size, 'mode': 'nearest'},
             dask="parallelized",  # Lazy loading
             output_dtypes=[ds_median_temporal.dtype],
@@ -94,7 +84,7 @@ def aggregated_metrics(ds, radius=4):
     return ds
 
 def jittered_grid(ds, spacing=10):
-    """Create an equally spaced grid with a random jitter"""
+    """Sample pixels on a regular spacing grid with per-point random jitter, returned as a long-format dataframe."""
 
     # Calculate grid
     spacing_x = spacing
@@ -129,13 +119,11 @@ def jittered_grid(ds, spacing=10):
 
     subset = ds[aggregated_vars].interp(y=("points", y_coords), x=("points", x_coords))
     df = subset.to_dataframe().reset_index()
-    
+
     df = df.drop(columns='points')
-    
+
     return df
 
-
-from shelterbelts.utils.filepaths import tmpdir
 
 def visualise_jittered_grid(ds, spacing=10, outdir=tmpdir, stub="TEST"):
     """Save a geopackage so you can visualise the jittered grid in QGIS"""
@@ -146,18 +134,40 @@ def visualise_jittered_grid(ds, spacing=10, outdir=tmpdir, stub="TEST"):
         crs=ds.rio.crs
     )
     filename = os.path.join(outdir, f'{stub}_jittered_s{spacing}.gpkg')
-    gdf.to_file(filename) 
+    gdf.to_file(filename)
     print("Saved: ", filename)
 
-# alpha_folder = '/scratch/xe2/cb8590/alphaearth_pickle'
-def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alpha_folder=None):
-    """Create a csv file with a subset of training pixels for this sentinel xarray"""
 
-    # Load the woody veg
+def merge_inputs_outputs_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alpha_folder=None):
+    """Create a training CSV from an in-memory Sentinel-2 Dataset and a tree-cover tif.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Sentinel-2 Dataset with 10 nbart_* bands on a time/y/x grid.
+    tree_file : str
+        Path to a binary tree-cover GeoTIFF (0 = non-tree, 1 = tree).
+    outdir : str
+        Output directory for saving the CSV.
+    radius : int, optional
+        Radius (in pixels) of the circular kernel used for focal mean/std features.
+    spacing : int, optional
+        Sampling grid spacing in pixels. A larger spacing produces fewer,
+        less-correlated rows.
+    verbose : bool, optional
+        Print progress messages.
+    alpha_folder : str, optional
+        Folder containing AlphaEarth embedding pickles to append as extra features.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The training rows, also written to
+        ``{outdir}/{stub}_df_r{radius}_s{spacing}_{year}.csv``.
+    """
     if verbose:
         print(f"Loading {tree_file}")
     da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
-    
 
     # Should really make sure there's always a crs in lidar.py before writing out the tif file
     if da.rio.crs is None:
@@ -165,10 +175,10 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alph
 
     # Match the tree tif. Reprojecting the other way round breaks if a sentinel dimension is larger than a tree dimension
     try:
-        ds = ds.rio.reproject_match(da)  
+        ds = ds.rio.reproject_match(da)
     except:
         return None  # Seems like sometimes either the ds or da is empty, giving this error: rasterio._err.CPLE_IllegalArgError: GDALWarpOptions.Validate(): nBandCount=0, no bands configured!
-    
+
     for var in ds.data_vars:
         ds[var].attrs.pop("grid_mapping", None)
 
@@ -190,103 +200,136 @@ def tile_csv_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alph
     year = str(ds.time[0].dt.year.values)
     start_date = str(ds.time[0].dt.date.item())
     end_date = str(ds.time[-1].dt.date.item())
-    
+
     if alpha_folder is not None:
-        # Add the alphaearth embeddings to the ds
         stub = tree_file.split('/')[-1].split('.')[0]
         alpha_file = os.path.join(alpha_folder, f'{stub}_alpha_earth_embeddings_{year}.pkl')
         with open(alpha_file, 'rb') as file:
             ds_alpha = pickle.load(file)
-        ds_alpha = ds_alpha.rio.reproject_match(ds)  
+        ds_alpha = ds_alpha.rio.reproject_match(ds)
         for i in range(ds_alpha.sizes['band']):
             ds[f'alpha_embedding_{i+1}'] = ds_alpha.isel(band=i)
 
     # Remove the temporal bands
     variables = [var for var in ds.data_vars if 'time' not in ds[var].dims]
-    ds = ds[variables] 
+    ds = ds[variables]
 
-    # I'm currently undecided whether to use a jittered grid or random sample of points. 
     df = jittered_grid(ds, spacing)
     stub = tree_file.split('/')[-1].split('.')[0]  # filename without the path
     df["tile_id"] = stub
     df["year"] = year
     df["start_date"] = start_date
     df['end_date'] = end_date
-    
+
     df = df.drop(columns=['spatial_ref', 'band'], errors='ignore')
-    
+
     # Change the datatypes to make the file as small as possible
     df = df.drop(columns=['start_date', 'end_date'], errors='ignore')
     for col in df.select_dtypes(include=['float64']).columns:
-        # df[col] = df[col].astype(np.float16)
         df[col] = df[col].astype(np.float32)
     for col in df.select_dtypes(include=['int64']).columns:
         df[col] = df[col].astype(np.int16)
 
-    # Save a copy of this dataframe just in case something messes up later
     os.makedirs(outdir, exist_ok=True)
     filename = os.path.join(outdir, f"{stub}_df_r{radius}_s{spacing}_{year}.csv")
     df.to_csv(filename, index=False)
     print(f"Saved: {filename}")
 
-    del ds 
+    del ds
     del da
     gc.collect()
-    
+
     return df
 
 
-def tile_csv(sentinel_file, tree_file, outdir, radius=4, spacing=10, verbose=False):
-    """Create a csv file with a subset of training pixels for this sentinel filename"""
-    with open(sentinel_file, 'rb') as file:
+def merge_inputs_outputs(sentinel_pickle, tree_tif, outdir=".", radius=4, spacing=10, verbose=False):
+    """
+    Build a per-pixel training CSV from a Sentinel-2 pickle and a tree-cover tif.
+
+    Each row of the CSV is one sampled pixel; columns are the temporally-aggregated
+    Sentinel features plus the binary tree label drawn from tree_tif. The resulting
+    CSV feeds directly into
+    :func:`shelterbelts.classifications.neural_network.train_neural_network`.
+
+    Parameters
+    ----------
+    sentinel_pickle : str
+        Path to a Sentinel-2 xarray.Dataset pickle with 10 nbart_* bands on a
+        time/y/x grid. Typically produced by
+        :func:`shelterbelts.classifications.sentinel_nci.download_ds2_bbox`.
+    tree_tif : str
+        Path to a binary tree-cover GeoTIFF (0 = non-tree, 1 = tree).
+    outdir : str, optional
+        Output directory for saving results.
+    radius : int, optional
+        Radius (in pixels) of the circular kernel used for focal mean/std features.
+    spacing : int, optional
+        Sampling grid spacing in pixels. A larger spacing produces fewer,
+        less-correlated rows.
+    verbose : bool, optional
+        Print progress messages.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The training rows, also written to
+        ``{outdir}/{stub}_df_r{radius}_s{spacing}_{year}.csv``.
+    """
+    with open(sentinel_pickle, 'rb') as file:
         if verbose:
-            print(f"Loading {sentinel_file}")
+            print(f"Loading {sentinel_pickle}")
         ds = pickle.load(file)
-    df = tile_csv_ds(ds, tree_file, outdir, radius, spacing, verbose)
-    return df
+    return merge_inputs_outputs_ds(ds, tree_tif, outdir, radius, spacing, verbose)
 
 
 def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, limit=None, double_f=False, specific_usecase=None):
-    """Run tile_csv on all the tiles and report info on any errors that occur"""
-    
-    # Randomise the tiles so I can have a random sample before they all complete
-    sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
+    """
+    Run :func:`merge_inputs_outputs` on every Sentinel pickle in sentinel_folder.
 
+    Parameters
+    ----------
+    sentinel_folder : str
+        Folder containing Sentinel-2 pickle files produced by sentinel_nci.py or
+        sentinel_dea.py.
+    tree_folder : str
+        Folder containing binary tree-cover tifs. Each tif is matched to a pickle
+        by stem name.
+    outdir : str, optional
+        See :func:`merge_inputs_outputs`.
+    radius : int, optional
+        See :func:`merge_inputs_outputs`.
+    spacing : int, optional
+        See :func:`merge_inputs_outputs`.
+    limit : int, optional
+        Maximum number of tiles to process. If None, all tiles are processed.
+    double_f : bool, optional
+        Use ``.tiff`` extension for tree files instead of ``.tif``.
+    """
+    sentinel_tiles = glob.glob(f'{sentinel_folder}/*')
     sentinel_randomised = random.sample(sentinel_tiles, len(sentinel_tiles))
     if limit is not None:
         sentinel_randomised = sentinel_randomised[:limit]
-        
+
     print("About to process n tiles:", len(sentinel_randomised))
     for sentinel_tile in sentinel_randomised:
-        # stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-2])   # Remove the _ds2_year
-        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-3])   # Remove the year_ds2_year (can't remember why I have two of 'year')
-        tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")  # Should probably just rename all the files to have the same suffix instead
-        tile_csv(sentinel_tile, tree_file, outdir, radius, spacing)
+        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-3])   # Remove the year_ds2_year
+        tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")
+        merge_inputs_outputs(sentinel_tile, tree_file, outdir, radius, spacing)
 
 
 def tiles_todo(sentinel_folder, csv_folder):
-    """Find all the tiles in the sentinel_folder that haven't been completed yet, and move them into a subfolder named tiles_todo"""
+    """Move Sentinel pickles that don't yet have a matching training CSV into a tiles_todo subfolder for re-processing."""
 
-    # +
-    # df = pd.read_feather('/scratch/xe2/cb8590/Nick_training_lidar_year/TEST_preprocessed.feather')
-    
-    # +
-    # sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/subfolder_1/g1_01071_binary_tree_cover_10m_2023_ds2_2023.pkl'
-    # with open(sentinel_file, 'rb') as file:
-    #     ds = pickle.load(file)
-    # ds.time
-    
-    # +
     sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel/*.pkl'
     csv_folder = '/scratch/xe2/cb8590/Nick_training_lidar_year/*.csv'
     sentinel_files = glob.glob(sentinel_folder)
     csv_files = glob.glob(csv_folder)
-    
+
     sentinel_stubs = ['_'.join(sentinel_file.split('/')[-1].split('_')[:2]) for sentinel_file in sentinel_files]
     sentinel_years = [sentinel_file.split('.')[0][-4:] for sentinel_file in sentinel_files]
     csv_stubs = ['_'.join(csv_file.split('/')[-1].split('_')[:2]) for csv_file in csv_files]
     csv_years = [csv_file.split('.')[0][-4:] for csv_file in csv_files]
-    
+
     sentinel_pairs = set(zip(sentinel_stubs, sentinel_years))
     csv_pairs = set(zip(csv_stubs, csv_years))
     missing_pairs = sentinel_pairs - csv_pairs
@@ -304,159 +347,27 @@ def tiles_todo(sentinel_folder, csv_folder):
             print(f"File not found: {src_path}")
 
 
-# +
-# Haven't yet added this back into the main preprocess pipeline
-# def attach_koppen_classes(df):
-#     """Attach the koppen class of each tile to the relevant rows"""
-#     # This should really all happen in merge_inputs_outputs
-#     df = df[(df['tree_cover'] == 0) | (df['tree_cover'] == 1)]     # Drop the 174 rows where tree cover values = 2
-#     df = df[df.notna().all(axis=1)]     # Drop the two rows with NaN values
-
-#     # Add the bioregion to the training/testing data
-#     gdf = gpd.read_file(filename_centroids)
-
-#     gdf['tile_id'] = ["_".join(filename.split('/')[-1].split('_')[:2]) for filename in gdf['filename']]
-#     gdf = gdf.rename(columns={'Full Name':'koppen_class'})
-#     df = df.merge(gdf[['tile_id', 'koppen_class']])
-
-#     # Should also use the y, x, tile_id to get a coord in the Australia EPSG:7844
-
-#     return df
-# filename_centroids = "/Users/christopherbradley/Documents/PHD/Data/Nick_outlines/centroids_named.gpkg"
-# df = attach_koppen_classes(df)
-
-# -
-
-def preprocess(sentinel_folder, tree_folder=None, outdir=".", stub="TEST", radius=4, spacing=10, outlines_gpkg=None, limit=None, double_f=False, specific_usecase=None):
-    """Merge the inputs and outputs for training the model
-    
-    Parameters
-    ----------
-        sentinel_folder: Folder with sentinel pickle files generated by sentinel.py
-        tree_folder: Folder with binary tree tifs generated by lidar.py or util/binary_trees.py 
-            - if not provided, then the sentinel_folder gets processed as normal, just without any ground truth data
-        outdir: Folder for the output feather file
-        stub: prefix of feather file
-        radius: The size of the kernel used for spatial variation
-        spacing: The distance between jittered points
-        outlines_gpkg: Extra metadata such as koppen_class generated by koppen.py. Should contain at least a column 'filename' corresponding to the sentinel_filenames
-            - if not provided, then we just don't attach this extra metadata
-        limit: The number of files to process
-            - if none, then run on all the files in the sentinel_folder
-            
-    Returns
-    -------
-        gdf: Geodataframe with the inputs and outputs for each tile
-    
-    Downloads
-    ---------
-        feather: Pandas feather file (database) of the gdf
-    
-    """
-    # Create a csv of inputs and outputs for each tile
-    tile_csvs(sentinel_folder, tree_folder, outdir, radius, spacing, limit, double_f, specific_usecase)
-
-    # # Doing this merging later instead to avoid intermediate errors
-    # # Merge the results into a single feather file. 
-    # csv_tiles = glob.glob(os.path.join(outdir, '*.csv'))
-    # dfs = []
-    # for csv_tile in csv_tiles:
-    #     df = pd.read_csv(csv_tile, index_col=False)
-    #     dfs.append(df)
-    # df_all = pd.concat(dfs)
-    # filename = os.path.join(outdir, f"{stub}_preprocessed.feather")
-    # df_all.to_feather(filename)
-    # print("Saved", filename)
-                          
-    # return df_all
-
-    return None
-
-
-# +
-import argparse
-
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
-    
-    parser.add_argument('sentinel_folder', help='Folder with sentinel pickle files generated by sentinel.py')
-    parser.add_argument('--tree_folder', default=None, help='Folder with binary tree tifs generated by lidar.py or util/binary_trees.py (optional)')
-    parser.add_argument('--outdir', default='.', help='Folder for the output feather file (default: current directory)')
-    parser.add_argument('--stub', default='TEST', help='Folder for the output feather file (default: current directory)')
-    parser.add_argument('--radius', type=int, default=4, help='Size of the kernel used for spatial variation (default: 4)')
-    parser.add_argument('--spacing', type=int, default=10, help='Distance between jittered points (default: 10)')
-    parser.add_argument('--outlines_gpkg', default=None, help='Optional GPKG with metadata (should contain a "filename" column)')
-    parser.add_argument('--limit', type=int, default=None, help='Number of files to process (default: all)')
-    parser.add_argument('--specific_usecase', default=None, help='Specific scenarios for trying out different years with Nicks training data')
-    parser.add_argument("--double_f", action="store_true", help="Don't create the binary raster. Default: False")
-
+    parser.add_argument('sentinel_folder', help='Folder with sentinel pickle files generated by sentinel_nci.py or sentinel_dea.py')
+    parser.add_argument('--tree_folder', default=None, help='Folder with binary tree tifs generated by lidar.py or binary_trees.py')
+    parser.add_argument('--outdir', default='.', help='Output directory for CSV files (default: current directory)')
+    parser.add_argument('--radius', type=int, default=4, help='Focal kernel radius in pixels (default: 4)')
+    parser.add_argument('--spacing', type=int, default=10, help='Jittered grid spacing in pixels (default: 10)')
+    parser.add_argument('--limit', type=int, default=None, help='Number of tiles to process (default: all)')
+    parser.add_argument('--double_f', action="store_true", help='Use .tiff extension instead of .tif for tree files')
     return parser.parse_args()
 
 
-# # %%time
 if __name__ == '__main__':
     args = parse_arguments()
-    
-    preprocess(
+    tile_csvs(
         sentinel_folder=args.sentinel_folder,
         tree_folder=args.tree_folder,
         outdir=args.outdir,
-        stub=args.stub,
         radius=args.radius,
         spacing=args.spacing,
-        outlines_gpkg=args.outlines_gpkg,
         limit=args.limit,
-        specific_usecase=args.specific_usecase,  # Now redundant argument since I did the filtering later on instead
-        double_f=args.double_f
+        double_f=args.double_f,
     )
-
-
-# +
-# # %%time
-# outdir = '../../../outdir'
-# tree_folder = '../../../data'
-# sentinel_tile = os.path.join(outdir,'g2_26729_binary_tree_cover_10m.pkl ')
-# tile_csv(sentinel_tile, tree_folder, outdir, double_f=True)
-
-# +
-# sentinel_folder = "/scratch/xe2/cb8590/Tas_sentinel"
-# tree_folder = "/scratch/xe2/cb8590/Tas_tifs"
-# outdir = f"/scratch/xe2/cb8590/Tas_csv"
-# preprocess(sentinel_folder, tree_folder, outdir, limit=1)
-
-# +
-# # %%time
-# sentinel_folder = "/scratch/xe2/cb8590/Nick_sentinel"
-# tree_folder = "/g/data/xe2/cb8590/Nick_Aus_treecover_10m"
-# outdir = f"/scratch/xe2/cb8590/tmp"
-# preprocess(sentinel_folder, tree_folder, outdir, limit=1, double_f=True)
-
-# +
-# # %%time
-# data_dir = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
-# stub = 'g2_26729_binary_tree_cover_10m'
-# outdir = '/scratch/xe2/cb8590/tmp'
-# verbose = True
-# radius = 4
-# spacing = 5
-# double_f = True
-
-# tree_file = f'{data_dir}/{stub}.tiff'
-# sentinel_file = f'{outdir}/{stub}_ds2_2020.pkl'
-# # tile_csv(sentinel_file, tree_file=tree_file, outdir=outdir, radius=4, spacing=1)
-
-# +
-# tree_file = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/g2_26648_binary_tree_cover_10m.tiff'
-# da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
-# sentinel_file = '/scratch/xe2/cb8590/Nick_sentinel/g2_26648_binary_tree_cover_10m_2024_ds2_2024.pkl'
-# with open(sentinel_file, 'rb') as file:
-#     ds = pickle.load(file)
-# ds = aggregated_metrics(ds, 4)
-# alpha_file = '/scratch/xe2/cb8590/alphaearth_pickle/g2_26648_binary_tree_cover_10m_alpha_earth_embeddings_2024.pkl'
-# with open(alpha_file, 'rb') as file:
-#     ds_alpha = pickle.load(file)
-    
-# ds_alpha = ds_alpha.rio.reproject_match(ds)  
-# for i in range(ds_alpha.sizes['band']):
-#     ds[f'alpha_embedding_{i+1}'] = ds_alpha.isel(band=i)

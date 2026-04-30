@@ -87,36 +87,35 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", s
     Parameters
     ----------
     lat : float, optional
-        Latitude in WGS 84 (EPSG:4326). Default is -34.389.
+        Latitude in WGS 84 (EPSG:4326).
     lon : float, optional
-        Longitude in WGS 84 (EPSG:4326). Default is 148.469.
+        Longitude in WGS 84 (EPSG:4326).
     buffer : float, optional
         Distance in degrees in a single direction (0.01 ≈ 1 km),
         resulting in an approximately square area of size 2*buffer.
-        Default is 0.01.
     outdir : str, optional
-        Output directory for saving results. Default is current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. Default is "TEST".
+        Prefix for output filenames.
     save_tif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a PNG visualisation. Default is True.
+        Whether to generate a PNG visualisation.
 
     Returns
     -------
     xarray.Dataset
         Dataset with variable **worldcover** (integer codes) and
         latitude/longitude coordinates. The mapping of codes to classes
-        is provided in ``worldcover_labels``.
+        is provided in worldcover_labels.
 
     Notes
     -----
-    When ``save_tif=True``, it writes:
-    ``{stub}_worldcover.tif``
+    When save_tif=True, it writes:
+    {stub}_worldcover.tif
 
-    When ``plot=True``, it writes:
-    ``{stub}_worldcover.png``
+    When plot=True, it writes:
+    {stub}_worldcover.png
 
     Examples
     --------
@@ -166,8 +165,8 @@ def parse_arguments():
     parser.add_argument('--lat', default=-34.389, type=float, help='Latitude in EPSG:4326 (default: -34.389)')
     parser.add_argument('--lon', default=148.469, type=float, help='Longitude in EPSG:4326 (default: 148.469)')
     parser.add_argument('--buffer', default=0.01, type=float, help='Buffer in each direction in degrees (default: 0.01 ≈ 1 km)')
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames (default: TEST)')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
 

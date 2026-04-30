@@ -151,22 +151,22 @@ def canopy_height(lat=-34.389, lon=148.469, buffer=0.005, outdir=".", stub="Test
     Parameters
     ----------
     lat : float, optional
-        Latitude in WGS 84 (EPSG:4326). Default is -34.389.
+        Latitude in WGS 84 (EPSG:4326).
     lon : float, optional
-        Longitude in WGS 84 (EPSG:4326). Default is 148.469.
+        Longitude in WGS 84 (EPSG:4326).
     buffer : float, optional
         Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so
-        a buffer of 0.01 gives an approx 2km x 2km area. Default is 0.005.
+        a buffer of 0.01 gives an approx 2km x 2km area.
     outdir : str, optional
-        Output directory for saving results. Default is current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. Default is ``"Test"``.
+        Prefix for output filenames.
     tmpdir : str, optional
-        Directory to cache downloaded tiles. Default is the current directory.
+        Directory to cache downloaded tiles.
     save_tif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a PNG visualisation. Default is True.
+        Whether to generate a PNG visualisation.
 
     Returns
     -------
@@ -176,11 +176,11 @@ def canopy_height(lat=-34.389, lon=148.469, buffer=0.005, outdir=".", stub="Test
 
     Notes
     -----
-    When ``save_tif=True``, it writes:
-    ``{stub}_canopy_height.tif``
+    When save_tif=True, it writes:
+    {stub}_canopy_height.tif
 
-    When ``plot=True``, it writes:
-    ``{stub}_canopy_height.png``
+    When plot=True, it writes:
+    {stub}_canopy_height.png
 
     Example Visualisation
     ---------------------
@@ -213,8 +213,8 @@ def parse_arguments():
     parser.add_argument('--lat', type=float, default=-34.389, help='Latitude in EPSG:4326 (default: -34.389)')
     parser.add_argument('--lon', type=float, default=148.469, help='Longitude in EPSG:4326 (default: 148.469)')
     parser.add_argument('--buffer', type=float, default=0.005, help='Buffer in each direction in degrees (default: 0.005)')
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
-    parser.add_argument('--stub', default='Test', help='Prefix for output filenames')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--stub', default='Test', help='Prefix for output filenames (default: Test)')
     parser.add_argument('--tmpdir', default='.', help='Directory to cache downloaded tiles (default: current directory)')
     parser.add_argument('--no-save-tif', dest='save_tif', action='store_false', default=True, help='Disable saving GeoTIFF (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action='store_false', default=True, help='Disable PNG visualisation (default: enabled)')
