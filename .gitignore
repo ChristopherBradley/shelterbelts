@@ -13,11 +13,21 @@
 *.xlsx
 *.gpkg*
 *.kml
+*.laz
 *.pkl
+*.keras
+
+# Shape files
+*.dbf
+*.prj
+*.shp
+*.shx
 
 # BUT track all files in data/ folder (test data)
 !data/
 !data/**
+
+data/multiple_binary_tifs/*.gpkg
 
 # Ignore directories
 outdir
@@ -33,7 +43,6 @@ snowflake/cache
 *.xml
 *.txt
 *cache*
-*.laz
 *.virtual_documents*
 .vscode
 

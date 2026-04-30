@@ -58,38 +58,25 @@ def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir="."
 
 def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True):
     """
-    Download a Sentinel-2 surface reflectance stack for a bounding box and date range.
-
-    Uses the public DEA STAC catalogue (no NCI/datacube access required). Applies a
-    10 % cloud-cover filter and downloads all 10 surface-reflectance bands. Data are
-    returned as a lazy Dask-backed Dataset; call ``.compute()`` on a slice before
-    plotting.
+    Download a Sentinel-2 surface reflectance stack for a bounding box and date range using the public DEA STAC catalogue.
 
     Parameters
     ----------
     bbox : tuple of float
-        (minx, miny, maxx, maxy) in EPSG:4326 (the STAC API always expects geographic
-        coordinates, unlike the NCI datacube path which accepts an ``input_crs``).
+        (minx, miny, maxx, maxy) in EPSG:4326.
     start_date, end_date : str, optional
-        ISO date strings bounding the search window.
+        First and last date of imagery to download.
     outdir : str, optional
-        Directory for the saved pickle file.
+        Output directory for saving results.
     stub : str, optional
-        Filename prefix; the file is written to ``{outdir}/{stub}_ds2_{year}.pkl``.
+        Prefix for the output filename.
     save : bool, optional
-        Whether to pickle the Dataset to disk.
+        Save the Dataset to {outdir}/{stub}_ds2_{year}.pkl.
 
     Returns
     -------
     xarray.Dataset
-        Ten-band Sentinel-2 stack with dims ``(time, y, x)`` in the local UTM zone.
-
-    Notes
-    -----
-    Cloud filtering uses the ``eo:cloud_cover`` STAC field (scene-level metadata),
-    which is coarser than the pixel-level ``s2cloudless`` mask used by the NCI
-    ``load_ard`` path.  The output CRS is the auto-detected UTM zone for the area,
-    rather than the fixed EPSG:3857 used on NCI.
+        Ten-band Sentinel-2 stack with dims ``(time, y, x)``.
     """
     items = search_stac(bbox, start_date, end_date)
     ds = load_and_process_data(items, bbox)

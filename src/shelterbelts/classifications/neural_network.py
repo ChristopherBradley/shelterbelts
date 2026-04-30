@@ -1,50 +1,25 @@
-# +
-# Train a neural network to compare with random forest predictions
-
-# +
-# # !pip install pyarrow # For loading .feather files
-
-# +
 import os
+import argparse
+import logging
+
 import pandas as pd
 import joblib
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
-from tensorflow import keras
 from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
-import seaborn as sns
-from tensorflow.keras.callbacks import EarlyStopping
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Remove tensorflow logging info
-
-# Removing this warning. Maybe I should set the NUMEXPR_MAX_THREADS to just 1?
-# INFO:numexpr.utils:Note: detected 96 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
-# INFO:numexpr.utils:Note: NumExpr detected 96 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
-import logging
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Quiet tensorflow import-time logging.
 logging.getLogger("numexpr.utils").setLevel(logging.ERROR)
 
-
-# Takes 1 min to load all the libraries on my mac
-
-# # Change directory to this repo - this should work on gadi or locally via python or jupyter. Need this when using the DEA environment.
-import os, sys
-repo_name = "shelterbelts"
-if os.path.expanduser("~").startswith("/home/"):  # Running on Gadi
-    repo_dir = os.path.join(os.path.expanduser("~"), f"Projects/{repo_name}")
-elif os.path.basename(os.getcwd()) != repo_name:  # Running in a jupyter notebook 
-    repo_dir = os.path.dirname(os.getcwd())       
-else:                                             # Already running from root of this repo. 
-    repo_dir = os.getcwd()
-src_dir = os.path.join(repo_dir, 'src')
-os.chdir(src_dir)
-sys.path.append(src_dir)
-# print(src_dir)
+from tensorflow import keras
+from tensorflow.keras.callbacks import EarlyStopping
 
 
 def my_train_test_split(df, stratification_columns=[], train_frac=0.7, random_state=0):
-    """Stratified train test split"""
+    """Stratified train/test split that downsamples each class to the minimum-class count."""
     if len(stratification_columns) == 0:
         # Using an empty list for stratification_columns means no stratification
         df_train, df_test = train_test_split(
@@ -90,7 +65,7 @@ def my_train_test_split(df, stratification_columns=[], train_frac=0.7, random_st
     return df_train, df_test
 
 def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, output_column='tree_cover'):
-    """Final prepping of data for neural network training"""
+    """Standard-scale the input columns, one-hot encode output_column, and save the scaler."""
     # Normalise the input features
     scaler = StandardScaler()     # I should probably remove outliers before scaling.
     X_train = scaler.fit_transform(df_train.drop(columns=non_input_variables, errors='ignore'))
@@ -109,7 +84,7 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, o
 
     
 def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_size, outdir='TEST', stub='.'):
-    """Train a neural network and save the resulting model and training plots"""
+    """Train a 3-layer dense NN with early stopping, save the keras file, and plot accuracy/loss curves."""
     dropout=0.1
     model = keras.Sequential([
         keras.layers.Dense(256, activation='relu'),    
@@ -180,7 +155,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
 
 
 def class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_variables):
-    """Calculate overall and per class accuracy metrics"""
+    """Per-Koppen-class plus overall precision/recall/accuracy; writes {stub}_accuracy.csv."""
     X_test = scaler.transform(df_test.drop(columns=non_input_variables))
     y_pred_percent = model.predict(X_test)
     y_pred = [percent.argmax() for percent in y_pred_percent]
@@ -248,7 +223,7 @@ def class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_
     return rf_metrics_table
     
 def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_variables, output_column):
-    """Calculate just the overall metrics"""
+    """Overall precision/recall/accuracy on the held-out set; writes {stub}_metrics.csv."""
     X_test = scaler.transform(df_test.drop(columns=non_input_variables, errors='ignore'))
     y_pred_percent = model.predict(X_test)
     y_pred = [percent.argmax() for percent in y_pred_percent]
@@ -276,72 +251,104 @@ def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_var
     
     return rf_metrics_table
 
-def neural_network(training_file, outdir=".", stub="TEST", output_column='tree_cover', drop_columns=['x', 'y', 'tile_id'], learning_rate=0.001, epochs=50, batch_size=32, random_state=1, stratification_columns=['tree_cover'], train_frac = 0.7, limit=None):
+def train_neural_network(training_file, outdir=".", stub="TEST", output_column='tree_cover', drop_columns=['x', 'y', 'tile_id'], learning_rate=0.001, epochs=50, batch_size=32, random_state=1, stratification_columns=['tree_cover'], train_frac=0.7, limit=None):
     """
-    Create and evaluate a neural network to predict tree vs no tree classifications
+    Train and evaluate a dense neural network to classify pixels as tree or non-tree.
+
+    This is the user-facing entry point for **use case 6** — train your own
+    model from a labelled CSV of Sentinel features and tree-cover labels. The
+    training CSV is produced by
+    :func:`shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs`
+    which joins a Sentinel-2 feature pickle against a binary tree-cover tif.
+
+    The resulting nn_{stub}.keras + scaler_{stub}.pkl pair is a drop-in
+    replacement for the bundled models consumed by
+    :func:`shelterbelts.classifications.predictions_batch.predict_trees`.
 
     Parameters
     ----------
-        training_file: Either a .feather or .csv file, generated by merge_inputs_outputs.csv
-        outdir: The directory for the outputs
-        stub: The prefix of the outputs
-        output_column: Column with the output data
-        drop_columns: The columns that aren't inputs or outputs (just extra metadata about that sample)
-        learning_rate: hyper_parameter for tuning
-        batch_size: hyper_parameter for tuning
-        epochs: Shouldn't matter too much since we're using early_stopping
-        stratification_columns: Whether to normalise the number of samples from each class (reduces the overall number of training samples)
-        train_frac: Percentage of training vs testing samples. Additionally, should reserve some extra tiles for validation.
-        limit: Number of rows to use when training the model
+    training_file : str
+        Path to a .csv or .feather training dataset. Must contain the
+        output_column plus the per-pixel feature columns produced by
+        merge_inputs_outputs.
+    outdir : str, optional
+        Output directory for saving results.
+    stub : str, optional
+        Prefix for every output filename.
+    output_column : str, optional
+        Name of the binary label column.
+    drop_columns : list of str, optional
+        Non-feature columns to drop before training (typically tile metadata).
+    learning_rate : float, optional
+        Adam learning rate.
+    epochs : int, optional
+        Maximum epochs (early stopping usually terminates sooner).
+    batch_size : int, optional
+        Minibatch size.
+    random_state : int, optional
+        Seed for the train/test split and subsampling.
+    stratification_columns : list of str, optional
+        Columns to stratify the train/test split on. An empty list disables
+        stratification.
+    train_frac : float, optional
+        Fraction of stratified samples used for training.
+    limit : int, optional
+        Randomly subsample the training file to this many rows before the
+        split. If None, use all rows.
 
     Returns
     -------
-        df_accuracy: precision, recall, specificity, sensitivity, accuracy for 0's and 1's - and grouped by category
+    pandas.DataFrame
+        Precision/recall/f1/accuracy per class on the held-out test set.
 
-    Downloads
-    ---------
-        accuracy_metrics: The df_accuracy as a csv
-        model.keras: The machine learning model for running on new input data
-        scaler.pkl: The standard scaler used to normalise the input data
-        training.png: accuracy and loss plots over each epoch
+    Notes
+    -----
+    Writes to outdir:
+
+    - nn_{stub}.keras — the trained network
+    - scaler_{stub}.pkl — matching StandardScaler
+    - {stub}_metrics.csv (or {stub}_accuracy.csv if a koppen_class column is present) — per-class metrics
+    - {stub}_training_plots.png — accuracy and loss curves
+
+    Examples
+    --------
+    >>> from shelterbelts.utils.filepaths import training_csv_sample
+    >>> df = train_neural_network(training_csv_sample, outdir='/tmp',
+    ...                           stub='example', epochs=1, limit=500)  # doctest: +SKIP
     """
     if training_file.endswith('.feather'):
         df = pd.read_feather(training_file)
     else:
         df = pd.read_csv(training_file)
-    
-    df = df[df.notna().all(axis=1)]  # Should do this in merge_inputs_outputs instead
+
+    df = df[df.notna().all(axis=1)]
 
     if limit:
         df = df.sample(limit, random_state=random_state)
 
     df_train, df_test = my_train_test_split(df, stratification_columns, train_frac, random_state)
-    
-    non_input_columns = [output_column] + drop_columns # ['koppen_class']  
+
+    non_input_columns = [output_column] + drop_columns
     X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns, output_column)
-    
+
     model = train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_size, outdir, stub)
 
     if 'koppen_class' in df_test.columns:
         df_metrics = class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_columns)
     else:
         df_metrics = class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_columns, output_column)
-    
+
     print(df_metrics)
     return df_metrics
 
-
-
-# +
-import argparse
 
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
     
     parser.add_argument('training_file', help='Either a .feather or .csv file, generated by merge_inputs_outputs.csv')
-    parser.add_argument('--outdir', default='.', help='The directory for the outputs')
-    parser.add_argument('--stub', default='TEST_NN', help='Prefix of the outputs')
+    parser.add_argument('--outdir', default='.', help='The directory for the outputs (default: current directory)')
+    parser.add_argument('--stub', default='TEST_NN', help='Prefix of the outputs (default: TEST_NN)')
     parser.add_argument('--output_column', default='tree_cover', help='Column with the output data (default: tree_cover)')
     parser.add_argument('--drop_columns', nargs='+', default=['x', 'y', 'tile_id'], help='Columns to drop (default: x y tile_id)')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate hyperparameter (default: 0.001)')
@@ -357,8 +364,7 @@ def parse_arguments():
 
 if __name__ == '__main__':
     args = parse_arguments()
-    
-    neural_network(
+    train_neural_network(
         args.training_file,
         outdir=args.outdir,
         stub=args.stub,
@@ -370,23 +376,5 @@ if __name__ == '__main__':
         random_state=args.random_state,
         stratification_columns=args.stratification_columns,
         train_frac=args.train_frac,
-        limit=args.limit
+        limit=args.limit,
     )
-
-
-# +
-# # %%time
-# outdir = '/scratch/xe2/cb8590/tmp/'
-# stub = 'g2_26729_binary_tree_cover_10m_ds2_df_r4_s2'
-# training_file = os.path.join(outdir, f'{stub}.csv')
-# df = neural_network(training_file, outdir="/scratch/xe2/cb8590/tmp/", stub=stub, output_column='tree_cover', stratification_columns=['tree_cover'])
-# df
-# # Precision 96%, recall 92%, accuracy 94%
-# +
-# training_file = '/scratch/xe2/cb8590/alpha_earth_embeddings.csv'
-# df = neural_network(training_file, outdir="/scratch/xe2/cb8590/tmp/", stub="alpha_earth", output_column='tree', drop_columns=[], stratification_columns=['tree'])
-# df
-# 94% precision, 75% recall, 85% accuracy
-# -
-
-

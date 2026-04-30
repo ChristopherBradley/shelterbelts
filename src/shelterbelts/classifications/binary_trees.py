@@ -34,19 +34,19 @@ def worldcover_trees(input_data, outdir=".", stub=None, savetif=True, plot=True)
     input_data : str or xarray.DataArray
         Either a file path to a WorldCover GeoTIFF, or a pre-loaded DataArray.
     outdir : str, optional
-        Output directory for saving results. Default is current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. If not provided it is derived from ``input_data``
+        Prefix for output filenames. If not provided it is derived from input_data
         when a file path is given; required when passing a DataArray.
     savetif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a PNG visualisation. Default is True.
+        Whether to generate a PNG visualisation.
 
     Returns
     -------
     xarray.Dataset
-        Dataset with a single ``woody_veg`` variable (uint8, 0/1).
+        Dataset with a single woody_veg variable (uint8, 0/1).
 
     Examples
     --------
@@ -117,19 +117,19 @@ def canopy_height_trees(input_data, outdir=".", stub=None, savetif=True, plot=Tr
     input_data : str or xarray.DataArray
         Either a file path to a 1m canopy-height GeoTIFF, or a pre-loaded DataArray.
     outdir : str, optional
-        Output directory for the saved tif. Default is ``"."``.
+        Output directory for the saved tif.
     stub : str, optional
-        Prefix for output filenames. If None, derived from ``input_data`` when a
+        Prefix for output filenames. If None, derived from input_data when a
         file path is given; required when passing a DataArray.
     savetif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a PNG visualisation. Default is True.
+        Whether to generate a PNG visualisation.
 
     Returns
     -------
     xarray.Dataset
-        Dataset with a single ``woody_veg`` variable (uint8, 0/1) at 10m resolution.
+        Dataset with a single woody_veg variable (uint8, 0/1) at 10m resolution.
 
     Examples
     --------
@@ -205,7 +205,7 @@ funcs = {
 
 
 def run_tifs(folder, func_string, outdir, limit=None):
-    """Apply ``worldcover_trees`` or ``canopy_height_trees`` to every tif in ``folder``."""
+    """Apply worldcover_trees or canopy_height_trees to every tif in folder."""
     func = funcs[func_string]
     tif_files = glob.glob(os.path.join(folder, "*.tif*"))
 
@@ -223,7 +223,7 @@ def parse_arguments():
 
     parser.add_argument('folder', help='The folder containing all of the input tiffs')
     parser.add_argument('func_string', help="Either 'worldcover_trees' or 'canopy_height_trees'")
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
     parser.add_argument('--limit', default=None, type=int, help='Limit processing to the first N tifs in the folder')
 
     return parser.parse_args()
