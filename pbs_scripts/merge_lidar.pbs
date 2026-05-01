@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N merge_lidar
+#PBS -N merge_tifs
 #PBS -l mem=16GB
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
@@ -24,9 +24,9 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-# python merge_lidar.py $base_dir --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the predictions before expanding. Needs 16GB
-# python merge_lidar.py $base_dir --suffix linear_categories.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the indices
-python merge_lidar.py $base_dir --suffix _y2020_predicted_expanded20_linear_categories.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the indices
+# python merge_tifs.py $base_dir --suffix _predicted.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the predictions before expanding. Needs 16GB
+# python merge_tifs.py $base_dir --suffix linear_categories.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the indices
+python merge_tifs.py $base_dir --suffix _y2020_predicted_expanded20_linear_categories.tif --subdir '' --crs EPSG:3857 --dont_reproject  # Merging the indices
 
 
 # Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 

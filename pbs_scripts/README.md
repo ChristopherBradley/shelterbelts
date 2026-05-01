@@ -29,7 +29,6 @@ This folder contains scripts for running the shelterbelts pipeline at scale. Eve
 | `canopy_height_download.pbs` | Download the Meta Global Canopy Height tiles matching a footprint gpkg |
 | `opportunities.sh` | Next stage in the Indices pipeline |
 | `distribute.sh`, `distribute_many.sh`, `distribute_undo.sh` | Helpers for parallelisation |
-| `cnn.pbs` | Optional CNN model training instead of the pixel-wise NN |
 
 # Running the scripts
 
