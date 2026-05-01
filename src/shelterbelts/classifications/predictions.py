@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import traceback
 import logging
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -22,17 +23,31 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Remove tensorflow logging info
-logging.basicConfig(level=logging.INFO)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 logging.getLogger("rasterio").setLevel(logging.ERROR)
 
-from tensorflow import keras
+# TF's C++ initialisation writes directly to fd 2, bypassing Python logging.
+# Redirect at the file-descriptor level during import so nothing leaks to the terminal.
+_devnull = os.open(os.devnull, os.O_WRONLY)
+_saved_stderr_fd = os.dup(2)
+os.dup2(_devnull, 2)
+try:
+    from tensorflow import keras
+    import absl.logging
+    absl.logging.set_verbosity(absl.logging.FATAL)
+finally:
+    os.dup2(_saved_stderr_fd, 2)
+    os.close(_saved_stderr_fd)
+    os.close(_devnull)
 import joblib
 
 from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
-from shelterbelts.utils.filepaths import nn_models_dir, get_pretrained_nn, get_pretrained_scaler
+from shelterbelts.utils.filepaths import IS_GADI, get_pretrained_nn, get_pretrained_scaler
 
 _repo_root = Path(__file__).resolve().parent.parent.parent.parent
+_bundled_models_dir = str(_repo_root / 'models')
+_bundled_nn_stub = 'noxy_df_4326'
 
 cmap_binary = {
     0: (240, 240, 240),  # Non-trees are white
@@ -47,10 +62,10 @@ def _load_keras_model(path):
         tmp.close()
         shutil.copy(path, tmp.name)
         try:
-            return keras.models.load_model(tmp.name)
+            return keras.models.load_model(tmp.name, compile=False)
         finally:
             os.unlink(tmp.name)
-    return keras.models.load_model(path)
+    return keras.models.load_model(path, compile=False)
 
 
 def _compute_model_weightings(ds):
@@ -64,7 +79,11 @@ def _compute_model_weightings(ds):
     lon, lat = t.transform(cx, cy)
     point = Point(lon, lat)
 
-    gdf_koppen["distance"] = gdf_koppen.geometry.distance(point)
+    # The location doesn't need to be exact
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Geometry is in a geographic CRS")
+        gdf_koppen["distance"] = gdf_koppen.geometry.distance(point)
+
     distance_degree_threshold = 1
     distance_km = distance_degree_threshold * 100  # ~100km per degree
     chosen = gdf_koppen[gdf_koppen['distance'] < distance_degree_threshold]
@@ -210,22 +229,31 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     return tif_prediction_ds(ds, outdir, tile_id, model, scaler, savetif)
 
 
-def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False, weighted_average=False):
-    """Download a year of Sentinel-2 imagery for a bbox and run the tree classifier (NCI-only)."""
-    from shelterbelts.classifications.sentinel_nci import download_ds2_bbox
-
+def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False, weighted_average=False, nci_only=False):
+    """Download a year of Sentinel-2 imagery for a bbox and run the tree classifier."""
     start_date = f"{year}-01-01"
     end_date = f"{year}-12-31"
-    ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False, input_crs=src_crs)
+
+    if IS_GADI or nci_only:
+        from shelterbelts.classifications.sentinel_nci import download_ds2_bbox
+        ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False, input_crs=src_crs)
+    else:
+        from shelterbelts.classifications.sentinel_dea import download_ds2_bbox
+        t = Transformer.from_crs(src_crs, "EPSG:4326", always_xy=True)
+        minx, miny = t.transform(bounds[0], bounds[1])
+        maxx, maxy = t.transform(bounds[2], bounds[3])
+        ds = download_ds2_bbox((minx, miny, maxx, maxy), start_date, end_date, outdir, stub, save=False)
 
     tif_prediction_ds(ds, outdir, stub, model, scaler, savetif=True, confidence=confidence, weighted_average=weighted_average)
 
+    # Avoiding memory accumulation
     del ds
     gc.collect()
+    return None
 
 
-def run_worker(rows, nn_dir=nn_models_dir, nn_stub='fft_89a_92s_85r_86p', multi_model=False, confidence=False):
-    """Load the requested model once per worker and classify every bbox in rows."""
+def run_worker(rows, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, multi_model=False, confidence=False):
+    """Load the requested model once per worker and run predictions on every row."""
     model, scaler = None, None
 
     if not multi_model:
@@ -240,33 +268,26 @@ def run_worker(rows, nn_dir=nn_models_dir, nn_stub='fft_89a_92s_85r_86p', multi_
             traceback.print_exc(file=sys.stdout)
 
 
-def predictions(gpkg, outdir, year=2020, nn_dir=nn_models_dir, nn_stub='fft_89a_92s_85r_86p', limit=None, multi_model=False, confidence=False):
+def predictions(gpkg, outdir, year=2020, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, limit=None, multi_model=False, confidence=False):
     """
     Run the Sentinel-download + tree classifier over every polygon in a GeoPackage.
-
-    This is the NCI batch entry point used by the at-scale workflow: for each
-    row in gpkg it downloads a year of Sentinel-2 imagery for the bbox
-    (via :func:`sentinel_nci.download_ds2_bbox`, which requires the DEA datacube
-    environment) and writes a binary tree-cover tif.
 
     Parameters
     ----------
     gpkg : str
-        GeoPackage of bounding-box polygons. Output stubs are derived from the
-        centroid of each bbox.
+        GeoPackage of bounding-box polygons. Stubs get derived from the centre of each bbox.
     outdir : str
-        Output directory for per-tile tifs.
+        Output directory for saving results.
     year : int, optional
         Year of Sentinel imagery to classify.
     nn_dir : str, optional
         Directory containing the neural-network keras/scaler pairs.
     nn_stub : str, optional
-        Stub identifying which family of models to use.
+        Stub identifying the model.
     limit : int, optional
-        Process only the first limit rows. If None, process all.
+        Process only the first limit rows. By default it processes all rows in the gpkg.
     multi_model : bool, optional
-        Blend zone-specific Köppen models using distance-weighted averages
-        rather than using the single {nn_stub}_all model.
+        Take a weighted average of multiple models trained in different zones.
     confidence : bool, optional
         Write a 0-100 percent tree-confidence tif instead of a binary tif.
     """
@@ -293,8 +314,8 @@ def parse_arguments():
     parser.add_argument("gpkg", type=str, help="filename containing the tiles to use for bounding boxes. Just uses the geometry, and assigns a stub based on the central point")
     parser.add_argument("outdir", type=str, help="Output directory for saving results")
     parser.add_argument("--year", type=int, default=2020, help="Year of satellite imagery to download for doing the classification")
-    parser.add_argument("--nn_dir", type=str, default=nn_models_dir, help=f"The stub of the neural network model and preprocessing scaler (default: {nn_models_dir})")
-    parser.add_argument("--nn_stub", type=str, default='fft_89a_92s_85r_86p', help="The stub of the neural network model and preprocessing scaler")
+    parser.add_argument("--nn_dir", type=str, default=_bundled_models_dir, help=f"Directory containing model keras/scaler pairs (default: {_bundled_models_dir})")
+    parser.add_argument("--nn_stub", type=str, default=_bundled_nn_stub, help=f"Stub identifying which model family to use (default: {_bundled_nn_stub})")
     parser.add_argument("--limit", type=int, default=None, help="Number of rows to process")
     parser.add_argument("--multi_model", action="store_true", help="Use a separate model for each koppen region. Default: False")
     parser.add_argument("--confidence", action="store_true", help="Output a percentage likelihood that it's a tree, instead of a binary label. Default: False")
