@@ -26,6 +26,7 @@
 # BUT track all files in data/ folder (test data)
 !data/
 !data/**
+!models/**
 
 data/multiple_binary_tifs/*.gpkg
 
