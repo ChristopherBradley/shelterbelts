@@ -60,14 +60,15 @@ def my_train_test_split(df, stratification_columns=[], train_frac=0.7, random_st
     print(f"\n\nNumber of testing samples: {len(df_test)}")
     print(df_test[stratification_columns].value_counts().sort_index())
 
-    # Some full validation tiles should also have be preserved during merge_inputs_outputs
+    # Some full validation tiles should also be preserved during merge_inputs_outputs before training.
 
     return df_train, df_test
+
 
 def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, output_column='tree_cover'):
     """Standard-scale the input columns, one-hot encode output_column, and save the scaler."""
     # Normalise the input features
-    scaler = StandardScaler()     # I should probably remove outliers before scaling.
+    scaler = StandardScaler()     # Should maybe also remove outliers before scaling.
     X_train = scaler.fit_transform(df_train.drop(columns=non_input_variables, errors='ignore'))
     X_test = scaler.transform(df_test.drop(columns=non_input_variables, errors='ignore'))
 
@@ -103,8 +104,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
         patience=30,           # For some reason the BWh training still seemed to be impatient after ~10 epochs
         restore_best_weights=True 
     )
-    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-    # optimizer = keras.optimizers.RMSprop(learning_rate=1e-3)
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)  # Tried out a few different optimizers and this worked best for my use case
 
     model.compile(optimizer=optimizer, loss = 'CategoricalCrossentropy', metrics = ['CategoricalAccuracy'])        
 
@@ -113,7 +113,6 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
                         callbacks=[early_stopping], validation_data=(X_test, y_test), verbose=2)
 
     # Save the model
-    # filename = os.path.join(outdir, f'{stub}_nn.keras')
     filename = os.path.join(outdir, f'nn_{stub}.keras')
     model.save(filename)
     print("Saved", filename)
@@ -223,7 +222,7 @@ def class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_
     return rf_metrics_table
     
 def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_variables, output_column):
-    """Overall precision/recall/accuracy on the held-out set; writes {stub}_metrics.csv."""
+    """Overall precision/recall/accuracy on the testing data."""
     X_test = scaler.transform(df_test.drop(columns=non_input_variables, errors='ignore'))
     y_pred_percent = model.predict(X_test)
     y_pred = [percent.argmax() for percent in y_pred_percent]
@@ -247,23 +246,14 @@ def class_accuracies_overall(df_test, model, scaler, outdir, stub, non_input_var
     filename = os.path.join(outdir, f'{stub}_metrics.csv')
     rf_metrics_table.to_csv(filename)
     print("Saved", filename)
-    print(rf_metrics_table)  # More convenient to see this directly in the pbs output than to have to open the csv file
+    print(rf_metrics_table)  # More convenient to see this directly in the pbs output than to have to open the csv files
     
     return rf_metrics_table
+
 
 def train_neural_network(training_file, outdir=".", stub="TEST", output_column='tree_cover', drop_columns=['x', 'y', 'tile_id'], learning_rate=0.001, epochs=50, batch_size=32, random_state=1, stratification_columns=['tree_cover'], train_frac=0.7, limit=None):
     """
     Train and evaluate a dense neural network to classify pixels as tree or non-tree.
-
-    This is the user-facing entry point for **use case 6** — train your own
-    model from a labelled CSV of Sentinel features and tree-cover labels. The
-    training CSV is produced by
-    :func:`shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs`
-    which joins a Sentinel-2 feature pickle against a binary tree-cover tif.
-
-    The resulting nn_{stub}.keras + scaler_{stub}.pkl pair is a drop-in
-    replacement for the bundled models consumed by
-    :func:`shelterbelts.classifications.predictions_batch.predict_trees`.
 
     Parameters
     ----------
@@ -278,37 +268,36 @@ def train_neural_network(training_file, outdir=".", stub="TEST", output_column='
     output_column : str, optional
         Name of the binary label column.
     drop_columns : list of str, optional
-        Non-feature columns to drop before training (typically tile metadata).
+        Non-feature columns to drop before training.
     learning_rate : float, optional
-        Adam learning rate.
+        Hyperparameter for tuning.
     epochs : int, optional
-        Maximum epochs (early stopping usually terminates sooner).
+        Maximum epochs (however, early stopping might terminate sooner than this).
     batch_size : int, optional
-        Minibatch size.
+        Hyperparameter for tuning.
     random_state : int, optional
         Seed for the train/test split and subsampling.
     stratification_columns : list of str, optional
-        Columns to stratify the train/test split on. An empty list disables
-        stratification.
+        Columns to stratify the train/test split on. An empty list disables stratification.
     train_frac : float, optional
         Fraction of stratified samples used for training.
     limit : int, optional
         Randomly subsample the training file to this many rows before the
-        split. If None, use all rows.
+        split. By default this uses all rows.
 
     Returns
     -------
     pandas.DataFrame
-        Precision/recall/f1/accuracy per class on the held-out test set.
+        Precision/recall/f1/accuracy per class on the test data.
 
     Notes
     -----
     Writes to outdir:
 
-    - nn_{stub}.keras — the trained network
-    - scaler_{stub}.pkl — matching StandardScaler
-    - {stub}_metrics.csv (or {stub}_accuracy.csv if a koppen_class column is present) — per-class metrics
-    - {stub}_training_plots.png — accuracy and loss curves
+    - nn_{stub}.keras 
+    - scaler_{stub}.pkl
+    - {stub}_metrics.csv 
+    - {stub}_training_plots.png 
 
     Examples
     --------

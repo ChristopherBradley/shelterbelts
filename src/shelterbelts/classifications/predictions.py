@@ -27,8 +27,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 logging.getLogger("rasterio").setLevel(logging.ERROR)
 
-# TF's C++ initialisation writes directly to fd 2, bypassing Python logging.
-# Redirect at the file-descriptor level during import so nothing leaks to the terminal.
+# Silence the tensorflow warnings. Bit gross, but makes the demo_predictions notebook much tidier.
 _devnull = os.open(os.devnull, os.O_WRONLY)
 _saved_stderr_fd = os.dup(2)
 os.dup2(_devnull, 2)
@@ -56,7 +55,7 @@ cmap_binary = {
 
 
 def _load_keras_model(path):
-    """Load a Keras model, tolerating the old version with a bundled H5.keras case."""
+    """Load a Keras model, handling the old version I used for training with a bundled H5.keras case."""
     if path.endswith('.keras') and not zipfile.is_zipfile(path):
         tmp = tempfile.NamedTemporaryFile(suffix='.h5', delete=False)
         tmp.close()

@@ -1,10 +1,12 @@
-# Prep the 1m canopy height file for google earth engine
+# Merge a folder of GeoTIFF tiles into a single uint8 raster
 import glob
 import os
+import argparse
+import re
+
 import rioxarray as rxr
 import pandas as pd
 import numpy as np
-import re
 
 
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
@@ -12,53 +14,73 @@ from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
 
 
 def extract_year(name):
+    """Extract a 6-character substring starting at the first digit."""
     first_number = re.search(r'\d', name).start()
     year = name[first_number:first_number + 6]    # YYYYMM or YYYY__ I'm just using this to sort the year-month, so it doesn't matter if it's formatted perfectly (lots will have an extra 2 digits that can be ignored)
     return year
 
 
-# Find tiles with bounds that are matching (close enough)
-def cluster_bounds(bounds, tol=0.02):
+def cluster_bounds(bounds, tolerance=0.02):
+    """Find tiles with matching bounds (or at least within the tolerance)"""
     groups = -np.ones(len(bounds), dtype=int)
     group_id = 0
     for i in range(len(bounds)):
         if groups[i] != -1:
-            continue  
+            continue
         diffs = np.abs(bounds - bounds.iloc[i])
-        mask = (diffs <= tol).all(axis=1)
+        mask = (diffs <= tolerance).all(axis=1)
         groups[mask] = group_id
         group_id += 1
     return groups
 
 
-def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', subdir='chm', crs=None, dont_reproject=False, dedup=True):
-    """Take a folder of tif files and merge them into a single uint8 raster
+def merge_tifs(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', subdir='chm', crs=None, dont_reproject=False, dedup=True):
+    """
+    Merge a folder of GeoTIFF tiles into a single uint8 raster.
 
     Parameters
     ----------
-        base_dir: The directory with all of the tif files to be merged
-        tmpdir: Directory where files can be happily deleted
-        suffix: The suffix of the files to be merged
-        subdir: The directory inside basedir that contains the files to be merged
+    base_dir : str
+        Directory containing the folder of tif files to be merged.
+    tmpdir : str, optional
+        Directory for temporary files (the NCI default is /scratch/xe2/cb8590/tmp;
+        override for local runs).
+    suffix : str, optional
+        Glob suffix matching the files to merge.
+    subdir : str, optional
+        Subfolder inside base_dir that contains the tifs. Pass an empty
+        string if the tifs sit directly in base_dir.
+    crs : str, optional
+        Force the output to a specific CRS (e.g. "EPSG:3857"). If None, a
+        UTM CRS is estimated from a sample tile.
+    dont_reproject : bool, optional
+        Skip per-tile reprojection during the uint8 conversion step. Useful
+        when all tiles are already in the same CRS.
+    dedup : bool, optional
+        When True, tiles with matching footprints but different dates are
+        deduplicated to keep only the most recent.
 
     Returns
     -------
-        da: xarray.DataArray of merged tifs in base_dir within the bounds of filename_bbox
+    xarray.DataArray
+        The merged raster, reprojected to crs (or the estimated UTM CRS).
 
-    Downloads
-    ---------
-        merged.tif: A geotif of the da
-        
+    Notes
+    -----
+    Writes to disk:
+        - a subfolder with each tif copied as uint8 (if they weren't already uint8)
+        - footprints.gpkg  (using bounding_boxes.py)
+        - merged.tif
+
     """
-    # Convert all the files to uint8 to save space. Might be better to do this in the lidar script, so I don't have to re-open each tif.
     glob_path = os.path.join(base_dir, subdir, f'*{suffix}')
     filenames = glob.glob(glob_path)
 
-    # Use the middle filename to choose a crs. 
-    da = rxr.open_rasterio(filenames[len(filenames)//2]).isel(band=0).drop_vars("band")  
+    # Use the middle filename to choose a crs.
+    da = rxr.open_rasterio(filenames[len(filenames)//2]).isel(band=0).drop_vars("band")
     if not crs:
         final_crs = da.rio.estimate_utm_crs()
-    else: 
+    else:
         final_crs = crs
     print(f"Merging with crs: {final_crs}")
 
@@ -69,40 +91,35 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', 
     else:
         outdir = os.path.join(base_dir, f'uint8{suffix_stub}')
 
-    # Convert to uint8. Should probs add a parameter to not do this, in case we want to save the merged raster in the original datatype
     if not os.path.exists(outdir):
         os.mkdir(outdir)
         for i, filename in enumerate(filenames):
             da = rxr.open_rasterio(filename).isel(band=0).drop_vars('band')
-            da = da.where(da < 100, 100)  # Truncate trees taller than 100m since we don't have barely any trees that tall in Australia
-            da = da.where(da != -9999, 255) # Change nodata to a value compatible with uint8 to save storage space
+            da = da.where(da < 100, 100)    # Truncate trees > 100m since these are more likely to be data errors in Australia.
+            da = da.where(da != -9999, 255) # Remap nodata into the uint8 range.
             da = da.rio.write_nodata(255)
             da = da.astype('uint8')
-            
+
             if not dont_reproject:
-                da = da.rio.reproject(final_crs) 
-    
+                da = da.rio.reproject(final_crs)
+
             outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
             outpath = os.path.join(outdir, outfile)
             da.rio.to_raster(outpath, compress="lzw")
-            if i%100 == 0:
+            if i % 100 == 0:
                 print(f"Saved {i}/{len(filenames)}:", outpath)
 
-    # This gives extra info like number of pixels in each category, but we only care about the filename and geometry
-    stub = f"{'_'.join(outdir.split('/')[-2:]).split('.')[0]}_{suffix_stub}"  # The filename and one folder above with the suffix. 
+    stub = f"{'_'.join(outdir.split('/')[-2:]).split('.')[0]}_{suffix_stub}"
     gdf = bounding_boxes(outdir, crs=final_crs, stub=stub, filetype=suffix)
-    
-    # This is the bounding box that I used to make the initial request from ELVIS
-    full_bounds =[gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
+
+    full_bounds = [gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
     bbox = full_bounds
 
     if dedup:
-        # This should work for ACT and NSW naming conventions (just for string ordering, not extracting the exact date). 
-        # If I already know the tiles don't overlap at all, I should skip this step. 
+        # Just keep most recent lidar for each tile        
         dates = [extract_year(filename) for filename in gdf['filename']]
         gdf['date'] = dates
-    
-        # Just keep most recent lidar for each tile
+
         bounds = pd.DataFrame(
             gdf.geometry.bounds.values,
             columns=["minx", "miny", "maxx", "maxy"],
@@ -116,7 +133,8 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', 
             .last()
         )
         gdf_dedup.crs = gdf.crs
-            
+
+
         filename_dedup = os.path.join(outdir, 'footprints_unique.gpkg')
         gdf_dedup.to_file(filename_dedup)
         print("Saved:", filename_dedup)
@@ -124,36 +142,25 @@ def merge_lidar(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', 
         gdf_dedup = gdf
         filename_dedup = os.path.join(outdir, f"{stub}_footprints.gpkg")
 
-    # Finally merge the relevant tiles
     base_stub = base_dir.split('/')[-1]
-    stub = base_stub + '_' + outdir.split('/')[-1]  # Need to include the base stub so cropped filenames are unique, so rasterio doesn't die when submitting multiple jobs at once.
-    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # I'm deliberately inverting the outdir and tmpdir so the output cropped files go to tmp
+    stub = base_stub + '_' + outdir.split('/')[-1]  # Including the base stub so cropped filenames are unique to avoid parallelization errors.
+    mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # Deliberately inverting the outdir and tmpdir so the output cropped files go to tmpdir
     ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
-    da = ds[suffix_stub].rio.reproject(final_crs)  # This reprojecting should clean up the nan values on the edge
+    da = ds[suffix_stub].rio.reproject(final_crs)  # This cleans up the nan values around the edge
 
-    parent_dir = os.path.dirname(base_dir) # Best not to save the merged result in the save folder as the original data, in case you want to run the merge again
+    parent_dir = os.path.dirname(base_dir)  # Save outside base_dir so re-running the merge is idempotent.
     outpath = os.path.join(parent_dir, f'{base_stub}_merged{suffix}')
-    
-    # Might be nice to try to copy the colour scheme from one of the original tifs and add it to the merged output using rasterio
-    da.rio.to_raster(outpath, compress="lzw")  # 200MB for the resulting 1m raster in a 50km x 50km area
+
+    da.rio.to_raster(outpath, compress="lzw")
     print(f"Saved: {outpath}", flush=True)
 
     return da
-    
-    # inpath = '/scratch/xe2/cb8590/lidar/merged_tifs/DATA_586204_chm_1m_gda2020_latest.tif'
-    # da = rxr.open_rasterio(outpath)
-    # outpath = '/scratch/xe2/cb8590/lidar/merged_tifs/DATA_586204_chm_1m_gda2020_latest_tiled512.tif'
-    # da.rio.to_raster(outpath, compress="lzw", blocksize=512)  # 200MB for the resulting 1m raster in a 50km x 50km area
-    # # !gdaladdo {outpath} 2 4 8 16 32 64 
-    # Seems like earth engine already does the tiling by default, so I shouldn't need to do it myself if that's the main use case.
 
-# +
-import argparse
 
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument('base_dir', help='Directory containing all the tif files to be merged')
     parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
     parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
@@ -167,14 +174,13 @@ def parse_arguments():
 
 if __name__ == '__main__':
     args = parse_arguments()
-    
-    merge_lidar(
+
+    merge_tifs(
         base_dir=args.base_dir,
         tmpdir=args.tmpdir,
         suffix=args.suffix,
         subdir=args.subdir,
         crs=args.crs,
         dont_reproject=args.dont_reproject,
-        dedup=args.dedup
+        dedup=args.dedup,
     )
-

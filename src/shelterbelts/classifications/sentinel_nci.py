@@ -68,13 +68,12 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
     """
     Download a Sentinel-2 surface reflectance stack for a bounding box and date range. Uses a 10% cloud threshold and downloads all 10 bands.
 
-    .. important::
-       This function only runs inside the DEA/NCI datacube environment.
+    ..important:: Needs to be run on NCI with access to the v10 and ka08 projects.
 
     Parameters
     ----------
     bbox : tuple of float
-        (minx, miny, maxx, maxy) in input_crs.
+        (minx, miny, maxx, maxy) using the input_crs.
     start_date, end_date : str, optional
         First and last date of imagery to download.
     outdir : str, optional

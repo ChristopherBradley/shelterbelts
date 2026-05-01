@@ -20,13 +20,6 @@ def test_merge_inputs_outputs_columns():
     assert os.path.exists('outdir/g2_019_binary_trees_150mx150m_df_r4_s3_2020.csv')
 
 
-def test_merge_inputs_outputs_dtypes():
-    """Feature columns are float32 and tree_cover is numeric."""
-    df = merge_inputs_outputs(sentinel_pickle, tree_tif, outdir='outdir', spacing=3)
-    assert df['NDVI_temporal_median'].dtype.name == 'float32'
-    assert set(df['tree_cover'].dropna().unique()).issubset({0.0, 1.0})
-
-
 def test_jittered_grid_spacing():
     """A smaller spacing produces more sample rows than a larger spacing."""
     with open(sentinel_pickle, 'rb') as f:

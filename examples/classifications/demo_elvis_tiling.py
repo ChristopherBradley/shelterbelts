@@ -14,9 +14,8 @@
 # ---
 
 # %% [markdown]
-# # Tiling into BARRA sized bounding boxes
+# # ELVIS Tiling
 #
-# Create a regular grid of bounding boxes aligned with the BARRA pixels. 
 
 # %%
 import os
@@ -88,5 +87,3 @@ for idx, row in grid.iterrows():
 grid['filename'] = filenames
 grid.to_file(os.path.join(outdir, f'tiles_{tile_size}_{state.replace(" ", "_")}.gpkg'),
              driver='GPKG')
-
-# %%

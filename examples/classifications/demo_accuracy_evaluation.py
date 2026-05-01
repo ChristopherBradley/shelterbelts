@@ -16,16 +16,13 @@
 # %% [markdown]
 # # Evaluating predicted tree cover against reference datasets
 #
-# This notebook compares our trained neural-network predictions against SA WorldCover and Meta Global
-# Canopy Height by Köppen climate zone.
-#
+# Steps involved:
 # 1. Collect Nick's tree-cover labels, restrict to recent tiles (year > 2017)
 #    with 10–90 % tree cover, and re-attach the Köppen zone of each tile.
 # 2. Crop each reference product to match these tiles
 # 3. Sample the same pixels from each data source and compute precision / recall / accuracy per koppen zone.
 #
-# All inputs live under ``/g/data/xe2/cb8590/...`` on NCI.
-# Need to have downloaded all the worldcover tiles (I did this manually), and the meta (I used ``canopy_height_download.py``)
+# Need to have pre-downloaded all the worldcover tiles (I did this manually), and the meta canopy height tiles (I used ``canopy_height_download.py``) on NCI before running this script.
 
 # %%
 import os

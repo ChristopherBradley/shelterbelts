@@ -60,6 +60,8 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
     """
     Download a Sentinel-2 surface reflectance stack for a bounding box and date range using the public DEA STAC catalogue.
 
+    ..important:: Can be run outside of NCI, but is slower and less reliable than the version in sentinel_nci.py.
+    
     Parameters
     ----------
     bbox : tuple of float

@@ -18,7 +18,7 @@
 # %% [markdown]
 # # Preparing the Köppen zone polygons
 #
-# Creates ``Koppen_Australia_cleaned2.gpkg``, which defines the six Köppen
+# This script creates ``Koppen_Australia_cleaned2.gpkg``, which defines the six Köppen
 # regions used by the neural network ensemble.
 #
 # **Required inputs** (need to download and place in this folder).
@@ -78,11 +78,10 @@ print('Points per polygon:', joined.groupby('index_right').size().value_counts()
 # %% [markdown]
 # ## 4. Resolve duplicate labels
 #
-# A handful of polygons contain two label points (verified in Google Earth).
-# The correct label is hard-coded here by ``Name_left`` (the polygon fid).
 
 # %%
 # Fix up the rows where names and polygons were overlapping incorrectly (verified by looking at the kml file in google earth)
+
 joined.loc[joined['Name_left'] == '1452', 'Name_right'] = 'BSh'
 joined.loc[joined['Name_left'] == '1138', 'Name_right'] = 'BWh'
 joined.loc[joined['Name_left'] == '1622', 'Name_right'] = 'BSk'

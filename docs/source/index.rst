@@ -25,6 +25,7 @@ Key Features
 7. **API integrations** — download data from `ANU BARRA-C2 <https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/f2551_3726_7908_8861>`_ (wind), `WRI Canopy Height <https://registry.opendata.aws/dataforgood-fb-forestsv2/>`_, and `ESA WorldCover <https://esa-worldcover.org/>`_
 8. **Command-line interface** — all index modules can be run in python scripts or directly from the terminal
 9. **Scalable** — designed for national-scale processing on HPC systems (NCI Gadi)
+10. **Classifying trees from raw inputs** — LAZ point clouds (via PDAL), Sentinel-2 imagery (with a bundled pre-trained neural network), or train your own model on labelled tiles
 
 Example Output
 --------------
@@ -150,3 +151,4 @@ API Reference
    :maxdepth: 2
 
    modules
+   workflow_at_scale

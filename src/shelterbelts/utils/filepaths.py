@@ -6,6 +6,8 @@ import os
 import rioxarray as rxr
 
 
+_repo_root = Path(__file__).resolve().parent.parent.parent.parent
+
 IS_GADI = Path('/scratch').exists()
 if IS_GADI:
     # NCI/Gadi file paths
@@ -17,10 +19,9 @@ if IS_GADI:
     roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 else:
     # Local defaults
-    _repo_root = Path(__file__).resolve().parent.parent.parent.parent
     default_outdir = '.'
     default_tmpdir = '.'
-    worldcover_dir = str(_repo_root / 'data')
+    worldcover_dir = str(_repo_root / 'data')  # Using this '/' operator means the filepaths should work on both windows and mac.
     worldcover_geojson = str(_repo_root / 'data' / 'g2_26729_worldcover_footprints.geojson')
     hydrolines_gdb = str(_repo_root / 'data' / 'g2_26729_hydrolines_cropped.gpkg')
     roads_gdb = str(_repo_root / 'data' / 'g2_26729_roads_cropped.gpkg')
@@ -47,7 +48,7 @@ koppen_australia = '/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg'
 nn_models_dir = '/g/data/xe2/cb8590/models'
 
 # NCI/Gadi file paths - BARRA bounding boxes and related data
-barra_bboxs_dir = '/g/data/xe2/cb8590/Outlines/BARRA_bboxs'
+barra_bboxs_dir = '/g/data/xe2/cb8590/Outlines/B_yearsARRA_bboxs'
 barra_bboxs_full = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg'
 state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
 aus_boundaries = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
@@ -55,6 +56,11 @@ elvis_outputs_dir = '/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/'
 
 # NCI/Gadi file paths - DEM data
 nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
+
+# Bundled sample fixtures
+laz_sample = str(_repo_root / 'data' / 'milgadara_50mx50m.laz')
+sentinel_sample = str(_repo_root / 'data' / 'g2_019_sentinel_150mx150m.pkl')
+training_csv_sample = str(_repo_root / 'data' / 'g2_017_training.csv')
 
 
 def create_test_woody_veg_dataset():
@@ -126,9 +132,9 @@ def setup_repo_path(repo_name='shelterbelts', subdir='src'):
     Parameters
     ----------
     repo_name : str, optional
-        Name of the repository directory. Default is 'shelterbelts'.
+        Name of the repository directory.
     subdir : str, optional
-        Subdirectory within the repository to change to. Default is 'src'.
+        Subdirectory within the repository to change to.
     
     Returns
     -------
@@ -152,5 +158,17 @@ def setup_repo_path(repo_name='shelterbelts', subdir='src'):
     os.chdir(src_dir)
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
-    
+
     return src_dir
+
+
+def get_pretrained_nn(koppen='all'):
+    """Return the path to a bundled pre-trained neural network for tree classification."""
+    return str(_repo_root / 'models' / f'nn_noxy_df_4326_{koppen}.keras')
+
+
+def get_pretrained_scaler(koppen='all'):
+    """Return the path to the scaler matching a bundled pre-trained neural network."""
+    return str(_repo_root / 'models' / f'scaler_noxy_df_4326_{koppen}.pkl')
+
+

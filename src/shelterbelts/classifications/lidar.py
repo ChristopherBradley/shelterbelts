@@ -181,7 +181,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     return chm, da_tree
 
 def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None):
-    """Apply :func:`lidar` to every .laz file in laz_folder, skipping empty files."""
+    """Apply :func:`lidar` to every .laz file in laz_folder."""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     if limit is not None:
         laz_files = laz_files[:int(limit)]
@@ -246,19 +246,19 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     -----
     Writes to outdir:
 
-    - {stub}_chm_res{resolution}.tif — canopy-height model (if category5 = False)
-    - {stub}_counts_res{resolution}_cat5.tif — point-count raster (if category5 = True)
-    - {stub}_percentcover_res{resolution}_height{height_threshold}m.tif — (if binary = False)
-    - {stub}_woodyveg_res{resolution}_height{height_threshold}m.tif — (if binary = True)
+    - chm.tif (if category5 = False)
+    - counts.tif (if category5 = True)
+    - percentcover.tif (if binary = False)
+    - woodyveg.tif (if binary = True)
 
     Examples
     --------
     Run on the bundled 50m × 50m sample LAZ from Milgadara, NSW:
 
     >>> from shelterbelts.utils.filepaths import laz_sample
-    >>> chm, da_tree = lidar(laz_sample, outdir='/tmp', stub='milgadara', resolution=5)
-    Saved: /tmp/milgadara_chm_res1.tif
-    Saved: /tmp/milgadara_percentcover_res5_height2m.tif
+    >>> chm, da_tree = lidar(laz_sample)
+    Saved: ./TEST_chm_res1.tif
+    Saved: ./TEST_percentcover_res10_height2m.tif
     """
     if category5:
         # Try to use the existing classifications
