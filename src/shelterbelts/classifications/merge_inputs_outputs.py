@@ -17,9 +17,10 @@ from scipy.signal import fftconvolve
 
 from shelterbelts.utils.filepaths import tmpdir
 
-# Monkey fix to load the new pickle files in an older version of numpy
-sys.modules['numpy._core'] = np.core
-sys.modules['numpy._core.numeric'] = np.core.numeric
+# Monkey fix to load pickle files saved under an older numpy that used numpy._core
+import numpy._core as _np_core
+sys.modules['numpy._core'] = _np_core
+sys.modules['numpy._core.numeric'] = _np_core.numeric
 
 np.random.seed(0)
 random.seed(0)
@@ -139,37 +140,12 @@ def visualise_jittered_grid(ds, spacing=10, outdir=tmpdir, stub="TEST"):
 
 
 def merge_inputs_outputs_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose=False, alpha_folder=None):
-    """Create a training CSV from an in-memory Sentinel-2 Dataset and a tree-cover tif.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Sentinel-2 Dataset with 10 nbart_* bands on a time/y/x grid.
-    tree_file : str
-        Path to a binary tree-cover GeoTIFF (0 = non-tree, 1 = tree).
-    outdir : str
-        Output directory for saving the CSV.
-    radius : int, optional
-        Radius (in pixels) of the circular kernel used for focal mean/std features.
-    spacing : int, optional
-        Sampling grid spacing in pixels. A larger spacing produces fewer,
-        less-correlated rows.
-    verbose : bool, optional
-        Print progress messages.
-    alpha_folder : str, optional
-        Folder containing AlphaEarth embedding pickles to append as extra features.
-
-    Returns
-    -------
-    pandas.DataFrame
-        The training rows, also written to
-        ``{outdir}/{stub}_df_r{radius}_s{spacing}_{year}.csv``.
-    """
+    """Create a training CSV from an in-memory Sentinel-2 Dataset and a tree-cover tif."""
     if verbose:
         print(f"Loading {tree_file}")
     da = rxr.open_rasterio(tree_file).isel(band=0).drop_vars('band')
 
-    # Should really make sure there's always a crs in lidar.py before writing out the tif file
+    # Some ACT 2015 tifs were missing the CRS, so manually encoding them.
     if da.rio.crs is None:
         da = da.rio.write_crs("EPSG:28355", inplace=True)
 
@@ -246,17 +222,16 @@ def merge_inputs_outputs(sentinel_pickle, tree_tif, outdir=".", radius=4, spacin
     """
     Build a per-pixel training CSV from a Sentinel-2 pickle and a tree-cover tif.
 
-    Each row of the CSV is one sampled pixel; columns are the temporally-aggregated
-    Sentinel features plus the binary tree label drawn from tree_tif. The resulting
-    CSV feeds directly into
+    Each row of the CSV is one sampled pixel. Columns are the temporally-aggregated
+    Sentinel features plus the binary tree label drawn from tree_tif. 
+    
+    The resulting CSV feeds directly into
     :func:`shelterbelts.classifications.neural_network.train_neural_network`.
 
     Parameters
     ----------
     sentinel_pickle : str
-        Path to a Sentinel-2 xarray.Dataset pickle with 10 nbart_* bands on a
-        time/y/x grid. Typically produced by
-        :func:`shelterbelts.classifications.sentinel_nci.download_ds2_bbox`.
+        Path to a Sentinel-2 xarray.Dataset pickle with 10 colour bands, and 3 (time/y/x) variables.
     tree_tif : str
         Path to a binary tree-cover GeoTIFF (0 = non-tree, 1 = tree).
     outdir : str, optional
@@ -264,8 +239,7 @@ def merge_inputs_outputs(sentinel_pickle, tree_tif, outdir=".", radius=4, spacin
     radius : int, optional
         Radius (in pixels) of the circular kernel used for focal mean/std features.
     spacing : int, optional
-        Sampling grid spacing in pixels. A larger spacing produces fewer,
-        less-correlated rows.
+        Sampling grid spacing in pixels. A smaller spacing produces a larger dataset.
     verbose : bool, optional
         Print progress messages.
 
@@ -294,12 +268,6 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
     tree_folder : str
         Folder containing binary tree-cover tifs. Each tif is matched to a pickle
         by stem name.
-    outdir : str, optional
-        See :func:`merge_inputs_outputs`.
-    radius : int, optional
-        See :func:`merge_inputs_outputs`.
-    spacing : int, optional
-        See :func:`merge_inputs_outputs`.
     limit : int, optional
         Maximum number of tiles to process. If None, all tiles are processed.
     double_f : bool, optional
@@ -315,36 +283,6 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
         stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-3])   # Remove the year_ds2_year
         tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")
         merge_inputs_outputs(sentinel_tile, tree_file, outdir, radius, spacing)
-
-
-def tiles_todo(sentinel_folder, csv_folder):
-    """Move Sentinel pickles that don't yet have a matching training CSV into a tiles_todo subfolder for re-processing."""
-
-    sentinel_folder = '/scratch/xe2/cb8590/Nick_sentinel/*.pkl'
-    csv_folder = '/scratch/xe2/cb8590/Nick_training_lidar_year/*.csv'
-    sentinel_files = glob.glob(sentinel_folder)
-    csv_files = glob.glob(csv_folder)
-
-    sentinel_stubs = ['_'.join(sentinel_file.split('/')[-1].split('_')[:2]) for sentinel_file in sentinel_files]
-    sentinel_years = [sentinel_file.split('.')[0][-4:] for sentinel_file in sentinel_files]
-    csv_stubs = ['_'.join(csv_file.split('/')[-1].split('_')[:2]) for csv_file in csv_files]
-    csv_years = [csv_file.split('.')[0][-4:] for csv_file in csv_files]
-
-    sentinel_pairs = set(zip(sentinel_stubs, sentinel_years))
-    csv_pairs = set(zip(csv_stubs, csv_years))
-    missing_pairs = sentinel_pairs - csv_pairs
-    missing_files = [f'/scratch/xe2/cb8590/Nick_sentinel/{missing_pair[0]}_binary_tree_cover_10m_{missing_pair[1]}_ds2_{missing_pair[1]}.pkl' for missing_pair in missing_pairs]
-    src_dir = '/scratch/xe2/cb8590/Nick_sentinel'
-    dst_dir = os.path.join(src_dir, 'tiles_todo')
-    os.makedirs(dst_dir, exist_ok=True)
-    for file in missing_files:
-        filename = os.path.basename(file)
-        src_path = os.path.join(src_dir, filename)
-        dst_path = os.path.join(dst_dir, filename)
-        if os.path.exists(src_path):
-            shutil.move(src_path, dst_path)
-        else:
-            print(f"File not found: {src_path}")
 
 
 def parse_arguments():

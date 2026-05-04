@@ -25,7 +25,7 @@
 import pickle
 import rioxarray as rxr
 
-from shelterbelts.classifications.merge_inputs_outputs import merge_inputs_outputs, jittered_grid, tile_csv_ds, aggregated_metrics, visualise_jittered_grid
+from shelterbelts.classifications.merge_inputs_outputs import merge_inputs_outputs, jittered_grid, aggregated_metrics, visualise_jittered_grid
 from shelterbelts.utils.filepaths import get_filename
 
 # %% [markdown]

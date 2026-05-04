@@ -1,4 +1,3 @@
-# +
 import os
 import shutil
 import re
@@ -6,7 +5,6 @@ import math
 import glob
 from pathlib import Path
 
-# -
 
 def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
     """Create subfolders for mosaicking tiles"""
@@ -20,8 +18,8 @@ def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
     # Approx tile size (degrees): 4 km ≈ 0.036°, so 50 tiles ≈ 1.8° — round to 2°
     block_size_deg = 2.0
 
-    # pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_predicted\.tif") # regex for "28_21-153_54_predicted.tif"
-    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")  # regex for 28_21-153_54_y2024_predicted.tif
+    # pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_predicted\.tif") # regex for the old "28_21-153_54_predicted.tif"
+    pattern = re.compile(r"(\d+_\d+)-(\d+_\d+)_y\d+_predicted\.tif")  # regex for the new 28_21-153_54_y2024_predicted.tif
 
     for i, tif_path in enumerate(base_dir.glob("*.tif")):
         if i % 1000 == 0:
@@ -47,15 +45,12 @@ def mosaic_subfolders(base_str='/scratch/xe2/cb8590/barra_trees_s4_2024'):
 
     # Took 30 secs for 50k tiles
 
-# I run this function in a notebook to prep the sh file that does the qsubs in parallel
-non_suffixes=['_confidence50', '_confidence50_fixedlabels', '_corebugfix']
+non_suffixes=['_confidence50', '_confidence50_fixedlabels', '_corebugfix']  # Previous experiments
 non_contains = ['linear_tifs', 'merged_predicted']
 folder_with_subfolders = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders'
 def get_subfolders(folder_with_subfolders, non_suffixes=[], non_contains=[]):
-    """Find all the original subfoldes in the larger folder"""
+    """Find all the new subfolders in the larger folder"""
     folders = glob.glob(f'{folder_with_subfolders}/*')
-    
-    # I should have better folder management so I don't need to jump through all these hurdles
     folders = [f for f in folders if 
              os.path.isdir(f)
              and not any(f.endswith(non_suffix) for non_suffix in non_suffixes)
@@ -81,8 +76,3 @@ if __name__ == '__main__':
     mosaic_subfolders(args.folder)
     stems_string = get_subfolders(os.path.join(args.folder, "subfolders"))
     print(f"Created subfolders:\n{stems_string}")
-
-# +
-# folder='/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings'
-# stems_string = get_subfolders(os.path.join(folder, "subfolders"))
-# print(f"Created subfolders:\n{stems_string}")

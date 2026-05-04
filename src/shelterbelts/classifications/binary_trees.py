@@ -25,7 +25,7 @@ def worldcover_trees(input_data, outdir=".", stub=None, savetif=True, plot=True)
     Convert an ESA WorldCover classification tif into a binary tree-cover tif.
 
     Pixels labelled as Tree cover (class 10) or Shrubland (class 20) in WorldCover
-    are kept as trees (1); everything else becomes non-tree (0). The output tif
+    are kept as trees (1) and everything else becomes non-tree (0). The output tif
     has the same resolution and CRS as the input and can be fed directly into
     :func:`shelterbelts.indices.all_indices.indices_tif`.
 
@@ -36,8 +36,7 @@ def worldcover_trees(input_data, outdir=".", stub=None, savetif=True, plot=True)
     outdir : str, optional
         Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. If not provided it is derived from input_data
-        when a file path is given; required when passing a DataArray.
+        Prefix for output filenames. By default it gets derived from the input_data filename.
     savetif : bool, optional
         Whether to save the results as a GeoTIFF.
     plot : bool, optional
@@ -119,8 +118,7 @@ def canopy_height_trees(input_data, outdir=".", stub=None, savetif=True, plot=Tr
     outdir : str, optional
         Output directory for the saved tif.
     stub : str, optional
-        Prefix for output filenames. If None, derived from input_data when a
-        file path is given; required when passing a DataArray.
+        Prefix for output filenames. By default it gets derived from the input_data filename.
     savetif : bool, optional
         Whether to save the results as a GeoTIFF.
     plot : bool, optional
@@ -129,7 +127,7 @@ def canopy_height_trees(input_data, outdir=".", stub=None, savetif=True, plot=Tr
     Returns
     -------
     xarray.Dataset
-        Dataset with a single woody_veg variable (uint8, 0/1) at 10m resolution.
+        Dataset with a single woody_veg variable (uint8, 0/1).
 
     Examples
     --------

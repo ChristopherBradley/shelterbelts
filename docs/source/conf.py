@@ -47,6 +47,7 @@ html_theme_options = {
 }
 
 html_static_path = ['_static']
+html_css_files = ['custom.css']
 
 # Plot directive settings - show only high-resolution PNG
 plot_formats = [('hires.png', 150)]

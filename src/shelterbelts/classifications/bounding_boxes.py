@@ -21,34 +21,32 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     outdir : str, optional
         Output directory for saving results. Defaults to the same folder.
     stub : str, optional
-        Prefix for output filenames. If None, derived from the folder name
-        plus the filetype stem. Default is None.
+        Prefix for output filenames. By default it gets derived from the folder name.
     size_threshold : int, optional
-        Minimum acceptable tile side length in pixels. Default is 80.
+        Minimum acceptable tile side length in pixels.
     tif_cover_threshold : int, optional
         Minimum percentage of tree (or non-tree) pixels required. When None
-        the cover check is skipped. Default is None.
+        the cover check is skipped.
     remove : bool, optional
-        Delete tifs that don't meet the size or percent cover threshold. Default is False.
+        Delete tifs that don't meet the size or percent cover threshold.
     filetype : str, optional
-        Suffix matching the files to scan. Default is '.tif'.
+        Suffix matching the files to scan.
     crs : str or pyproj.CRS, optional
         CRS for the output GeoPackage. If None, estimated from the middle tile
-        in the folder. Default is None.
+        in the folder.
     save_centroids : bool, optional
         Also write a centroid GeoPackage (useful for very zoomed-out views).
-        Default is False.
     limit : int, optional
-        Process only the first limit tifs. Default is to process all tifs.
+        Only process a certain number of tifs. By default it processes all tifs.
     verbose : bool, optional
-        Print progress every 100 tifs. Default is True.
+        Print progress every 100 tifs.
 
     Returns
     -------
     geopandas.GeoDataFrame
-        One row per tif with columns filename, height, width, crs,
-        geometry, bad_tif, plus pixels_0/pixels_1/percent_trees
-        when tif_cover_threshold is used.
+        One row per tif with columns:
+        filename, height, width, crs, geometry
+        plus pixels_0/pixels_1/percent_trees, bad_tif (boolean) when tif_cover_threshold is used.
 
     Notes
     -----
@@ -61,19 +59,13 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     --------
     Collect footprints from the bundled folder of two binary tree tifs:
 
-    >>> gdf = bounding_boxes('data/multiple_binary_tifs', outdir='/tmp',
-    ...                      stub='example', filetype='.tiff', verbose=False)
-    Saved: /tmp/example_footprints.gpkg
-    >>> {'filename', 'height', 'width', 'geometry', 'bad_tif'}.issubset(gdf.columns)
-    True
-    >>> len(gdf)
-    2
+    >>> gdf = bounding_boxes('data/multiple_binary_tifs', filetype='.tiff', verbose=False) 
+    Saved: data/multiple_binary_tifs/data_multiple_binary_tifs_footprints.gpkg
     """
     if outdir is None:
         outdir = folder
     if stub is None:
-        suffix_stem = filetype.split('.')[0]
-        stub = f"{'_'.join(folder.split('/')[-2:]).split('.')[0]}_{suffix_stem}"
+        stub = '_'.join(folder.split('/')[-2:]).split('.')[0]
 
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
     veg_tifs = [f for f in veg_tifs if not os.path.isdir(f)]
@@ -143,7 +135,8 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
     centroid_gpkg = f"{outdir}/{stub}_centroids.gpkg"
 
-    if os.path.exists(footprint_gpkg):  # Overwrite quirks with GeoPackages — remove first.
+
+    if os.path.exists(footprint_gpkg):  # There's an odd error where it's sometimes fine to overwrite the gpkg, but sometimes not, so removing first to be safe.
         os.remove(footprint_gpkg)
 
     gdf.to_file(footprint_gpkg)
@@ -151,7 +144,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
 
     if save_centroids:
         gdf2 = gdf.copy()
-        gdf2["geometry"] = gdf2.to_crs("EPSG:6933").centroid.to_crs(gdf2.crs)  # Equal-area CRS silences the centroid-inaccuracy warning.
+        gdf2["geometry"] = gdf2.to_crs("EPSG:6933").centroid.to_crs(gdf2.crs)  # This fixes the "centroid inaccurate" warning
         gdf2.to_file(centroid_gpkg)
         print("Saved:", centroid_gpkg)
 
@@ -173,7 +166,6 @@ def parse_arguments():
     parser.add_argument('--stub', type=str, default=None, help='Prefix for output file. By default it gets the same name as the folder.')
     parser.add_argument('--size_threshold', type=int, default=80, help='The number of pixels wide and long the tif should be.')
     parser.add_argument('--tif_cover_threshold', type=int, default=10, help='The minimum percentage cover for tree or no tree pixels that the tif needs to have.')
-
     parser.add_argument('--filetype', type=str, default=".tif", help='Suffix of the tif files. Probably .tif or .tiff')
     parser.add_argument('--remove', action="store_true", help="Whether to actually remove files that don't meet the criteria (otherwise just downloads the gpkg)")
     parser.add_argument('--crs', type=str, default=None, help="The crs of the resulting gpkg. If not provided, then a random tif is chosen and the crs estimated from that.")

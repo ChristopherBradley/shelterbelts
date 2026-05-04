@@ -56,5 +56,3 @@ visualise_canopy_height(da_input_chm.to_dataset(name='canopy_height'))
 # %%
 ds = canopy_height_trees(filename)
 visualise_categories(ds['woody_veg'], colormap=cmap_woody_veg, labels=labels_woody_veg, title='Binary Tree Cover')
-
-# %%

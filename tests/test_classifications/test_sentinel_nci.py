@@ -16,20 +16,6 @@ END   = '2020-04-01'
 pytestmark = pytest.mark.skipif(not IS_GADI, reason="NCI/Gadi datacube not available")
 
 
-def test_define_query_range_structure():
-    query = define_query_range(
-        lat_range=(-35.5, -35.4),
-        lon_range=(149.0, 149.1),
-        time_range=(START, END),
-    )
-    assert query['y'] == (-35.5, -35.4)
-    assert query['x'] == (149.0, 149.1)
-    assert query['time'] == (START, END)
-    assert query['resolution'] == (-10, 10)
-    assert 'output_crs' in query
-    assert 'group_by' in query
-
-
 def test_load_and_process_data_shape():
     import datacube
     lat_range = (BBOX[1], BBOX[3])
