@@ -296,6 +296,9 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
                 colormap = {0: (0, 0, 0)} | {v: colour for v in range(1, 256)}
                 band_filename = os.path.join(outdir, f"{stub}_shelter_{direction}.tif")
                 tif_categorical(band, band_filename, colormap)
+            combined_filename = os.path.join(outdir, f"{stub}_shelter_categories.tif")
+            da_multi.rio.to_raster(combined_filename)
+            print(f"Saved: {combined_filename}")
 
         if plot:
             import matplotlib.pyplot as plt
@@ -441,6 +444,7 @@ def parse_arguments():
     parser.add_argument('--density_threshold', default=5, type=int, help='Percentage tree cover within distance_threshold that counts as sheltered (default: 5)')
     parser.add_argument('--no-savetif', dest='savetif', action="store_false", default=True, help="Disable saving GeoTIFF output (default: enabled)")
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help="Disable PNG visualisation (default: enabled)")
+    parser.add_argument('--debug', action='store_true', default=False, help='Enable debug output')
 
     return parser
 

@@ -20,7 +20,8 @@ from shelterbelts.utils.filepaths import tmpdir
 # Monkey fix to load pickle files saved under an older numpy that used numpy._core
 import numpy._core as _np_core
 sys.modules['numpy._core'] = _np_core
-sys.modules['numpy._core.numeric'] = _np_core.numeric
+if hasattr(_np_core, 'numeric'):
+    sys.modules['numpy._core.numeric'] = _np_core.numeric
 
 np.random.seed(0)
 random.seed(0)
