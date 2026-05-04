@@ -152,7 +152,7 @@ def test_indices_tif_less_shelterbelts():
 def test_indices_latlon():
     """Smoke test for indices_latlon using the ACT test area."""
     ds, df = indices_latlon(
-        -34.389, 148.469, buffer=0.02,
+        -34.389, 148.469, buffer=0.005,
         outdir='outdir', tmpdir='tmpdir', stub='test_latlon', debug=True
     )
     assert ds is not None

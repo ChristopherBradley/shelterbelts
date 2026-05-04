@@ -30,7 +30,7 @@ def test_load_and_process_data_shape():
     ds = load_and_process_data(items, BBOX)
     assert set(ds.data_vars) == set(BANDS)
     assert set(ds.dims) == {'time', 'x', 'y'}
-    assert ds.dims['time'] >= 1
+    assert ds.sizes['time'] >= 1
 
 
 def test_download_ds2_bbox_saves_pickle():
