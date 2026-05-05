@@ -11,6 +11,7 @@ import numpy as np
 
 from shelterbelts.utils.visualisation import tif_categorical
 from shelterbelts.classifications.binary_trees import cmap_woody_veg
+from shelterbelts.classifications._crown_dalponteCIRC_numba import crowns_to_gpkg
 
 
 def check_classified(infile, classification_code=5):
@@ -99,7 +100,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -114,23 +115,25 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     chm_resolution = resolution
     if not binary:
-        chm_resolution = 1  # Create a 1m chm, then coarsen to the actual resolution when calculating percent cover
+        chm_resolution = 1  # Create a 1m chm, then coarsen later to the actual resolution when calculating percent cover
+
+    if dem:
+        # Providing a DEM directly is much faster than using pdal to re-calculate it.
+        ground_steps = [{"type": "filters.hag_dem", "raster": dem}]
+    else:
+        ground_steps = [
+            {"type": "filters.assign", "assignment": "ReturnNumber[:]=1"}, # Needed this to resolve an smrf error when NumberOfReturns or ReturnNumber = 0
+            {"type": "filters.assign", "assignment": "NumberOfReturns[:]=1"},
+            {"type": "filters.smrf"},
+            {"type": "filters.hag_nn"},
+        ]
 
     # Create the canopy height tif
     chm_tif = os.path.join(outdir, f'{stub}_chm_res{chm_resolution}.tif')
     chm_json = {
         "pipeline": [
             first_step,
-            {
-                "type": "filters.assign",
-                "assignment": "ReturnNumber[:]=1"  # Needed this to resolve an smrf error when NumberOfReturns or ReturnNumber = 0
-            },
-            {
-                "type": "filters.assign",
-                "assignment": "NumberOfReturns[:]=1"
-            },
-            {"type": "filters.smrf"},  # classify ground. Should add the option for a user to provide a DEM to skip this step.
-            {"type": "filters.hag_nn"},  # compute HeightAboveGround
+            *ground_steps,
             {"type": "writers.gdal",
              "filename": chm_tif,
              "resolution": chm_resolution,
@@ -143,6 +146,9 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     p_chm = pdal.Pipeline(json.dumps(chm_json))
     p_chm.execute()
     print(f"Saved: {chm_tif}", flush=True)
+
+    if delineate_crowns:
+        crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
 
     if just_chm:
         return None, None
@@ -180,7 +186,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     return chm, da_tree
 
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None):
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False):
     """Apply :func:`lidar` to every .laz file in laz_folder."""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     if limit is not None:
@@ -189,24 +195,23 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = laz_file.split('/')[-1].split('.')[0]
-        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm)
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False):
     """
     Convert a LAZ point cloud into a canopy-height and tree-cover raster.
 
     If category5=True and the LAZ contains at least one point classified
-    as high vegetation (LAS 1.4 category 5, see the
-    `NSW Elevation Data Product Specification
+    as high vegetation (LAS 1.4 category 5, see the `NSW Elevation Data Product Specification
     <https://www.spatial.nsw.gov.au/__data/assets/pdf_file/0004/218992/Elevation_Data_Product_Specs.pdf>`_),
-    tree pixels are counted directly from those classified points. 
-    
-    Otherwise, PDAL computes a canopy-height model
-    from scratch (filters.smrf to classify ground, then filters.hag_nn
-    for height-above-ground) and thresholds it at the height_threshold.
+    tree pixels are counted directly from those classified points.
 
+    Otherwise, PDAL computes a canopy-height model from scratch 
+    and thresholds it at the height_threshold. You can provide 
+    a pre-computed DEM to make this process faster.
+    
     The output binary raster is compatible with
     :func:`shelterbelts.indices.all_indices.indices_tif`.
 
@@ -234,6 +239,10 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
         Delete intermediate CHM/counts tifs after the binary raster is written.
     just_chm : bool, optional
         Only produce the canopy-height tif; skip the binary/percent-cover step.
+    dem : str, optional
+        Path to a Digital Elevation Model covering the same area as the laz file.
+    delineate_crowns : bool, optional
+        Run the pycrown Dalponte tree delineation and save the polygons as a gpkg.
 
     Returns
     -------
@@ -250,6 +259,7 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     - counts.tif (if category5 = True)
     - percentcover.tif (if binary = False)
     - woodyveg.tif (if binary = True)
+    - crowns.gpkg (if delineate_crowns = True)
 
     Examples
     --------
@@ -269,9 +279,9 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
             return counts, da_tree
         else:
             print("No existing classifications, generating our own canopy height model instead")
-            
+
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm)
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns)
     return chm, da_tree
 
 
@@ -290,6 +300,8 @@ def parse_arguments():
     parser.add_argument("--cleanup", action="store_true", help="Remove the intermediate counts or chm raster. Default: False")
     parser.add_argument("--just_chm", action="store_true", help="Don't create the binary raster. Default: False")
     parser.add_argument("--limit", default=None, help="Number of laz files to process when passing a folder. Default: None")
+    parser.add_argument("--dem", default=None, help="Path to a DEM GeoTiff covering the laz area. Default: None")
+    parser.add_argument("--delineate_crowns", action="store_true", help="Delineate individual tree crowns and save as a GeoPackage. Default: False")
     return parser.parse_args()
 
 
@@ -308,7 +320,9 @@ if __name__ == '__main__':
             epsg=args.epsg,
             binary=args.binary,
             cleanup=args.cleanup,
-            just_chm=args.just_chm
+            just_chm=args.just_chm,
+            dem=args.dem,
+            delineate_crowns=args.delineate_crowns,
         )
     else:
         lidar_folder(
@@ -323,4 +337,6 @@ if __name__ == '__main__':
             cleanup=args.cleanup,
             just_chm=args.just_chm,
             limit=args.limit,
+            dem=args.dem,
+            delineate_crowns=args.delineate_crowns,
         )

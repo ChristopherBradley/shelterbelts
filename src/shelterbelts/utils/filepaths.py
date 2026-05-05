@@ -59,6 +59,7 @@ nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
 
 # Bundled sample fixtures
 laz_sample = str(_repo_root / 'data' / 'milgadara_50mx50m.laz')
+dem_h_sample = str(_repo_root / 'data' / 'g2_26729_DEM-H.tif')
 sentinel_sample = str(_repo_root / 'data' / 'g2_019_sentinel_150mx150m.pkl')
 training_csv_sample = str(_repo_root / 'data' / 'g2_017_training.csv')
 
