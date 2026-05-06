@@ -10,6 +10,7 @@
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
     <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=faeda151" />
     <script src="_static/documentation_options.js?v=d45e8c67"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
@@ -49,7 +50,7 @@ for measuring their impacts on agricultural productivity at scale.</p>
 <h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Tree categorisation</strong> — classifies pixels as scattered trees, patch core, patch edge, or corridors based on nearby connectivity.</p></li>
-<li><p><strong>Shelter categorisation</strong> — determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to Stewarts et al.</p></li>
+<li><p><strong>Shelter categorisation</strong> — determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to <a class="reference external" href="http://doi.org/10.25919/qh4m-8988">Stewart et al. 2024</a></p></li>
 <li><p><strong>Cover categorisation</strong> — integrates <a class="reference external" href="https://esa-worldcover.org/">ESA WorldCover 2021</a> land-cover classes (grassland, cropland, urban, water) with shelter categories</p></li>
 <li><p><strong>Buffer categorisation</strong> — identify riparian and roadside tree buffers using the <a class="reference external" href="https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/83107">National Surface Hydrology Lines</a> and <a class="reference external" href="https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684">National Roads</a> datasets</p></li>
 <li><p><strong>Shelter metrics</strong> — compute patch and class landscape statistics similar to <a class="reference external" href="https://fragstats.org/index.php/documentation">FragStats</a></p></li>
@@ -57,6 +58,7 @@ for measuring their impacts on agricultural productivity at scale.</p>
 <li><p><strong>API integrations</strong> — download data from <a class="reference external" href="https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/f2551_3726_7908_8861">ANU BARRA-C2</a> (wind), <a class="reference external" href="https://registry.opendata.aws/dataforgood-fb-forestsv2/">WRI Canopy Height</a>, and <a class="reference external" href="https://esa-worldcover.org/">ESA WorldCover</a></p></li>
 <li><p><strong>Command-line interface</strong> — all index modules can be run in python scripts or directly from the terminal</p></li>
 <li><p><strong>Scalable</strong> — designed for national-scale processing on HPC systems (NCI Gadi)</p></li>
+<li><p><strong>Classifying trees from raw inputs</strong> — LAZ point clouds (via PDAL), Sentinel-2 imagery (with a bundled pre-trained neural network), or train your own model on labelled tiles</p></li>
 </ol>
 </section>
 <section id="example-output">
@@ -194,6 +196,16 @@ ridges identified) on the right.</p>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#opportunities">Opportunities</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#classifications">Classifications</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#binary-tree-rasters">Binary Tree Rasters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#bounding-boxes">Bounding Boxes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#lidar">LiDAR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#sentinel-download">Sentinel Download</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#training-pipeline">Training Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#prediction">Prediction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#mosaicking">Mosaicking</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </section>
@@ -241,6 +253,16 @@ ridges identified) on the right.</p>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#full-indices-pipeline">Full Indices Pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#catchments">Catchments</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#opportunities">Opportunities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html#classifications">Classifications</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#binary-tree-rasters">Binary Tree Rasters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#bounding-boxes">Bounding Boxes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#lidar">LiDAR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#sentinel-download">Sentinel Download</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#training-pipeline">Training Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#prediction">Prediction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#mosaicking">Mosaicking</a></li>
 </ul>
 </li>
 </ul>

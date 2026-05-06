@@ -10,6 +10,7 @@
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
     <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=faeda151" />
     <script src="_static/documentation_options.js?v=d45e8c67"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
@@ -44,31 +45,30 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
-<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326).</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326).</p></li>
 <li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction (0.01 ≈ 1 km),
-resulting in an approximately square area of size 2*buffer.
-Default is 0.01.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
-<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+resulting in an approximately square area of size 2*buffer.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Dataset with variable <strong>worldcover</strong> (integer codes) and
 latitude/longitude coordinates. The mapping of codes to classes
-is provided in <code class="docutils literal notranslate"><span class="pre">worldcover_labels</span></code>.</p>
+is provided in worldcover_labels.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>xarray.Dataset</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.tif</span></code></p>
-<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_worldcover.png</span></code></p>
+<p>When save_tif=True, it writes:
+{stub}_worldcover.tif</p>
+<p>When plot=True, it writes:
+{stub}_worldcover.png</p>
 <p class="rubric">Examples</p>
 <p>Download a small tile without saving files:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">worldcover</span><span class="p">(</span><span class="n">buffer</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">save_tif</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -94,23 +94,20 @@ is provided in <code class="docutils literal notranslate"><span class="pre">worl
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>variables</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Default is [“uas”, “vas”] for Eastward and Northward Near-Surface Wind, respectively.
-See links at the top of this file for more details.</p></li>
-<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
-<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>variables</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Wind variables to download. See links at the top of this file for more details.</p></li>
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326).</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326).</p></li>
 <li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – – Note: Buffer option is currently disabled due to a bug in the API, so we just get the nearest point.</p></li>
-<li><p><strong>start_year</strong> (<em>str</em><em>, </em><em>optional</em>) – Start year (inclusive). The minimum available year is 1889.
-Default is “2020”.</p></li>
+<li><p><strong>start_year</strong> (<em>str</em><em>, </em><em>optional</em>) – Start year (inclusive). The minimum available year is 1889.</p></li>
 <li><p><strong>end_year</strong> (<em>str</em><em>, </em><em>optional</em>) – End year (inclusive). Data beyond the available range will be capped
-at the most recent available date. Default is “2021”.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is the current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
-<li><p><strong>save_netcdf</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save results as a NetCDF file. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a wind rose visualisation (PNG). Default is True.</p></li>
+at the most recent available date.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>save_netcdf</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save results as a NetCDF file.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a wind rose visualisation (PNG).</p></li>
 <li><p><strong>gdata</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to access data via NCI /g/data/xe2 path (requires NCI access).
-If False, uses public THREDDS server. Default is False.</p></li>
-<li><p><strong>temporal</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporal resolution of the data. Options are ‘20min’, ‘1hr’, ‘day’, ‘mon’.
-Default is ‘day’.</p></li>
+If False, uses public THREDDS server.</p></li>
+<li><p><strong>temporal</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporal resolution of the data. Options are ‘20min’, ‘1hr’, ‘day’, ‘mon’.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -122,10 +119,10 @@ latitude, and longitude.</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">save_netcdf=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.nc</span></code></p>
-<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_barra_daily.png</span></code> (a wind rose visualisation)</p>
+<p>When save_netcdf=True, it writes:
+{stub}_barra_daily.nc</p>
+<p>When plot=True, it writes:
+{stub}_barra_daily.png (a wind rose visualisation)</p>
 <p class="rubric">Examples</p>
 <p>Download wind data with default parameters:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">barra_daily</span><span class="p">(</span><span class="n">save_netcdf</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -150,15 +147,15 @@ latitude, and longitude.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326). Default is -34.389.</p></li>
-<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326). Default is 148.469.</p></li>
+<li><p><strong>lat</strong> (<em>float</em><em>, </em><em>optional</em>) – Latitude in WGS 84 (EPSG:4326).</p></li>
+<li><p><strong>lon</strong> (<em>float</em><em>, </em><em>optional</em>) – Longitude in WGS 84 (EPSG:4326).</p></li>
 <li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance in degrees in a single direction. e.g. 0.01 degrees is ~1km so
-a buffer of 0.01 gives an approx 2km x 2km area. Default is 0.005.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is <code class="docutils literal notranslate"><span class="pre">&quot;Test&quot;</span></code>.</p></li>
-<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory to cache downloaded tiles. Default is the current directory.</p></li>
-<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+a buffer of 0.01 gives an approx 2km x 2km area.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory to cache downloaded tiles.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -170,10 +167,10 @@ of type int in metres.</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">save_tif=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.tif</span></code></p>
-<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_canopy_height.png</span></code></p>
+<p>When save_tif=True, it writes:
+{stub}_canopy_height.tif</p>
+<p>When plot=True, it writes:
+{stub}_canopy_height.png</p>
 <section id="example-visualisation">
 <h3>Example Visualisation<a class="headerlink" href="#example-visualisation" title="Link to this heading">¶</a></h3>
 <p>(<a class="reference download internal" download="" href="_downloads/73fed4bcd75f5ecc3004c719055f5d99/modules-3.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
@@ -205,21 +202,16 @@ Fragstats landscape ecology approach:</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>input_data</strong> (<em>str</em><em> or </em><em>xarray.Dataset</em>) – Either a file path to a binary GeoTIFF containing tree/no-tree information,
 or an xarray Dataset with a ‘woody_veg’ band (boolean or integer).</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If input_data is a string and stub is not
-provided, it is derived from the input filename. Required when
-input_data is a Dataset.</p></li>
-<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a patch rather than scattered trees.
-Default is 20.</p></li>
-<li><p><strong>min_core_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a core area. Default is 1000.</p></li>
-<li><p><strong>edge_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance (pixels) defining the edge region around patch cores.
-Default is 3.</p></li>
-<li><p><strong>max_gap_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum gap (pixels) to bridge when connecting tree clusters.
-Default is 1.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If not provided it is derived from input_data.</p></li>
+<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a patch rather than scattered trees.</p></li>
+<li><p><strong>min_core_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a core area.</p></li>
+<li><p><strong>edge_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance (pixels) defining the edge region around patch cores.</p></li>
+<li><p><strong>max_gap_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum gap (pixels) to bridge when connecting tree clusters.</p></li>
 <li><p><strong>strict_core_area</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, enforce that core areas exceed the edge_size at all points.
-If False, use dilation and erosion to allow some irregularity. Default is True.</p></li>
-<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+If False, use dilation and erosion to allow some irregularity.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -236,9 +228,9 @@ If False, use dilation and erosion to allow some irregularity. Default is True.<
 </dl>
 <p class="rubric">Notes</p>
 <p>When save_tif=True, it outputs a GeoTIFF file with embedded color map:
-<code class="docutils literal notranslate"><span class="pre">{stub}_tree_categories.tif</span></code></p>
+{stub}_tree_categories.tif</p>
 <p>When plot=True, it outputs a PNG visualisation with legend:
-<code class="docutils literal notranslate"><span class="pre">{stub}_tree_categories.png</span></code></p>
+{stub}_tree_categories.png</p>
 <p class="rubric">References</p>
 <p>McGarigal, K., &amp; Marks, B. J. (1995). FRAGSTATS: Spatial Pattern Analysis
 Program for Quantifying Landscape Structure. General Technical Report.</p>
@@ -295,22 +287,22 @@ containing the ‘tree_categories’ band.</p></li>
 If not provided, then sheltered/unsheltered is defined by nearby tree density rather than distance from trees.</p></li>
 <li><p><strong>height_tif</strong> (<em>str</em><em>, </em><em>optional</em>) – Integer tif file generated by canopy_height.py.
 If not provided, then sheltered/unsheltered is defined by distance in pixels rather than tree heights.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
-<li><p><strong>wind_method</strong> (<em>str</em><em>, </em><em>optional</em>) – Either ‘WINDWARD’, ‘MOST_COMMON’, ‘MAX’, ‘HAPPENED’ or ‘ANY’. Default is ‘WINDWARD’.
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>wind_method</strong> (<em>str</em><em>, </em><em>optional</em>) – Either ‘WINDWARD’, ‘MOST_COMMON’, ‘MAX’, ‘HAPPENED’, ‘ANY’, or ‘MULTI_LAYER’.
 MOST_COMMON assumes only downwind shelter, using the most common wind direction above the wind_threshold.
 WINDWARD assumes downwind shelter to distance_threshold, and upwind shelter to (distance_threshold / 2).
 MAX assumes shelter from the direction of maximum wind speed.
 HAPPENED refers to any direction where the winds exceeded the wind_threshold in the wind dataset.
-ANY refers to all 8 compass directions.</p></li>
-<li><p><strong>wind_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Wind speed threshold in km/h. Default is 20.</p></li>
+ANY refers to all 8 compass directions.
+MULTI_LAYER saves an 8-band GeoTIFF (bands in clockwise order: N, NE, E, SE, S, SW, W, NW). Does not require wind_data.</p></li>
+<li><p><strong>wind_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Wind speed threshold in km/h.</p></li>
 <li><p><strong>distance_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance from trees that counts as sheltered.
-Units are either ‘tree heights’ or ‘number of pixels’, depending on if a height_tif is provided.
-Default is 20.</p></li>
+Units are either ‘tree heights’ or ‘number of pixels’, depending on if a height_tif is provided.</p></li>
 <li><p><strong>density_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Percentage tree cover within the distance_threshold that counts as sheltered.
-Only applies if the wind_data is not provided. Default is 5.</p></li>
-<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+Only applies if the wind_data is not provided.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
 <li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output.</p></li>
 </ul>
 </dd>
@@ -323,9 +315,9 @@ Only applies if the wind_data is not provided. Default is 5.</p></li>
 </dl>
 <p class="rubric">Notes</p>
 <p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
-<code class="docutils literal notranslate"><span class="pre">{stub}_shelter_categories.tif</span></code></p>
+{stub}_shelter_categories.tif</p>
 <p>When plot=True, it outputs a PNG visualisation with legend:
-<code class="docutils literal notranslate"><span class="pre">{stub}_shelter_categories.png</span></code></p>
+{stub}_shelter_categories.png</p>
 <p class="rubric">Examples</p>
 <p>Using a file path as input:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
@@ -372,10 +364,10 @@ Only applies if the wind_data is not provided. Default is 5.</p></li>
 <li><p><strong>shelter_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – File path to integer tif generated by shelter_categories.py, or a Dataset/DataArray
 containing the ‘shelter_categories’ band.</p></li>
 <li><p><strong>worldcover_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em>) – File path to integer tif generated by apis.worldcover.py, or a DataArray.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
-<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -388,9 +380,9 @@ defined in ‘cover_categories_labels’.</p>
 </dl>
 <p class="rubric">Notes</p>
 <p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
-<code class="docutils literal notranslate"><span class="pre">{stub}_cover_categories.tif</span></code></p>
+{stub}_cover_categories.tif</p>
 <p>When plot=True, it outputs a PNG visualisation with legend:
-<code class="docutils literal notranslate"><span class="pre">{stub}_cover_categories.png</span></code></p>
+{stub}_cover_categories.png</p>
 <p class="rubric">Examples</p>
 <p>Using file paths as input:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
@@ -431,11 +423,11 @@ defined in ‘cover_categories_labels’.</p>
 <li><p><strong>gullies_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – Boolean tif file generated by either hydrolines.py or catchments.py.</p></li>
 <li><p><strong>ridges_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Boolean tif file generated by catchments.py.</p></li>
 <li><p><strong>roads_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Boolean tif file generated by osm.py or hydrolines.py.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
-<li><p><strong>buffer_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within the buffer. Default is 3.</p></li>
-<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>buffer_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within the buffer.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -447,9 +439,9 @@ defined in ‘cover_categories_labels’.</p>
 </dl>
 <p class="rubric">Notes</p>
 <p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
-<code class="docutils literal notranslate"><span class="pre">{stub}_buffer_categories.tif</span></code></p>
+{stub}_buffer_categories.tif</p>
 <p>When plot=True, it outputs a PNG visualisation with legend:
-<code class="docutils literal notranslate"><span class="pre">{stub}_buffer_categories.png</span></code></p>
+{stub}_buffer_categories.png</p>
 <p class="rubric">Examples</p>
 <p>Using file paths as input:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
@@ -494,17 +486,17 @@ defined in ‘cover_categories_labels’.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>buffer_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – Integer tif file generated by buffer_categories.py.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is ‘.’.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is ‘TEST’.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
-<li><p><strong>save_csv</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save patch_metrics.csv with cluster statistics. Default is True.</p></li>
-<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save linear_categories.tif output. Default is True.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
+<li><p><strong>save_csv</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save patch_metrics.csv with cluster statistics.</p></li>
+<li><p><strong>save_tif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save linear_categories.tif output.</p></li>
 <li><p><strong>save_labels</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save label-related tif files (assigned_labels, ellipse_outline_raster,
-shortest_path_raster, perpendicular_raster, widths_raster). Default is True.</p></li>
-<li><p><strong>min_shelterbelt_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum skeleton length (in pixels) to classify a cluster as linear. Default is 15.</p></li>
-<li><p><strong>max_shelterbelt_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum skeleton width (in pixels) to classify a cluster as linear. Default is 6.</p></li>
-<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Clusters smaller than this are merged into nearby larger clusters. Default is 20.</p></li>
-<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output. Default is None (no cropping).</p></li>
+shortest_path_raster, perpendicular_raster, widths_raster).</p></li>
+<li><p><strong>min_shelterbelt_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum skeleton length (in pixels) to classify a cluster as linear.</p></li>
+<li><p><strong>max_shelterbelt_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum skeleton width (in pixels) to classify a cluster as linear.</p></li>
+<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Clusters smaller than this are merged into nearby larger clusters.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output. Pass None to skip cropping.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -547,6 +539,11 @@ shortest_path_raster, perpendicular_raster, widths_raster). Default is True.</p>
 <span class="go">True</span>
 </pre></div>
 </div>
+<p>Here’s an example of how different parameters affect the linear categorization:</p>
+<p>(<a class="reference download internal" download="" href="_downloads/48bdb2467c0ad110ebf348830c6e0904/modules-8.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-8.hires.png" class="plot-directive" src="_images/modules-8.hires.png" />
+</figure>
 </dd></dl>
 
 </section>
@@ -561,9 +558,9 @@ shortest_path_raster, perpendicular_raster, widths_raster). Default is True.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>buffer_data</strong> (<em>str</em><em>, </em><em>xarray.Dataset</em><em>, or </em><em>xarray.DataArray</em>) – A tif file, Dataset, or DataArray where the integers represent the categories
 defined in ‘linear_categories_labels’.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – The output directory to save results. Default is ‘.’.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output file names. Default is ‘TEST’.</p></li>
-<li><p><strong>save_excel</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as an Excel file with multiple sheets. Default is True.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – The output directory to save results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output file names.</p></li>
+<li><p><strong>save_excel</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as an Excel file with multiple sheets.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -613,7 +610,7 @@ defined in ‘linear_categories_labels’.</p></li>
 <p>Run the end-to-end indices pipeline on a single, or multiple percent-cover rasters.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_tif">
-<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_tif</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">percent_tif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outdir'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_tif" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_tif</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">percent_tif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_tif" title="Link to this definition">¶</a></dt>
 <dd><p>Run the complete indices pipeline for a single percent-cover GeoTIFF.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -621,51 +618,52 @@ defined in ‘linear_categories_labels’.</p></li>
 <li><p><strong>percent_tif</strong> (<em>str</em>) – Path to the input percent-cover GeoTIFF (one-band, percent tree cover).</p></li>
 <li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results (default is in utils.filepaths).</p></li>
 <li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for temporary files (default is in utils.filepaths).</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If not provided it is derived from <code class="docutils literal notranslate"><span class="pre">percent_tif</span></code>.</p></li>
-<li><p><strong>wind_method</strong> (<em>str</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Method used to infer shelter direction. Can be <code class="docutils literal notranslate"><span class="pre">None</span></code>,
-<code class="docutils literal notranslate"><span class="pre">'WINDWARD'</span></code>, <code class="docutils literal notranslate"><span class="pre">'MOST_COMMON'</span></code>, <code class="docutils literal notranslate"><span class="pre">'MAX'</span></code>, <code class="docutils literal notranslate"><span class="pre">'HAPPENED'</span></code> or
-<code class="docutils literal notranslate"><span class="pre">'ANY'</span></code>. See <code class="xref py py-func docutils literal notranslate"><span class="pre">shelter_categories()</span></code> for details.</p></li>
-<li><p><strong>wind_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Wind speed threshold in km/h. Default 20.</p></li>
-<li><p><strong>cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Pixel percent cover threshold to treat a pixel as ‘tree’. Default 1.
-- If input is a binary tif use <code class="docutils literal notranslate"><span class="pre">cover_threshold=1</span></code>.
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If not provided it is derived from percent_tif.</p></li>
+<li><p><strong>wind_method</strong> (<em>str</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Method used to infer shelter direction. Can be None,
+‘WINDWARD’, ‘MOST_COMMON’, ‘MAX’, ‘HAPPENED’ or
+‘ANY’. See <code class="xref py py-func docutils literal notranslate"><span class="pre">shelter_categories()</span></code> for details.</p></li>
+<li><p><strong>wind_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Wind speed threshold in km/h.</p></li>
+<li><p><strong>cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Pixel percent cover threshold to treat a pixel as ‘tree’.
+- If input is a binary tif use cover_threshold=1.
 - For percent-cover tifs typical values are 10 or 20.
 - For confidence tifs a value like 50 is reasonable.</p></li>
-<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a patch rather than scattered trees.
-Default is 20.</p></li>
-<li><p><strong>edge_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance (pixels) defining the edge region around patch cores.
-Default is 3.</p></li>
-<li><p><strong>max_gap_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum gap (pixels) to bridge when connecting tree clusters.
-Default is 1.</p></li>
+<li><p><strong>min_patch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a patch rather than scattered trees.</p></li>
+<li><p><strong>edge_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance (pixels) defining the edge region around patch cores.</p></li>
+<li><p><strong>max_gap_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum gap (pixels) to bridge when connecting tree clusters.</p></li>
 <li><p><strong>distance_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Distance from trees that counts as sheltered.
-Units are either ‘tree heights’ or ‘number of pixels’, depending on if a height_tif is provided.
-Default is 20.</p></li>
-<li><p><strong>density_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Percentage tree cover within the <code class="docutils literal notranslate"><span class="pre">distance_threshold</span></code> that counts as sheltered.
-Only applies if the <code class="docutils literal notranslate"><span class="pre">wind_data</span></code> is not provided. Default is 5.</p></li>
-<li><p><strong>buffer_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within the buffer. Default is 3.</p></li>
+Units are either ‘tree heights’ or ‘number of pixels’, depending on if a height_tif is provided.</p></li>
+<li><p><strong>density_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Percentage tree cover within the distance_threshold that counts as sheltered.
+Only applies if the wind_data is not provided.</p></li>
+<li><p><strong>buffer_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within the buffer.</p></li>
 <li><p><strong>strict_core_area</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, enforce that core areas exceed the edge_size at all points.
-If False, use dilation and erosion to allow some irregularity. Default is True.</p></li>
-<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output. Default is 0.</p></li>
-<li><p><strong>min_core_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a core area. Default is 1000.</p></li>
-<li><p><strong>min_shelterbelt_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum skeleton length (in pixels) to classify a cluster as linear. Default is 15.</p></li>
-<li><p><strong>max_shelterbelt_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum skeleton width (in pixels) to classify a cluster as linear. Default is 6.</p></li>
-<li><p><strong>debug</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, intermediate TIFFs/plots are saved for debugging. Default False.</p></li>
+If False, use dilation and erosion to allow some irregularity.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output.</p></li>
+<li><p><strong>min_core_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum area (pixels) to classify as a core area.</p></li>
+<li><p><strong>min_shelterbelt_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum skeleton length (in pixels) to classify a cluster as linear.</p></li>
+<li><p><strong>max_shelterbelt_width</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum skeleton width (in pixels) to classify a cluster as linear.</p></li>
+<li><p><strong>debug</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, intermediate TIFFs/plots are saved for debugging.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><ul class="simple">
-<li><p><strong>ds</strong> (<em>xarray.Dataset</em>) – Dataset with <code class="docutils literal notranslate"><span class="pre">linear_categories</span></code> and <code class="docutils literal notranslate"><span class="pre">labelled_categories</span></code> bands.</p></li>
+<li><p><strong>ds</strong> (<em>xarray.Dataset</em>) – Dataset with linear_categories and labelled_categories bands.</p></li>
 <li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Per-cluster patch metrics (skeleton length/width, category, etc.).</p></li>
 </ul>
 </p>
 </dd>
 </dl>
+<p class="rubric">Examples</p>
+<p>(<a class="reference download internal" download="" href="_downloads/a7e61a1f686218b45161366bfefd4663/modules-9.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-9.hires.png" class="plot-directive" src="_images/modules-9.hires.png" />
+</figure>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_csv">
-<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">csv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outdir'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_csv" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">csv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_csv" title="Link to this definition">¶</a></dt>
 <dd><p>Run the indices pipeline for every file listed in a CSV.</p>
-<p>The CSV is expected to contain a column named <code class="docutils literal notranslate"><span class="pre">filename</span></code> with full paths
+<p>The CSV is expected to contain a column named filename with full paths
 to percent-cover GeoTIFFs. Each row is processed sequentially by
 <cite>indices_tif</cite> using the provided parameters.</p>
 <dl class="field-list simple">
@@ -680,7 +678,7 @@ to percent-cover GeoTIFFs. Each row is processed sequentially by
 
 <dl class="py function">
 <dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_tifs">
-<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_tifs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'outdir'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tiles_per_csv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tif'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_tifs" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_tifs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tiles_per_csv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tif'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_tifs" title="Link to this definition">¶</a></dt>
 <dd><p>Run the indices pipeline over a folder of binary or integer tifs representing percentage tree cover.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -689,11 +687,61 @@ to percent-cover GeoTIFFs. Each row is processed sequentially by
 <li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for generated linear/category TIFFs.</p></li>
 <li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory used for temporary CSVs and intermediate files.</p></li>
 <li><p><strong>param_stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Extra stub for csv filenames and downstream tifs.</p></li>
-<li><p><strong>tiles_per_csv</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of tiles grouped per subprocess CSV. Default is 100.</p></li>
+<li><p><strong>tiles_per_csv</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of tiles grouped per subprocess CSV.</p></li>
 <li><p><strong>parameters</strong> (<em>Other</em>) – Passed through to <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a> (see that function for details).</p></li>
 </ul>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.indices.all_indices.indices_latlon">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.indices.all_indices.</span></span><span class="sig-name descname"><span class="pre">indices_latlon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wind_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_patch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_gap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_core_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_pixels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_core_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_shelterbelt_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_shelterbelt_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.indices.all_indices.indices_latlon" title="Link to this definition">¶</a></dt>
+<dd><p>Run the complete indices pipeline for a lat/lon location, auto-downloading all required data.</p>
+<p>Downloads canopy height (Meta/Tolan global CHM), ESA WorldCover, terrain tiles for
+gully/ridge delineation, and OpenStreetMap roads. BARRA wind data is only downloaded
+when wind_method is set.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lat</strong> (<em>float</em>) – Latitude in WGS 84 (EPSG:4326).</p></li>
+<li><p><strong>lon</strong> (<em>float</em>) – Longitude in WGS 84 (EPSG:4326).</p></li>
+<li><p><strong>buffer</strong> (<em>float</em><em>, </em><em>optional</em>) – Half-width of the region of interest in degrees (~5 km at 0.05).</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for temporary/cached files.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Defaults to “{lat:.3f}_{lon:.3f}”.</p></li>
+<li><p><strong>wind_method</strong> (<em>str</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Method used to infer shelter direction. See <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a> for options.</p></li>
+<li><p><strong>wind_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Wind speed threshold in km/h.</p></li>
+<li><p><strong>height_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – Canopy height (metres) above which a 1 m pixel is classified as tree.</p></li>
+<li><p><strong>cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum percentage of tree-pixels within a 10 m cell to count it as tree.
+The 1 m binary raster is average-resampled to 10 m (giving 0–100 % cover) before
+this threshold is applied, matching the behaviour of <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>min_patch_size</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>edge_size</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>max_gap_size</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>distance_threshold</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>density_threshold</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>buffer_width</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>strict_core_area</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>min_core_size</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>min_shelterbelt_length</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>max_shelterbelt_width</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+<li><p><strong>debug</strong> (<em>optional</em>) – Same as <a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">indices_tif()</span></code></a>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>ds</strong> (<em>xarray.Dataset</em>) – Dataset with linear_categories and labelled_categories bands.</p></li>
+<li><p><strong>df</strong> (<em>pandas.DataFrame</em>) – Per-cluster patch metrics.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>For locations in Australia, higher-quality roads and hydrolines are available from the Geoscience
+NationalRoads GDB and SurfaceHydrologyLinesRegional GDB. Set
+shelterbelts.utils.filepaths.roads_gdb and hydrolines_gdb to use them.</p>
 </dd></dl>
 
 </section>
@@ -707,14 +755,12 @@ to percent-cover GeoTIFFs. Each row is processed sequentially by
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>terrain_tif</strong> (<em>str</em>) – Path to the DEM (Digital Elevation Model) GeoTIFF file.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
-<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. Default is “TEST”.</p></li>
-<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporary folder to save the terrain_tif as float64 for pysheds.
-Default is current directory.</p></li>
-<li><p><strong>num_catchments</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of catchments to find when assigning gullies and ridges.
-Default is 10.</p></li>
-<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation. Default is True.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Temporary folder to save the terrain_tif as float64 for pysheds.</p></li>
+<li><p><strong>num_catchments</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of catchments to find when assigning gullies and ridges.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -731,13 +777,18 @@ Default is 10.</p></li>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
-<p>When <code class="docutils literal notranslate"><span class="pre">savetif=True</span></code>, it writes:</p>
+<p>When savetif=True, it writes:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">{stub}_gullies.tif</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">{stub}_ridges.tif</span></code></p></li>
+<li><p>{stub}_gullies.tif</p></li>
+<li><p>{stub}_ridges.tif</p></li>
 </ul>
-<p>When <code class="docutils literal notranslate"><span class="pre">plot=True</span></code>, it writes:
-<code class="docutils literal notranslate"><span class="pre">{stub}_gullies_and_ridges.png</span></code></p>
+<p>When plot=True, it writes:
+{stub}_gullies_and_ridges.png</p>
+<p class="rubric">Examples</p>
+<p>(<a class="reference download internal" download="" href="_downloads/42dc2cb9b627b44bc34ac91f2987758c/modules-10.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-10.hires.png" class="plot-directive" src="_images/modules-10.hires.png" />
+</figure>
 </dd></dl>
 
 </section>
@@ -755,42 +806,41 @@ features as planting opportunities.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>percent_tif</strong> (<em>str</em>) – Path to a percent-cover GeoTIFF. A binary tif also works with the
-default <code class="docutils literal notranslate"><span class="pre">cover_threshold</span></code> of 1.</p></li>
+default cover_threshold of 1.</p></li>
 <li><p><strong>roads_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded binary roads raster or path to a GeoTIFF. When None the
-roads are derived from the bounding box of <code class="docutils literal notranslate"><span class="pre">percent_tif</span></code>.</p></li>
+roads are derived from the bounding box of percent_tif.</p></li>
 <li><p><strong>gullies_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded binary gullies raster or path to a GeoTIFF. When None
 the gullies are derived from hydrolines or DEM catchments.</p></li>
 <li><p><strong>ridges_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded binary ridges raster or path to a GeoTIFF. When None
-and <code class="docutils literal notranslate"><span class="pre">ridges=True</span></code>, ridges are derived from DEM catchments.</p></li>
+and ridges=True, ridges are derived from DEM catchments.</p></li>
 <li><p><strong>worldcover_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded WorldCover land-cover raster or path to a GeoTIFF. When
 None the WorldCover data is derived from the bounding box.</p></li>
 <li><p><strong>dem_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em><em>, </em><em>optional</em>) – Pre-loaded DEM raster or path to a GeoTIFF. When None the DEM is
 derived from the bounding box.</p></li>
-<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Default is current directory.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
 <li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. If not provided it is derived from
-<code class="docutils literal notranslate"><span class="pre">percent_tif</span></code>.</p></li>
-<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for temporary files. Default is current directory.</p></li>
-<li><p><strong>cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Pixel percent cover threshold to treat a pixel as ‘tree’. Default is 1.</p></li>
+percent_tif.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for temporary files.</p></li>
+<li><p><strong>cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Pixel percent cover threshold to treat a pixel as ‘tree’.</p></li>
 <li><p><strong>width</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels away from the feature that still counts as within
-the buffer. Default is 1.</p></li>
+the buffer.</p></li>
 <li><p><strong>ridges</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to include opportunities for trees on catchment boundaries
 (ridges). If False, hydrolines are used for gullies only. If True,
-the DEM is used for both gullies and ridges. Default is False.</p></li>
+the DEM is used for both gullies and ridges.</p></li>
 <li><p><strong>num_catchments</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of catchments when calculating ridges and gullies. If None,
-the number of hydroline segments is used instead. Default is 10.</p></li>
+the number of hydroline segments is used instead.</p></li>
 <li><p><strong>min_branch_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Smallest allowable branch when using hydrolines to determine number
-of catchments. Default is 10.</p></li>
-<li><p><strong>contour_spacing</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels between each contour. If <code class="docutils literal notranslate"><span class="pre">equal_area</span></code> is True,
+of catchments.</p></li>
+<li><p><strong>contour_spacing</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels between each contour. If equal_area is True,
 this is used as the number of contours instead. Set to 0 to
-disable contour opportunities. Default is 10.</p></li>
+disable contour opportunities.</p></li>
 <li><p><strong>min_contour_length</strong> (<em>int</em><em>, </em><em>optional</em>) – Smallest allowable contour to use as an opportunity for planting
-trees. Default is 100.</p></li>
+trees.</p></li>
 <li><p><strong>equal_area</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a given number of contours per tile (True), or
-place contours at the same elevations across all tiles (False).
-Default is False.</p></li>
-<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF. Default is True.</p></li>
-<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a visualisation. Default is False.</p></li>
-<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output. Default is 0.</p></li>
+place contours at the same elevations across all tiles (False).</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a visualisation.</p></li>
+<li><p><strong>crop_pixels</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of pixels to crop from each edge of the output.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -807,7 +857,7 @@ Default is False.</p></li>
 </dl>
 <p class="rubric">Notes</p>
 <p>When savetif=True, it outputs a GeoTIFF file with embedded color map:
-<code class="docutils literal notranslate"><span class="pre">{stub}_opportunities.tif</span></code></p>
+{stub}_opportunities.tif</p>
 <p class="rubric">Examples</p>
 <p>Using file paths as input:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
@@ -821,16 +871,475 @@ Default is False.</p></li>
 <span class="go">True</span>
 </pre></div>
 </div>
-<p>(<a class="reference download internal" download="" href="_downloads/48bdb2467c0ad110ebf348830c6e0904/modules-8.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<p>(<a class="reference download internal" download="" href="_downloads/5603cc9ef899746358e2ecb72ea23959/modules-11.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
-<img alt="_images/modules-8_00.hires.png" class="plot-directive" src="_images/modules-8_00.hires.png" />
+<img alt="_images/modules-11_00.hires.png" class="plot-directive" src="_images/modules-11_00.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-8_01.hires.png" class="plot-directive" src="_images/modules-8_01.hires.png" />
+<img alt="_images/modules-11_01.hires.png" class="plot-directive" src="_images/modules-11_01.hires.png" />
 </figure>
 <figure class="align-default">
-<img alt="_images/modules-8_02.hires.png" class="plot-directive" src="_images/modules-8_02.hires.png" />
+<img alt="_images/modules-11_02.hires.png" class="plot-directive" src="_images/modules-11_02.hires.png" />
 </figure>
+</dd></dl>
+
+</section>
+</section>
+<section id="classifications">
+<h1>Classifications<a class="headerlink" href="#classifications" title="Link to this heading">¶</a></h1>
+<p>Tools for turning raw remote-sensing inputs into the binary tree-cover rasters
+that feed the indices pipeline.</p>
+<section id="binary-tree-rasters">
+<h2>Binary Tree Rasters<a class="headerlink" href="#binary-tree-rasters" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.binary_trees.worldcover_trees">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.binary_trees.</span></span><span class="sig-name descname"><span class="pre">worldcover_trees</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savetif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.binary_trees.worldcover_trees" title="Link to this definition">¶</a></dt>
+<dd><p>Convert an ESA WorldCover classification tif into a binary tree-cover tif.</p>
+<p>Pixels labelled as Tree cover (class 10) or Shrubland (class 20) in WorldCover
+are kept as trees (1) and everything else becomes non-tree (0). The output tif
+has the same resolution and CRS as the input and can be fed directly into
+<a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">shelterbelts.indices.all_indices.indices_tif()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em>) – Either a file path to a WorldCover GeoTIFF, or a pre-loaded DataArray.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. By default it gets derived from the input_data filename.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset with a single woody_veg variable (uint8, 0/1).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">filename</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;g2_26729_worldcover.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">worldcover_trees</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;woody_veg&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>(<a class="reference download internal" download="" href="_downloads/da514327b1c6991971c88022266d5702/modules-12.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-12.hires.png" class="plot-directive" src="_images/modules-12.hires.png" />
+</figure>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.binary_trees.canopy_height_trees">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.binary_trees.</span></span><span class="sig-name descname"><span class="pre">canopy_height_trees</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savetif</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.binary_trees.canopy_height_trees" title="Link to this definition">¶</a></dt>
+<dd><p>Convert a 1m canopy-height tif into a binary 10m tree-cover tif.</p>
+<p>Any pixel with canopy height ≥ 1m becomes a tree (1) and others become
+non-tree (0). Then uses ‘max’ resampling to coarsen to 10m resolution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_data</strong> (<em>str</em><em> or </em><em>xarray.DataArray</em>) – Either a file path to a 1m canopy-height GeoTIFF, or a pre-loaded DataArray.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for the saved tif.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. By default it gets derived from the input_data filename.</p></li>
+<li><p><strong>savetif</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the results as a GeoTIFF.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to generate a PNG visualisation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dataset with a single woody_veg variable (uint8, 0/1).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">filename</span> <span class="o">=</span> <span class="n">get_filename</span><span class="p">(</span><span class="s1">&#39;milgadara_1kmx1km_CHM_1m.tif&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">canopy_height_trees</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">savetif</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;woody_veg&#39;</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>(<a class="reference download internal" download="" href="_downloads/76d4e798122f146014a37a04cd23b362/modules-13.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/modules-13.hires.png" class="plot-directive" src="_images/modules-13.hires.png" />
+</figure>
+</dd></dl>
+
+</section>
+<section id="bounding-boxes">
+<h2>Bounding Boxes<a class="headerlink" href="#bounding-boxes" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.bounding_boxes.bounding_boxes">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.bounding_boxes.</span></span><span class="sig-name descname"><span class="pre">bounding_boxes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">80</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tif_cover_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filetype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.tif'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_centroids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.bounding_boxes.bounding_boxes" title="Link to this definition">¶</a></dt>
+<dd><p>Collect footprints for every GeoTIFF in a folder.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> (<em>str</em>) – Folder of tifs.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Defaults to the same folder.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames. By default it gets derived from the folder name.</p></li>
+<li><p><strong>size_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum acceptable tile side length in pixels.</p></li>
+<li><p><strong>tif_cover_threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum percentage of tree (or non-tree) pixels required. When None
+the cover check is skipped.</p></li>
+<li><p><strong>remove</strong> (<em>bool</em><em>, </em><em>optional</em>) – Delete tifs that don’t meet the size or percent cover threshold.</p></li>
+<li><p><strong>filetype</strong> (<em>str</em><em>, </em><em>optional</em>) – Suffix matching the files to scan.</p></li>
+<li><p><strong>crs</strong> (<em>str</em><em> or </em><em>pyproj.CRS</em><em>, </em><em>optional</em>) – CRS for the output GeoPackage. If None, estimated from the middle tile
+in the folder.</p></li>
+<li><p><strong>save_centroids</strong> (<em>bool</em><em>, </em><em>optional</em>) – Also write a centroid GeoPackage (useful for very zoomed-out views).</p></li>
+<li><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Only process a certain number of tifs. By default it processes all tifs.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Print progress every 100 tifs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>One row per tif with columns:
+filename, height, width, crs, geometry
+plus pixels_0/pixels_1/percent_trees, bad_tif (boolean) when tif_cover_threshold is used.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>geopandas.GeoDataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Writes to disk:</p>
+<ul class="simple">
+<li><p>{outdir}/{stub}_footprints.gpkg — one polygon per tile</p></li>
+<li><p>{outdir}/{stub}_centroids.gpkg — one point per tile (only if save_centroids=True)</p></li>
+</ul>
+<p class="rubric">Examples</p>
+<p>Collect footprints from the bundled folder of two binary tree tifs:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">gdf</span> <span class="o">=</span> <span class="n">bounding_boxes</span><span class="p">(</span><span class="s1">&#39;data/multiple_binary_tifs&#39;</span><span class="p">,</span> <span class="n">filetype</span><span class="o">=</span><span class="s1">&#39;.tiff&#39;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="go">Saved: data/multiple_binary_tifs/data_multiple_binary_tifs_footprints.gpkg</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="lidar">
+<h2>LiDAR<a class="headerlink" href="#lidar" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.lidar.lidar">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.lidar.</span></span><span class="sig-name descname"><span class="pre">lidar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">laz_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">category5</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">binary</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cleanup</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">just_chm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.lidar.lidar" title="Link to this definition">¶</a></dt>
+<dd><p>Convert a LAZ point cloud into a canopy-height and tree-cover raster.</p>
+<p>If category5=True and the LAZ contains at least one point classified
+as high vegetation (LAS 1.4 category 5, see the
+<a class="reference external" href="https://www.spatial.nsw.gov.au/__data/assets/pdf_file/0004/218992/Elevation_Data_Product_Specs.pdf">NSW Elevation Data Product Specification</a>),
+tree pixels are counted directly from those classified points.</p>
+<p>Otherwise, PDAL computes a canopy-height model
+from scratch (filters.smrf to classify ground, then filters.hag_nn
+for height-above-ground) and thresholds it at the height_threshold.</p>
+<p>The output binary raster is compatible with
+<a class="reference internal" href="#shelterbelts.indices.all_indices.indices_tif" title="shelterbelts.indices.all_indices.indices_tif"><code class="xref py py-func docutils literal notranslate"><span class="pre">shelterbelts.indices.all_indices.indices_tif()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>laz_file</strong> (<em>str</em>) – Path to a .laz point cloud file.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for output filenames.</p></li>
+<li><p><strong>resolution</strong> (<em>int</em><em>, </em><em>optional</em>) – Pixel size in metres.</p></li>
+<li><p><strong>height_threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – Canopy-height cutoff in metres for the binary tree mask (only used
+when category5=False).</p></li>
+<li><p><strong>category5</strong> (<em>bool</em><em>, </em><em>optional</em>) – Use preclassified high-vegetation points (LAS category 5 meaning height &gt; 2m) when available.
+Falls back to the PDAL CHM path if the file has no category-5 points.</p></li>
+<li><p><strong>epsg</strong> (<em>str</em><em> or </em><em>int</em><em>, </em><em>optional</em>) – Override the LAZ file’s CRS.</p></li>
+<li><p><strong>binary</strong> (<em>bool</em><em>, </em><em>optional</em>) – Create just a binary tif. By default it creates a percent cover tif instead.</p></li>
+<li><p><strong>cleanup</strong> (<em>bool</em><em>, </em><em>optional</em>) – Delete intermediate CHM/counts tifs after the binary raster is written.</p></li>
+<li><p><strong>just_chm</strong> (<em>bool</em><em>, </em><em>optional</em>) – Only produce the canopy-height tif; skip the binary/percent-cover step.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(chm, da_tree) — two xarray.DataArray s. chm is the raw
+canopy-height raster (or point-count raster in category5 mode);
+da_tree is the binary mask (or percent-cover mask when binary=False).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Writes to outdir:</p>
+<ul class="simple">
+<li><p>chm.tif (if category5 = False)</p></li>
+<li><p>counts.tif (if category5 = True)</p></li>
+<li><p>percentcover.tif (if binary = False)</p></li>
+<li><p>woodyveg.tif (if binary = True)</p></li>
+</ul>
+<p class="rubric">Examples</p>
+<p>Run on the bundled 50m × 50m sample LAZ from Milgadara, NSW:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">laz_sample</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">chm</span><span class="p">,</span> <span class="n">da_tree</span> <span class="o">=</span> <span class="n">lidar</span><span class="p">(</span><span class="n">laz_sample</span><span class="p">)</span>
+<span class="go">Saved: ./TEST_chm_res1.tif</span>
+<span class="go">Saved: ./TEST_percentcover_res10_height2m.tif</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.lidar.lidar_folder">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.lidar.</span></span><span class="sig-name descname"><span class="pre">lidar_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">laz_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">category5</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">binary</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cleanup</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">just_chm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.lidar.lidar_folder" title="Link to this definition">¶</a></dt>
+<dd><p>Apply <a class="reference internal" href="#shelterbelts.classifications.lidar.lidar" title="shelterbelts.classifications.lidar.lidar"><code class="xref py py-func docutils literal notranslate"><span class="pre">lidar()</span></code></a> to every .laz file in laz_folder.</p>
+</dd></dl>
+
+</section>
+<section id="sentinel-download">
+<h2>Sentinel Download<a class="headerlink" href="#sentinel-download" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.sentinel_nci.download_ds2_bbox">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.sentinel_nci.</span></span><span class="sig-name descname"><span class="pre">download_ds2_bbox</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bbox</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2020-01-01'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2021-01-01'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'epsg:4326'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.sentinel_nci.download_ds2_bbox" title="Link to this definition">¶</a></dt>
+<dd><p>Download a Sentinel-2 surface reflectance stack for a bounding box and date range. Uses a 10% cloud threshold and downloads all 10 bands.</p>
+<p>..important:: Needs to be run on NCI with access to the v10 and ka08 projects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bbox</strong> (<em>tuple</em><em> of </em><em>float</em>) – (minx, miny, maxx, maxy) using the input_crs.</p></li>
+<li><p><strong>start_date</strong> (<em>str</em><em>, </em><em>optional</em>) – First and last date of imagery to download.</p></li>
+<li><p><strong>end_date</strong> (<em>str</em><em>, </em><em>optional</em>) – First and last date of imagery to download.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for the output filename.</p></li>
+<li><p><strong>save</strong> (<em>bool</em><em>, </em><em>optional</em>) – Save the Dataset to {outdir}/{stub}_ds2_{year}.pkl.</p></li>
+<li><p><strong>input_crs</strong> (<em>str</em><em>, </em><em>optional</em>) – CRS of the bbox.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Ten-band Sentinel-2 stack with dims (time, y, x) in EPSG:3857.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>EPSG:3857 is used as the output CRS because EPSG:28355 / EPSG:3577 was roughly 50% slower in my tests.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.sentinel_dea.download_ds2_bbox">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.sentinel_dea.</span></span><span class="sig-name descname"><span class="pre">download_ds2_bbox</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bbox</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2020-01-01'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2021-01-01'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.sentinel_dea.download_ds2_bbox" title="Link to this definition">¶</a></dt>
+<dd><p>Download a Sentinel-2 surface reflectance stack for a bounding box and date range using the public DEA STAC catalogue.</p>
+<p>..important:: Can be run outside of NCI, but is slower and less reliable than the version in sentinel_nci.py.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bbox</strong> (<em>tuple</em><em> of </em><em>float</em>) – (minx, miny, maxx, maxy) in EPSG:4326.</p></li>
+<li><p><strong>start_date</strong> (<em>str</em><em>, </em><em>optional</em>) – First and last date of imagery to download.</p></li>
+<li><p><strong>end_date</strong> (<em>str</em><em>, </em><em>optional</em>) – First and last date of imagery to download.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for the output filename.</p></li>
+<li><p><strong>save</strong> (<em>bool</em><em>, </em><em>optional</em>) – Save the Dataset to {outdir}/{stub}_ds2_{year}.pkl.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Ten-band Sentinel-2 stack with dims <code class="docutils literal notranslate"><span class="pre">(time,</span> <span class="pre">y,</span> <span class="pre">x)</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.Dataset</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="training-pipeline">
+<h2>Training Pipeline<a class="headerlink" href="#training-pipeline" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.merge_inputs_outputs.</span></span><span class="sig-name descname"><span class="pre">merge_inputs_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sentinel_pickle</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tree_tif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spacing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs" title="Link to this definition">¶</a></dt>
+<dd><p>Build a per-pixel training CSV from a Sentinel-2 pickle and a tree-cover tif.</p>
+<p>Each row of the CSV is one sampled pixel. Columns are the temporally-aggregated
+Sentinel features plus the binary tree label drawn from tree_tif.</p>
+<p>The resulting CSV feeds directly into
+<a class="reference internal" href="#shelterbelts.classifications.neural_network.train_neural_network" title="shelterbelts.classifications.neural_network.train_neural_network"><code class="xref py py-func docutils literal notranslate"><span class="pre">shelterbelts.classifications.neural_network.train_neural_network()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sentinel_pickle</strong> (<em>str</em>) – Path to a Sentinel-2 xarray.Dataset pickle with 10 colour bands, and 3 (time/y/x) variables.</p></li>
+<li><p><strong>tree_tif</strong> (<em>str</em>) – Path to a binary tree-cover GeoTIFF (0 = non-tree, 1 = tree).</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>radius</strong> (<em>int</em><em>, </em><em>optional</em>) – Radius (in pixels) of the circular kernel used for focal mean/std features.</p></li>
+<li><p><strong>spacing</strong> (<em>int</em><em>, </em><em>optional</em>) – Sampling grid spacing in pixels. A smaller spacing produces a larger dataset.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Print progress messages.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The training rows, also written to
+<code class="docutils literal notranslate"><span class="pre">{outdir}/{stub}_df_r{radius}_s{spacing}_{year}.csv</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.combine_csvs.combine_csvs">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.combine_csvs.</span></span><span class="sig-name descname"><span class="pre">combine_csvs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">csv_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs_csv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.combine_csvs.combine_csvs" title="Link to this definition">¶</a></dt>
+<dd><p>Merge per-tile training CSVs into a single feather file and attach koppen classes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>csv_folder</strong> (<em>str</em>) – Folder containing <code class="docutils literal notranslate"><span class="pre">*.csv</span></code> training files produced by
+<a class="reference internal" href="#shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs" title="shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs"><code class="xref py py-func docutils literal notranslate"><span class="pre">shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs()</span></code></a>.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results. Defaults to csv_folder.</p></li>
+<li><p><strong>crs_csv</strong> (<em>str</em><em>, </em><em>optional</em>) – CSV with tif and crs columns that assigns a source CRS to each tile.</p></li>
+<li><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Read only the first CSVs. By default it reads all.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The concatenated, reprojected, Koppen-tagged training set.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.random_forest.random_forest">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.random_forest.</span></span><span class="sig-name descname"><span class="pre">random_forest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">training_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tree_cover'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['x',</span> <span class="pre">'y',</span> <span class="pre">'tile_id']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_estimators</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_samples_split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stratification_columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['tree_cover']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_frac</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.7</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.random_forest.random_forest" title="Link to this definition">¶</a></dt>
+<dd><p>Train and evaluate a random forest classifier for tree vs non-tree pixels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>training_file</strong> (<em>str</em>) – Path to a .csv or .feather training dataset produced by
+<a class="reference internal" href="#shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs" title="shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs"><code class="xref py py-func docutils literal notranslate"><span class="pre">shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs()</span></code></a>.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for every output filename.</p></li>
+<li><p><strong>output_column</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of the binary label column.</p></li>
+<li><p><strong>drop_columns</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Non-feature columns to exclude from training.</p></li>
+<li><p><strong>n_estimators</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of trees in the forest.</p></li>
+<li><p><strong>min_samples_split</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum samples required to split an internal node.</p></li>
+<li><p><strong>random_state</strong> (<em>int</em><em>, </em><em>optional</em>) – Seed for the train/test split and the forest.</p></li>
+<li><p><strong>stratification_columns</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Columns to stratify the train/test split on.</p></li>
+<li><p><strong>train_frac</strong> (<em>float</em><em>, </em><em>optional</em>) – Training fraction after stratified balancing.</p></li>
+<li><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Randomly subsample rows before training. If None, use all rows.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Per-class precision/recall/f1/accuracy on the held-out test set.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Writes to outdir:</p>
+<ul class="simple">
+<li><p>{stub}_random_forest.pkl — the pickled RandomForestClassifier</p></li>
+<li><p>scaler_{stub}.pkl — matching StandardScaler (kept for API symmetry
+with the NN; the trees don’t strictly need scaled inputs)</p></li>
+<li><p>{stub}_metrics.csv — per-class metrics</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.neural_network.train_neural_network">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.neural_network.</span></span><span class="sig-name descname"><span class="pre">train_neural_network</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">training_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEST'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tree_cover'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['x',</span> <span class="pre">'y',</span> <span class="pre">'tile_id']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stratification_columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['tree_cover']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_frac</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.7</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.neural_network.train_neural_network" title="Link to this definition">¶</a></dt>
+<dd><p>Train and evaluate a dense neural network to classify pixels as tree or non-tree.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>training_file</strong> (<em>str</em>) – Path to a .csv or .feather training dataset. Must contain the
+output_column plus the per-pixel feature columns produced by
+merge_inputs_outputs.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Output directory for saving results.</p></li>
+<li><p><strong>stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Prefix for every output filename.</p></li>
+<li><p><strong>output_column</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of the binary label column.</p></li>
+<li><p><strong>drop_columns</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Non-feature columns to drop before training.</p></li>
+<li><p><strong>learning_rate</strong> (<em>float</em><em>, </em><em>optional</em>) – Hyperparameter for tuning.</p></li>
+<li><p><strong>epochs</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum epochs (however, early stopping might terminate sooner than this).</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Hyperparameter for tuning.</p></li>
+<li><p><strong>random_state</strong> (<em>int</em><em>, </em><em>optional</em>) – Seed for the train/test split and subsampling.</p></li>
+<li><p><strong>stratification_columns</strong> (<em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – Columns to stratify the train/test split on. An empty list disables stratification.</p></li>
+<li><p><strong>train_frac</strong> (<em>float</em><em>, </em><em>optional</em>) – Fraction of stratified samples used for training.</p></li>
+<li><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Randomly subsample the training file to this many rows before the
+split. By default this uses all rows.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Precision/recall/f1/accuracy per class on the test data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Writes to outdir:</p>
+<ul class="simple">
+<li><p>nn_{stub}.keras</p></li>
+<li><p>scaler_{stub}.pkl</p></li>
+<li><p>{stub}_metrics.csv</p></li>
+<li><p>{stub}_training_plots.png</p></li>
+</ul>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">shelterbelts.utils.filepaths</span><span class="w"> </span><span class="kn">import</span> <span class="n">training_csv_sample</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">train_neural_network</span><span class="p">(</span><span class="n">training_csv_sample</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/tmp&#39;</span><span class="p">,</span>
+<span class="gp">... </span>                          <span class="n">stub</span><span class="o">=</span><span class="s1">&#39;example&#39;</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="prediction">
+<h2>Prediction<a class="headerlink" href="#prediction" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.predictions.predictions">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.predictions.</span></span><span class="sig-name descname"><span class="pre">predictions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gpkg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2020</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nn_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/home/christopher-bradley/repos/shelterbelts/models'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nn_stub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'noxy_df_4326'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confidence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.predictions.predictions" title="Link to this definition">¶</a></dt>
+<dd><p>Run the Sentinel-download + tree classifier over every polygon in a GeoPackage.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gpkg</strong> (<em>str</em>) – GeoPackage of bounding-box polygons. Stubs get derived from the centre of each bbox.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em>) – Output directory for saving results.</p></li>
+<li><p><strong>year</strong> (<em>int</em><em>, </em><em>optional</em>) – Year of Sentinel imagery to classify.</p></li>
+<li><p><strong>nn_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory containing the neural-network keras/scaler pairs.</p></li>
+<li><p><strong>nn_stub</strong> (<em>str</em><em>, </em><em>optional</em>) – Stub identifying the model.</p></li>
+<li><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Process only the first limit rows. By default it processes all rows in the gpkg.</p></li>
+<li><p><strong>multi_model</strong> (<em>bool</em><em>, </em><em>optional</em>) – Take a weighted average of multiple models trained in different zones.</p></li>
+<li><p><strong>confidence</strong> (<em>bool</em><em>, </em><em>optional</em>) – Write a 0-100 percent tree-confidence tif instead of a binary tif.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="mosaicking">
+<h2>Mosaicking<a class="headerlink" href="#mosaicking" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="shelterbelts.classifications.merge_tifs.merge_tifs">
+<span class="sig-prename descclassname"><span class="pre">shelterbelts.classifications.merge_tifs.</span></span><span class="sig-name descname"><span class="pre">merge_tifs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmpdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/scratch/xe2/cb8590/tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'_res1.tif'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chm'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dont_reproject</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dedup</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#shelterbelts.classifications.merge_tifs.merge_tifs" title="Link to this definition">¶</a></dt>
+<dd><p>Merge a folder of GeoTIFF tiles into a single uint8 raster.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>base_dir</strong> (<em>str</em>) – Directory containing the folder of tif files to be merged.</p></li>
+<li><p><strong>tmpdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for temporary files (the NCI default is /scratch/xe2/cb8590/tmp;
+override for local runs).</p></li>
+<li><p><strong>suffix</strong> (<em>str</em><em>, </em><em>optional</em>) – Glob suffix matching the files to merge.</p></li>
+<li><p><strong>subdir</strong> (<em>str</em><em>, </em><em>optional</em>) – Subfolder inside base_dir that contains the tifs. Pass an empty
+string if the tifs sit directly in base_dir.</p></li>
+<li><p><strong>crs</strong> (<em>str</em><em>, </em><em>optional</em>) – Force the output to a specific CRS (e.g. “EPSG:3857”). If None, a
+UTM CRS is estimated from a sample tile.</p></li>
+<li><p><strong>dont_reproject</strong> (<em>bool</em><em>, </em><em>optional</em>) – Skip per-tile reprojection during the uint8 conversion step. Useful
+when all tiles are already in the same CRS.</p></li>
+<li><p><strong>dedup</strong> (<em>bool</em><em>, </em><em>optional</em>) – When True, tiles with matching footprints but different dates are
+deduplicated to keep only the most recent.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The merged raster, reprojected to crs (or the estimated UTM CRS).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>xarray.DataArray</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<dl class="simple">
+<dt>Writes to disk:</dt><dd><ul class="simple">
+<li><p>a subfolder with each tif copied as uint8 (if they weren’t already uint8)</p></li>
+<li><p>footprints.gpkg  (using bounding_boxes.py)</p></li>
+<li><p>merged.tif</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 </section>
@@ -878,6 +1387,16 @@ Default is False.</p></li>
 <li class="toctree-l2"><a class="reference internal" href="#full-indices-pipeline">Full Indices Pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#catchments">Catchments</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opportunities">Opportunities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#classifications">Classifications</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#binary-tree-rasters">Binary Tree Rasters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bounding-boxes">Bounding Boxes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lidar">LiDAR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sentinel-download">Sentinel Download</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#training-pipeline">Training Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prediction">Prediction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mosaicking">Mosaicking</a></li>
 </ul>
 </li>
 </ul>

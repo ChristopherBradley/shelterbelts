@@ -17,7 +17,7 @@ Key Features
 ------------
 
 1. **Tree categorisation** — classifies pixels as scattered trees, patch core, patch edge, or corridors based on nearby connectivity.
-2. **Shelter categorisation** — determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to Stewarts et al.
+2. **Shelter categorisation** — determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to `Stewart et al. 2024 <http://doi.org/10.25919/qh4m-8988>`_
 3. **Cover categorisation** — integrates `ESA WorldCover 2021 <https://esa-worldcover.org/>`_ land-cover classes (grassland, cropland, urban, water) with shelter categories
 4. **Buffer categorisation** — identify riparian and roadside tree buffers using the `National Surface Hydrology Lines <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/83107>`_ and `National Roads <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684>`_ datasets
 5. **Shelter metrics** — compute patch and class landscape statistics similar to `FragStats <https://fragstats.org/index.php/documentation>`_
@@ -25,6 +25,7 @@ Key Features
 7. **API integrations** — download data from `ANU BARRA-C2 <https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/f2551_3726_7908_8861>`_ (wind), `WRI Canopy Height <https://registry.opendata.aws/dataforgood-fb-forestsv2/>`_, and `ESA WorldCover <https://esa-worldcover.org/>`_
 8. **Command-line interface** — all index modules can be run in python scripts or directly from the terminal
 9. **Scalable** — designed for national-scale processing on HPC systems (NCI Gadi)
+10. **Classifying trees from raw inputs** — LAZ point clouds (via PDAL), Sentinel-2 imagery (with a bundled pre-trained neural network), or train your own model on labelled tiles
 
 Example Output
 --------------
@@ -35,32 +36,24 @@ ridges identified) on the right.
 
 .. plot::
 
-   import matplotlib.pyplot as plt
-   import rioxarray as rxr
-   from shelterbelts.indices.buffer_categories import buffer_categories, buffer_categories_cmap, buffer_categories_labels
-   from shelterbelts.utils.visualisation import _plot_categories_on_axis
-   from shelterbelts.utils.filepaths import get_filename
+    import matplotlib.pyplot as plt
+    import rioxarray as rxr
+    from shelterbelts.indices.all_indices import indices_tif
+    from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
+    from shelterbelts.utils.visualisation import _plot_categories_on_axis
+    from shelterbelts.utils.filepaths import get_filename
 
-   # Binary tree cover (left)
-   tree_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
-   da_trees = rxr.open_rasterio(tree_file).squeeze('band').drop_vars('band')
-   tree_cmap = {0: (255, 255, 255), 1: (14, 138, 0)}
-   tree_labels = {0: 'No Trees', 1: 'Woody Vegetation'}
+    tree_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
+    da_trees = rxr.open_rasterio(tree_file).squeeze('band').drop_vars('band')
+    tree_cmap = {0: (255, 255, 255), 1: (14, 138, 0)}
+    tree_labels = {0: 'No Trees', 1: 'Woody Vegetation'}
 
-   # Buffer categories with gullies + roads + ridges (right)
-   cover_file = get_filename('g2_26729_cover_categories.tif')
-   gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
-   ridges_file = get_filename('g2_26729_DEM-S_ridges.tif')
-   roads_file = get_filename('g2_26729_roads.tif')
-   ds_all = buffer_categories(
-       cover_file, gullies_file, ridges_data=ridges_file, roads_data=roads_file,
-       outdir='/tmp', stub='demo', plot=False, savetif=False
-   )
+    ds_linear, _ = indices_tif(tree_file, outdir='/tmp', stub='test')
 
-   fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
-   _plot_categories_on_axis(ax1, da_trees, tree_cmap, tree_labels, 'Example Input', legend_inside=True)
-   _plot_categories_on_axis(ax2, ds_all['buffer_categories'], buffer_categories_cmap, buffer_categories_labels, 'Example Output', legend_inside=True)
-   plt.tight_layout()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+    _plot_categories_on_axis(ax1, da_trees, tree_cmap, tree_labels, 'Example Input', legend_inside=True)
+    _plot_categories_on_axis(ax2, ds_linear['linear_categories'], linear_categories_cmap, linear_categories_labels, 'Example Output', legend_inside=True)
+    plt.tight_layout()
 
 
 Visualise Results
@@ -158,3 +151,4 @@ API Reference
    :maxdepth: 2
 
    modules
+   workflow_at_scale
