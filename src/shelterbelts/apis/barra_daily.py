@@ -204,7 +204,7 @@ def wind_dataframe(ds):
     
     return df, max_speed, direction_max_speed
 
-# Use example =
+## Usage example
 # df, max_speed, max_direction = wind_dataframe(ds)
 # df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
 # direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]

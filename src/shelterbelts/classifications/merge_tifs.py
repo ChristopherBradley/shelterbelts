@@ -4,13 +4,14 @@ import os
 import argparse
 import re
 
+import rasterio
 import rioxarray as rxr
 import pandas as pd
 import numpy as np
 
-
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
 from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
+from shelterbelts.utils.visualisation import tif_categorical
 
 
 def extract_year(name):
@@ -108,7 +109,7 @@ def merge_tifs(base_dir, tmpdir='/tmp', suffix='.tif', subdir='', crs=None, dont
             if i % 100 == 0:
                 print(f"Saved {i}/{len(filenames)}:", outpath)
 
-    stub = f"{'_'.join(outdir.split('/')[-2:]).split('.')[0]}_{suffix_stub}"
+    stub = f"{'_'.join(outdir.split('/')[-2:]).split('.')[0]}_{suffix_stub}".rstrip('_')
     gdf = bounding_boxes(outdir, crs=final_crs, stub=stub, filetype=suffix)
 
     full_bounds = [gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
@@ -124,7 +125,7 @@ def merge_tifs(base_dir, tmpdir='/tmp', suffix='.tif', subdir='', crs=None, dont
             columns=["minx", "miny", "maxx", "maxy"],
             index=gdf.index
         )
-        bounds["group"] = cluster_bounds(bounds, tol=0.002)
+        bounds["group"] = cluster_bounds(bounds, tolerance=0.002)
         gdf_groups = gdf.join(bounds["group"])
         gdf_dedup = (
             gdf_groups.sort_values("date")
@@ -150,8 +151,20 @@ def merge_tifs(base_dir, tmpdir='/tmp', suffix='.tif', subdir='', crs=None, dont
     parent_dir = os.path.dirname(base_dir) # Best not to save the merged result in the save folder as the original data, in case you want to run the merge again
     outpath = os.path.join(parent_dir, f'{base_stub}_merged{suffix}')
 
-    da.rio.to_raster(outpath, compress="lzw")
-    print(f"Saved: {outpath}", flush=True)
+    colormap = None
+    for f in gdf_dedup['filename']:
+        try:
+            with rasterio.open(os.path.join(outdir, f)) as src:
+                colormap = src.colormap(1)
+            break
+        except Exception:
+            pass
+
+    if colormap:
+        tif_categorical(da.astype('uint8'), filename=outpath, colormap=colormap)
+    else:
+        da.rio.to_raster(outpath, compress="lzw")
+        print(f"Saved: {outpath}", flush=True)
 
     return da
 
