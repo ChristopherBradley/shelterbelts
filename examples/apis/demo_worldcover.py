@@ -90,25 +90,18 @@ ds = worldcover(plot=False)
 # You can also use the function from the command line with the same defaults and parameters.
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
+# !python -m shelterbelts.apis.worldcover --help
 
 # %%
-# !python shelterbelts/apis/worldcover.py --help
+# !python -m shelterbelts.apis.worldcover
 
 # %%
-# !python shelterbelts/apis/worldcover.py
-
-# %%
-# !python shelterbelts/apis/worldcover.py --lat -35.287 --lon 149.117 --buffer 0.02 --stub command_line --outdir ../examples/apis/outdir
+# !python -m shelterbelts.apis.worldcover --lat -35.287 --lon 149.117 --buffer 0.02 --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/apis/*.tif
-# !rm ../examples/apis/*.png
-
-# %%
-# !rm -r ../examples/apis/outdir
+# # !rm *.tif
+# # !rm *.png

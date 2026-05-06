@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -24,7 +24,7 @@ from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.utils.visualisation import visualise_categories
 
 # %% [markdown]
-# ## WorldCover → binary tree raster
+# ## WorldCover to binary tree raster
 #
 # Classes 10 (Tree cover) and 20 (Shrubland) become 1 and everything else becomes 0.
 
@@ -41,7 +41,7 @@ ds = worldcover_trees(filename, savetif=False, plot=False)
 visualise_categories(ds['woody_veg'], colormap=cmap_woody_veg, labels=labels_woody_veg, title='Binary Tree Cover')
 
 # %% [markdown]
-# ## Canopy height → binary tree raster
+# ## Canopy height to binary tree raster
 #
 # Everything above 1 m becomes a 'tree' pixel, coarsened to 10m using max resampling (note this is a different location to the example above).
 

@@ -65,10 +65,6 @@ visualise_categories(
 # ## Command Line Interface
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
-
-# %%
 # !python -m shelterbelts.indices.cover_categories --help
 
 # %%
@@ -79,6 +75,6 @@ setup_repo_path()
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/indices/*.tif
-# !rm ../examples/indices/*.png
-# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS
+# # !rm *.tif
+# # !rm *.png
+# # !rm *.xml  # These get generated if you load the tifs in QGIS

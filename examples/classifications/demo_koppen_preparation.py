@@ -8,7 +8,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -38,12 +38,24 @@ from shapely.ops import unary_union
 # ## 1. Read the KML
 
 # %%
+# !ls /g/data/xe2/cb8590/Outlines
+
+ # %%
+ # Local filepaths
+world_koppen_filepath = 'World_Köppen.kml' 
+aus_boundary_filepath = 'AUS_2021_AUST_GDA2020.shp'
+
+# # NCI filepaths
+# world_koppen_filepath = '/g/data/xe2/cb8590/Outlines/World_Köppen.kml'
+# aus_boundary_filepath = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
+
+# %%
 # Enable KML support in fiona, explained by https://gis.stackexchange.com/questions/114066/handling-kml-csv-with-geopandas-drivererror-unsupported-driver-ucsv
 for drv in ('kml', 'KML', 'LIBKML', 'libkml'):
     fiona.drvsupport.supported_drivers[drv] = 'rw'
 
 # Fixing a Latin-1 byte bug that made the XML parser fail
-raw = open('World_Köppen.kml', 'rb').read()
+raw = open(world_koppen_filepath, 'rb').read()
 fixed = raw.replace(b'\xf6', 'ö'.encode('utf-8'))
 with tempfile.NamedTemporaryFile(suffix='.kml', delete=False) as f:
     f.write(fixed)
@@ -67,7 +79,7 @@ print(f'{len(points)} label points, {len(polygons)} zone polygons')
 # ## 3. Clip to Australia and attach labels
 
 # %%
-australia = gpd.read_file('AUS_2021_AUST_GDA2020.shp').to_crs(polygons.crs)
+australia = gpd.read_file(aus_boundary_filepath).to_crs(polygons.crs)
 australia_geom = australia.geometry.iloc[0]
 polygons = polygons[polygons.intersects(australia_geom)].copy()
 print(f'{len(polygons)} polygons intersecting Australia')

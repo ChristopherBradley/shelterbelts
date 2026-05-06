@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -100,26 +100,16 @@ ds = canopy_height(plot=False)
 # You can also use the function from the command line with the same defaults and parameters.
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
+# !python -m shelterbelts.apis.canopy_height --help
 
 # %%
-# !python shelterbelts/apis/canopy_height.py --help
-
-# %%
-# !python shelterbelts/apis/canopy_height.py --lat -35.287 --lon 149.117 --buffer 0.01 --stub command_line --outdir ../examples/apis/outdir --tmpdir ../examples/apis/tmpdir
+# !python -m shelterbelts.apis.canopy_height --lat -34.68 --lon 148.96 --buffer 0.01 --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/apis/*.tif
-# !rm ../examples/apis/*.png
-# !rm ../examples/apis/*.geojson
-
-# %%
-# !rm -r ../examples/apis/outdir
-
-# %%
-# !rm -r ../examples/apis/tmpdir
+# # !rm *.tif
+# # !rm *.png
+# # !rm *.geojson

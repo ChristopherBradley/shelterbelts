@@ -127,26 +127,19 @@ print(f"Daily data shape: {ds.dims}")
 # You can also use the function from the command line with the same defaults and parameters.
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
-
-# %%
-# !python shelterbelts/apis/barra_daily.py --help
+# !python -m shelterbelts.apis.barra_daily --help
 
 # %%
 # %%time
-# !python shelterbelts/apis/barra_daily.py
+# !python -m shelterbelts.apis.barra_daily
 
 # %%
-# !python shelterbelts/apis/barra_daily.py --lat -35.287 --lon 149.117 --start_year 2020 --end_year 2020 --stub command_line --outdir ../examples/apis/outdir
+# !python -m shelterbelts.apis.barra_daily --lat -35.287 --lon 149.117 --start_year 2020 --end_year 2020 --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/apis/*.nc
-# !rm ../examples/apis/*.png
-
-# %%
-# !rm -r ../examples/apis/outdir
+# # !rm *.nc
+# # !rm *.png

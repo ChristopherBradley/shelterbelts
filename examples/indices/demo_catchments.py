@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -56,20 +56,16 @@ plot_catchments_sidebyside(ds5, ds20, title1='num_catchments=5', title2='num_cat
 # ## Command Line Interface
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
-
-# %%
 # !python -m shelterbelts.indices.catchments --help
 
 # %%
-# !python -m shelterbelts.indices.catchments {dem_file} --num_catchments 7 --stub command_line --outdir ../examples/indices
+# !python -m shelterbelts.indices.catchments {dem_file} --num_catchments 7 --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/indices/*.tif
-# !rm ../examples/indices/*.png
-# !rm ../examples/indices/*.xml
+# # !rm *.tif
+# # !rm *.png
+# # !rm *.xml

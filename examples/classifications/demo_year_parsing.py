@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -31,7 +31,11 @@ from shapely.ops import unary_union
 # ## 1. Read the clipped LiDAR footprints
 
 # %%
-gdf = gpd.read_file('lidar_clipped.gpkg')
+filepath_lidar_gpkg = 'lidar_clipped.gpkg'  # Local
+# filepath_lidar_gpkg = '/g/data/xe2/cb8590/Nick_outlines/lidar_clipped.gpkg'  # NCI
+
+# %%
+gdf = gpd.read_file(filepath_lidar_gpkg)
 print(f'{len(gdf)} rows, {gdf["filename"].nunique()} unique tiff tiles')
 
 # %% [markdown]

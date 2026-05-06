@@ -65,6 +65,8 @@ def random_forest(training_file, outdir=".", stub="TEST", output_column='tree_co
         df = df.sample(limit, random_state=random_state)
 
     df_train, df_test = my_train_test_split(df, stratification_columns, train_frac, random_state)
+    df_train = df_train.dropna()
+    df_test = df_test.dropna()
 
     non_input_columns = [output_column] + drop_columns
     X_train, X_test, y_train, y_test, scaler = inputs_outputs_split(df_train, df_test, outdir, stub, non_input_columns, output_column)

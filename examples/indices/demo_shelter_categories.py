@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -169,24 +169,20 @@ visualise_categories_sidebyside(
 # You can also use the function from the command line with the same defaults and parameters.
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
-
-# %%
-# !python shelterbelts/indices/shelter_categories.py --help  # Could use -m to avoid needing the setup_repo_path (but we need this anyway for the file removing later)
+# !python -m shelterbelts.indices.shelter_categories --help
 
 # %%
 # %%time
-# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --stub command_line_defaults --outdir ../examples/indices
+# !python -m shelterbelts.indices.shelter_categories {tree_categories_file} --stub command_line_defaults
 
 # %%
-# !python shelterbelts/indices/shelter_categories.py {tree_categories_file} --wind_data {wind_file} --height_tif {height_file} --wind_method MOST_COMMON --distance_threshold 10 --stub command_line --outdir ../examples/indices
+# !python -m shelterbelts.indices.shelter_categories {tree_categories_file} --wind_data {wind_file} --height_tif {height_file} --wind_method MOST_COMMON --distance_threshold 10 --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/indices/*.tif
-# !rm ../examples/indices/*.png
-# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS
+# # !rm *.tif
+# # !rm *.png
+# # !rm *.xml  # These get generated if you load the tifs in QGIS

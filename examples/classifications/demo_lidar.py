@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -53,7 +53,7 @@ chm, da_tree = lidar(
 chm.plot() # Maximum height of a point in each pixel
 
 # %%
-da_tree.plot()  # percent cover raster (but each pixel is 100% tree cover)
+da_tree.plot()  # percent cover raster (but each pixel is 100% tree cover due to the matching resolution)
 
 # %% [markdown]
 # ## Changing the height threshold
@@ -74,4 +74,4 @@ chm, da_tree = lidar(
     laz_sample,
     resolution=5 # metres
 )
-da_tree.plot() # Percent cover raster (edges now have only partial tree cover)
+da_tree.plot() # Percent cover raster (now the edges only have partial tree cover)

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.16.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -69,15 +69,6 @@ query
 dc = datacube.Datacube(app='demo_sentinel_nci')
 ds = load_and_process_data(dc, query)
 ds
-
-# %% [markdown]
-# ## Output format
-
-# %%
-print("Dimensions :", dict(ds.dims))
-print("Bands      :", list(ds.data_vars))
-print("CRS        :", ds.rio.crs)
-print("Time steps :", ds.time.values)
 
 # %% [markdown]
 # ## Example Visualisation

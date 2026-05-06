@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -27,10 +27,12 @@ from shelterbelts.indices.buffer_categories import buffer_categories_cmap, buffe
 
 # Example data
 cover_file = get_filename('g2_26729_cover_categories.tif')
-# gullies_file = get_filename('g2_26729_DEM-S_gullies.tif')
 gullies_file = get_filename('g2_26729_hydrolines.tif')
 ridges_file = get_filename('g2_26729_DEM-S_ridges.tif')
 roads_file = get_filename('g2_26729_roads.tif')
+
+# %%
+# !pwd
 
 # %% [markdown]
 # ## Default Parameters (gullies only)
@@ -78,20 +80,16 @@ visualise_categories_sidebyside(
 # ## Command Line Interface
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
-
-# %%
 # !python -m shelterbelts.indices.buffer_categories --help
 
 # %%
-# !python -m shelterbelts.indices.buffer_categories {cover_file} {gullies_file} --roads_data {roads_file} --buffer_width 4 --outdir ../examples/indices --stub command_line
+# !python -m shelterbelts.indices.buffer_categories {cover_file} {gullies_file} --roads_data {roads_file} --buffer_width 4 --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/indices/*.tif
-# !rm ../examples/indices/*.png
-# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS
+# # !rm *.tif
+# # !rm *.png
+# # !rm *.xml  # These get generated if you load the tifs in QGIS

@@ -121,7 +121,7 @@ def worldcover(lat=-34.389, lon=148.469, buffer=0.01, outdir=".", stub="TEST", s
     --------
     Download a small tile without saving files:
 
-    >>> ds = worldcover(buffer=0.01, save_tif=False, plot=False)
+    >>> ds = worldcover(buffer=0.005, save_tif=False, plot=False)
     Starting worldcover.py
     >>> 'worldcover' in ds.data_vars
     True

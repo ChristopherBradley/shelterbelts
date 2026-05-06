@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -79,25 +79,21 @@ dfs['Shelter']
 # ## Command Line Interface
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
-
-# %%
 # !python -m shelterbelts.indices.shelter_metrics --help
 
 # %%
-# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --outdir ../examples/indices --stub command_line
+# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --stub command_line
 
 # %%
-# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --min_shelterbelt_length 25 --max_shelterbelt_width 8 --outdir ../examples/indices --stub command_line
+# !python -m shelterbelts.indices.shelter_metrics {buffer_file} --min_shelterbelt_length 25 --max_shelterbelt_width 8 --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/indices/*.tif
-# !rm ../examples/indices/*.png
-# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS
-# !rm ../examples/indices/*.xlsx
-# !rm ../examples/indices/*.csv
+# # !rm *.tif
+# # !rm *.png
+# # !rm *.xml  # These get generated if you load the tifs in QGIS
+# # !rm *.xlsx
+# # !rm *.csv

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -19,7 +19,7 @@
 # ``random_forest`` and ``neural_network`` (multi-layer perceptron) are two
 # classifiers that predict tree vs non-tree pixels from temporally-aggregated
 # Sentinel-2 features. This notebook trains both on the same sample CSV and
-# compares their held-out accuracy.
+# compares their testing accuracy.
 
 # %%
 from shelterbelts.classifications.random_forest import random_forest

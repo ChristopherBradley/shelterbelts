@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -117,25 +117,21 @@ visualise_categories_sidebyside(
 # You can also use the function from the command line with the same defaults and parameters.
 
 # %%
-from shelterbelts.utils.filepaths import setup_repo_path
-setup_repo_path()
-
-# %%
-# !python shelterbelts/indices/tree_categories.py --help
+# !python -m shelterbelts.indices.tree_categories --help
 
 # %%
 # %%time
-# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --stub command_line_defaults --outdir ../examples/indices
+# !python -m shelterbelts.indices.tree_categories {binary_tree_file} --stub command_line_defaults
 
 # %%
-# !python shelterbelts/indices/tree_categories.py {binary_tree_file} --min_patch_size 40 --min_core_size 100 --edge_size 2 --max_gap_size 2 --no-strict-core-area --stub command_line --outdir ../examples/indices
+# !python -m shelterbelts.indices.tree_categories {binary_tree_file} --min_patch_size 40 --min_core_size 100 --edge_size 2 --max_gap_size 2 --no-strict-core-area --stub command_line
 
 # %% [markdown]
 # ### Cleanup
 # Remove the output files created by this notebook
 
 # %%
-# !rm ../examples/indices/*.tif
-# !rm ../examples/indices/*.png
-# !rm ../examples/indices/*.xml  # These get generated if you load the tifs in QGIS
+# # !rm *.tif
+# # !rm *.png
+# # !rm *.xml  # These get generated if you load the tifs in QGIS
 

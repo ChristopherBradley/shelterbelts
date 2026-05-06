@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.16.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -27,7 +27,7 @@ import requests
 # %%
 # # NCI Filepaths
 # canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height_v2'                                       # Initially empty directory
-# canopy_height_aus_gpkg = '/g/data/xe2/datasets/Global_Canopy_Height/canopy_height_tiles_aus.gpkg'       # Created this by running demo_canopy_heihgt.py, and intersecting the resulting tiles_global.py with the aus boundary in QGIS.
+# canopy_height_aus_gpkg = '/home/147/cb8590/Projects/shelterbelts/tiles_global.geojson'                  # Created this by running demo_canopy_height.py, and intersecting the resulting tiles_global.py with the aus boundary in QGIS. Note: need to make sure this matches the canopy_baseurl, since v1 used 60km tiles and v2 uses 30km tiles (will get a 404 error if it doesn't match).
 # tiles_gpkg = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m/cb8590_Nick_Aus_treecover_10m_footprints.gpkg'  # Created this with bounding_boxes.py
 
 
@@ -40,7 +40,7 @@ tiles_gpkg = '/home/christopher-bradley/repos/shelterbelts/examples/classificati
 
 # %%
 # canopy_baseurl = 'https://s3.amazonaws.com/dataforgood-fb-data/forests/v1/alsgedi_global_v6_float/chm/'  # v1
-canopy_baseurl = 'https://s3.amazonaws.com/dataforgood-fb-data/forests/v2/global/dinov3_global_chm_v2_ml3/chm/'  # v2
+canopy_baseurl = 'https://s3.amazonaws.com/dataforgood-fb-data/forests/v2/global/dinov3_global_chm_v2_ml3/chm/'  # v2 (much better)
 
 # %%
 # Find the relevant tiles in Australia
@@ -69,8 +69,7 @@ print(f'Tiles still to download: {len(to_download)}')
 
 # %%
 # Just download a single tile for testing
-to_download = to_download[:1]
-to_download
+to_download = ['3112213110']
 
 # %%
 for tile in to_download:
@@ -81,4 +80,4 @@ for tile in to_download:
             shutil.copyfileobj(stream.raw, out)
         print(f'Downloaded {filename}')
 
-# %%
+print("Status code:", requests.head(url).status_code)

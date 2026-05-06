@@ -92,36 +92,8 @@ def get_example_tree_categories_data():
 
 
 def get_filename(filename):
-    """Find example data file for use in Sphinx plot directives.
-    
-    Parameters
-    ----------
-    filename : str
-        Name of the example data file
-    
-    Returns
-    -------
-    str
-        Path to the example data file
-    
-    Raises
-    ------
-    FileNotFoundError
-        If the data file cannot be found in any expected location
-    """
-    possible_paths = [
-        Path('data') / filename,
-        Path.cwd().parent / 'data' / filename,
-        Path.cwd().parent.parent / 'data' / filename]
-    
-    for path in possible_paths:
-        if path.exists():
-            return str(path)
-    
-    raise FileNotFoundError(
-        f"Data file '{filename}' not found in any expected location. "
-        f"Checked: {[str(p) for p in possible_paths]}"
-    )
+    """Find example data file bundled in the repository's data/ directory."""
+    return str(_repo_root / 'data' / filename)
 
 def setup_repo_path(repo_name='shelterbelts', subdir='src'):
     """Set up repository path for notebooks running in different environments.

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -122,10 +122,10 @@ visualise_categories_sidebyside(
 # Remove output files created by this notebook
 
 # %%
-# !rm ./*.png
-# !rm ./*.csv
-# !rm ./*.xml  # Generated if tifs are opened in QGIS
-# !rm ./*.gpkg
-# !rm ./*.geojson
+# # !rm ./*.png
+# # !rm ./*.csv
+# # !rm ./*.xml  # Generated if tifs are opened in QGIS
+# # !rm ./*.gpkg
+# # !rm ./*.geojson
 
-# # !rm ./*.tif # Commenting this out by default so you don't have to redownload the 60MB chm.tif
+# # # !rm ./*.tif # Double commenting this out by default so you don't have to redownload the 60MB chm.tif

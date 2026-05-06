@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -136,7 +136,7 @@ def create_df_evaluation(limit=5000):
 
 
 # df_all = create_df_evaluation()
-df_all = pd.read_csv(f'{nick_outlines}/df_evaluation_10pct-90pct.csv')
+df_all = pd.read_csv(f'{nick_outlines}/df_evaluation_10%-90%_2017-2024_limit5000.csv')
 
 # %% [markdown]
 # ## 4. Precision / recall / accuracy per Köppen zone

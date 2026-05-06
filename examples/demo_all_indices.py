@@ -20,12 +20,10 @@
 # tree_categories → shelter_categories → cover_categories → buffer_categories → patch_metrics
 
 # %%
-from shelterbelts.utils.filepaths import get_filename, setup_repo_path
+from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.utils.visualisation import visualise_categories_sidebyside, visualise_categories
 from shelterbelts.indices.all_indices import indices_tif, indices_tifs
 from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels, class_metrics
-
-setup_repo_path(subdir='')
 
 # # Example data
 # tree_cover_file = get_filename('g2_26729_binary_tree_cover_10m.tiff')
