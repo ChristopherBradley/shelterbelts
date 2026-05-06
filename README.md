@@ -73,6 +73,7 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 2. `ssh {username}@nci.org.au` and enter the password used to create your account.
 3. `git clone https://github.com/ChristopherBradley/shelterbelts.git`
 4. There are examples usage of the environments in pbs_scripts
+5. (optional) I like to have git ignore the .ipynb files, so that images don't clog up the git history `git ls-files "*.ipynb" | xargs git update-index --skip-worktree`
 
 ## Usage on NCI ARE (National Computing Infrastructure's Australian Research Environment)
 1. Login here: https://are.nci.org.au/
@@ -84,11 +85,16 @@ There are jupyter notebooks to demo the functionality of this repo in `examples`
 
 # Testing
 If on gadi:
-`qsub -I -P xe2 -q copyq -l ncpus=1 -l mem=8GB -l walltime=02:00:00 -l storage=gdata/xe2+scratch/xe2 -l wd`
+`qsub -I -P xe2 -q copyq -l ncpus=1 -l mem=8GB -l walltime=02:00:00 -l storage=gdata/xe2+scratch/xe2+gdata/v10+gdata/ka08 -l wd`
 
 Then:
-`conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts`
-`pytest tests`
+`conda activate shelterbelts`
+`pytest tests`  # everything should pass except test_sentinel_nci.py
+
+Finally:
+`module use /g/data/v10/public/modules/modulefiles`
+`module load dea/20231204`
+`pytest tests/test_classifications/test_sentinel_nci.py`
 
 # Documentation
 Generate the html: 
