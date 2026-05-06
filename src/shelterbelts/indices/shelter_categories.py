@@ -468,22 +468,3 @@ if __name__ == '__main__':
         plot=args.plot,
     )
 
-
-# +
-# outdir = '../../../outdir/'
-# stub = 'g2_26729'
-# category_tif = f"{outdir}{stub}_tree_categories.tif"
-# height_tif = f"{outdir}{stub}_canopy_height.tif"
-# wind_nc = f"{outdir}{stub}_barra_daily.nc"
-# wind_method = 'MOST_COMMON'
-# wind_threshold = 15
-# distance_threshold = 20
-# minimum_height = 1
-# wind_dir='E'
-# max_distance=20
-# density_threshold=10
-
-# +
-# # # %%time
-# distances = shelter_categories(category_tif, wind_nc, wind_method='WINDWARD')
-# # da = shelter_categories(category_tif)

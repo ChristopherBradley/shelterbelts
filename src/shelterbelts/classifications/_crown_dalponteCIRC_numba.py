@@ -5,8 +5,9 @@ Copyright: 2018, Jan Zörner
 Licence: GNU GPLv3
 
 Source: https://github.com/manaakiwhenua/pycrown
-Algorithm: Dalponte and Coomes (2016), circular region-growing variant
 """
+# Cloned this file rather than a pip install due to dependency issues in recent versions of python.
+# Also added the 'crowns_to_gpkg' function at the bottom to save a geopackage for visualisation in QGIS.
 
 import os
 
@@ -212,22 +213,21 @@ def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=10):
     Parameters
     ----------
     chm_tif : str
-        Path to a canopy height model GeoTiff (1 m resolution recommended).
+        Path to a canopy height model GeoTiff.
     outdir : str
-        Directory where the output GeoPackage is written.
+        Output directory for saving results.
     stub : str
-        Prefix for the output filename (``{stub}_crowns.gpkg``).
+        Prefix for output filenames.
     height_threshold : float, optional
-        Minimum height in metres for a pixel to be considered a tree. Default 2.
+        Minimum height in metres for a pixel to be considered a tree.
     max_crown_m : float, optional
-        Maximum crown radius in metres. Default 10.
+        Maximum crown radius in metres.
 
     Returns
     -------
     geopandas.GeoDataFrame or None
         Crown polygons with columns treeID, mean_height_m, median_height_m,
-        max_height_m, q3_height_m, p90_height_m. Returns None if no trees
-        are detected.
+        max_height_m, q3_height_m, p90_height_m.
     """
     with rasterio.open(chm_tif) as src:
         chm_raw = src.read(1).astype(np.float32)

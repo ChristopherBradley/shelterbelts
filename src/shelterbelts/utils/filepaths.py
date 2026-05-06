@@ -11,7 +11,6 @@ _repo_root = Path(__file__).resolve().parent.parent.parent.parent
 IS_GADI = Path('/scratch').exists()
 if IS_GADI:
     # NCI/Gadi file paths
-    default_outdir = '/scratch/xe2/cb8590/tmp'
     default_tmpdir = '/scratch/xe2/cb8590/tmp'
     worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
     worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
@@ -19,7 +18,6 @@ if IS_GADI:
     roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 else:
     # Local defaults
-    default_outdir = '.'
     default_tmpdir = '.'
     worldcover_dir = str(_repo_root / 'data')  # Using this '/' operator means the filepaths should work on both windows and mac.
     worldcover_geojson = str(_repo_root / 'data' / 'g2_26729_worldcover_footprints.geojson')
@@ -43,16 +41,6 @@ canopy_height_folder = '/scratch/xe2/cb8590/Nick_GCH'
 nick_outlines = '/g/data/xe2/cb8590/Nick_outlines'
 nick_aus_treecover_10m = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
 koppen_australia = '/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg'
-
-# NCI/Gadi file paths - Model data
-nn_models_dir = '/g/data/xe2/cb8590/models'
-
-# NCI/Gadi file paths - BARRA bounding boxes and related data
-barra_bboxs_dir = '/g/data/xe2/cb8590/Outlines/B_yearsARRA_bboxs'
-barra_bboxs_full = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg'
-state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-aus_boundaries = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
-elvis_outputs_dir = '/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/'
 
 # NCI/Gadi file paths - DEM data
 nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
@@ -95,44 +83,6 @@ def get_example_tree_categories_data():
 def get_filename(filename):
     """Find example data file bundled in the repository's data/ directory."""
     return str(_repo_root / 'data' / filename)
-
-def setup_repo_path(repo_name='shelterbelts', subdir='src'):
-    """Set up repository path for notebooks running in different environments.
-    
-    Detects whether running from repo root, local notebook, or Gadi,
-    updates sys.path with src directory, and changes cwd to src directory.
-    
-    Parameters
-    ----------
-    repo_name : str, optional
-        Name of the repository directory.
-    subdir : str, optional
-        Subdirectory within the repository to change to.
-    
-    Returns
-    -------
-    str
-        Path to the repository root directory
-    """
-    cwd = Path.cwd()
-    if cwd.name == repo_name: # Tests
-        repo_dir = cwd
-    elif cwd.parent.name == repo_name: # Notebooks
-        repo_dir = cwd.parent
-    elif cwd.parent.parent.name == repo_name: # Could make this recursive, but notebooks only go 2 levels deep.
-        repo_dir = cwd.parent.parent
-    elif (Path.home() / 'Projects' / repo_name).exists():
-        repo_dir = Path.home() / 'Projects' / repo_name  # Gadi
-    else:
-        raise RuntimeError("Could not find repository root")
-    
-    repo_dir = str(repo_dir)
-    src_dir = os.path.join(repo_dir, subdir)
-    os.chdir(src_dir)
-    if src_dir not in sys.path:
-        sys.path.insert(0, src_dir)
-
-    return src_dir
 
 
 def get_pretrained_nn(koppen='all'):

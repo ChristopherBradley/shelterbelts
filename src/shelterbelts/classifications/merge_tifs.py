@@ -34,7 +34,7 @@ def cluster_bounds(bounds, tolerance=0.02):
     return groups
 
 
-def merge_tifs(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', subdir='chm', crs=None, dont_reproject=False, dedup=True):
+def merge_tifs(base_dir, tmpdir='/tmp', suffix='.tif', subdir='', crs=None, dont_reproject=False, dedup=False):
     """
     Merge a folder of GeoTIFF tiles into a single uint8 raster.
 
@@ -43,8 +43,7 @@ def merge_tifs(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', s
     base_dir : str
         Directory containing the folder of tif files to be merged.
     tmpdir : str, optional
-        Directory for temporary files (the NCI default is /scratch/xe2/cb8590/tmp;
-        override for local runs).
+        Directory for temporary files.
     suffix : str, optional
         Glob suffix matching the files to merge.
     subdir : str, optional
@@ -134,6 +133,7 @@ def merge_tifs(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', s
         )
         gdf_dedup.crs = gdf.crs
 
+
         filename_dedup = os.path.join(outdir, 'footprints_unique.gpkg')
         gdf_dedup.to_file(filename_dedup)
         print("Saved:", filename_dedup)
@@ -150,8 +150,6 @@ def merge_tifs(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', s
     parent_dir = os.path.dirname(base_dir) # Best not to save the merged result in the save folder as the original data, in case you want to run the merge again
     outpath = os.path.join(parent_dir, f'{base_stub}_merged{suffix}')
 
-    # Might be nice to try to copy the colour scheme from one of the original tifs and add it to the merged output using rasterio
-    da.rio.to_raster(outpath, compress="lzw")
     da.rio.to_raster(outpath, compress="lzw")
     print(f"Saved: {outpath}", flush=True)
 
@@ -163,9 +161,9 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('base_dir', help='Directory containing all the tif files to be merged')
-    parser.add_argument('--tmpdir', default='/scratch/xe2/cb8590/tmp', help='Temporary directory for intermediate files (default: /scratch/xe2/cb8590/tmp)')
-    parser.add_argument('--suffix', default='_res1.tif', help='Suffix of the files to be merged (default: _res1.tif)')
-    parser.add_argument('--subdir', default='chm', help='Subdirectory inside base_dir containing the files (default: chm)')
+    parser.add_argument('--tmpdir', default='/tmp', help='Temporary directory for intermediate files (default: /tmp)')
+    parser.add_argument('--suffix', default='.tif', help='Suffix of the files to be merged (default: .tif)')
+    parser.add_argument('--subdir', default='', help='Subdirectory inside base_dir containing the files (default: empty, tifs sit directly in base_dir)')
     parser.add_argument('--crs', default=None, help='Force the output to be in a certain EPSG. Need to format the crs in full, e.g. EPSG:3857')
     parser.add_argument("--dont_reproject", action="store_true", help="Don't do any reprojecting. Default: False")
     parser.add_argument("--dedup", action="store_true", help="Deduplicate tiles with the same bbox but different years (use the most recent). Default: False")

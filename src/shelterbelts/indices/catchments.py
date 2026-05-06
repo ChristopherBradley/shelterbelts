@@ -288,18 +288,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     catchments(args.terrain_tif, outdir=args.outdir, stub=args.stub, tmpdir=args.tmpdir, num_catchments=args.num_catchments, savetif=args.savetif, plot=args.plot)
-
-
-# outdir = '../../../outdir/'
-# stub = 'g2_26729'
-# filename_terrain_tiles = os.path.join(outdir, f"{stub}_terrain.tif")
-# filename_DEM_H = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
-# filename_1m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/1 Metre/Young201709-LID1-AHD_6306194_55_0002_0002_1m.tif"
-# filename_5m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/5 Metre/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"
-# filename_DEM_S = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_Smoothed_470806/1_Second_DEM_Smoothed.tif"
-# filename_DEM_Normal = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_470805/1_Second_DEM.tif"
-
-# # ds = catchments(filename_1m, outdir="../../../outdir", stub="g2_26729_1m")
-# # ds = catchments(filename_5m, outdir="../../../outdir", stub="g2_26729_5m")
-# ds = catchments(filename_DEM_Normal, outdir="../../../outdir", stub="g2_26729_DEM-Normal")
-# plot_catchments(ds)
