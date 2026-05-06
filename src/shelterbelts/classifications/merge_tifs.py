@@ -134,7 +134,6 @@ def merge_tifs(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', s
         )
         gdf_dedup.crs = gdf.crs
 
-
         filename_dedup = os.path.join(outdir, 'footprints_unique.gpkg')
         gdf_dedup.to_file(filename_dedup)
         print("Saved:", filename_dedup)
@@ -148,9 +147,11 @@ def merge_tifs(base_dir, tmpdir='/scratch/xe2/cb8590/tmp', suffix='_res1.tif', s
     ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
     da = ds[suffix_stub].rio.reproject(final_crs)  # This cleans up the nan values around the edge
 
-    parent_dir = os.path.dirname(base_dir)  # Save outside base_dir so re-running the merge is idempotent.
+    parent_dir = os.path.dirname(base_dir) # Best not to save the merged result in the save folder as the original data, in case you want to run the merge again
     outpath = os.path.join(parent_dir, f'{base_stub}_merged{suffix}')
 
+    # Might be nice to try to copy the colour scheme from one of the original tifs and add it to the merged output using rasterio
+    da.rio.to_raster(outpath, compress="lzw")
     da.rio.to_raster(outpath, compress="lzw")
     print(f"Saved: {outpath}", flush=True)
 

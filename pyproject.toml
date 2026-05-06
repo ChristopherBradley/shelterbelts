@@ -43,7 +43,8 @@ dependencies = [
     "earthengine-api",
     "geemap",
     "tqdm",
-    "awscli"
+    "awscli",
+    "numba"
 ]
 
 [project.optional-dependencies]

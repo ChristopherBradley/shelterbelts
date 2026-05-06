@@ -29,6 +29,7 @@
 !models/**
 
 data/multiple_binary_tifs/*.gpkg
+*.copc*
 
 # Ignore directories
 outdir
