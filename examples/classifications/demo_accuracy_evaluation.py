@@ -129,6 +129,23 @@ print(f"{len(gdf_outlines)} tiles remaining")
 # # This took about 4 hours in a pbs job
 # # save_crops(gdf_outlines, canopy_height_dir, canopy_height_geojson, canopy_height_folder, 'canopy_height', id_column='tile')
 
+# %%
+# %%time
+
+# Lang trees (ETH Global Canopy Height 10 m, 2020, 3° tiles in EPSG:4326)
+lang_trees_dir     = '/g/data/xe2/cb8590/Lang trees'
+lang_trees_geojson = '/home/147/cb8590/Projects/shelterbelts/lang_trees_footprints.geojson'
+lang_trees_folder  = '/scratch/xe2/cb8590/Nick_Lang_trees'
+
+already_done_lang = {f.replace('_lang_trees.tif', '') for f in os.listdir(lang_trees_folder) if f.endswith('_lang_trees.tif')}
+gdf_lang_remaining = gdf_outlines[~gdf_outlines['stub'].isin(already_done_lang)]
+print(f"{len(gdf_lang_remaining)} lang trees tiles remaining")
+
+# %%
+# # %%time
+# # ~12 mins for 2511 tiles
+# save_crops(gdf_lang_remaining, lang_trees_dir, lang_trees_geojson, lang_trees_folder, 'lang_trees', id_column='tile')
+
 # %% [markdown]
 # ## 3. Sample a jittered grid per tile
 #
@@ -139,6 +156,7 @@ print(f"{len(gdf_outlines)} tiles remaining")
 # %%
 canopy_height_folder_v1 = '/scratch/xe2/cb8590/Nick_GCH'
 canopy_height_folder_v2 = '/scratch/xe2/cb8590/Nick_GCH_v2'
+# lang_trees_folder defined above
 
 gdf_nodesert_joined = gdf_nodesert.to_crs('EPSG:3857').sjoin_nearest(
     gdf_koppen[['geometry', 'Name']], how='left', distance_col='distance_to_koppen')
@@ -155,9 +173,10 @@ def create_df_evaluation(limit=None):
         wc_path    = f'{worldcover_folder}/{tile}_worldcover.tif'
         gch1_path  = f'{canopy_height_folder_v1}/{tile}_canopy_height.tif'
         gch2_path  = f'{canopy_height_folder_v2}/{tile}_canopy_height.tif'
+        lang_path  = f'{lang_trees_folder}/{tile}_lang_trees.tif'
         pred_path  = f'{my_prediction_folder}/{tile}_my_prediction.tif'
 
-        if not all(os.path.exists(p) for p in [label_path, wc_path, gch1_path, gch2_path, pred_path]):
+        if not all(os.path.exists(p) for p in [label_path, wc_path, gch1_path, gch2_path, lang_path, pred_path]):
             continue
 
         ds_label = rxr.open_rasterio(label_path).isel(band=0).drop_vars('band').astype(int)
@@ -167,6 +186,8 @@ def create_df_evaluation(limit=None):
         ds_gch1_trees = (ds_gch1 >= 1).astype(int)
         ds_gch2 = rxr.open_rasterio(gch2_path).isel(band=0).drop_vars('band')
         ds_gch2_trees = (ds_gch2 >= 1).astype(int)
+        ds_lang = rxr.open_rasterio(lang_path).isel(band=0).drop_vars('band')
+        ds_lang_trees = (ds_lang >= 1).astype(int)
         ds_pred = rxr.open_rasterio(pred_path).isel(band=0).drop_vars('band')
         ds_pred_trees = (ds_pred >= 50).astype(int)
 
@@ -175,7 +196,8 @@ def create_df_evaluation(limit=None):
             'worldcover_trees':              ds_wc_trees.rio.reproject_match(ds_pred_trees, resampling=Resampling.max),
             'global_canopy_height_v1_trees': ds_gch1_trees.rio.reproject_match(ds_pred_trees, resampling=Resampling.max),
             'global_canopy_height_v2_trees': ds_gch2_trees.rio.reproject_match(ds_pred_trees, resampling=Resampling.max),
-            'my_predictions':                ds_pred_trees,
+            'lang_trees':                    ds_lang_trees.rio.reproject_match(ds_pred_trees, resampling=Resampling.max),
+            'my_predictions':                ds_pred_trees # .rio.reproject_match(ds_wc_trees, resampling=Resampling.max),  # Reprojecting to worldcover instead lowers the precision of my predictions by ~5% but doesn't seem to affect the other models
         })
         df = jittered_grid(ds, spacing=20)
         df['tile'] = tile
@@ -183,7 +205,7 @@ def create_df_evaluation(limit=None):
         rows.append(df)
 
     df_all = pd.concat(rows)
-    filename = f'{nick_outlines}/df_evaluation_nodesert.csv'
+    filename = f'{nick_outlines}/df_evaluation_nodesert_withlang.csv'
     df_all.to_csv(filename)
     print("Saved:",filename)
     return df_all
@@ -192,12 +214,14 @@ def create_df_evaluation(limit=None):
 df_all = create_df_evaluation()
 df_all
 
+# Saved: '/g/data/xe2/cb8590/Nick_outlines/df_evaluation_nodesert_matchpredictions.csv'
+
 # %% [markdown]
 # ## 4. Precision / recall / accuracy per Köppen zone
 
 # %%
 koppen_order = ['Aw', 'BSh', 'BSk', 'CFa', 'Cfb']
-models = ['worldcover_trees', 'global_canopy_height_v1_trees', 'global_canopy_height_v2_trees', 'my_predictions']
+models = ['worldcover_trees', 'global_canopy_height_v1_trees', 'global_canopy_height_v2_trees', 'lang_trees', 'my_predictions']
 
 rows = []
 for koppen_class in koppen_order:
