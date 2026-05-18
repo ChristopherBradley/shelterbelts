@@ -293,3 +293,5 @@ results_df = pd.DataFrame(rows).set_index('koppen_class')
 results_df.columns = pd.MultiIndex.from_tuples(results_df.columns)
 results_df = results_df.reindex(columns=models, level=0)
 results_df
+
+# %%
