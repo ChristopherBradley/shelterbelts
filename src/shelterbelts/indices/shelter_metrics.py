@@ -675,27 +675,3 @@ if __name__ == '__main__':
     # Then run class_metrics on the generated linear_categories output
     linear_categories_file = os.path.join(args.outdir, f"{args.stub}_linear_categories.tif")
     dfs = class_metrics(linear_categories_file, args.outdir, args.stub, save_excel=True)
-# -
-
-# # Running locally
-# outdir = "../../../outdir/"
-# buffer_tif = "../../../outdir/34_37-148_42_y2018_predicted_buffer_categories.tif"
-# min_patch_size = 20
-# min_branch_length = min_patch_size
-# stub="TEST2"
-# save_csv=True
-# plot = False
-# save_tif=True
-# save_labels=True
-# # stub = "shelter_indices"
-# # geotif = os.path.join(outdir, f"{stub}_buffer_categories.tif")
-# # outdir="/scratch/xe2/cb8590"
-
-# # %%time
-# # patch_metrics("../../../outdir/hydrolines_buffer_categories.tif")
-# # patch_metrics("/scratch/xe2/cb8590/tmp/34_37-148_42_y2018_predicted_buffer_categories.tif", outdir=outdir, plot=True)
-# ds, df = patch_metrics(buffer_tif, stub=stub, outdir=outdir, plot=True)
-
-
-
-

@@ -20,6 +20,6 @@ FOLDER_SUFFIX=default_percentmethod
 for folder in "$BASE_DIR"/*"$FOLDER_SUFFIX"; do
     if [ -d "$folder" ]; then
         echo "Submitting job for $folder"
-        qsub -v base_dir="$folder" merge_lidar.pbs
+        qsub -v base_dir="$folder" merge_tifs.pbs
     fi
 done

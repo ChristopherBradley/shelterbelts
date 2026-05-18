@@ -1,8 +1,6 @@
 """Utilities for file paths and data location management."""
 
-import sys
 from pathlib import Path
-import os
 import rioxarray as rxr
 
 
@@ -11,48 +9,28 @@ _repo_root = Path(__file__).resolve().parent.parent.parent.parent
 IS_GADI = Path('/scratch').exists()
 if IS_GADI:
     # NCI/Gadi file paths
-    default_outdir = '/scratch/xe2/cb8590/tmp'
     default_tmpdir = '/scratch/xe2/cb8590/tmp'
     worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
-    worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
     hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
     roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 else:
     # Local defaults
-    default_outdir = '.'
     default_tmpdir = '.'
     worldcover_dir = str(_repo_root / 'data')  # Using this '/' operator means the filepaths should work on both windows and mac.
-    worldcover_geojson = str(_repo_root / 'data' / 'g2_26729_worldcover_footprints.geojson')
     hydrolines_gdb = str(_repo_root / 'data' / 'g2_26729_hydrolines_cropped.gpkg')
     roads_gdb = str(_repo_root / 'data' / 'g2_26729_roads_cropped.gpkg')
 
-# NCI/Gadi file paths - Canopy height data
+# NCI/Gadi - Analysis and comparison data
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
 canopy_height_geojson = 'tiles_global.geojson'
-
-# Analysis and comparison data
-# `tmpdir` should follow the chosen default_tmpdir so local runs don't target /scratch
-tmpdir = default_tmpdir
 worldcover_folder = '/scratch/xe2/cb8590/Nick_worldcover_reprojected'
 my_prediction_dir = '/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders/'
 my_prediction_geojson = 'barra_trees_s4_aus_4326_weightings_median_2020_subfolders__footprints.gpkg'
 my_prediction_folder = '/scratch/xe2/cb8590/Nick_2020_predicted'
 canopy_height_folder = '/scratch/xe2/cb8590/Nick_GCH'
-
-# NCI/Gadi file paths - Reference data
 nick_outlines = '/g/data/xe2/cb8590/Nick_outlines'
 nick_aus_treecover_10m = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
 koppen_australia = '/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg'
-
-# NCI/Gadi file paths - Model data
-nn_models_dir = '/g/data/xe2/cb8590/models'
-
-# NCI/Gadi file paths - BARRA bounding boxes and related data
-barra_bboxs_dir = '/g/data/xe2/cb8590/Outlines/B_yearsARRA_bboxs'
-barra_bboxs_full = '/scratch/xe2/cb8590/tmp/barra_bboxs.gpkg'
-state_boundaries = '/g/data/xe2/cb8590/Outlines/STE_2021_AUST_GDA2020.shp'
-aus_boundaries = '/g/data/xe2/cb8590/Outlines/AUS_2021_AUST_GDA2020.shp'
-elvis_outputs_dir = '/scratch/xe2/cb8590/lidar/polygons/elvis_inputs/'
 
 # NCI/Gadi file paths - DEM data
 nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
@@ -60,9 +38,9 @@ nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
 # Bundled sample fixtures
 laz_sample = str(_repo_root / 'data' / 'milgadara_50mx50m.laz')
 dem_h_sample = str(_repo_root / 'data' / 'g2_26729_DEM-H.tif')
+quartered_tifs_dir = str(_repo_root / 'data' / 'quartered_linear_tifs')
 sentinel_sample = str(_repo_root / 'data' / 'g2_019_sentinel_150mx150m.pkl')
 training_csv_sample = str(_repo_root / 'data' / 'g2_017_training.csv')
-
 
 def create_test_woody_veg_dataset():
     """Create a test woody vegetation dataset for docstring examples.
@@ -95,44 +73,6 @@ def get_example_tree_categories_data():
 def get_filename(filename):
     """Find example data file bundled in the repository's data/ directory."""
     return str(_repo_root / 'data' / filename)
-
-def setup_repo_path(repo_name='shelterbelts', subdir='src'):
-    """Set up repository path for notebooks running in different environments.
-    
-    Detects whether running from repo root, local notebook, or Gadi,
-    updates sys.path with src directory, and changes cwd to src directory.
-    
-    Parameters
-    ----------
-    repo_name : str, optional
-        Name of the repository directory.
-    subdir : str, optional
-        Subdirectory within the repository to change to.
-    
-    Returns
-    -------
-    str
-        Path to the repository root directory
-    """
-    cwd = Path.cwd()
-    if cwd.name == repo_name: # Tests
-        repo_dir = cwd
-    elif cwd.parent.name == repo_name: # Notebooks
-        repo_dir = cwd.parent
-    elif cwd.parent.parent.name == repo_name: # Could make this recursive, but notebooks only go 2 levels deep.
-        repo_dir = cwd.parent.parent
-    elif (Path.home() / 'Projects' / repo_name).exists():
-        repo_dir = Path.home() / 'Projects' / repo_name  # Gadi
-    else:
-        raise RuntimeError("Could not find repository root")
-    
-    repo_dir = str(repo_dir)
-    src_dir = os.path.join(repo_dir, subdir)
-    os.chdir(src_dir)
-    if src_dir not in sys.path:
-        sys.path.insert(0, src_dir)
-
-    return src_dir
 
 
 def get_pretrained_nn(koppen='all'):

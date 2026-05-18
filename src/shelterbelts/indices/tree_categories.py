@@ -211,10 +211,12 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     if isinstance(input_data, str):
         da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
         ds = da.to_dataset(name='woody_veg')
-        filename = input_data
+        if not stub:
+            stub = input_data.split('/')[-1].split('.')[0]
     else:
         ds = input_data.copy(deep=True)
-        filename = None
+        if not stub:
+            raise ValueError("stub must be provided when input_data is a Dataset")
 
     woody_veg = ds['woody_veg'].values.astype(bool)
 
@@ -231,13 +233,6 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     tree_categories_array[edge_area]      = inverted_labels['Patch Edge']
     tree_categories_array[corridor_area]  = inverted_labels['Other Trees']
     ds['tree_categories'] = (('y', 'x'), tree_categories_array)
-
-    if not stub:
-        if filename:
-            # Use the same prefix as the original woody_veg filename
-            stub = filename.split('/')[-1].split('.')[0]
-        else:
-            raise ValueError("stub must be provided when input_data is a Dataset")
 
     if save_tif:
         filename_categorical = os.path.join(outdir,f"{stub}_tree_categories.tif")
@@ -285,33 +280,4 @@ if __name__ == '__main__':
         save_tif=args.save_tif,
         plot=args.plot
     )
-
-# +
-# # %%time
-# TODO: This code should go in a separate testing file
-# cover_threshold=50
-# min_patch_size=20
-# min_core_size=200
-# edge_size=10
-# max_gap_size=1
-# strict_core_area=False
-
-# folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_158'
-# tmpdir = '/scratch/xe2/cb8590/tmp'
-# outdir='/scratch/xe2/cb8590/tmp'
-# stub='Test'
-
-# cover_threshold=50
-# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
-# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/subfolders/lat_34_lon_148/34_37-148_42_y2018_predicted.tif'  # West Milgadara
-# da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
-# da_trees = da_percent > cover_threshold
-# da_trees = da_trees.astype('uint8')
-# ds_woody_veg = da_trees.to_dataset(name='woody_veg')
-# -
-
-# ds_tree_categories = tree_categories(None, outdir, stub, min_core_size=1000, edge_size=10, strict_core_area=True, min_patch_size=min_patch_size, max_gap_size=max_gap_size, save_tif=True, plot=True, ds=ds_woody_veg)
-
-
 
