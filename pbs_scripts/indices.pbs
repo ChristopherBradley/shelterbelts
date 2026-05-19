@@ -25,17 +25,28 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 tmpdir="$PBS_JOBFS"  # Opus says using /scratch/xe2/cb8590/tmp causes concurrency blocking issues
 
-# # Nick Trees - success yay
-# folder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m/${param_stub}
-# outdir=/scratch/xe2/cb8590/Nick_indices
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --limit 15000
+# To test with a single tile before running the full indices.sh:
+#   qsub -v param_stub=subfolder_1 indices.pbs
 
-# Aus Trees
-year=2024
-folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
-outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
-echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5
+# Nick Trees — wind method ANY, debug=True so shelter_distances.tif is saved
+folder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m/${param_stub}
+outdir=/scratch/xe2/cb8590/Nick_indices_distances
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --wind_method ANY --debug
+
+# edge_size=1 — default density method, for treeline-distance evaluation
+outdir=/scratch/xe2/cb8590/Nick_indices_edge1
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 1
+
+# edge_size=2 — default density method, for treeline-distance evaluation
+outdir=/scratch/xe2/cb8590/Nick_indices_edge2
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 2 --distance_threshold 10
+
+# # Aus Trees
+# year=2024
+# folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
+# echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5
 
 # # # NSW Trees (done default, want to improve thresholds before running other methods)
 # year=2020

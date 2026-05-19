@@ -20,6 +20,10 @@ else:
     hydrolines_gdb = str(_repo_root / 'data' / 'g2_26729_hydrolines_cropped.gpkg')
     roads_gdb = str(_repo_root / 'data' / 'g2_26729_roads_cropped.gpkg')
 
+# Both local & NCI/Gadi
+tmpdir = default_tmpdir
+worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
+
 # NCI/Gadi - Analysis and comparison data
 canopy_height_dir = '/scratch/xe2/cb8590/Global_Canopy_Height'
 canopy_height_geojson = 'tiles_global.geojson'
@@ -31,8 +35,6 @@ canopy_height_folder = '/scratch/xe2/cb8590/Nick_GCH'
 nick_outlines = '/g/data/xe2/cb8590/Nick_outlines'
 nick_aus_treecover_10m = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
 koppen_australia = '/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg'
-
-# NCI/Gadi file paths - DEM data
 nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
 
 # Bundled sample fixtures
