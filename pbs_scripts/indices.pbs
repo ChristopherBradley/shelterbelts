@@ -30,16 +30,16 @@ tmpdir="$PBS_JOBFS"  # Opus says using /scratch/xe2/cb8590/tmp causes concurrenc
 
 # Nick Trees — wind method ANY, debug=True so shelter_distances.tif is saved
 folder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m/${param_stub}
-outdir=/scratch/xe2/cb8590/Nick_indices_distances
+outdir=/scratch/xe2/cb8590/Nick_indices_distances_scatfix
 python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --wind_method ANY --debug
 
-# edge_size=1 — default density method, for treeline-distance evaluation
-outdir=/scratch/xe2/cb8590/Nick_indices_edge1
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 1
+# # edge_size=1 — default density method, for treeline-distance evaluation
+# outdir=/scratch/xe2/cb8590/Nick_indices_edge1_scatfix
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 1
 
-# edge_size=2 — default density method, for treeline-distance evaluation
-outdir=/scratch/xe2/cb8590/Nick_indices_edge2
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 2 --distance_threshold 10
+# # edge_size=2 — default density method, for treeline-distance evaluation
+# outdir=/scratch/xe2/cb8590/Nick_indices_edge2_scatfix
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 2 --distance_threshold 10
 
 # # Aus Trees
 # year=2024
