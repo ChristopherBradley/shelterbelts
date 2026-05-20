@@ -283,7 +283,8 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
             da_multi = da_multi.isel(x=slice(crop_pixels, -crop_pixels), y=slice(crop_pixels, -crop_pixels))
 
         sheltered = (da_multi > 0).any(dim='direction')
-        da_shelter_categories = da_categories.where(~sheltered, inverted_labels['Sheltered'])
+        is_tree = (da_categories >= 10) & (da_categories < 20)
+        da_shelter_categories = da_categories.where(~sheltered | is_tree, inverted_labels['Sheltered'])
 
         ds = ds_input if ds_input is not None else da_categories.to_dataset(name='tree_categories')
         ds['shelter_categories'] = da_shelter_categories
@@ -398,8 +399,9 @@ def shelter_categories(category_data, wind_data=None, height_tif=None, outdir='.
             y=slice(crop_pixels, -crop_pixels)
         )
 
-    # Assigning sheltered pixels a new label
-    da_shelter_categories = da_categories.where(~sheltered, inverted_labels['Sheltered'])
+    # Assigning sheltered pixels a new label — tree pixels keep their original category
+    is_tree = (da_categories >= 10) & (da_categories < 20)
+    da_shelter_categories = da_categories.where(~sheltered | is_tree, inverted_labels['Sheltered'])
     
     if ds_input is not None:
         ds = ds_input

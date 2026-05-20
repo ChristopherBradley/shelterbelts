@@ -2,6 +2,7 @@ import os
 import pytest
 import numpy as np
 import xarray as xr
+import rioxarray as rxr
 
 from shelterbelts.indices.shelter_categories import compute_distance_to_tree_TH, shelter_categories
 from shelterbelts.indices.tree_categories import tree_categories
@@ -169,6 +170,30 @@ def test_tree_height_method():
     xr.testing.assert_equal(compute_distance_to_tree_TH(heights_single_tree), expected_single_tree)
     xr.testing.assert_equal(compute_distance_to_tree_TH(heights_two_trees), expected_two_trees)
     xr.testing.assert_equal(compute_distance_to_tree_TH(heights_two_trees_separated), expected_two_trees_separated)
+
+def test_scattered_trees_preserved():
+    """Tree pixels (categories 10–19) in the input must remain tree pixels in the output."""
+    da_input = rxr.open_rasterio(test_filename).squeeze('band').drop_vars('band')
+    n_tree_before = int(((da_input >= 10) & (da_input < 20)).sum())
+
+    ds = shelter_categories(
+        test_filename,
+        wind_data=wind_file,
+        wind_method='ANY',
+        distance_threshold=40,
+        outdir='outdir',
+        stub=f'{stub}_scattered_preserved',
+        savetif=False,
+        plot=False,
+    )
+
+    da_out = ds['shelter_categories']
+    n_tree_after = int(((da_out >= 10) & (da_out < 20)).sum())
+
+    assert n_tree_before == n_tree_after, (
+        f"Tree pixel count changed: {n_tree_before} before, and {n_tree_after} after shelter_categories. "
+    )
+
 
 def test_pytest():
     print("Hello world!")
