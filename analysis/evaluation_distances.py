@@ -41,7 +41,7 @@ from shelterbelts.utils.filepaths import (
 # %%
 canopy_height_folder_v1  = '/scratch/xe2/cb8590/Nick_GCH'
 canopy_height_folder_v2  = '/scratch/xe2/cb8590/Nick_GCH_v2'
-shelter_distances_folder = '/scratch/xe2/cb8590/Nick_indices_distances'
+shelter_distances_folder = '/scratch/xe2/cb8590/Nick_indices_distances_scatfix'
 qld_woody_folder         = '/scratch/xe2/cb8590/Nick_Queensland_Woody'
 
 # %% [markdown]
@@ -75,7 +75,11 @@ MODELS = [
     'worldcover_trees',
     'global_canopy_height_v1_trees',
     'global_canopy_height_v2_trees',
-    'my_predictions',
+    'my_predictions_50',
+    'my_predictions_60',
+    'my_predictions_70',
+    'my_predictions_80',
+    'my_predictions_90',
     'qld_woody_trees',
 ]
 
@@ -125,7 +129,11 @@ def create_df_distances(limit=None):
             'worldcover_trees':              ds_wc_trees.values,
             'global_canopy_height_v1_trees': ds_gch1_trees.values,
             'global_canopy_height_v2_trees': ds_gch2_trees.values,
-            'my_predictions':                ds_pred_trees.values,
+            'my_predictions_50':             (ds_pred.values >= 50).astype(int),
+            'my_predictions_60':             (ds_pred.values >= 60).astype(int),
+            'my_predictions_70':             (ds_pred.values >= 70).astype(int),
+            'my_predictions_80':             (ds_pred.values >= 80).astype(int),
+            'my_predictions_90':             (ds_pred.values >= 90).astype(int),
             'qld_woody_trees':               ds_qld_trees.values,
         }
 
@@ -133,7 +141,13 @@ def create_df_distances(limit=None):
         dist_all   = ds_dist.values.ravel()
 
         for d in DISTANCES:
-            mask = dist_all == d
+            # At d>0, scattered tree pixels (category 11) can receive non-zero distances
+            # because they are excluded from the shelter mask (only categories>=12 provide shelter).
+            # Filter to nick_trees==0 at d>0 so we only evaluate genuine open-field pixels.
+            if d == 0:
+                mask = dist_all == d
+            else:
+                mask = (dist_all == d) & (y_true_all == 0)
             if mask.sum() == 0:
                 continue
             y_true = y_true_all[mask]
@@ -192,28 +206,52 @@ model_labels = {
     'worldcover_trees':              'WorldCover',
     'global_canopy_height_v1_trees': 'GCH v1',
     'global_canopy_height_v2_trees': 'GCH v2',
-    'my_predictions':                'My predictions',
+    'my_predictions_50':             'My pred (0.50)',
+    'my_predictions_60':             'My pred (0.60)',
+    'my_predictions_70':             'My pred (0.70)',
+    'my_predictions_80':             'My pred (0.80)',
+    'my_predictions_90':             'My pred (0.90)',
     'qld_woody_trees':               'QLD Woody',
 }
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
-
-fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=False)
-metrics = ['accuracy', 'precision', 'recall']
-titles  = ['Accuracy', 'Precision', 'Recall']
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d', '#9467bd']
 
 plot_distances = list(range(1, 21))
-for ax, metric, title in zip(axes, metrics, titles):
-    for model, color in zip(MODELS, colors):
-        df_m = agg[(agg['model'] == model) & (agg['distance'] >= 1)].sort_values('distance')
-        ax.plot(df_m['distance'], df_m[metric], label=model_labels[model],
-                color=color, marker='o', markersize=4)
-    ax.set_xlabel('Distance from treeline (pixels)')
-    ax.set_ylabel(title)
-    ax.set_title(title)
-    ax.set_xticks(plot_distances)
-    ax.legend(fontsize=8)
 
-plt.suptitle('Model accuracy vs. distance from the treeline\n(1–20 pixels outside trees, QLD tiles only)', y=1.02)
+# Pixel counts at each distance (same for all models — use my_predictions)
+counts = (
+    df_raw[(df_raw['model'] == 'my_predictions_50') & (df_raw['distance'] >= 1)]
+    .groupby('distance')[['tp', 'fp', 'fn', 'tn']].sum()
+    .assign(total=lambda d: d['tp'] + d['fp'] + d['fn'] + d['tn'])
+    .reindex(plot_distances)
+)
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# Left: accuracy per distance per model
+ax = axes[0]
+for model, color in zip(MODELS, colors):
+    df_m = agg[(agg['model'] == model) & (agg['distance'] >= 1)].sort_values('distance')
+    ax.plot(df_m['distance'], df_m['accuracy'], label=model_labels[model],
+            color=color, marker='o', markersize=4)
+ax.set_xlabel('Distance from treeline (pixels)')
+ax.set_ylabel('Accuracy (non-tree pixels only)')
+ax.set_title('Model accuracy vs. distance outside treeline\n(QLD tiles only)')
+ax.set_xticks(plot_distances)
+ax.set_xticklabels(plot_distances, fontsize=7)
+ax.legend(fontsize=8)
+ax.grid(axis='y', alpha=0.3)
+
+# Right: pixel count per distance
+ax2 = axes[1]
+ax2.bar(plot_distances, counts['total'].values / 1e6, color='steelblue', width=0.7)
+ax2.set_xlabel('Distance from treeline (pixels)')
+ax2.set_ylabel('Pixel count (millions)')
+ax2.set_title('Non-tree pixels per distance band\n(QLD tiles only)')
+ax2.set_xticks(plot_distances)
+ax2.set_xticklabels(plot_distances, fontsize=7)
+ax2.grid(axis='y', alpha=0.3)
+
+plt.suptitle('Model accuracy vs. distance from the treeline (outside trees)', y=1.02)
 plt.tight_layout()
 plt.savefig(f'{nick_outlines}/accuracy_vs_distance.png', dpi=150, bbox_inches='tight')
 plt.show()
@@ -223,6 +261,6 @@ print("Saved accuracy_vs_distance.png")
 # ## 5. Pivot table: accuracy at each distance × model
 
 # %%
-pivot = agg[agg['distance'] >= 1].pivot(index='distance', columns='model', values='accuracy')[MODELS]
+pivot = agg[(agg['distance'] >= 1)].pivot(index='distance', columns='model', values='accuracy')[MODELS]
 pivot.columns = [model_labels[m] for m in MODELS]
 pivot.round(3)

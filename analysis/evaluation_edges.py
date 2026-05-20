@@ -85,7 +85,11 @@ MODELS = [
     'worldcover_trees',
     'global_canopy_height_v1_trees',
     'global_canopy_height_v2_trees',
-    'my_predictions',
+    'my_predictions_50',
+    'my_predictions_60',
+    'my_predictions_70',
+    'my_predictions_80',
+    'my_predictions_90',
     'qld_woody_trees',
 ]
 
@@ -158,7 +162,11 @@ def create_df_edges(limit=None):
             'worldcover_trees':              ds_wc_trees.values.ravel(),
             'global_canopy_height_v1_trees': ds_gch1_trees.values.ravel(),
             'global_canopy_height_v2_trees': ds_gch2_trees.values.ravel(),
-            'my_predictions':                ds_pred_trees.values.ravel(),
+            'my_predictions_50':             (ds_pred.values.ravel() >= 50).astype(int),
+            'my_predictions_60':             (ds_pred.values.ravel() >= 60).astype(int),
+            'my_predictions_70':             (ds_pred.values.ravel() >= 70).astype(int),
+            'my_predictions_80':             (ds_pred.values.ravel() >= 80).astype(int),
+            'my_predictions_90':             (ds_pred.values.ravel() >= 90).astype(int),
             'qld_woody_trees':               ds_qld_trees.values.ravel(),
         }
 
@@ -210,7 +218,7 @@ agg
 # %%
 # Use a single model's counts (mask is the same regardless of model)
 counts = (
-    df_raw[df_raw['model'] == 'my_predictions']
+    df_raw[df_raw['model'] == 'my_predictions_50']
     .groupby('band')[['tp', 'fn']].sum()
     .assign(total=lambda d: d['tp'] + d['fn'])
     .reindex(BANDS)
@@ -226,10 +234,14 @@ model_labels = {
     'worldcover_trees':              'WorldCover',
     'global_canopy_height_v1_trees': 'GCH v1',
     'global_canopy_height_v2_trees': 'GCH v2',
-    'my_predictions':                'My predictions',
+    'my_predictions_50':             'My pred (0.50)',
+    'my_predictions_60':             'My pred (0.60)',
+    'my_predictions_70':             'My pred (0.70)',
+    'my_predictions_80':             'My pred (0.80)',
+    'my_predictions_90':             'My pred (0.90)',
     'qld_woody_trees':               'QLD Woody',
 }
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d', '#9467bd']
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
@@ -242,6 +254,7 @@ for model, color in zip(MODELS, colors):
             color=color, marker='o', markersize=6)
 ax.set_xticks(x)
 ax.set_xticklabels(BANDS)
+ax.invert_xaxis()
 ax.set_ylabel('Accuracy (= recall among tree pixels)')
 ax.set_title('Model accuracy vs. distance inside treeline\n(QLD tiles only)')
 ax.set_ylim(0, 1)
@@ -255,6 +268,7 @@ bars = ax2.bar(BANDS, counts['total'].values / 1e6, color=bar_colors, edgecolor=
 for bar, pct in zip(bars, counts['pct'].values):
     ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
              f'{pct:.0f}%', ha='center', va='bottom', fontsize=9)
+ax2.invert_xaxis()
 ax2.set_ylabel('Pixel count (millions)')
 ax2.set_title('Tree pixels per band\n(% of classified tree pixels)')
 ax2.grid(axis='y', alpha=0.3)
