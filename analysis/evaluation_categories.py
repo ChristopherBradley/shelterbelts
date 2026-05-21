@@ -262,9 +262,10 @@ for bar, pct in zip(bars, counts['pct'].values):
     if pct >= 1:
         ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.001,
                  f'{pct:.0f}%', ha='center', va='bottom', fontsize=8)
+ax2.set_yscale('log')
 ax2.set_xticks(x)
 ax2.set_xticklabels(cat_tick_labels, rotation=30, ha='right')
-ax2.set_ylabel('Pixel count (millions)')
+ax2.set_ylabel('Pixel count (millions, log scale)')
 ax2.set_title('Tree pixels per category\n(% of total tree pixels)')
 ax2.grid(axis='y', alpha=0.3)
 

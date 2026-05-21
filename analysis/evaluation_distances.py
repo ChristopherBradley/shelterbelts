@@ -26,6 +26,7 @@ import os
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 import rioxarray as rxr
@@ -227,7 +228,7 @@ counts = (
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-# Left: false positive rate (log scale) per distance per model
+# Left: accuracy (log scale, higher = better) per distance per model
 ax = axes[0]
 for model, color in zip(MODELS, colors):
     df_m = agg[(agg['model'] == model) & (agg['distance'] >= 1)].sort_values('distance')
@@ -235,25 +236,30 @@ for model, color in zip(MODELS, colors):
     ax.plot(df_m['distance'], fpr, label=model_labels[model],
             color=color, marker='o', markersize=4)
 ax.set_yscale('log')
+ax.invert_yaxis()
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(
+    lambda y, _: f'{1 - y:.4f}'.rstrip('0').rstrip('.')
+))
 ax.set_xlabel('Distance from treeline (pixels)')
-ax.set_ylabel('False positive rate (log scale)')
-ax.set_title('Model false positive rate vs. distance outside treeline\n(QLD tiles only)')
+ax.set_ylabel('Accuracy (log scale)')
+ax.set_title('Model accuracy vs. distance outside treeline\n(QLD tiles only)')
 ax.set_xticks(plot_distances)
 ax.set_xticklabels(plot_distances, fontsize=7)
 ax.legend(fontsize=8)
 ax.grid(axis='y', alpha=0.3)
 
-# Right: pixel count per distance
+# Right: pixel count per distance (log scale)
 ax2 = axes[1]
 ax2.bar(plot_distances, counts['total'].values / 1e6, color='steelblue', width=0.7)
+ax2.set_yscale('log')
 ax2.set_xlabel('Distance from treeline (pixels)')
-ax2.set_ylabel('Pixel count (millions)')
+ax2.set_ylabel('Pixel count (millions, log scale)')
 ax2.set_title('Non-tree pixels per distance band\n(QLD tiles only)')
 ax2.set_xticks(plot_distances)
 ax2.set_xticklabels(plot_distances, fontsize=7)
 ax2.grid(axis='y', alpha=0.3)
 
-plt.suptitle('Model false positive rate vs. distance from the treeline (outside trees)', y=1.02)
+plt.suptitle('Model accuracy vs. distance from the treeline (outside trees)', y=1.02)
 plt.tight_layout()
 plt.savefig(f'{nick_outlines}/accuracy_vs_distance.png', dpi=150, bbox_inches='tight')
 plt.show()
