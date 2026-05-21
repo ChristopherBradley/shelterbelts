@@ -91,15 +91,15 @@ CATEGORY_LABELS = {
     19: 'Non-linear Patches',
 }
 MODELS = [
-    'worldcover_trees',
     'global_canopy_height_v1_trees',
     'global_canopy_height_v2_trees',
+    'worldcover_trees',
+    'qld_woody_trees',
     'my_predictions_50',
     'my_predictions_60',
     'my_predictions_70',
     'my_predictions_80',
     'my_predictions_90',
-    'qld_woody_trees',
 ]
 
 
@@ -222,17 +222,17 @@ counts[['total', 'pct']].round(1)
 
 # %%
 model_labels = {
-    'worldcover_trees':              'WorldCover',
     'global_canopy_height_v1_trees': 'GCH v1',
     'global_canopy_height_v2_trees': 'GCH v2',
+    'worldcover_trees':              'WorldCover',
+    'qld_woody_trees':               'QLD Woody',
     'my_predictions_50':             'My pred (0.50)',
     'my_predictions_60':             'My pred (0.60)',
     'my_predictions_70':             'My pred (0.70)',
     'my_predictions_80':             'My pred (0.80)',
     'my_predictions_90':             'My pred (0.90)',
-    'qld_woody_trees':               'QLD Woody',
 }
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d', '#9467bd']
+colors = ['#ff7f0e', '#2ca02c', '#1f77b4', '#9467bd', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d']
 cat_tick_labels = [CATEGORY_LABELS[c] for c in CATEGORIES]
 
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
@@ -257,8 +257,7 @@ ax.grid(axis='y', alpha=0.3)
 
 # Right: pixel count per category
 ax2 = axes[1]
-bar_colors = plt.cm.tab10(np.linspace(0, 0.6, len(CATEGORIES)))
-bars = ax2.bar(x, counts['total'].values / 1e6, color=bar_colors, edgecolor='white')
+bars = ax2.bar(x, counts['total'].values / 1e6, color='steelblue', width=0.7)
 for bar, pct in zip(bars, counts['pct'].values):
     if pct >= 1:
         ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.001,

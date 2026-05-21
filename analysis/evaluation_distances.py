@@ -72,15 +72,15 @@ print(f"{len(gdf_tiles)} tiles with shelter_distances and qld_woody")
 # %%
 DISTANCES = list(range(0, 21))  # 0 = inside trees, 1–20 = pixels outside
 MODELS = [
-    'worldcover_trees',
     'global_canopy_height_v1_trees',
     'global_canopy_height_v2_trees',
+    'worldcover_trees',
+    'qld_woody_trees',
     'my_predictions_50',
     'my_predictions_60',
     'my_predictions_70',
     'my_predictions_80',
     'my_predictions_90',
-    'qld_woody_trees',
 ]
 
 
@@ -203,17 +203,17 @@ agg
 
 # %%
 model_labels = {
-    'worldcover_trees':              'WorldCover',
     'global_canopy_height_v1_trees': 'GCH v1',
     'global_canopy_height_v2_trees': 'GCH v2',
+    'worldcover_trees':              'WorldCover',
+    'qld_woody_trees':               'QLD Woody',
     'my_predictions_50':             'My pred (0.50)',
     'my_predictions_60':             'My pred (0.60)',
     'my_predictions_70':             'My pred (0.70)',
     'my_predictions_80':             'My pred (0.80)',
     'my_predictions_90':             'My pred (0.90)',
-    'qld_woody_trees':               'QLD Woody',
 }
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d', '#9467bd']
+colors = ['#ff7f0e', '#2ca02c', '#1f77b4', '#9467bd', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d']
 
 plot_distances = list(range(1, 21))
 
@@ -227,15 +227,17 @@ counts = (
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-# Left: accuracy per distance per model
+# Left: false positive rate (log scale) per distance per model
 ax = axes[0]
 for model, color in zip(MODELS, colors):
     df_m = agg[(agg['model'] == model) & (agg['distance'] >= 1)].sort_values('distance')
-    ax.plot(df_m['distance'], df_m['accuracy'], label=model_labels[model],
+    fpr = np.maximum(1 - df_m['accuracy'].values, 1e-6)
+    ax.plot(df_m['distance'], fpr, label=model_labels[model],
             color=color, marker='o', markersize=4)
+ax.set_yscale('log')
 ax.set_xlabel('Distance from treeline (pixels)')
-ax.set_ylabel('Accuracy (non-tree pixels only)')
-ax.set_title('Model accuracy vs. distance outside treeline\n(QLD tiles only)')
+ax.set_ylabel('False positive rate (log scale)')
+ax.set_title('Model false positive rate vs. distance outside treeline\n(QLD tiles only)')
 ax.set_xticks(plot_distances)
 ax.set_xticklabels(plot_distances, fontsize=7)
 ax.legend(fontsize=8)
@@ -251,7 +253,7 @@ ax2.set_xticks(plot_distances)
 ax2.set_xticklabels(plot_distances, fontsize=7)
 ax2.grid(axis='y', alpha=0.3)
 
-plt.suptitle('Model accuracy vs. distance from the treeline (outside trees)', y=1.02)
+plt.suptitle('Model false positive rate vs. distance from the treeline (outside trees)', y=1.02)
 plt.tight_layout()
 plt.savefig(f'{nick_outlines}/accuracy_vs_distance.png', dpi=150, bbox_inches='tight')
 plt.show()

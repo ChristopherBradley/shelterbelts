@@ -82,15 +82,15 @@ print(f"{len(gdf_tiles)} tiles with edge1, edge2, dist_tree, and qld_woody")
 # %%
 BANDS = ['Edge 1', 'Edge 2', 'Edge 3', 'Core (4+)']
 MODELS = [
-    'worldcover_trees',
     'global_canopy_height_v1_trees',
     'global_canopy_height_v2_trees',
+    'worldcover_trees',
+    'qld_woody_trees',
     'my_predictions_50',
     'my_predictions_60',
     'my_predictions_70',
     'my_predictions_80',
     'my_predictions_90',
-    'qld_woody_trees',
 ]
 
 
@@ -231,17 +231,17 @@ counts[['total', 'pct']].round(1)
 
 # %%
 model_labels = {
-    'worldcover_trees':              'WorldCover',
     'global_canopy_height_v1_trees': 'GCH v1',
     'global_canopy_height_v2_trees': 'GCH v2',
+    'worldcover_trees':              'WorldCover',
+    'qld_woody_trees':               'QLD Woody',
     'my_predictions_50':             'My pred (0.50)',
     'my_predictions_60':             'My pred (0.60)',
     'my_predictions_70':             'My pred (0.70)',
     'my_predictions_80':             'My pred (0.80)',
     'my_predictions_90':             'My pred (0.90)',
-    'qld_woody_trees':               'QLD Woody',
 }
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d', '#9467bd']
+colors = ['#ff7f0e', '#2ca02c', '#1f77b4', '#9467bd', '#fcbba1', '#fc9272', '#fb6a4a', '#de2d26', '#99000d']
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
@@ -263,8 +263,7 @@ ax.grid(axis='y', alpha=0.3)
 
 # Right: pixel count per band
 ax2 = axes[1]
-bar_colors = ['#d73027', '#fc8d59', '#fee090', '#91bfdb']
-bars = ax2.bar(BANDS, counts['total'].values / 1e6, color=bar_colors, edgecolor='white')
+bars = ax2.bar(BANDS, counts['total'].values / 1e6, color='steelblue', width=0.7)
 for bar, pct in zip(bars, counts['pct'].values):
     ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
              f'{pct:.0f}%', ha='center', va='bottom', fontsize=9)
