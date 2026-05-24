@@ -100,7 +100,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -117,14 +117,28 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     if not binary:
         chm_resolution = 1  # Create a 1m chm, then coarsen later to the actual resolution when calculating percent cover
 
+    # Check for vegetation classifications before building ground_steps so smrf can be told
+    # to ignore class 4/5 points — otherwise smrf overwrites them with class 1 (unclassified)
+    # and the downstream range filter finds nothing.
+    veg_filter = []
+    has_veg = False
+    if veg_only:
+        has_veg = check_classified(infile, 4) or check_classified(infile, 5)
+        if has_veg:
+            veg_filter = [{"type": "filters.range", "limits": "Classification[4:5]"}]
+            print("Vegetation classifications found (classes 4/5), using only those points for CHM")
+
     if dem:
         # Providing a DEM directly is much faster than using pdal to re-calculate it.
         ground_steps = [{"type": "filters.hag_dem", "raster": dem}]
     else:
+        smrf_step = {"type": "filters.smrf"}
+        if has_veg:
+            smrf_step["ignore"] = "Classification[4:5]"
         ground_steps = [
             {"type": "filters.assign", "assignment": "ReturnNumber[:]=1"}, # Needed this to resolve an smrf error when NumberOfReturns or ReturnNumber = 0
             {"type": "filters.assign", "assignment": "NumberOfReturns[:]=1"},
-            {"type": "filters.smrf"},
+            smrf_step,
             {"type": "filters.hag_nn"},
         ]
 
@@ -134,6 +148,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
         "pipeline": [
             first_step,
             *ground_steps,
+            *veg_filter,
             {"type": "writers.gdal",
              "filename": chm_tif,
              "resolution": chm_resolution,
@@ -148,7 +163,20 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     print(f"Saved: {chm_tif}", flush=True)
 
     if delineate_crowns:
-        crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
+        gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
+        if gdf_crowns is not None and len(gdf_crowns) > 0:
+            # Mask the CHM to only pixels inside delineated crowns so that
+            # non-tree objects (powerlines, buildings) are no longer in the CHM, percent_cover or binary tifs.
+            chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
+            chm_masked = chm_raw.rio.clip(
+                gdf_crowns.geometry.values,
+                gdf_crowns.crs,
+                drop=False,
+                all_touched=True,
+            ).fillna(0)
+            chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}.tif')
+            chm_masked.rio.to_raster(chm_tif)
+            print(f"Saved: {chm_tif}", flush=True)
 
     if just_chm:
         return None, None
@@ -186,7 +214,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     return chm, da_tree
 
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False):
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True):
     """Apply :func:`lidar` to every .laz file in laz_folder."""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     if limit is not None:
@@ -195,11 +223,11 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = laz_file.split('/')[-1].split('.')[0]
-        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns)
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True):
     """
     Convert a LAZ point cloud into a canopy-height and tree-cover raster.
 
@@ -243,6 +271,8 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
         Path to a Digital Elevation Model covering the same area as the laz file.
     delineate_crowns : bool, optional
         Run the pycrown Dalponte tree delineation and save the polygons as a gpkg.
+    veg_only : bool, optional
+        Restrict CHM rasterisation to points classified as medium (class 4) or high (class 5) vegetation if these exist.
 
     Returns
     -------
@@ -281,7 +311,7 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
             print("No existing classifications, generating our own canopy height model instead")
 
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns)
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only)
     return chm, da_tree
 
 
@@ -302,6 +332,7 @@ def parse_arguments():
     parser.add_argument("--limit", default=None, help="Number of laz files to process when passing a folder. Default: None")
     parser.add_argument("--dem", default=None, help="Path to a DEM GeoTiff covering the laz area. Default: None")
     parser.add_argument("--delineate_crowns", action="store_true", help="Delineate individual tree crowns and save as a GeoPackage. Default: False")
+    parser.add_argument("--no_veg_only", action="store_true", help="Use all points for the CHM even when vegetation classifications exist. Default: False")
     return parser.parse_args()
 
 
@@ -323,6 +354,7 @@ if __name__ == '__main__':
             just_chm=args.just_chm,
             dem=args.dem,
             delineate_crowns=args.delineate_crowns,
+            veg_only=not args.no_veg_only,
         )
     else:
         lidar_folder(
@@ -339,4 +371,5 @@ if __name__ == '__main__':
             limit=args.limit,
             dem=args.dem,
             delineate_crowns=args.delineate_crowns,
+            veg_only=not args.no_veg_only,
         )
