@@ -8,7 +8,7 @@ help:
 
 Makefile:
 
-SPHINXBUILD   = conda run -n shelterbelts_pdal sphinx-build
+SPHINXBUILD   = conda run -n shelterbelts sphinx-build
 BUILDDIR      = build
 SOURCEDIR     = source
 
@@ -18,7 +18,7 @@ html:
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html"
 
 doctest:
-	cd .. && conda run -n shelterbelts_pdal pytest --doctest-modules src/shelterbelts/indices src/shelterbelts/apis -v
+	cd .. && conda run -n shelterbelts pytest --doctest-modules src/shelterbelts/indices src/shelterbelts/apis -v
 
 
 clean:

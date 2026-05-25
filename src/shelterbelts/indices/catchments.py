@@ -7,6 +7,9 @@ import os
 import argparse
 
 import numpy as np
+# np.in1d was removed in NumPy 2.0; pysheds still uses it
+if not hasattr(np, 'in1d'):
+    np.in1d = np.isin
 from scipy import ndimage
 from skimage.morphology import thin
 import rasterio
@@ -48,7 +51,7 @@ def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8,
     kwargs.update(mask_overrides)
     mask = self._input_handler(mask, **kwargs)
     nodata_cells = self._get_nodata_cells(fdir)
-    invalid_cells = ~np.in1d(fdir.ravel(), dirmap).reshape(fdir.shape)
+    invalid_cells = ~np.isin(fdir.ravel(), dirmap).reshape(fdir.shape)
     fdir[nodata_cells] = 0
     fdir[invalid_cells] = 0
     maskleft, maskright, masktop, maskbottom = self._pop_rim(mask, nodata=False)
@@ -188,19 +191,17 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
     terrain_tif : str
         Path to the DEM (Digital Elevation Model) GeoTIFF file.
     outdir : str, optional
-        Output directory for saving results. Default is current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. Default is "TEST".
+        Prefix for output filenames.
     tmpdir : str, optional
         Temporary folder to save the terrain_tif as float64 for pysheds.
-        Default is current directory.
     num_catchments : int, optional
         The number of catchments to find when assigning gullies and ridges.
-        Default is 10.
     savetif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a PNG visualisation. Default is True.
+        Whether to generate a PNG visualisation.
 
     Returns
     -------
@@ -213,13 +214,27 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
 
     Notes
     -----
-    When ``savetif=True``, it writes:
+    When savetif=True, it writes:
     
-    - ``{stub}_gullies.tif``
-    - ``{stub}_ridges.tif``
+    - {stub}_gullies.tif
+    - {stub}_ridges.tif
 
-    When ``plot=True``, it writes:
-    ``{stub}_gullies_and_ridges.png``
+    When plot=True, it writes:
+    {stub}_gullies_and_ridges.png
+
+    Examples
+    --------
+    .. plot::
+
+        from shelterbelts.indices.catchments import catchments
+        from shelterbelts.utils.filepaths import get_filename
+        from shelterbelts.utils.visualisation import plot_catchments_sidebyside
+
+        dem_file = get_filename('g2_26729_DEM-H.tif')
+
+        ds5 = catchments(dem_file, stub='num_catchments5', num_catchments=5, savetif=False, plot=False)
+        ds20 = catchments(dem_file, stub='num_catchments20', num_catchments=20, savetif=False, plot=False)
+        plot_catchments_sidebyside(ds5, ds20, title1='num_catchments=5', title2='num_catchments=20')
 
     """
     da = rxr.open_rasterio(terrain_tif).isel(band=0).drop_vars('band')
@@ -258,8 +273,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('terrain_tif', help='Path to the DEM (Digital Elevation Model) GeoTIFF file')
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames (default: TEST)')
     parser.add_argument('--tmpdir', default='.', help='Temporary folder to save terrain_tif as float64 for pysheds (default: current directory)')
     parser.add_argument('--num_catchments', default=10, type=int, help='The number of catchments to find (default: 10)')
     parser.add_argument('--no-save-tif', dest='savetif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
@@ -273,18 +288,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     catchments(args.terrain_tif, outdir=args.outdir, stub=args.stub, tmpdir=args.tmpdir, num_catchments=args.num_catchments, savetif=args.savetif, plot=args.plot)
-
-
-# outdir = '../../../outdir/'
-# stub = 'g2_26729'
-# filename_terrain_tiles = os.path.join(outdir, f"{stub}_terrain.tif")
-# filename_DEM_H = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/Hydro_Enforced_1_Second_DEM_470734/Hydro_Enforced_1_Second_DEM.tif"
-# filename_1m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/1 Metre/Young201709-LID1-AHD_6306194_55_0002_0002_1m.tif"
-# filename_5m = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/NSW Government - Spatial Services/DEM/5 Metre/Young201702-PHO3-AHD_6306194_55_0002_0002_5m.tif"
-# filename_DEM_S = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_Smoothed_470806/1_Second_DEM_Smoothed.tif"
-# filename_DEM_Normal = "/Users/christopherbradley/Documents/PHD/Data/DEM_Samples/1_Second_DEM_470805/1_Second_DEM.tif"
-
-# # ds = catchments(filename_1m, outdir="../../../outdir", stub="g2_26729_1m")
-# # ds = catchments(filename_5m, outdir="../../../outdir", stub="g2_26729_5m")
-# ds = catchments(filename_DEM_Normal, outdir="../../../outdir", stub="g2_26729_DEM-Normal")
-# plot_catchments(ds)

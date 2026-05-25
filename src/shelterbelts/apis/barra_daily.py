@@ -204,7 +204,7 @@ def wind_dataframe(ds):
     
     return df, max_speed, direction_max_speed
 
-# Use example =
+## Usage example
 # df, max_speed, max_direction = wind_dataframe(ds)
 # df_20km_plus = df.loc['20-30km/hr'] + df.loc['30+ km/hr']
 # direction_20km_plus = df_20km_plus.index[df_20km_plus.argmax()]
@@ -218,34 +218,31 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
     Parameters
     ----------
     variables : list of str, optional
-        Default is ["uas", "vas"] for Eastward and Northward Near-Surface Wind, respectively. 
-        See links at the top of this file for more details.
+        Wind variables to download. See links at the top of this file for more details.
     lat : float, optional
-        Latitude in WGS 84 (EPSG:4326). Default is -34.389.
+        Latitude in WGS 84 (EPSG:4326).
     lon : float, optional
-        Longitude in WGS 84 (EPSG:4326). Default is 148.469.
+        Longitude in WGS 84 (EPSG:4326).
     buffer : float, optional
         -- Note: Buffer option is currently disabled due to a bug in the API, so we just get the nearest point.
     start_year : str, optional
         Start year (inclusive). The minimum available year is 1889.
-        Default is "2020".
     end_year : str, optional
         End year (inclusive). Data beyond the available range will be capped
-        at the most recent available date. Default is "2021".
+        at the most recent available date.
     outdir : str, optional
-        Output directory for saving results. Default is the current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. Default is "TEST".
+        Prefix for output filenames.
     save_netcdf : bool, optional
-        Whether to save results as a NetCDF file. Default is True.
+        Whether to save results as a NetCDF file.
     plot : bool, optional
-        Whether to generate a wind rose visualisation (PNG). Default is True.
+        Whether to generate a wind rose visualisation (PNG).
     gdata : bool, optional
         Whether to access data via NCI /g/data/xe2 path (requires NCI access).
-        If False, uses public THREDDS server. Default is False.
+        If False, uses public THREDDS server.
     temporal : str, optional
         Temporal resolution of the data. Options are '20min', '1hr', 'day', 'mon'.
-        Default is 'day'.
 
     Returns
     -------
@@ -255,11 +252,11 @@ def barra_daily(variables=["uas", "vas"], lat=-34.389, lon=148.469, buffer=0.01,
 
     Notes
     -----
-    When ``save_netcdf=True``, it writes:
-    ``{stub}_barra_daily.nc``
+    When save_netcdf=True, it writes:
+    {stub}_barra_daily.nc
 
-    When ``plot=True``, it writes:
-    ``{stub}_barra_daily.png`` (a wind rose visualisation)
+    When plot=True, it writes:
+    {stub}_barra_daily.png (a wind rose visualisation)
 
     Examples
     --------
@@ -310,8 +307,8 @@ def parse_arguments():
     parser.add_argument('--buffer', default=0.01, type=float, help='Buffer in each direction in degrees (default is 0.01, or about 2kmx2km)')
     parser.add_argument('--start_year', default='2020', help='Inclusive, and the minimum start year is 1889. Setting the start and end year to the same value will get all data for that year.')
     parser.add_argument('--end_year', default='2021', help='Specifying a larger end_year than available will automatically give data up to the most recent date (currently 2025)')
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
-    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--stub', default='TEST', help='Prefix for output filenames (default: TEST)')
     parser.add_argument('--no-save-netcdf', dest='save_netcdf', action="store_false", default=True, help='Disable saving NetCDF output (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
     parser.add_argument('--gdata', action="store_true", default=False, help='Access data via NCI /g/data path (requires NCI access). Default: False')
@@ -339,44 +336,4 @@ if __name__ == '__main__':
 # # For monthly: 5 secs, then 1, 1, 1
 # # For daily: 13 secs, then 3, 3, 3
 # # For 1hour: 2 mins, then 10 secs
-# # For 20min: 2 mins then error with drop_vars
-
-# +
-# # %%time
-
-# # var = 'uas'
-# # year = '2020'
-# # month = '01'
-# # url = f"/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/{var}/latest/{var}_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_{year}{month}-{year}{month}.nc"
-
-# latitude=-34.3890427
-# longitude=148.469499
-# url = '/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/day/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_day_202001-202001.nc'
-# ds = xr.open_dataset(url, engine="netcdf4")
-# ds_region = ds.sel(lat=[latitude], lon=[longitude], method='nearest')    
-
-# url = '/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/mon/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_mon_202505-202505.nc'
-# ds_month = xr.open_dataset(url, engine="netcdf4")
-# ds_month_region = ds_month.sel(lat=[latitude], lon=[longitude], method='nearest')    
-
-# url = '/g/data/ob53/BARRA2/output/reanalysis/AUST-04/BOM/ERA5/historical/hres/BARRA-C2/v1/20min/uas/latest/uas_AUST-04_ERA5_historical_hres_BOM_BARRA-C2_v1_20min_202505-202505.nc'
-# ds_20min = xr.open_dataset(url, engine="netcdf4")
-# ds_20min_region = ds_20min.sel(lat=[latitude], lon=[longitude], method='nearest')    
-
-# monthly = ds_month_region['uas'].values[0, 0, 0]
-# min20 = ds_20min_region['uas'].values[:, 0, 0]
-# daily = ds_region['uas'].values[:, 0, 0]  # shape (31,)
-
-# print("Monthly value:", monthly)
-
-# print("20min mean:", np.mean(min20))
-# print("20min median:", np.median(min20))
-# print("20min max:", np.max(min20))
-# print("20min min:", np.min(min20))
-# print("20min std:", np.std(min20))
-
-# print("Daily mean:", np.mean(daily))
-# print("Daily median:", np.median(daily))
-# print("Daily max:", np.max(daily))
-# print("Daily min:", np.min(daily))
-# print("Daily std:", np.std(daily))
+# # For 20min: 2 mins, then error with drop_vars

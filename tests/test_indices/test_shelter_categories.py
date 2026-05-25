@@ -2,6 +2,7 @@ import os
 import pytest
 import numpy as np
 import xarray as xr
+import rioxarray as rxr
 
 from shelterbelts.indices.shelter_categories import compute_distance_to_tree_TH, shelter_categories
 from shelterbelts.indices.tree_categories import tree_categories
@@ -26,21 +27,6 @@ def test_shelter_categories_basic():
     _assert_shelter_output(ds)
     assert os.path.exists(f"outdir/{stub}_shelter_categories.tif")
     assert os.path.exists(f"outdir/{stub}_shelter_categories.png")
-
-# TODO: Add a small chm.tif to the data folder (the current on in outdir is larger than I'd like to add to git)
-# @pytest.mark.parametrize("minimum_height,suffix", [(1, "minCH1"), (5, "minCH5"), (10, "minCH10")])
-# def test_shelter_categories_minimum_height(minimum_height, suffix):
-#     """Test shelter_categories with different minimum heights"""
-#     ds = shelter_categories(
-#         test_filename,
-#         wind_data=wind_file,
-#         height_tif=height_file,
-#         outdir='outdir',
-#         stub=f'{stub}_{suffix}',
-#         minimum_height=minimum_height,
-#         plot=False
-#     )
-#     _assert_shelter_output(ds)
 
 
 @pytest.mark.parametrize("wind_method,suffix", [
@@ -91,23 +77,6 @@ def test_shelter_categories_distance_threshold(distance_threshold, suffix):
     _assert_shelter_output(ds)
 
 
-# TODO: Add a small chm.tif to the data folder (the current on in outdir is larger than I'd like to add to git)
-# @pytest.mark.parametrize("distance_threshold,suffix", [(30, "dCH30"), (15, "dCH15"), (10, "dCH10")])
-# def test_shelter_categories_distance_with_height(distance_threshold, suffix):
-#     """Test shelter_categories with distance thresholds and height tif"""
-#     ds = shelter_categories(
-#         test_filename,
-#         wind_data=wind_file,
-#         height_tif=height_file,
-#         outdir='outdir',
-#         stub=f'{stub}_{suffix}',
-#         distance_threshold=distance_threshold,
-#         minimum_height=1,
-#         plot=False
-#     )
-#     _assert_shelter_output(ds)
-
-
 @pytest.mark.parametrize("density_threshold,suffix", [(5, "density5"), (20, "density20")])
 def test_shelter_categories_density_threshold(density_threshold, suffix):
     """Test shelter_categories with different density thresholds"""
@@ -137,6 +106,34 @@ def test_shelter_categories_no_plot():
     
     ds = shelter_categories(test_filename, outdir='outdir', stub=stub, plot=False)
     assert not os.path.exists(f"outdir/{stub}_shelter_categories.png")
+
+
+def test_shelter_categories_multi_layer():
+    """Test MULTI_LAYER wind method returns 8-band output in clockwise order."""
+    from shelterbelts.indices.shelter_categories import direction_map
+    ds = shelter_categories(
+        test_filename,
+        wind_method='MULTI_LAYER',
+        outdir='outdir',
+        stub=f'{stub}_multilayer',
+        savetif=True,
+        plot=False,
+    )
+    assert 'shelter_distances' in ds.data_vars
+    assert 'shelter_categories' in ds.data_vars
+
+    # 8 bands, one per direction
+    assert ds['shelter_distances'].sizes['direction'] == 8
+
+    # Band order matches clockwise convention: N, NE, E, SE, S, SW, W, NW
+    expected_order = list(direction_map.keys())
+    actual_order = ds['shelter_distances'].direction.values.tolist()
+    assert actual_order == expected_order, f"Expected {expected_order}, got {actual_order}"
+
+    # Saved tif should have 8 bands
+    import rioxarray as rxr
+    da_saved = rxr.open_rasterio(f'outdir/{stub}_multilayer_shelter_categories.tif')
+    assert da_saved.shape[0] == 8
 
 
 def test_shelter_categories_from_dataset():
@@ -173,6 +170,30 @@ def test_tree_height_method():
     xr.testing.assert_equal(compute_distance_to_tree_TH(heights_single_tree), expected_single_tree)
     xr.testing.assert_equal(compute_distance_to_tree_TH(heights_two_trees), expected_two_trees)
     xr.testing.assert_equal(compute_distance_to_tree_TH(heights_two_trees_separated), expected_two_trees_separated)
+
+def test_scattered_trees_preserved():
+    """Tree pixels (categories 10–19) in the input must remain tree pixels in the output."""
+    da_input = rxr.open_rasterio(test_filename).squeeze('band').drop_vars('band')
+    n_tree_before = int(((da_input >= 10) & (da_input < 20)).sum())
+
+    ds = shelter_categories(
+        test_filename,
+        wind_data=wind_file,
+        wind_method='ANY',
+        distance_threshold=40,
+        outdir='outdir',
+        stub=f'{stub}_scattered_preserved',
+        savetif=False,
+        plot=False,
+    )
+
+    da_out = ds['shelter_categories']
+    n_tree_after = int(((da_out >= 10) & (da_out < 20)).sum())
+
+    assert n_tree_before == n_tree_after, (
+        f"Tree pixel count changed: {n_tree_before} before, and {n_tree_after} after shelter_categories. "
+    )
+
 
 def test_pytest():
     print("Hello world!")

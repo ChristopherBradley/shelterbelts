@@ -14,6 +14,7 @@ from shelterbelts.apis.worldcover import worldcover, parse_arguments as parse_wo
 from shelterbelts.apis.barra_daily import barra_daily, parse_arguments as parse_barra_daily_args
 from shelterbelts.apis.canopy_height import canopy_height, parse_arguments as parse_canopy_height_args
 from shelterbelts.indices.catchments import catchments, parse_arguments as parse_catchments_args
+from shelterbelts.indices.opportunities import opportunities, parse_arguments as parse_opportunities_args
 
 
 @pytest.mark.parametrize('func,parser_func', [
@@ -27,6 +28,7 @@ from shelterbelts.indices.catchments import catchments, parse_arguments as parse
     (barra_daily, parse_barra_daily_args),
     (catchments, parse_catchments_args),
     (canopy_height, parse_canopy_height_args),
+    (opportunities, parse_opportunities_args),
 ])
 def test_cli_defaults_match_function_defaults(func, parser_func):
     """Verify CLI argument defaults match function signature defaults"""

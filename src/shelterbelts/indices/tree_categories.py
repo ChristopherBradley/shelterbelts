@@ -103,29 +103,24 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         Either a file path to a binary GeoTIFF containing tree/no-tree information,
         or an xarray Dataset with a 'woody_veg' band (boolean or integer).
     outdir : str, optional
-        Output directory for saving results. Default is current directory.
+        Output directory for saving results.
     stub : str, optional
-        Prefix for output filenames. If input_data is a string and stub is not
-        provided, it is derived from the input filename. Required when
-        input_data is a Dataset.
+        Prefix for output filenames. If not provided it is derived from input_data.
     min_patch_size : int, optional
         Minimum area (pixels) to classify as a patch rather than scattered trees.
-        Default is 20.
     min_core_size : int, optional
-        Minimum area (pixels) to classify as a core area. Default is 1000.
+        Minimum area (pixels) to classify as a core area.
     edge_size : int, optional
         Distance (pixels) defining the edge region around patch cores.
-        Default is 3.
     max_gap_size : int, optional
         Maximum gap (pixels) to bridge when connecting tree clusters.
-        Default is 1.
     strict_core_area : bool, optional
         If True, enforce that core areas exceed the edge_size at all points.
-        If False, use dilation and erosion to allow some irregularity. Default is True.
+        If False, use dilation and erosion to allow some irregularity.
     save_tif : bool, optional
-        Whether to save the results as a GeoTIFF. Default is True.
+        Whether to save the results as a GeoTIFF.
     plot : bool, optional
-        Whether to generate a PNG visualisation. Default is True.
+        Whether to generate a PNG visualisation.
     
     Returns
     -------
@@ -138,10 +133,10 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     Notes
     -------
     When save_tif=True, it outputs a GeoTIFF file with embedded color map:
-    ``{stub}_tree_categories.tif``
+    {stub}_tree_categories.tif
     
     When plot=True, it outputs a PNG visualisation with legend:
-    ``{stub}_tree_categories.png``
+    {stub}_tree_categories.png
     
     References
     ----------
@@ -216,10 +211,12 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     if isinstance(input_data, str):
         da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
         ds = da.to_dataset(name='woody_veg')
-        filename = input_data
+        if not stub:
+            stub = input_data.split('/')[-1].split('.')[0]
     else:
         ds = input_data.copy(deep=True)
-        filename = None
+        if not stub:
+            raise ValueError("stub must be provided when input_data is a Dataset")
 
     woody_veg = ds['woody_veg'].values.astype(bool)
 
@@ -237,13 +234,6 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
     tree_categories_array[corridor_area]  = inverted_labels['Other Trees']
     ds['tree_categories'] = (('y', 'x'), tree_categories_array)
 
-    if not stub:
-        if filename:
-            # Use the same prefix as the original woody_veg filename
-            stub = filename.split('/')[-1].split('.')[0]
-        else:
-            raise ValueError("stub must be provided when input_data is a Dataset")
-
     if save_tif:
         filename_categorical = os.path.join(outdir,f"{stub}_tree_categories.tif")
         tif_categorical(ds['tree_categories'], filename_categorical, tree_categories_cmap)
@@ -260,12 +250,12 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('input_data', help='A binary tif file containing tree/no tree information')
-    parser.add_argument('--outdir', default='.', help='Output directory for saving results')
-    parser.add_argument('--stub', default=None, help='Prefix for output filenames')
-    parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees')
-    parser.add_argument('--min_core_size', default=1000, type=int, help='Minimum area (pixels) to classify as a core area')
-    parser.add_argument('--edge_size', default=3, type=int, help='Distance (pixels) defining the edge region around patch cores')
-    parser.add_argument('--max_gap_size', default=1, type=int, help='Maximum gap (pixels) to bridge when connecting tree clusters')
+    parser.add_argument('--outdir', default='.', help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--stub', default=None, help='Prefix for output filenames (default: derived from input)')
+    parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees (default: 20)')
+    parser.add_argument('--min_core_size', default=1000, type=int, help='Minimum area (pixels) to classify as a core area (default: 1000)')
+    parser.add_argument('--edge_size', default=3, type=int, help='Distance (pixels) defining the edge region around patch cores (default: 3)')
+    parser.add_argument('--max_gap_size', default=1, type=int, help='Maximum gap (pixels) to bridge when connecting tree clusters (default: 1)')
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action="store_false", default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
     parser.add_argument('--no-plot', dest='plot', action="store_false", default=True, help='Disable PNG visualisation (default: enabled)')
@@ -290,33 +280,4 @@ if __name__ == '__main__':
         save_tif=args.save_tif,
         plot=args.plot
     )
-
-# +
-# # %%time
-# TODO: This code should go in a separate testing file
-# cover_threshold=50
-# min_patch_size=20
-# min_core_size=200
-# edge_size=10
-# max_gap_size=1
-# strict_core_area=False
-
-# folder='/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_30_lon_158'
-# tmpdir = '/scratch/xe2/cb8590/tmp'
-# outdir='/scratch/xe2/cb8590/tmp'
-# stub='Test'
-
-# cover_threshold=50
-# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_144/29_33-144_02_y2024_predicted.tif'  # Failing because all trees
-# # percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_140/34_13-141_90_y2024_predicted.tif' # Should be fine
-# percent_tif = '/scratch/xe2/cb8590/barra_trees_s4_2018_actnsw_4326/subfolders/lat_34_lon_148/34_37-148_42_y2018_predicted.tif'  # West Milgadara
-# da_percent = rxr.open_rasterio(percent_tif).isel(band=0).drop_vars('band')
-# da_trees = da_percent > cover_threshold
-# da_trees = da_trees.astype('uint8')
-# ds_woody_veg = da_trees.to_dataset(name='woody_veg')
-# -
-
-# ds_tree_categories = tree_categories(None, outdir, stub, min_core_size=1000, edge_size=10, strict_core_area=True, min_patch_size=min_patch_size, max_gap_size=max_gap_size, save_tif=True, plot=True, ds=ds_woody_veg)
-
-
 

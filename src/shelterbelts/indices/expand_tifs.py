@@ -8,9 +8,7 @@ import rioxarray as rxr
 from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds
 
 
-from shelterbelts.utils.filepaths import default_tmpdir
-
-def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir=default_tmpdir, num_pixels=20, pixel_size=10):
+def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir=".", num_pixels=20, pixel_size=10):
     """Expand the tif by a certain number of pixels, to avoid edge effects when running indices at scale
     
     Parameters
@@ -93,25 +91,3 @@ if __name__ == "__main__":
                 limit=args.limit,
                 gpkg=args.gpkg
                )
-
-# +
-# filename = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_148/34_93-148_90_y2024_predicted.tif'
-# folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted'
-# outdir = '/scratch/xe2/cb8590/tmp'
-
-# +
-# ds = expand_tif(filename, folder_merged, outdir)
-
-# +
-# # %%time
-# folder_to_expand = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_34_lon_144'
-# folder_merged = '/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/merged_predicted'
-# outdir = '/scratch/xe2/cb8590/barra_trees_s4_2024/expanded'
-
-# +
-# # %%time
-# expand_tifs(folder_to_expand, folder_merged, outdir, limit=10)
-# # 7 secs for 10, means about 30 mins per folder
-# -
-
-

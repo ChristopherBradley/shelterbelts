@@ -99,11 +99,37 @@ def visualise_categories(da, filename=None, colormap=None, labels=None, title=No
 
 def visualise_categories_sidebyside(da1, da2, filename=None, colormap=None, labels=None, title1=None, title2=None):
     """Display two categorical maps side by side with shared colormap and labels."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 11))
     _plot_categories_on_axis(ax1, da1, colormap, labels, title1, legend_inside=True)
     _plot_categories_on_axis(ax2, da2, colormap, labels, title2, legend_inside=True)
     plt.tight_layout()
     _save_or_show(filename)
+
+
+def _plot_canopy_height_on_axis(ax, da, title='Canopy Height (m)'):
+    """Helper to plot canopy height data on a given axis."""
+    bin_edges = np.arange(0, 16, 1)
+    categories = np.digitize(da.values, bin_edges, right=True)
+
+    colours = plt.cm.viridis(np.linspace(0, 1, len(bin_edges) - 2))
+    cmap = ListedColormap(['white'] + list(colours))
+
+    im = ax.imshow(categories, cmap=cmap)
+
+    labels = [f'{bin_edges[i]}' for i in range(len(bin_edges))]
+    labels[-1] = '>=15'
+
+    num_categories = len(bin_edges)
+    start_position = 0.5
+    end_position = num_categories + 0.5
+    step = (end_position - start_position) / num_categories
+    tick_positions = np.arange(start_position, end_position, step)
+
+    cbar = plt.colorbar(im, ax=ax, ticks=tick_positions, shrink=0.7)
+    cbar.ax.set_yticklabels(labels)
+
+    if title:
+        ax.set_title(title, fontsize=30, fontweight='bold')
 
 
 def visualise_canopy_height(ds, filename=None):
@@ -116,32 +142,8 @@ def visualise_canopy_height(ds, filename=None):
     filename : str, optional
         If provided, save the figure to this path
     """
-    image = ds['canopy_height']
-    bin_edges = np.arange(0, 16, 1)
-    categories = np.digitize(image, bin_edges, right=True)
-    
-    # Define a colour for each category
-    colours = plt.cm.viridis(np.linspace(0, 1, len(bin_edges) - 2))
-    cmap = ListedColormap(['white'] + list(colours))
-
     fig, ax = plt.subplots(figsize=(8, 6))
-    im = ax.imshow(categories, cmap=cmap)
-    
-    # Assign the colours
-    labels = [f'{bin_edges[i]}' for i in range(len(bin_edges))]
-    labels[-1] = '>=15'
-    
-    # Place the tick label in the middle of each category
-    num_categories = len(bin_edges)
-    start_position = 0.5
-    end_position = num_categories + 0.5
-    step = (end_position - start_position) / num_categories
-    tick_positions = np.arange(start_position, end_position, step)
-    
-    cbar = plt.colorbar(im, ticks=tick_positions)
-    cbar.ax.set_yticklabels(labels)
-    
-    plt.title('Canopy Height (m)', size=14)
+    _plot_canopy_height_on_axis(ax, ds['canopy_height'])
     plt.tight_layout()
     _save_or_show(filename)
 
@@ -226,7 +228,7 @@ def _plot_catchments_on_axis(ax, ds, title=None):
     ax.legend(loc='upper right', markerscale=2)
 
     if title:
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_title(title, fontsize=30, fontweight='bold')
 
 
 def plot_catchments(ds, filename=None, title=None):
@@ -239,7 +241,7 @@ def plot_catchments(ds, filename=None, title=None):
 
 def plot_catchments_sidebyside(ds1, ds2, title1=None, title2=None):
     """Display two catchment maps side by side."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 11))
     _plot_catchments_on_axis(ax1, ds1, title1)
     _plot_catchments_on_axis(ax2, ds2, title2)
     plt.tight_layout()

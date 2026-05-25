@@ -1,11 +1,29 @@
 API Reference
 =============
 
+
+WorldCover
+----------
+
+.. autofunction:: shelterbelts.apis.worldcover.worldcover
+
+BARRA Daily
+-----------
+
+.. autofunction:: shelterbelts.apis.barra_daily.barra_daily
+
+Canopy Height
+-------------
+
+.. autofunction:: shelterbelts.apis.canopy_height.canopy_height
+
+
 Indices
 =======
 
 
 Tree Categories
+---------------
 
 .. autofunction:: shelterbelts.indices.tree_categories.tree_categories
 
@@ -45,7 +63,7 @@ Catchments
 Full Indices Pipeline
 ----------------------
 
-Run the end-to-end indices pipeline on percent-cover rasters.
+Run the end-to-end indices pipeline on a single, or multiple percent-cover rasters.
 
 .. autofunction:: shelterbelts.indices.all_indices.indices_tif
 
@@ -53,20 +71,71 @@ Run the end-to-end indices pipeline on percent-cover rasters.
 
 .. autofunction:: shelterbelts.indices.all_indices.indices_tifs
 
-APIs
-====
+.. autofunction:: shelterbelts.indices.all_indices.indices_latlon
 
-WorldCover
+Catchments
 ----------
 
-.. autofunction:: shelterbelts.apis.worldcover.worldcover
+.. autofunction:: shelterbelts.indices.catchments.catchments
 
-BARRA Daily
------------
-
-.. autofunction:: shelterbelts.apis.barra_daily.barra_daily
-
-Canopy Height
+Opportunities
 -------------
 
-.. autofunction:: shelterbelts.apis.canopy_height.canopy_height
+.. autofunction:: shelterbelts.indices.opportunities.opportunities
+
+
+Classifications
+===============
+
+Tools for turning raw remote-sensing inputs into the binary tree-cover rasters 
+that feed the indices pipeline.
+
+Binary Tree Rasters
+-------------------
+
+.. autofunction:: shelterbelts.classifications.binary_trees.worldcover_trees
+
+.. autofunction:: shelterbelts.classifications.binary_trees.canopy_height_trees
+
+Bounding Boxes
+--------------
+
+.. autofunction:: shelterbelts.classifications.bounding_boxes.bounding_boxes
+
+LiDAR
+-----
+
+.. autofunction:: shelterbelts.classifications.lidar.lidar
+
+.. autofunction:: shelterbelts.classifications.lidar.lidar_folder
+
+Sentinel Download
+----------------------------
+
+.. autofunction:: shelterbelts.classifications.sentinel_nci.download_ds2_bbox
+
+.. autofunction:: shelterbelts.classifications.sentinel_dea.download_ds2_bbox
+
+
+Training Pipeline
+-----------------
+
+.. autofunction:: shelterbelts.classifications.merge_inputs_outputs.merge_inputs_outputs
+
+.. autofunction:: shelterbelts.classifications.combine_csvs.combine_csvs
+
+.. autofunction:: shelterbelts.classifications.random_forest.random_forest
+
+.. autofunction:: shelterbelts.classifications.neural_network.train_neural_network
+
+
+Prediction
+----------
+
+.. autofunction:: shelterbelts.classifications.predictions.predictions
+
+Mosaicking
+----------
+
+.. autofunction:: shelterbelts.classifications.merge_tifs.merge_tifs
+

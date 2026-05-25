@@ -42,7 +42,12 @@ autosummary_generate = True
 html_theme = 'alabaster'
 # html_theme = 'furo'
 
+html_theme_options = {
+    'sidebar_collapse': False,
+}
+
 html_static_path = ['_static']
+html_css_files = ['custom.css']  # Fix the issue with modules being too long giving 1 character per line strange formatting
 
 # Plot directive settings - show only high-resolution PNG
 plot_formats = [('hires.png', 150)]

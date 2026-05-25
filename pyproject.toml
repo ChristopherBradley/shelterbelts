@@ -43,7 +43,8 @@ dependencies = [
     "earthengine-api",
     "geemap",
     "tqdm",
-    "awscli"
+    "awscli",
+    "numba"
 ]
 
 [project.optional-dependencies]
@@ -54,7 +55,10 @@ dev = [
     "twine",
     "build",
     "jupyterlab-lsp",
-    "python-lsp-server[all]"
+    "python-lsp-server[all]",
+    "ghp-import",
+    "sphinx",
+    "sphinx-argparse"
 ]
 
 [project.urls]
