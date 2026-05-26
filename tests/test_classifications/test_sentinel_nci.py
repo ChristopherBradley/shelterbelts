@@ -1,3 +1,4 @@
+import importlib
 import os
 
 import pytest
@@ -13,7 +14,11 @@ BBOX = (149.0, -35.5, 149.1, -35.4)
 START = '2020-01-01'
 END   = '2020-04-01'
 
-pytestmark = pytest.mark.skipif(not IS_GADI, reason="NCI/Gadi datacube not available")
+_datacube_available = importlib.util.find_spec('datacube') is not None
+pytestmark = pytest.mark.skipif(
+    not IS_GADI or not _datacube_available,
+    reason="Requires NCI/Gadi with the DEA module loaded (module load dea/20231204)"
+)
 
 
 def test_load_and_process_data_shape():

@@ -11,12 +11,14 @@ if IS_GADI:
     # NCI/Gadi file paths
     default_tmpdir = '/scratch/xe2/cb8590/tmp'
     worldcover_dir = '/scratch/xe2/cb8590/Worldcover_Australia'
+    worldcover_geojson = 'cb8590_Worldcover_Australia_footprints.gpkg'
     hydrolines_gdb = '/g/data/xe2/cb8590/Outlines/SurfaceHydrologyLinesRegional.gdb'
     roads_gdb = '/g/data/xe2/cb8590/Outlines/2025_09_National_Roads.gdb'
 else:
     # Local defaults
     default_tmpdir = '.'
     worldcover_dir = str(_repo_root / 'data')  # Using this '/' operator means the filepaths should work on both windows and mac.
+    worldcover_geojson = 'g2_26729_worldcover_footprints.geojson'
     hydrolines_gdb = str(_repo_root / 'data' / 'g2_26729_hydrolines_cropped.gpkg')
     roads_gdb = str(_repo_root / 'data' / 'g2_26729_roads_cropped.gpkg')
 
@@ -31,8 +33,6 @@ canopy_height_folder = '/scratch/xe2/cb8590/Nick_GCH'
 nick_outlines = '/g/data/xe2/cb8590/Nick_outlines'
 nick_aus_treecover_10m = '/g/data/xe2/cb8590/Nick_Aus_treecover_10m'
 koppen_australia = '/g/data/xe2/cb8590/Outlines/Koppen_Australia_cleaned2.gpkg'
-
-# NCI/Gadi file paths - DEM data
 nsw_dem_dir = '/g/data/xe2/cb8590/NSW_5m_DEMs_3857'
 
 # Bundled sample fixtures
@@ -41,6 +41,7 @@ dem_h_sample = str(_repo_root / 'data' / 'g2_26729_DEM-H.tif')
 quartered_tifs_dir = str(_repo_root / 'data' / 'quartered_linear_tifs')
 sentinel_sample = str(_repo_root / 'data' / 'g2_019_sentinel_150mx150m.pkl')
 training_csv_sample = str(_repo_root / 'data' / 'g2_017_training.csv')
+tmpdir = default_tmpdir
 
 def create_test_woody_veg_dataset():
     """Create a test woody vegetation dataset for docstring examples.

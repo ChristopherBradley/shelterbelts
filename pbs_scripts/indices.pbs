@@ -25,42 +25,59 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 tmpdir="$PBS_JOBFS"  # Opus says using /scratch/xe2/cb8590/tmp causes concurrency blocking issues
 
-# # Nick Trees - success yay
+# To test with a single tile before running the full indices.sh:
+#   qsub -v param_stub=subfolder_1 indices.pbs
+
+#####################
+
+# # Nick Trees for evaluations — wind method ANY, debug=True so shelter_distances.tif is saved
 # folder=/scratch/xe2/cb8590/Nick_Aus_treecover_10m/${param_stub}
-# outdir=/scratch/xe2/cb8590/Nick_indices
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --limit 15000
+# outdir=/scratch/xe2/cb8590/Nick_indices_distances_scatfix
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --wind_method ANY --debug
 
-# Aus Trees
-year=2024
-folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
-outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
-echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5
+# # edge_size=1 — default density method, for treeline-distance evaluation
+# outdir=/scratch/xe2/cb8590/Nick_indices_edge1_scatfix
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 1
 
-# # # NSW Trees (done default, want to improve thresholds before running other methods)
-# year=2020
-# folder=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/$param_stub
+# # edge_size=2 — default density method, for treeline-distance evaluation
+# outdir=/scratch/xe2/cb8590/Nick_indices_edge2_scatfix
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 2 --distance_threshold 10
 
+#####################
+
+# # Aus Trees
+# year=2024
+# folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/$param_stub
+# outdir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/expanded/linear_tifs_${param_stub}_default_percentmethod
 # echo "Starting indices.pbs for folder $folder, outdir $outdir with default values"
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_default_percentmethod2
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5 
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5
 
-# echo "More shelterbelts percent_method"
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_more_percentmethod
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2
+#####################
 
-# echo "Less shelterbelts percent_method"
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_less_percentmethod
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0
+# # Aus grazing trees 2020
+basedir=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazing_no_bwh
+folder=${basedir}/$param_stub
 
-# echo "default wind"
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_default_windmethod
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD
+echo "Default percent method"
+outdir=${basedir}/linear_tifs_${param_stub}_default_percentmethod
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20 --limit 10
 
-# echo "More shelterbelts wind"
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_more_windmethod
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method ALL --max_shelterbelt_width 8 --min_shelterbelt_length 10 --min_core_size 10000 --edge_size 5 --buffer_width 5 --distance_threshold 30 --density_threshold 3 --min_patch_size 10 --max_gap_size 2
+echo "More shelterbelts percent method"
+outdir=${basedir}/linear_tifs_${param_stub}_more_percentmethod
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --limit 10
 
-# echo "Less shelterbelts wind"
-# outdir=/scratch/xe2/cb8590/barra_trees_s4_${year}_actnsw_4326_weightings_median/expanded/linear_tifs_${param_stub}_less_windmethod
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --max_shelterbelt_width 4 --min_shelterbelt_length 30 --min_core_size 100 --edge_size 1 --buffer_width 1 --distance_threshold 10 --density_threshold 10 --min_patch_size 30 --max_gap_size 0
+echo "Less shelterbelts percent method"
+outdir=${basedir}/linear_tifs_${param_stub}_less_percentmethod
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --limit 10
+
+echo "Default wind method"
+outdir=${basedir}/linear_tifs_${param_stub}_default_windmethod
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20 --limit 10
+
+echo "More shelterbelts wind method"
+outdir=${basedir}/linear_tifs_${param_stub}_more_windmethod
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method ALL --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --limit 10
+
+echo "Less shelterbelts wind method"
+outdir=${basedir}/linear_tifs_${param_stub}_less_windmethod
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --limit 10

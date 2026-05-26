@@ -203,7 +203,9 @@ def _crown_dalponteCIRC(Chm, Trees, th_seed, th_crown, th_tree, max_crown):
     return Crowns
 
 
-def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=10):
+# def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=10, th_seed=0.45, th_crown=0.55):  # Defaults from Dalponte and Coomes 2016 
+
+def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th_seed=0.01, th_crown=0.4):  # Defaults from Pucino et al. 2026 
     """Delineate individual tree crowns from a CHM tif using the Dalponte CIRC algorithm.
 
     Smooths the CHM, detects local maxima as tree tops, runs circular region
@@ -255,7 +257,7 @@ def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=10):
 
     crowns = _crown_dalponteCIRC(
         chm, seeds,
-        th_seed=0.45, th_crown=0.55,
+        th_seed, th_crown,
         th_tree=float(height_threshold),
         max_crown=float(max_crown_m / resolution),
     )

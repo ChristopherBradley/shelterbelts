@@ -179,7 +179,7 @@ def indices_tif(percent_tif, outdir=".",
     # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
     worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # 
     
-    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False) 
+    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False)
     ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
     da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
     gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies')
@@ -291,10 +291,13 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
 
     # 4. DEM → gullies + ridges
-    # terrain_tiles calls gdalwarp as a subprocess; ensure it can find the PROJ database
+    # terrain_tiles calls gdalwarp as a subprocess; ensure the conda env bin and PROJ db are findable
+    import sys
+    _env_bin = os.path.dirname(sys.executable)
+    if _env_bin not in os.environ.get('PATH', ''):
+        os.environ['PATH'] = _env_bin + os.pathsep + os.environ.get('PATH', '')
     if 'PROJ_DATA' not in os.environ:
-        import sys
-        _proj_data = os.path.join(os.path.dirname(os.path.dirname(sys.executable)), 'share', 'proj')
+        _proj_data = os.path.join(os.path.dirname(_env_bin), 'share', 'proj')
         if os.path.exists(_proj_data):
             os.environ['PROJ_DATA'] = _proj_data
     terrain_tiles(lat, lon, buffer, outdir=tmpdir, stub=stub, tmpdir=tmpdir, verbose=debug)
@@ -349,7 +352,8 @@ def indices_csv(csv, outdir=".",
                      wind_method=None, wind_threshold=20,
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6):
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
+                     debug=False):
     """
     Run the indices pipeline for every file listed in a CSV.
 
@@ -368,14 +372,15 @@ def indices_csv(csv, outdir=".",
     df = pd.read_csv(csv)
     for percent_tif in df['filename']:
         # The provided stub needs to be None, because we want to use the percent_tif filename instead. 
-        indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width)
+        indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, debug=debug)
 
 
 def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
                       wind_method=None, wind_threshold=20,
                       cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif'):
+                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif',
+                      debug=False):
     """
     Run the indices pipeline over a folder of binary or integer tifs representing percentage tree cover.
 
@@ -448,6 +453,8 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
         ]
         if not strict_core_area:
             cmd += ["--no-strict-core-area"]
+        if debug:
+            cmd += ["--debug"]
     
         # Popen a subprocess to hopefully avoid memory accumulation
         p = subprocess.Popen(cmd)
@@ -477,6 +484,7 @@ def parse_arguments():
     parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="Minimum skeleton length (in pixels) to classify a cluster as linear")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="Maximum skeleton width (in pixels) to classify a cluster as linear")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
+    parser.add_argument('--debug', action='store_true', default=False, help='Save intermediate TIFFs and plots for debugging (default: False)')
 
     return parser
 
@@ -503,7 +511,8 @@ if __name__ == "__main__":
             crop_pixels=args.crop_pixels,
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
-            max_shelterbelt_width=args.max_shelterbelt_width
+            max_shelterbelt_width=args.max_shelterbelt_width,
+            debug=args.debug,
         )
     elif args.folder.endswith('.csv'):
             indices_csv(
@@ -524,7 +533,8 @@ if __name__ == "__main__":
             crop_pixels=args.crop_pixels,
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
-            max_shelterbelt_width=args.max_shelterbelt_width
+            max_shelterbelt_width=args.max_shelterbelt_width,
+            debug=args.debug,
         )
     else:
         indices_tifs(
@@ -547,5 +557,6 @@ if __name__ == "__main__":
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
-            suffix=args.suffix
+            suffix=args.suffix,
+            debug=args.debug,
         )

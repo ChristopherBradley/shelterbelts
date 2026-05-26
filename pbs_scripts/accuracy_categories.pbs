@@ -4,14 +4,14 @@
 #PBS -l ncpus=1
 #PBS -l jobfs=1GB
 #PBS -P xe2
-#PBS -l walltime=02:00:00
+#PBS -l walltime=10:00:00
 #PBS -l storage=gdata/xe2+gdata/ob53
 #PBS -q normal
-
-cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 
 # Load the conda environment
 source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
-python accuracy_categories.py
+cd /home/147/cb8590/Projects/shelterbelts/examples/classifications
+
+python demo_accuracy_evaluation.py

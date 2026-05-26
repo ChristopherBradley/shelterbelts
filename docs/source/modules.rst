@@ -55,6 +55,11 @@ Class Metrics
 
 .. autofunction:: shelterbelts.indices.shelter_metrics.class_metrics
 
+Catchments
+----------
+
+.. autofunction:: shelterbelts.indices.catchments.catchments
+
 Full Indices Pipeline
 ----------------------
 

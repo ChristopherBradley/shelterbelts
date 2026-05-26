@@ -1,10 +1,12 @@
 import os
 
 import pytest
+import geopandas as gpd
 
 pdal = pytest.importorskip('pdal')
 
 from shelterbelts.classifications.lidar import lidar
+from shelterbelts.classifications._crown_dalponteCIRC_numba import crowns_to_gpkg
 from shelterbelts.utils.filepaths import laz_sample, dem_h_sample
 
 
@@ -89,6 +91,28 @@ def test_lidar_delineate_crowns():
     assert 'treeID' in crowns.columns
     assert 'mean_height_m' in crowns.columns
     assert crowns['mean_height_m'].min() > 0
+
+
+def test_lidar_crown_parameters():
+    """Dalponte 2016 vs Pucino 2026 defaults produce different crown areas"""
+
+    lidar(laz_sample, outdir='outdir', stub='lidar_crown_params', resolution=1, just_chm=True)
+    chm_tif = 'outdir/lidar_crown_params_chm_res1.tif'
+
+    gdf_dalponte = crowns_to_gpkg(
+        chm_tif, 'outdir', 'crowns_dalponte2016',
+        height_threshold=2, max_crown_m=10, th_seed=0.45, th_crown=0.55,
+    )
+    gdf_pucino = crowns_to_gpkg(
+        chm_tif, 'outdir', 'crowns_pucino2026',
+        height_threshold=2, max_crown_m=30, th_seed=0.01, th_crown=0.4,
+    )
+    area_dalponte = gdf_dalponte.geometry.area.sum()
+    area_pucino = gdf_pucino.geometry.area.sum()
+    assert area_dalponte != area_pucino, (
+        f"Expected different total crown areas for the two parameter sets, "
+        f"got {area_dalponte:.1f} m² (Dalponte 2016) vs {area_pucino:.1f} m² (Pucino 2026)"
+    )
 
 
 def test_lidar_resolution():
