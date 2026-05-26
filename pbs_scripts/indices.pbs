@@ -37,7 +37,7 @@ tmpdir="$PBS_JOBFS"  # Opus says using /scratch/xe2/cb8590/tmp causes concurrenc
 
 # # edge_size=1 — default density method, for treeline-distance evaluation
 # outdir=/scratch/xe2/cb8590/Nick_indices_edge1_scatfix
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 1
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 1 --suffix tiff --buffer_width 5 --edge_size 2
 
 # # edge_size=2 — default density method, for treeline-distance evaluation
 # outdir=/scratch/xe2/cb8590/Nick_indices_edge2_scatfix
@@ -60,24 +60,19 @@ folder=${basedir}/$param_stub
 
 echo "Default percent method"
 outdir=${basedir}/linear_tifs_${param_stub}_default_percentmethod
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20 --limit 10
-
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20
 echo "More shelterbelts percent method"
 outdir=${basedir}/linear_tifs_${param_stub}_more_percentmethod
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --limit 10
-
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --edge_size 5 --density_threshold 3 --min_core_size 10000
 echo "Less shelterbelts percent method"
 outdir=${basedir}/linear_tifs_${param_stub}_less_percentmethod
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --limit 10
-
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --edge_size 2 --density_threshold 10 --min_core_size 100
 echo "Default wind method"
 outdir=${basedir}/linear_tifs_${param_stub}_default_windmethod
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20 --limit 10
-
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20
 echo "More shelterbelts wind method"
 outdir=${basedir}/linear_tifs_${param_stub}_more_windmethod
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method ALL --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --limit 10
-
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method ANY --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --edge_size 5 --min_core_size 10000 --wind_threshold 15
 echo "Less shelterbelts wind method"
 outdir=${basedir}/linear_tifs_${param_stub}_less_windmethod
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --limit 10
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --edge_size 2 --min_core_size 100 --wind_threshold 25
