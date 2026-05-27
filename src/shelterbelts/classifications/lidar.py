@@ -7,6 +7,8 @@ import json
 import argparse
 import subprocess
 
+import geopandas as gpd
+
 import numpy as np
 import pdal
 import rioxarray as rxr
@@ -248,9 +250,11 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
                 drop=False,
                 # all_touched=True, Any polygon touching this pixel counts. By default, the polygon has the pass through the centre of the pixel.
             ).fillna(0)
+            original_chm_tif = chm_tif
             chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}.tif')
             chm_masked.rio.to_raster(chm_tif)
             print(f"Saved: {chm_tif}", flush=True)
+            os.remove(original_chm_tif)
 
     if just_chm:
         return None, None
@@ -294,6 +298,20 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
     if limit is not None:
         laz_files = laz_files[:int(limit)]
     for laz_file in laz_files:
+        if os.path.getsize(laz_file) == 0:
+            continue  # Some laz files from elvis are empty and this would break the pdal script
+        stub = laz_file.split('/')[-1].split('.')[0]
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only)
+        del chm, da  # Trying to avoid memory accumulation
+        gc.collect()
+
+
+def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, column='filepath'):
+    """Apply :func:`lidar` to every row in a GeoPackage, reading laz paths from column."""
+    gdf = gpd.read_file(gpkg_file)
+    if limit is not None:
+        gdf = gdf.iloc[:int(limit)]
+    for laz_file in gdf[column]:
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = laz_file.split('/')[-1].split('.')[0]
@@ -434,6 +452,22 @@ if __name__ == '__main__':
             binary=args.binary,
             cleanup=args.cleanup,
             just_chm=args.just_chm,
+            dem=args.dem,
+            delineate_crowns=args.delineate_crowns,
+            veg_only=not args.no_veg_only,
+        )
+    elif args.laz_file.endswith('.gpkg'):
+        lidar_gpkg(
+            args.laz_file,
+            outdir=args.outdir,
+            resolution=args.resolution,
+            height_threshold=args.height_threshold,
+            category5=args.category5,
+            epsg=args.epsg,
+            binary=args.binary,
+            cleanup=args.cleanup,
+            just_chm=args.just_chm,
+            limit=args.limit,
             dem=args.dem,
             delineate_crowns=args.delineate_crowns,
             veg_only=not args.no_veg_only,
