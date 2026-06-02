@@ -409,10 +409,12 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
 
     if limit is None: # Don't remove tifs if we've specified a limit, because it's just for testing so I want reproducible results.
         # Remove tifs that have already been processed (sometimes I have to run this multiple times if a process runs out of memory or rasterio gives a parallelisation conflict)
-        percent_stubs = [pathlib.Path(tif).stem[:12] for tif in percent_tifs]
         processed = glob.glob(f'{outdir}/*.tif')
-        processed_stubs = set(pathlib.Path(tif).stem[:12] for tif in processed)
-        percent_tifs = [tif for tif, stub in zip(percent_tifs, percent_stubs) if stub not in processed_stubs]
+        processed_stems = [pathlib.Path(tif).stem for tif in processed]
+        percent_tifs = [
+            tif for tif in percent_tifs
+            if not any(s.startswith(pathlib.Path(tif).stem[:50]) for s in processed_stems)
+        ]
         print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])
