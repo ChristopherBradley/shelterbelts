@@ -252,10 +252,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
             ).fillna(0)
             if uint8:
                 chm_masked = (chm_masked.where(chm_masked < 100, 100)
-                                        .where(chm_masked != -9999, 255)
-                                        .rio.write_nodata(255)
+                                        .where(chm_masked != -9999, 0)
                                         .round()
-                                        .astype('uint8'))
+                                        .astype('uint8')
+                                        .rio.write_nodata(0))
             original_chm_tif = chm_tif
             suffix = '_uint8' if uint8 else ''
             chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}{suffix}.tif')
@@ -278,10 +278,6 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     if cleanup:
         print(f"Removing: {chm_tif}")
         os.remove(chm_tif)
-
-    # Mask nodata before thresholding since uint8 CHMs use 255 as nodata, and 255 > height_threshold
-    if chm.rio.nodata is not None:
-        chm = chm.where(chm != chm.rio.nodata)
 
     da_tree = (chm > height_threshold).astype(np.uint8).rio.write_nodata(None)
 
