@@ -88,6 +88,21 @@ Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
 
 
 ///////////////////////////////////////////////////////////
+// WorldCover 2020
+var wcClasses = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100];
+var wcPalette = ['006400', 'ffbb22', 'ffff4c', 'f096ff', 'fa0000',
+                 'b4b4b4', 'f0f0f0', '0064c8', '0096a0', '00cf75', 'fae6a0'];
+var wcIndices = wcClasses.map(function(_, i) { return i; });
+var wc = ee.ImageCollection('ESA/WorldCover/v100').first().select('Map');
+var wcRemapped = wc.remap(wcClasses, wcIndices, -1);
+Map.addLayer(
+  wcRemapped.updateMask(wcRemapped.neq(-1)),
+  {min: 0, max: wcClasses.length - 1, palette: wcPalette},
+  'WorldCover 2020', false, 1
+);
+
+
+///////////////////////////////////////////////////////////
 // // Aus trees
 var aus2020 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_2020_noxy_predictions').mosaic();
 Map.addLayer(
@@ -117,8 +132,8 @@ Map.addLayer(
     false, 0.65
 );
 
-///////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////
 // Shelter classifications
 styleShelterImage(ee.ImageCollection([
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat10-26'),
