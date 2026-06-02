@@ -2,32 +2,10 @@
 Map.setOptions('SATELLITE');
 Map.drawingTools().setShown(false);
 
-
 var greenPalette = [
   '#e5f5e0','#c7e9c0','#a1d99b','#74c476','#41ab5d',
   '#238b45','#006d2c','#00441b'
 ];
-var viridisPalette = [
-  '#440154','#481567','#482677','#453781','#404788','#39568C',
-  '#33638D','#2D708E','#287D8E','#238A8D','#1F968B','#20A387',
-  '#29AF7F','#3CBB75','#55C667','#73D055','#95D840','#B8DE29',
-  '#DCE319','#FDE725'
-];
-
-var brownGreenPalette = [
-  '#543005', // dark brown
-  '#6f3e08', // lighter brown
-  '#995c16',
-  '#bc7524',
-  '#d3a143', // mid-brown
-  '#a6c04a', // light green
-  '#78ad51',
-  '#4d9950',
-  '#238443',
-  '#005a2b'  // dark green
-];
-
-
 
 var shelterPalette = {
   0:   [255, 255, 255],  // White: Outside region
@@ -105,41 +83,8 @@ function styleShelterImage(img, layerName, checkbox, transparency) {
   return styled;
 }
 
-
 // Map.centerObject(image, 10);
 Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
-
-///////////////////////////////////////////////////////////
-// Tree confidence
-// Map.addLayer(image2, {min: 1, max: 100, palette: brbgPalette}, '2018 Tree confidence (1–100)', false, 0.3);
-
-// // 1m Canopy Height Model
-// var chm_masked = image11.updateMask(image11.gt(0));
-// Map.addLayer(chm_masked, {min: 1, max: 25, palette: viridisPalette}, 'Milgadara 1m Canopy Height (1–25 m)', false);
-
-
-///////////////////////////////////////////////////////////
-// // Brown to green percent confidence
-// Map.addLayer(
-//   image2,
-//   {min: 1, max: 100, palette: brownGreenPalette},
-//   '2018' + ' NSW Tree confidence (1–100%)',
-//   false,
-//   .65
-// );
-
-
-///////////////////////////////////////////////////////////
-// // Tree thresholds
-// var threshold=50
-// var mask = image2.gt(threshold);
-// var imageMasked = image2.updateMask(mask);
-// Map.addLayer(imageMasked, {min: threshold, max: 100, palette: ['00FF00']}, '2018 NSW Tree confidence > ' + threshold + '%', false, 0.65);
-
-// var threshold=90
-// var mask = image2.gt(threshold);
-// var imageMasked = image2.updateMask(mask);
-// Map.addLayer(imageMasked, {min: threshold, max: 100, palette: ['00FF00']}, '2018 NSW Tree confidence > ' + threshold + '%', false, 0.65);
 
 
 ///////////////////////////////////////////////////////////
@@ -149,7 +94,7 @@ Map.addLayer(
     aus2020.updateMask(aus2020.gt(50)),
     {min: 50, max: 100, palette: ['00FF00']},
     '2020 tree confidence 50%',
-    true, 0.65
+    false, 0.65
 );
 Map.addLayer(
     aus2020.updateMask(aus2020.gt(90)),
@@ -176,27 +121,27 @@ Map.addLayer(
 
 // Shelter classifications
 styleShelterImage(ee.ImageCollection([
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat10-26'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat28-32'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat34-42')
+]), '2020 more density method', false);
+styleShelterImage(ee.ImageCollection([
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat10-26'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat28-32'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat34-42')
 ]), '2020 less density method', false);
 styleShelterImage(ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-percentmethod'), '2020 default density method', false);
 styleShelterImage(ee.ImageCollection([
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat10-26'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat28-32'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat34-42')
-]), '2020 more density method', false);
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat10-28'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat28-32'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat34-42')
+]), '2020 more wind method', false);
 styleShelterImage(ee.ImageCollection([
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat10-26'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat28-32'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat34-42')
 ]), '2020 less wind method', false);
 styleShelterImage(ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-windmethod'), '2020 default wind method', true);
-styleShelterImage(ee.ImageCollection([
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat10-28'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat28-32'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat34-42')
-]), '2020 more wind method', false);
 
 
 //////////////////////////////////////////////////////////
@@ -320,44 +265,3 @@ presentClasses.forEach(function(v) {
 });
 
 Map.add(legend);
-
-
-
-// //////////////////////////////////////////////////////////
-// // --- Tree Confidence Legend ---
-// var legendConfidence = ui.Panel({
-//   style: {
-//     position: 'bottom-left',
-//     padding: '8px 15px'
-//   }
-// });
-
-// legendConfidence.add(ui.Label({
-//   value: 'Tree Confidence (1–100)',
-//   style: {
-//     fontWeight: 'bold',
-//     fontSize: '14px',
-//     margin: '0 0 4px 0'
-//   }
-// }));
-
-// // Add color bar gradient
-// var colorBar = ui.Thumbnail({
-//   image: ee.Image.pixelLonLat().select(0)
-//     .multiply(0)
-//     .add(ee.Image.pixelLonLat().select(0).unitScale(0, 1)),
-//   params: {
-//     bbox: [0, 0, 1, 0.1],
-//     dimensions: '150x10',
-//     format: 'png',
-//     min: 0,
-//     max: 1,
-//     palette: brownGreenPalette
-//   },
-//   style: {stretch: 'horizontal', margin: '0 0 6px 0'}
-// });
-// legendConfidence.add(colorBar);
-
-// Map.add(legendConfidence);
-
-
