@@ -101,6 +101,15 @@ Map.addLayer(
   'WorldCover 2020', false, 1
 );
 
+///////////////////////////////////////////////////////////
+// Canopy Height Model v2 (Meta & WRI)
+var viridis = ['440154','482878','3e4989','31688e','26828e','1f9e89','35b779','6ece58','b5de2b','fde725'];
+var chm = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
+Map.addLayer(
+  chm.updateMask(chm.gt(0)),
+  {min: 0, max: 25, palette: viridis},
+  'Meta Canopy Height v2', false, 0.8
+);
 
 ///////////////////////////////////////////////////////////
 // // Aus trees
