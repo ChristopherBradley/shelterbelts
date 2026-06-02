@@ -144,26 +144,59 @@ Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
 
 ///////////////////////////////////////////////////////////
 // // Aus trees
-var confidence_threshold = 50;
-var singleImage = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus2024_noxy_predictions').mosaic();
-var mask = singleImage.gt(confidence_threshold);
-var imageMasked = singleImage.updateMask(mask);
+var aus2020 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_2020_noxy_predictions').mosaic();
 Map.addLayer(
-    imageMasked,
-    {min: confidence_threshold, max: 100, palette: ['00FF00']},
+    aus2020.updateMask(aus2020.gt(50)),
+    {min: 50, max: 100, palette: ['00FF00']},
     '2020 tree confidence 50%',
     true, 0.65
+);
+Map.addLayer(
+    aus2020.updateMask(aus2020.gt(90)),
+    {min: 90, max: 100, palette: ['00FF00']},
+    '2020 tree confidence 90%',
+    false, 0.65
+);
+
+var aus2024 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus2024_noxy_predictions').mosaic();
+Map.addLayer(
+    aus2024.updateMask(aus2024.gt(50)),
+    {min: 50, max: 100, palette: ['00FF00']},
+    '2024 tree confidence 50%',
+    false, 0.65
+);
+Map.addLayer(
+    aus2024.updateMask(aus2024.gt(90)),
+    {min: 90, max: 100, palette: ['00FF00']},
+    '2024 tree confidence 90%',
+    false, 0.65
 );
 
 ///////////////////////////////////////////////////////////
 
 // Shelter classifications
-// styleShelterImage(image, '2020 default density method', true);
+styleShelterImage(ee.ImageCollection([
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat10-26'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat28-32'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat34-42')
+]), '2020 less density method', false);
 styleShelterImage(ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-percentmethod'), '2020 default density method', false);
+styleShelterImage(ee.ImageCollection([
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat10-26'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat28-32'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat34-42')
+]), '2020 more density method', false);
+styleShelterImage(ee.ImageCollection([
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat10-26'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat28-32'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat34-42')
+]), '2020 less wind method', false);
 styleShelterImage(ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-windmethod'), '2020 default wind method', true);
-
-
-// styleShelterImage(image10, '2018 NSW categories (wind method)', false);
+styleShelterImage(ee.ImageCollection([
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat10-28'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat28-32'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat34-42')
+]), '2020 more wind method', false);
 
 
 //////////////////////////////////////////////////////////
