@@ -56,13 +56,6 @@ def _parse_classification(filename):
     return int(m.group(1)) if m else None
 
 
-def _has_veg_from_classification(classification):
-    """Return True if classification level implies vegetation classes (>= 3)."""
-    if classification is None:
-        return None
-    return classification >= 3
-
-
 def _read_header(laz_file):
     """Read bbox, CRS, and point count from LAZ header only (~0.04 s)."""
     try:
@@ -112,7 +105,6 @@ def build_inventory(laz_root, output_gpkg, limit=None):
 
         name = os.path.basename(laz_file)
         classification = _parse_classification(laz_file)
-        has_veg = _has_veg_from_classification(classification)
         ppm = _compute_ppm(result['point_count'], result['minx'], result['miny'], result['maxx'], result['maxy'])
         year = extract_year(name)
 
@@ -130,10 +122,9 @@ def build_inventory(laz_root, output_gpkg, limit=None):
         rows.append({
             'filepath': laz_file,
             'year': year,
-            'classification': classification,
-            'has_veg': has_veg,
-            'point_count': result['point_count'],
+            'classification_level': classification,
             'ppm': ppm,
+            'filesize_gb': os.path.getsize(laz_file) / 1e9,
             'geometry': geom,
         })
 
