@@ -96,7 +96,6 @@ var wcPalette = ['006400', 'ffbb22', 'ffff4c', 'f096ff', 'fa0000',
                  'b4b4b4', 'f0f0f0', '0064c8', '0096a0', '00cf75', 'fae6a0'];
 var wcIndices = wcClasses.map(function(_, i) { return i; });
 var wc = ee.ImageCollection('ESA/WorldCover/v100').first().select('Map');
-exportLayers['WorldCover 2020 (10m)'] = wc;
 var wcRemapped = wc.remap(wcClasses, wcIndices, -1);
 Map.addLayer(
   wcRemapped.updateMask(wcRemapped.neq(-1)),
@@ -108,7 +107,6 @@ Map.addLayer(
 // Canopy Height Model v2 (Meta & WRI)
 var viridis = ['440154','482878','3e4989','31688e','26828e','1f9e89','35b779','6ece58','b5de2b','fde725'];
 var chm = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
-exportLayers['Canopy Height v2 (1m)'] = chm;
 Map.addLayer(
   chm.updateMask(chm.gt(0)),
   {min: 0, max: 25, palette: viridis},
@@ -118,12 +116,10 @@ Map.addLayer(
 ///////////////////////////////////////////////////////////
 // Aus trees
 var aus2020 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_2020_noxy_predictions').mosaic();
-exportLayers['Tree predictions 2020 (10m)'] = aus2020;
 Map.addLayer(aus2020.updateMask(aus2020.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2020 tree confidence 50%', false, 0.65);
 Map.addLayer(aus2020.updateMask(aus2020.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2020 tree confidence 90%', false, 0.65);
 
 var aus2024 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus2024_noxy_predictions').mosaic();
-exportLayers['Tree predictions 2024 (10m)'] = aus2024;
 Map.addLayer(aus2024.updateMask(aus2024.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2024 tree confidence 50%', false, 0.65);
 Map.addLayer(aus2024.updateMask(aus2024.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2024 tree confidence 90%', false, 0.65);
 
@@ -135,7 +131,6 @@ var moreDensityImg = ee.ImageCollection([
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat28-32'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat34-42')
 ]).mosaic();
-exportLayers['Shelter 2020 more density (10m)'] = moreDensityImg;
 styleShelterImage(moreDensityImg, '2020 more density method', false);
 
 var lessDensityImg = ee.ImageCollection([
@@ -143,11 +138,9 @@ var lessDensityImg = ee.ImageCollection([
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat28-32'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat34-42')
 ]).mosaic();
-exportLayers['Shelter 2020 less density (10m)'] = lessDensityImg;
 styleShelterImage(lessDensityImg, '2020 less density method', false);
 
 var defaultDensityImg = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-percentmethod').mosaic();
-exportLayers['Shelter 2020 default density (10m)'] = defaultDensityImg;
 styleShelterImage(defaultDensityImg, '2020 default density method', false);
 
 var moreWindImg = ee.ImageCollection([
@@ -155,7 +148,6 @@ var moreWindImg = ee.ImageCollection([
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat28-32'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat34-42')
 ]).mosaic();
-exportLayers['Shelter 2020 more wind (10m)'] = moreWindImg;
 styleShelterImage(moreWindImg, '2020 more wind method', false);
 
 var lessWindImg = ee.ImageCollection([
@@ -163,11 +155,9 @@ var lessWindImg = ee.ImageCollection([
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat28-32'),
   ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat34-42')
 ]).mosaic();
-exportLayers['Shelter 2020 less wind (10m)'] = lessWindImg;
 styleShelterImage(lessWindImg, '2020 less wind method', false);
 
 var defaultWindImg = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-windmethod').mosaic();
-exportLayers['Shelter 2020 default wind (10m)'] = defaultWindImg;
 styleShelterImage(defaultWindImg, '2020 default wind method', true);
 
 
@@ -293,6 +283,19 @@ presentClasses.forEach(function(v) {
 
 Map.add(legend);
 
+
+//////////////////////////////////////////////////////////////////////
+// Export layers — ordered to match the layer panel (top to bottom)
+exportLayers['Shelter 2020 default wind (10m)'] = defaultWindImg;
+exportLayers['Shelter 2020 less wind (10m)'] = lessWindImg;
+exportLayers['Shelter 2020 more wind (10m)'] = moreWindImg;
+exportLayers['Shelter 2020 default density (10m)'] = defaultDensityImg;
+exportLayers['Shelter 2020 less density (10m)'] = lessDensityImg;
+exportLayers['Shelter 2020 more density (10m)'] = moreDensityImg;
+exportLayers['Tree predictions 2024 (10m)'] = aus2024;
+exportLayers['Tree predictions 2020 (10m)'] = aus2020;
+exportLayers['Canopy Height v2 (1m)'] = chm;
+exportLayers['WorldCover 2020 (10m)'] = wc;
 
 //////////////////////////////////////////////////////////////////////
 // Export panel
