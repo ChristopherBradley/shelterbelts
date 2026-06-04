@@ -6,7 +6,7 @@
 for f in /scratch/xe2/cb8590/lidar/*.zip; do
     basename_f=$(basename "$f" .zip)
     name="$basename_f"
-    qsub -N "unzip_${basename_f}" <<EOF
+    qsub <<EOF
 #!/bin/bash
 #PBS -l mem=4GB
 #PBS -l ncpus=1

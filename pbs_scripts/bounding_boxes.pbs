@@ -22,5 +22,8 @@ module load dea/20231204
 # folder=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_${year}/subfolders/
 # python3 src/shelterbelts/classifications/bounding_boxes.py $folder --crs EPSG:3857
 
-folder=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded/linear_tifs_lat_34_lon_148_default_percentmethod
-python3 src/shelterbelts/classifications/bounding_boxes.py $folder --crs EPSG:3857 --filetype linear_categories.tif
+# folder=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded/linear_tifs_lat_34_lon_148_default_percentmethod
+# python3 src/shelterbelts/classifications/bounding_boxes.py $folder --crs EPSG:3857 --filetype linear_categories.tif
+
+folder=/scratch/xe2/cb8590/lidar_processing
+python3 src/shelterbelts/classifications/bounding_boxes.py $folder
