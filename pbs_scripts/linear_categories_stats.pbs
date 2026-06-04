@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N linear_categories_stats
+#PBS -l mem=32GB
+#PBS -l ncpus=8
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+
+echo "Starting linear_categories_stats.pbs"
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+
+# # Smoke test (1 tile from sample folder):
+# python linear_categories_stats.py --ncpus 8 \
+#     --tif_folder /scratch/xe2/cb8590/linear_categories_stats_sample \
+#     --output_dir /scratch/xe2/cb8590/linear_categories_stats_sample_out
+
+# # Limit test (first 4 tiles from full folder):
+python linear_categories_stats.py --ncpus 8 --limit 4
+
+# Full run
+# python linear_categories_stats.py --ncpus 8
