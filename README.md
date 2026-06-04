@@ -9,7 +9,7 @@ Or a mobile friendly version at:
 https://christopher-bradley-phd.projects.earthengine.app/view/shelterbelts-mobile  
 
 ## Notebook Examples
-There are jupyter notebooks to demo the functionality of this repo in [examples](examples). 
+There are jupyter notebooks to demo the functionality of this repo in [examples](https://github.com/ChristopherBradley/shelterbelts/tree/main/examples). 
 
 ## Documentation
 View the published docs at:  
@@ -90,7 +90,7 @@ If on gadi:
 
 Then:
 `conda activate shelterbelts`
-`pytest tests`  # everything should pass except test_sentinel_nci.py
+`pytest tests`
 
 Finally:
 `module use /g/data/v10/public/modules/modulefiles`
@@ -112,8 +112,9 @@ Upload the html to github pages:
 
 # Uploading to PyPI
 
-1. python3 -m build
-2. rm dist/*
-3. twine upload dist/*
-4. Enter the API token
-5. Check it out at https://pypi.org/project/shelterbelts
+1. Update the version in pyproject.toml 
+2. rm dist/*  
+3. python3 -m build
+4. twine upload dist/*
+5. Enter the API token
+6. Check it out at https://pypi.org/project/shelterbelts
