@@ -53,11 +53,13 @@ def expand_tif(filename, folder_merged, outdir, gpkg=None, tmpdir=".", num_pixel
 
 
 # +
-def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None, gpkg=None, num_pixels=20, pixel_size=10):
+def expand_tifs(folder_to_expand, folder_merged, outdir, limit=None, gpkg=None, num_pixels=20, pixel_size=10, suffix=None):
     """Run expand_tif on all subfolders in folder_to_expand, preserving the folder structure when writing to outdir"""
     filenames = glob.glob(f'{folder_to_expand}/*.tif')
     filenames = [f for f in filenames if not os.path.isdir(f)]  # Remove the uint8_predicted
     filenames = [f for f in filenames if not 'merged' in f]
+    if suffix:
+        filenames = [f for f in filenames if f.endswith(suffix)]
     sub_outdir = os.path.join(outdir, Path(folder_to_expand).stem)
     os.makedirs(sub_outdir, exist_ok=True)
 
@@ -81,6 +83,7 @@ def parse_arguments():
     parser.add_argument("--gpkg", type=str, default=None, help="Provide your own gpkg instead of assuming it from the folder structure.")
     parser.add_argument("--num_pixels", type=int, default=20, help="Number of pixels to expand on each edge (default: 20).")
     parser.add_argument("--pixel_size", type=int, default=10, help="Metres per pixel (default: 10).")
+    parser.add_argument("--suffix", type=str, default=None, help="Only process TIFs whose filename ends with this suffix (e.g. 'chm_crowns_res1_uint8.tif').")
     return parser.parse_args()
 
 
@@ -94,4 +97,5 @@ if __name__ == "__main__":
                 gpkg=args.gpkg,
                 num_pixels=args.num_pixels,
                 pixel_size=args.pixel_size,
+                suffix=args.suffix,
                )
