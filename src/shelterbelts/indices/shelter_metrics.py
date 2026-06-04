@@ -559,7 +559,7 @@ def class_metrics(buffer_data, outdir=".", stub="TEST", save_excel=True):
     
     >>> from shelterbelts.utils.filepaths import get_filename
     >>> linear_file = get_filename('g2_26729_linear_categories.tif')
-    >>> dfs = class_metrics(linear_file, outdir='/tmp', stub='test', save_excel=False)
+    >>> dfs = class_metrics(linear_file, outdir='/tmp', save_excel=False)
     >>> len(dfs) == 4
     True
     
@@ -568,8 +568,8 @@ def class_metrics(buffer_data, outdir=".", stub="TEST", save_excel=True):
     >>> import rioxarray as rxr
     >>> da = rxr.open_rasterio(linear_file).squeeze('band').drop_vars('band')
     >>> ds_linear = da.to_dataset(name='linear_categories')
-    >>> dfs = class_metrics(ds_linear, outdir='/tmp', stub='test', save_excel=False)
-    >>> 'Shelter' in dfs
+    >>> dfs = class_metrics(ds_linear, outdir='/tmp', save_excel=False)
+    >>> len(dfs) == 4
     True
 
     Downloads

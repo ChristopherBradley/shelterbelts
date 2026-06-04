@@ -1,15 +1,24 @@
 # shelterbelts
 This repo is for using satellite imagery to map and categorise shelterbelts across Australia, in preparation for measuring impacts on agricultural productivity at scale.
 
-# Google Earth Engine App
+## Google Earth Engine App
 You can visualise some results from the repo in this Earth Engine App:  
 https://christopher-bradley-phd.projects.earthengine.app/view/shelterbelts  
 
-My slides from the latest Australian National University Research School of Biology (ANU RSB) conference (22 Nov 2025) are here:
-https://docs.google.com/presentation/d/1_ItZhrtzTDuZXp-qzwP6mT8-nzrLUdA0sI959rIH5zs/edit?usp=sharing
+Or a mobile friendly version at:  
+https://christopher-bradley-phd.projects.earthengine.app/view/shelterbelts-mobile  
 
-My poster for the Ecology Society of Australia ESA 2025 is here:
-https://docs.google.com/presentation/d/1oC9jB2WT0nFkxfwlVgvFz6CeqZGZr4pwQr8kT_aS2-k/edit?usp=sharing
+## Notebook Examples
+There are jupyter notebooks to demo the functionality of this repo in [examples](examples). 
+
+## Documentation
+View the published docs at:  
+https://christopherbradley.github.io/shelterbelts/index.html
+
+## Installation
+`pip install shelterbelts`  
+View the pypi package at: https://pypi.org/project/shelterbelts
+
 
 ### Current Methods
 The tree predictions come from annual Sentinel-2 imagery largely following a method by Stewart et al. (2025), using a tree/no-tree training dataset provided by Nicolas Pucino.
@@ -18,20 +27,17 @@ After the predictions, pixels were categorised using the following method:
 - Assign trees from model confidence (50% threshold)
 - Assign scattered trees to small groups (< 20 pixels)
 - Assign core & buffers to big groups (> 3 pixels thick)
-- Assign sheltered vs unsheltered pixels based on percent cover within 100m (10% threshold)
-, or wind direction (10 pixels leeward, 5 pixels upwind)
+- Assign sheltered vs unsheltered pixels based on percent cover within 100m (5% threshold)
+, or wind direction (20 pixels leeward, 10 pixels upwind)
 - Assign grassland, cropland, urban and water categories from WorldCover 2021
 - Assign riparian and roads trees (3 pixel buffer)
-- Assign linear vs non-linear patches by fitting an ellipse and skeleton to each group and applying length and width thresholds (the EE App currently has an outdated version of this)
+- Assign linear vs non-linear patches by fitting an ellipse and skeleton to each group and applying length and width thresholds.
 
 ### Upcoming Plans
-- Cleanup demoes and tests and publish in the Journal of Open Source Software
-- Evaluate tree predictions against the Lang Model, NSW, QLD & Meta GCH v2, at different distances within and away from tree group boundaries.
-- Apply each shelter categorization method to the rest of Australia
-- Calculate summary statistics for different regions (IBRA, LGAs, GRDC agricultural zones) and write a second publication
-- Include 1m canopy height for all of ACT & NSW
+- Calculate summary statistics for different regions (IBRA, LGAs, GRDC agricultural zones)
+- Include 1m shelter categories for all of ACT & NSW
 - Analyse effects on productivity & potential future benefits
-- Add layers with opportunities for more trees and a corresponding thrid publication.
+- Add layers with opportunities for more trees.
 
 ## Parameter Reference
 
@@ -39,18 +45,16 @@ The main parameters for categorising shelterbelts are below:
 
 | Parameter | Default | Low Threshold | High Threshold | Description |
 |-----------|---------|---------------|----------------|-------------|
-| `min_patch_size` | 20 | 10 | 30 | Minimum area (pixels) to classify as a patch rather than scattered trees |
+| `min_patch_size` | 20 | 15 | 25 | Minimum area (pixels) to classify as a patch rather than scattered trees |
 | `min_core_size` | 1000 | 100 | 10000 | Minimum patch size (pixels) to classify as a core area |
-| `edge_size` | 3 | 1 | 5 | Distance (pixels) defining the edge region around patch cores |
-| `max_gap_size` | 1 | 0 | 2 | Maximum gap (pixels) to bridge when connecting tree clusters |
-| `buffer_width` | 3 | 1 | 5 | Number of pixels away from the feature that still counts as within the buffer |
+| `edge_size` | 3 | 2 | 5 | Distance (pixels) defining the edge region around patch cores |
+| `buffer_width` | 4 | 3 | 5 | Number of pixels away from the feature that still counts as within the buffer |
 | `distance_threshold` | 20 | 10 | 30 | Distance from trees that counts as sheltered |
 | `density_threshold` | 5 | 3 | 10 | Percentage tree cover within distance_threshold that counts as sheltered |
-| `wind_threshold` | 20 | 10 | 30 | Wind speed threshold in km/h |
-| `wind_method` | WINDWARD | MOST_COMMON | ALL | Method to determine primary wind direction |
-| `strict_core_area` | strict | non-strict | strict | Whether to enforce strict connectivity for core areas |
-| `min_shelterbelt_length` | 15 | 10 | 30 | Minimum skeleton length (in pixels) to classify a cluster as linear |
-| `max_shelterbelt_width` | 6 | 4 | 8 | Maximum skeleton width (in pixels) to classify a cluster as linear |
+| `wind_threshold` | 20 | 15 | 25 | Wind speed threshold in km/h |
+| `wind_method` | WINDWARD | MOST_COMMON | ANY | Method to determine primary wind direction |
+| `min_shelterbelt_length` | 20 | 15 | 25 | Minimum skeleton length (in pixels) to classify a cluster as linear |
+| `max_shelterbelt_width` | 6 | 5 | 7 | Maximum skeleton width (in pixels) to classify a cluster as linear |
 
 Parameters can be modified when calling functions directly in Python or via command-line arguments. For example:
 
@@ -80,9 +84,6 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 2. Go to JupyterLab and create a session with 1 hour, queue normalbw, compute size small, project xe2, storage gdata/+gdata/xe2+gdata/v10+gdata/ka08+gdata/ob53, python environment base /g/data/xe2/cb8590/miniconda, conda environment /g/data/xe2/cb8590/miniconda/envs/shelterbelts. Alternatively, can use Module Dircetories /g/data/v10/public/modules/modulefiles and Modules: dea/20231204.
 3. Right click any .py file and open as a jupyter notebook. Currently some debugging arguments are usually commented out at the bottom of each file. I'm planning to move these to tests/demos.
 
-# Examples
-There are jupyter notebooks to demo the functionality of this repo in `examples`. Also, there are .pbs scripts for submitting jobs to gadi in `pbs_scripts`, along with .sh scripts to submit many jobs in parallel. The main python files are in `src/shelterbelts` and these can all be run from the command line as well. The `tests` have the same examples as `examples` but are more convenient to run all at once (but less convenient for demo-ing/understanding the functionality).  
-
 # Testing
 If on gadi:
 `qsub -I -P xe2 -q copyq -l ncpus=1 -l mem=8GB -l walltime=02:00:00 -l storage=gdata/xe2+scratch/xe2+gdata/v10+gdata/ka08 -l wd`
@@ -96,7 +97,7 @@ Finally:
 `module load dea/20231204`
 `pytest tests/test_classifications/test_sentinel_nci.py`
 
-# Documentation
+# Generating the Documentation
 Generate the html: 
 `make clean && make html`
 
@@ -108,13 +109,11 @@ Run the doctests:
 Upload the html to github pages: 
 `ghp-import -n -p -f docs/build/html`
 
-You can view the published documentation at: 
-https://christopherbradley.github.io/shelterbelts/index.html
 
 # Uploading to PyPI
-Just a note for myself when I need to republish the library.
 
 1. python3 -m build
-2. twine upload dist/*
-3. Enter the API token
-4. Check it out at https://pypi.org/project/shelterbelts
+2. rm dist/*
+3. twine upload dist/*
+4. Enter the API token
+5. Check it out at https://pypi.org/project/shelterbelts

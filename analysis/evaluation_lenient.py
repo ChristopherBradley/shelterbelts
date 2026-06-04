@@ -49,10 +49,9 @@ from shelterbelts.utils.filepaths import (
 # %%
 canopy_height_folder_v1  = '/scratch/xe2/cb8590/Nick_GCH'
 canopy_height_folder_v2  = '/scratch/xe2/cb8590/Nick_GCH_v2'
-dist_folder              = '/scratch/xe2/cb8590/Nick_indices_distances'
-edge1_folder             = '/scratch/xe2/cb8590/Nick_indices_edge1'
-edge2_folder             = '/scratch/xe2/cb8590/Nick_indices_edge2'
-shelter_distances_folder = '/scratch/xe2/cb8590/Nick_indices_distances_scatfix'
+edge1_folder             = '/scratch/xe2/cb8590/Nick_indices_edge1_scatfix'
+edge2_folder             = '/scratch/xe2/cb8590/Nick_indices_edge2_scatfix'
+shelter_distances_folder, dist_folder = '/scratch/xe2/cb8590/Nick_indices_distances_scatfix'
 qld_woody_folder         = '/scratch/xe2/cb8590/Nick_Queensland_Woody'
 
 FOOTPRINT = np.ones((3, 3), dtype=bool)
