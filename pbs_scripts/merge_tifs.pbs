@@ -15,8 +15,13 @@
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded/linear_tifs_lat_34_lon_148_default_percentmethod # Has the perfect 2500 tifs
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded/linear_tifs_lat_34_lon_148_more_percentmethod
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded/linear_tifs_lat_34_lon_148_less_percentmethod
+# base_dir=/scratch/xe2/cb8590/lidar_processing/chms
+# base_dir=/scratch/xe2/cb8590/lidar_processing/indices_default_percentmethod_500
+# base_dir=/scratch/xe2/cb8590/lidar_processing/indices_default_percentmethod_sw10_mca1000
+base_dir=/scratch/xe2/cb8590/lidar_processing/indices_default_percentmethod_sw20_mca2000
 
-echo "Starting elvis_geojsons.pbs for stub $stub"
+
+echo "Starting merge_tifs.pbs for basedir $base_dir"
 cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
 
 # Load the conda environment
@@ -26,7 +31,11 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 # Run the script
 # python merge_tifs.py $base_dir --suffix _predicted.tif --subdir '' --tmpdir /scratch/xe2/cb8590/tmp --crs EPSG:3857 --dont_reproject  # Merging the predictions before expanding. Needs 16GB
 # python merge_tifs.py $base_dir --suffix linear_categories.tif --subdir '' --tmpdir /scratch/xe2/cb8590/tmp --crs EPSG:3857 --dont_reproject  # Merging the indices
-python merge_tifs.py $base_dir --suffix _y2020_predicted_expanded20_linear_categories.tif --subdir '' --tmpdir /scratch/xe2/cb8590/tmp --crs EPSG:3857 --dont_reproject  # Merging the indices
+# python merge_tifs.py $base_dir --suffix _y2020_predicted_expanded20_linear_categories.tif --subdir '' --tmpdir /scratch/xe2/cb8590/tmp --crs EPSG:3857 --dont_reproject  # Merging the indices
+
+# python merge_tifs.py $base_dir --suffix _chm_crowns_res1_uint8.tif --subdir '' --tmpdir /tmp --dont_reproject  # Merging the 1m chms
+python merge_tifs.py $base_dir --suffix chm_c_linear_categories.tif --subdir '' --tmpdir /tmp --dont_reproject  # Merging the 1m chms
+
 
 # Only needs 4GB memory when merging the 10m tiles in NSW a 30km x 30km area, 
 # 8GB for NSW 1m 

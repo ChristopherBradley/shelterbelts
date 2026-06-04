@@ -89,8 +89,8 @@ def test_lidar_delineate_crowns():
     crowns = gpd.read_file(gpkg_path)
     assert len(crowns) > 0
     assert 'treeID' in crowns.columns
-    assert 'mean_height_m' in crowns.columns
-    assert crowns['mean_height_m'].min() > 0
+    assert 'p95_height_m' in crowns.columns
+    assert crowns['p95_height_m'].min() > 0
 
 
 def test_lidar_crown_parameters():
@@ -113,6 +113,20 @@ def test_lidar_crown_parameters():
         f"Expected different total crown areas for the two parameter sets, "
         f"got {area_dalponte:.1f} m² (Dalponte 2016) vs {area_pucino:.1f} m² (Pucino 2026)"
     )
+
+
+def test_lidar_uint8():
+    """uint8=True produces a uint8 CHM clipped to crown polygons."""
+    chm, da_tree = lidar(
+        laz_sample,
+        outdir='outdir',
+        stub='lidar_uint8',
+        resolution=1,
+        uint8=True,
+        delineate_crowns=True,
+    )
+    assert chm is not None
+    assert os.path.exists('outdir/lidar_uint8_chm_crowns_res1_uint8.tif')
 
 
 def test_lidar_resolution():

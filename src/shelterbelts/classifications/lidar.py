@@ -1,21 +1,99 @@
 # Uses PDAL bindings — requires the shelterbelts conda environment (which bundles python-pdal + rasterio).
 import os
+import re
 import glob
 import gc
 import json
 import argparse
+import subprocess
 
+import geopandas as gpd
+
+import numpy as np
 import pdal
 import rioxarray as rxr
-import numpy as np
+import geopandas as gpd
+from shapely.geometry import box as shapely_box
+
 
 from shelterbelts.utils.visualisation import tif_categorical
 from shelterbelts.classifications.binary_trees import cmap_woody_veg
 from shelterbelts.classifications._crown_dalponteCIRC_numba import crowns_to_gpkg
+from shelterbelts.classifications.bounding_boxes import bounding_boxes as _bounding_boxes
+
+
+def _get_laz_bounds(laz_file, epsg=None):
+    """Read LAZ header bounds via pdal info."""
+    result = subprocess.run(
+        ['pdal', 'info', '--metadata', laz_file],
+        capture_output=True, text=True, check=True,
+    )
+    meta = json.loads(result.stdout)['metadata']
+    minx, miny, maxx, maxy = meta['minx'], meta['miny'], meta['maxx'], meta['maxy']
+    if epsg:
+        crs = f"EPSG:{epsg}"
+    elif 'srs' in meta and meta['srs'].get('wkt'):
+        crs = meta['srs']['wkt']
+    else:
+        crs = meta.get('spatialreference', '')
+    return minx, miny, maxx, maxy, crs
+
+
+def _detect_dem_filetype(dem_folder):
+    """Return the dominant raster file extension in dem_folder."""
+    for ext in ['.tif', '.tiff', '.asc', '.img']:
+        if glob.glob(os.path.join(dem_folder, f'*{ext}')):
+            return ext
+    return '.tif'
+
+
+def _find_footprints_gpkg(dem_folder):
+    """Return path to an existing *_footprints.gpkg in dem_folder, creating one if absent."""
+    existing = glob.glob(os.path.join(dem_folder, '*_footprints.gpkg'))
+    if existing:
+        return existing[0]
+    filetype = _detect_dem_filetype(dem_folder)
+    print(f"No footprints GeoPackage found in {dem_folder}, generating one with bounding_boxes() (filetype={filetype})...", flush=True)
+    gdf = _bounding_boxes(dem_folder, filetype=filetype, verbose=True)
+    gpkg_files = glob.glob(os.path.join(dem_folder, '*_footprints.gpkg'))
+    return gpkg_files[0]
+
+
+def _select_dem_for_laz(laz_file, dem_folder, epsg=None):
+    """Return the path to the DEM file in dem_folder that best covers laz_file, or None."""
+    minx, miny, maxx, maxy, laz_crs = _get_laz_bounds(laz_file, epsg)
+    if not laz_crs:
+        print(f"Warning: {os.path.basename(laz_file)} has no CRS and no epsg provided — cannot select DEM, falling back to SMRF.")
+        return None
+    laz_geom = shapely_box(minx, miny, maxx, maxy)
+
+    gpkg_path = _find_footprints_gpkg(dem_folder)
+    gdf = gpd.read_file(gpkg_path)
+
+    laz_geom_reproj = (
+        gpd.GeoDataFrame(geometry=[laz_geom], crs=laz_crs).to_crs(gdf.crs).geometry.iloc[0]
+    )
+
+    intersecting = gdf[gdf.intersects(laz_geom_reproj)].copy()
+    if len(intersecting) == 0:
+        print(f"Warning: no DEM in {dem_folder} covers {os.path.basename(laz_file)} — falling back to SMRF.")
+        return None
+
+    intersecting['overlap_area'] = intersecting.geometry.intersection(laz_geom_reproj).area
+    best_filename = intersecting.loc[intersecting['overlap_area'].idxmax(), 'filename']
+    dem_path = os.path.join(dem_folder, best_filename)
+    print(f"Selected DEM: {dem_path}", flush=True)
+    return dem_path
 
 
 def check_classified(infile, classification_code=5):
     """At least one point in the laz file has a classification_code."""
+    # Quick check using the naming convention for NSW & ACT files: https://www.spatial.nsw.gov.au/__data/assets/pdf_file/0004/218992/Elevation_Data_Product_Specs.pdf
+    m = re.search(r'-C(\d+)-', os.path.basename(infile)) 
+    if m:
+        return int(m.group(1)) >= 3
+    
+    # Full check if the filename didn't match the convention
     check_pipeline = {
         "pipeline": [
             infile,
@@ -100,7 +178,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -117,16 +195,14 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     if not binary:
         chm_resolution = 1  # Create a 1m chm, then coarsen later to the actual resolution when calculating percent cover
 
-    # Check for vegetation classifications before building ground_steps so smrf can be told
-    # to ignore class 4/5 points — otherwise smrf overwrites them with class 1 (unclassified)
-    # and the downstream range filter finds nothing.
+    # Check for vegetation classifications before building ground_steps so smrf ignores class 5 points
     veg_filter = []
     has_veg = False
     if veg_only:
-        has_veg = check_classified(infile, 4) or check_classified(infile, 5)
+        has_veg = check_classified(infile, 5)
         if has_veg:
-            veg_filter = [{"type": "filters.range", "limits": "Classification[4:5]"}]
-            print("Vegetation classifications found (classes 4/5), using only those points for CHM")
+            veg_filter = [{"type": "filters.range", "limits": "Classification[5:5]"}]  # Vegetation above 2m
+            print("Found vegetation classifications (class 5), using only those points for CHM")
 
     if dem:
         # Providing a DEM directly is much faster than using pdal to re-calculate it.
@@ -134,7 +210,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     else:
         smrf_step = {"type": "filters.smrf"}
         if has_veg:
-            smrf_step["ignore"] = "Classification[4:5]"
+            smrf_step["ignore"] = "Classification[5:5]"       
         ground_steps = [
             {"type": "filters.assign", "assignment": "ReturnNumber[:]=1"}, # Needed this to resolve an smrf error when NumberOfReturns or ReturnNumber = 0
             {"type": "filters.assign", "assignment": "NumberOfReturns[:]=1"},
@@ -166,17 +242,26 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
         gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
         if gdf_crowns is not None and len(gdf_crowns) > 0:
             # Mask the CHM to only pixels inside delineated crowns so that
-            # non-tree objects (powerlines, buildings) are no longer in the CHM, percent_cover or binary tifs.
+            # non-tree objects (powerlines, buildings) get removed.
             chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
             chm_masked = chm_raw.rio.clip(
                 gdf_crowns.geometry.values,
                 gdf_crowns.crs,
                 drop=False,
-                all_touched=True,
+                # all_touched=True, Any polygon touching this pixel counts. By default, the polygon has the pass through the centre of the pixel.
             ).fillna(0)
-            chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}.tif')
+            if uint8:
+                chm_masked = (chm_masked.where(chm_masked < 100, 100)
+                                        .where(chm_masked != -9999, 0)
+                                        .round()
+                                        .astype('uint8')
+                                        .rio.write_nodata(0))
+            original_chm_tif = chm_tif
+            suffix = '_uint8' if uint8 else ''
+            chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}{suffix}.tif')
             chm_masked.rio.to_raster(chm_tif)
             print(f"Saved: {chm_tif}", flush=True)
+            os.remove(original_chm_tif)
 
     if just_chm:
         return None, None
@@ -194,7 +279,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
         print(f"Removing: {chm_tif}")
         os.remove(chm_tif)
 
-    da_tree = (chm > height_threshold).astype(np.uint8).rio.write_nodata(None)  # This gives everything above the height threshold (including buildings and powerlines). Whereas using their classification code of 5 should exclude man-mdade objects.
+    da_tree = (chm > height_threshold).astype(np.uint8).rio.write_nodata(None)
 
     if not binary:
         # Create the percent cover tif
@@ -214,7 +299,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     return chm, da_tree
 
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True):
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False):
     """Apply :func:`lidar` to every .laz file in laz_folder."""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     if limit is not None:
@@ -223,11 +308,25 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = laz_file.split('/')[-1].split('.')[0]
-        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only)
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True):
+
+def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, column='filepath'):
+    """Apply :func:`lidar` to every row in a GeoPackage, reading laz paths from column."""
+    gdf = gpd.read_file(gpkg_file)
+    if limit is not None:
+        gdf = gdf.iloc[:int(limit)]
+    for laz_file in gdf[column]:
+        if os.path.getsize(laz_file) == 0:
+            continue  # Some laz files from elvis are empty and this would break the pdal script
+        stub = laz_file.split('/')[-1].split('.')[0]
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8)
+        del chm, da  # Trying to avoid memory accumulation
+        gc.collect()
+
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False):
     """
     Convert a LAZ point cloud into a canopy-height and tree-cover raster.
 
@@ -268,11 +367,14 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     just_chm : bool, optional
         Only produce the canopy-height tif; skip the binary/percent-cover step.
     dem : str, optional
-        Path to a Digital Elevation Model covering the same area as the laz file.
+        Path to a DEM GeoTIFF, or a folder of DEM GeoTIFFs. When a folder is
+        supplied the function selects the tile whose footprint best overlaps the
+        LAZ file, auto-generating the footprints GeoPackage via
+        :func:`bounding_boxes` if one does not already exist.
     delineate_crowns : bool, optional
         Run the pycrown Dalponte tree delineation and save the polygons as a gpkg.
     veg_only : bool, optional
-        Restrict CHM rasterisation to points classified as medium (class 4) or high (class 5) vegetation if these exist.
+        Restrict CHM rasterisation to points classified as high (class 5) vegetation if these exist.
 
     Returns
     -------
@@ -300,6 +402,11 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     Saved: ./TEST_chm_res1.tif
     Saved: ./TEST_percentcover_res10_height2m.tif
     """
+    # Resolve a DEM folder to the specific tile that covers this LAZ file
+    resolved_dem = dem
+    if dem is not None and os.path.isdir(dem):
+        resolved_dem = _select_dem_for_laz(laz_file, dem, epsg)
+
     if category5:
         # Try to use the existing classifications
         classified_bool = check_classified(laz_file, classification_code=5)  # geolocation only matters for creating the tif files later
@@ -311,7 +418,7 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
             print("No existing classifications, generating our own canopy height model instead")
 
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only)
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=resolved_dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8)
     return chm, da_tree
 
 
@@ -330,9 +437,10 @@ def parse_arguments():
     parser.add_argument("--cleanup", action="store_true", help="Remove the intermediate counts or chm raster. Default: False")
     parser.add_argument("--just_chm", action="store_true", help="Don't create the binary raster. Default: False")
     parser.add_argument("--limit", default=None, help="Number of laz files to process when passing a folder. Default: None")
-    parser.add_argument("--dem", default=None, help="Path to a DEM GeoTiff covering the laz area. Default: None")
+    parser.add_argument("--dem", default=None, help="Path to a DEM GeoTiff, or a folder of DEM GeoTiffs (the best-matching tile is selected automatically). Default: None")
     parser.add_argument("--delineate_crowns", action="store_true", help="Delineate individual tree crowns and save as a GeoPackage. Default: False")
     parser.add_argument("--no_veg_only", action="store_true", help="Use all points for the CHM even when vegetation classifications exist. Default: False")
+    parser.add_argument("--uint8", action="store_true", help="Convert the CHM to uint8. Default: False")
     return parser.parse_args()
 
 
@@ -355,6 +463,24 @@ if __name__ == '__main__':
             dem=args.dem,
             delineate_crowns=args.delineate_crowns,
             veg_only=not args.no_veg_only,
+            uint8=args.uint8,
+        )
+    elif args.laz_file.endswith('.gpkg'):
+        lidar_gpkg(
+            args.laz_file,
+            outdir=args.outdir,
+            resolution=args.resolution,
+            height_threshold=args.height_threshold,
+            category5=args.category5,
+            epsg=args.epsg,
+            binary=args.binary,
+            cleanup=args.cleanup,
+            just_chm=args.just_chm,
+            limit=args.limit,
+            dem=args.dem,
+            delineate_crowns=args.delineate_crowns,
+            veg_only=not args.no_veg_only,
+            uint8=args.uint8,
         )
     else:
         lidar_folder(
@@ -372,4 +498,5 @@ if __name__ == '__main__':
             dem=args.dem,
             delineate_crowns=args.delineate_crowns,
             veg_only=not args.no_veg_only,
+            uint8=args.uint8,
         )

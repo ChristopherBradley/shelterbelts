@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N laz_inventory
+#PBS -l mem=16GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+
+echo "Starting laz_inventory.pbs"
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+
+
+python laz_inventory.py /scratch/xe2/cb8590/lidar
+# python laz_inventory.py /scratch/xe2/cb8590/elvis-shelterbelts/z54

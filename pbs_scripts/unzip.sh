@@ -6,7 +6,7 @@
 for f in /scratch/xe2/cb8590/lidar/*.zip; do
     basename_f=$(basename "$f" .zip)
     name="$basename_f"
-    qsub -N "unzip_${basename_f}" <<EOF
+    qsub <<EOF
 #!/bin/bash
 #PBS -l mem=4GB
 #PBS -l ncpus=1
@@ -22,8 +22,12 @@ outdir="${name}/laz_files"
 mkdir -p "\$outdir"
 
 echo "Unzipping $f -> \$outdir"
-unzip -q "$f" -d "\$outdir"
-mv "$f" "$name/"
+if unzip -q "$f" -d "\$outdir"; then
+    rm "$f"
+else
+    echo "Unzip failed for $f — leaving zip intact"
+    exit 1
+fi
 EOF
     # break   # stop after the first zip
 
