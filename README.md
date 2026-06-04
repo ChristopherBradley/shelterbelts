@@ -81,8 +81,8 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 
 ## Usage on NCI ARE (National Computing Infrastructure's Australian Research Environment)
 1. Login here: https://are.nci.org.au/
-2. Go to JupyterLab and create a session with 1 hour, queue normalbw, compute size small, project xe2, storage gdata/+gdata/xe2+gdata/v10+gdata/ka08+gdata/ob53, python environment base /g/data/xe2/cb8590/miniconda, conda environment /g/data/xe2/cb8590/miniconda/envs/shelterbelts. Alternatively, can use Module Dircetories /g/data/v10/public/modules/modulefiles and Modules: dea/20231204.
-3. Right click any .py file and open as a jupyter notebook. Currently some debugging arguments are usually commented out at the bottom of each file. I'm planning to move these to tests/demos.
+2. Go to JupyterLab and create a session with 1 hour, queue normalbw, compute size small, project xe2, storage gdata/+gdata/xe2+gdata/v10+gdata/ka08+gdata/ob53, python environment base /g/data/xe2/cb8590/miniconda, conda environment /g/data/xe2/cb8590/miniconda/envs/shelterbelts. Except for demo_sentinel_nci.py, use Module Directories /g/data/v10/public/modules/modulefiles and Modules: dea/20231204.
+3. Right click any .py file and open as a jupyter notebook.
 
 # Testing
 If on gadi:

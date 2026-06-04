@@ -115,6 +115,16 @@ Map.addLayer(
 
 ///////////////////////////////////////////////////////////
 // Aus trees
+var aus2017 = ee.ImageCollection([
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat8-18'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat20-24'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat26-28'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat30-32'),
+  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat34-42')
+]).mosaic();
+Map.addLayer(aus2017.updateMask(aus2017.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2017 tree confidence 50%', false, 0.65);
+Map.addLayer(aus2017.updateMask(aus2017.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2017 tree confidence 90%', false, 0.65);
+
 var aus2020 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_2020_noxy_predictions').mosaic();
 Map.addLayer(aus2020.updateMask(aus2020.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2020 tree confidence 50%', false, 0.65);
 Map.addLayer(aus2020.updateMask(aus2020.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2020 tree confidence 90%', false, 0.65);
@@ -294,6 +304,7 @@ exportLayers['Shelter 2020 less density (10m)'] = lessDensityImg;
 exportLayers['Shelter 2020 more density (10m)'] = moreDensityImg;
 exportLayers['Tree predictions 2024 (10m)'] = aus2024;
 exportLayers['Tree predictions 2020 (10m)'] = aus2020;
+exportLayers['Tree predictions 2017 (10m)'] = aus2017;
 exportLayers['Canopy Height v2 (1m)'] = chm;
 exportLayers['WorldCover 2020 (10m)'] = wc;
 
