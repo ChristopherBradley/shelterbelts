@@ -4,9 +4,10 @@ channels:
   - defaults
 dependencies:
   - python=3.11
-  - pdal  # Need to install pdal with conda instead of pip
+  - pdal  # Used for lidar processing
   - python-pdal
   - rasterio
+  - numba  # Install with conda (pulls a prebuilt llvmlite) so pip doesn't build from source (needs LLVM)
   - pip
   - pip:
       - -e .[dev]
