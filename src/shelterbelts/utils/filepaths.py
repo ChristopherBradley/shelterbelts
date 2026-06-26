@@ -4,7 +4,23 @@ from pathlib import Path
 import rioxarray as rxr
 
 
-_repo_root = Path(__file__).resolve().parent.parent.parent.parent
+def _find_repo_root():
+    """Locate the folder containing the bundled data/ directory."""
+    # This is the main expected use case.
+    install_relative = Path(__file__).resolve().parent.parent.parent.parent
+    marker = Path('data') / 'g2_26729_binary_tree_cover_10m.tiff'
+    if (install_relative / marker).exists():
+        return install_relative
+
+    # This might be needed if someone clones the repo and then does pip install shelterbelts in an existing environment, instead of conda env create -f environment.yml. 
+    cwd = Path.cwd()
+    for candidate in [cwd, *cwd.parents]:
+        if (candidate / marker).exists():
+            return candidate
+
+    return install_relative
+
+_repo_root = _find_repo_root()
 
 IS_GADI = Path('/scratch').exists()
 if IS_GADI:
@@ -84,5 +100,4 @@ def get_pretrained_nn(koppen='all'):
 def get_pretrained_scaler(koppen='all'):
     """Return the path to the scaler matching a bundled pre-trained neural network."""
     return str(_repo_root / 'models' / f'scaler_noxy_df_4326_{koppen}.pkl')
-
 
