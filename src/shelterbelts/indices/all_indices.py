@@ -188,7 +188,7 @@ def indices_tif(percent_tif, outdir=".",
     if wind_method and wind_method != "None":  # Handling conversion of None to "None" when using subprocess
         lat = (bbox_4326[1] + bbox_4326[3])/2
         lon = (bbox_4326[0] + bbox_4326[2])/2
-        ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=True, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
+        ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=IS_GADI, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
     else:
         # if no wind_method provided than the percent_cover method without wind gets used
         ds_wind = None

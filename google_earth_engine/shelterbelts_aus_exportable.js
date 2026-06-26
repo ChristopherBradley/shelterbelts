@@ -125,6 +125,7 @@ var aus2017 = ee.ImageCollection([
 Map.addLayer(aus2017.updateMask(aus2017.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2017 tree confidence 50%', false, 0.65);
 Map.addLayer(aus2017.updateMask(aus2017.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2017 tree confidence 90%', false, 0.65);
 
+// I combined some of these into image collections manually with drag dropping, before deciding later it was easier to this in the app code.
 var aus2020 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_2020_noxy_predictions').mosaic();
 Map.addLayer(aus2020.updateMask(aus2020.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2020 tree confidence 50%', false, 0.65);
 Map.addLayer(aus2020.updateMask(aus2020.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2020 tree confidence 90%', false, 0.65);
