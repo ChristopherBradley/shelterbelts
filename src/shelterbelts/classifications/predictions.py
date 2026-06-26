@@ -9,7 +9,6 @@ import traceback
 import logging
 import warnings
 import zipfile
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -42,9 +41,8 @@ finally:
 import joblib
 
 from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
-from shelterbelts.utils.filepaths import IS_GADI, get_pretrained_nn, get_pretrained_scaler
+from shelterbelts.utils.filepaths import IS_GADI, _repo_root, get_pretrained_nn, get_pretrained_scaler
 
-_repo_root = Path(__file__).resolve().parent.parent.parent.parent
 _bundled_models_dir = str(_repo_root / 'models')
 _bundled_nn_stub = 'noxy_df_4326'
 
