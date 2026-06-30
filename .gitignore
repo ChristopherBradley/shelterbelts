@@ -16,6 +16,7 @@
 *.laz
 *.pkl
 *.keras
+*.pdf
 
 # Shape files
 *.dbf

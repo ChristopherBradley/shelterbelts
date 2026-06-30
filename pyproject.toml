@@ -43,15 +43,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "jupyter",
+    "jupyter",         # Examples
     "jupytext",
-    "pytest",
-    "twine",
+    "pytest",          # Tests
+    "twine",           # Pypi
     "build",
     "jupyterlab-lsp",
     "python-lsp-server[all]",
-    "ghp-import",
-    "sphinx",
+    "ghp-import",      # Github Pages
+    "sphinx",          # Docs
     "sphinx-argparse"
 ]
 

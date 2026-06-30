@@ -6,6 +6,8 @@ dependencies:
   - python=3.11
   - pdal  # Used for lidar processing
   - python-pdal
+  - pandoc    # Markdown to PDF conversion for the JOSS paper
+  - tectonic  # LaTeX engine for compiling the JOSS paper to PDF
   - rasterio
   - numba  # Install with conda (pulls a prebuilt llvmlite) so pip doesn't build from source (needs LLVM)
   - pip
