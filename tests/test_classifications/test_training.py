@@ -1,8 +1,14 @@
 import os
 
+import pytest
+
+from _tf_guard import TF_AVAILABLE, TF_SKIP_REASON
 from shelterbelts.classifications.neural_network import train_neural_network
 from shelterbelts.classifications.random_forest import random_forest
 from shelterbelts.utils.filepaths import training_csv_sample
+
+# Skip (rather than segfault) on environments with a broken TensorFlow build.
+pytestmark = pytest.mark.skipif(not TF_AVAILABLE, reason=TF_SKIP_REASON)
 
 
 def test_random_forest_output():

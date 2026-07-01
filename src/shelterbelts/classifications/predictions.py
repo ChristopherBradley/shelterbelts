@@ -26,18 +26,6 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 logging.getLogger("rasterio").setLevel(logging.ERROR)
 
-# Silence the tensorflow warnings. Bit gross, but makes the demo_predictions notebook much tidier.
-_devnull = os.open(os.devnull, os.O_WRONLY)
-_saved_stderr_fd = os.dup(2)
-os.dup2(_devnull, 2)
-try:
-    from tensorflow import keras
-    import absl.logging
-    absl.logging.set_verbosity(absl.logging.FATAL)
-finally:
-    os.dup2(_saved_stderr_fd, 2)
-    os.close(_saved_stderr_fd)
-    os.close(_devnull)
 import joblib
 
 from shelterbelts.classifications.merge_inputs_outputs import aggregated_metrics
@@ -45,6 +33,28 @@ from shelterbelts.utils.filepaths import IS_GADI, _repo_root, get_pretrained_nn,
 
 _bundled_models_dir = str(_repo_root / 'models')
 _bundled_nn_stub = 'noxy_df_4326'
+
+_keras = None
+
+
+def _import_keras():
+    """Only import tensorflow when used, to avoid segfault on M1 mac."""
+    global _keras
+    if _keras is None:
+        # Silence the tensorflow import-time warnings making the demo_predictions notebook much tidier.
+        _devnull = os.open(os.devnull, os.O_WRONLY)
+        _saved_stderr_fd = os.dup(2)
+        os.dup2(_devnull, 2)
+        try:
+            from tensorflow import keras
+            import absl.logging
+            absl.logging.set_verbosity(absl.logging.FATAL)
+        finally:
+            os.dup2(_saved_stderr_fd, 2)
+            os.close(_saved_stderr_fd)
+            os.close(_devnull)
+        _keras = keras
+    return _keras
 
 cmap_binary = {
     0: (240, 240, 240),  # Non-trees are white
@@ -54,6 +64,7 @@ cmap_binary = {
 
 def _load_keras_model(path):
     """Load a Keras model, handling the old version I used for training with a bundled H5.keras case."""
+    keras = _import_keras()
     if path.endswith('.keras') and not zipfile.is_zipfile(path):
         tmp = tempfile.NamedTemporaryFile(suffix='.h5', delete=False)
         tmp.close()
@@ -219,7 +230,7 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     with open(sentinel_filename, 'rb') as file:
         ds = pickle.load(file)
 
-    model = keras.models.load_model(model_filename)
+    model = _import_keras().models.load_model(model_filename)
     scaler = joblib.load(scaler_filename)
 
     tile_id = sentinel_filename.split('/')[-1].split('.')[0]
@@ -254,7 +265,7 @@ def run_worker(rows, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, multi
     model, scaler = None, None
 
     if not multi_model:
-        model = keras.models.load_model(os.path.join(nn_dir, f'nn_{nn_stub}_all.keras'))
+        model = _import_keras().models.load_model(os.path.join(nn_dir, f'nn_{nn_stub}_all.keras'))
         scaler = joblib.load(os.path.join(nn_dir, f'scaler_{nn_stub}_all.pkl'))
 
     for row in rows:
