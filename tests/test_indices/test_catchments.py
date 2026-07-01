@@ -9,7 +9,7 @@ from shelterbelts.indices.catchments import catchments
 
 def test_catchments_basic():
     """Test catchments function returns rasterized output."""
-    geotif = 'outdir/g2_26729_tree_categories.tif'  # TODO: This should be a DEM instead.
+    geotif = 'data/g2_26729_tree_categories.tif'  # TODO: This should be a DEM instead.
     ds = catchments(geotif, outdir='outdir', stub='test_catch', savetif=False, plot=False)
     assert all(var in ds.data_vars for var in ['terrain', 'gullies', 'ridges'])
 

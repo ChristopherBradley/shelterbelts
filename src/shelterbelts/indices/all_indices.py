@@ -188,7 +188,7 @@ def indices_tif(percent_tif, outdir=".",
     if wind_method and wind_method != "None":  # Handling conversion of None to "None" when using subprocess
         lat = (bbox_4326[1] + bbox_4326[3])/2
         lon = (bbox_4326[0] + bbox_4326[2])/2
-        ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=True, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
+        ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=IS_GADI, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
     else:
         # if no wind_method provided than the percent_cover method without wind gets used
         ds_wind = None
@@ -409,10 +409,12 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
 
     if limit is None: # Don't remove tifs if we've specified a limit, because it's just for testing so I want reproducible results.
         # Remove tifs that have already been processed (sometimes I have to run this multiple times if a process runs out of memory or rasterio gives a parallelisation conflict)
-        percent_stubs = [pathlib.Path(tif).stem[:12] for tif in percent_tifs]
         processed = glob.glob(f'{outdir}/*.tif')
-        processed_stubs = set(pathlib.Path(tif).stem[:12] for tif in processed)
-        percent_tifs = [tif for tif, stub in zip(percent_tifs, percent_stubs) if stub not in processed_stubs]
+        processed_stems = [pathlib.Path(tif).stem for tif in processed]
+        percent_tifs = [
+            tif for tif in percent_tifs
+            if not any(s.startswith(pathlib.Path(tif).stem[:50]) for s in processed_stems)
+        ]
         print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])

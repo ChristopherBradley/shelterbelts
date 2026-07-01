@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -24,6 +24,10 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import box
 from shapely.prepared import prep
+
+import rioxarray as rxr
+from rasterio.features import shapes
+from shapely.geometry import shape
 
 
 # %%
@@ -87,3 +91,41 @@ for idx, row in grid.iterrows():
 grid['filename'] = filenames
 grid.to_file(os.path.join(outdir, f'tiles_{tile_size}_{state.replace(" ", "_")}.gpkg'),
              driver='GPKG')
+
+# %%
+# Download the crop and grazing masks from here: https://www.agriculture.gov.au/abares/aclump/land-use/land-use-of-australia-2010-11-to-2020-21#downloads
+# "Land use of Australia 2020–21 agricultural commodities probability grids - raster package (GeoTIFF and supporting files) (ZIP 246 MB)"
+
+barra_bboxs = "/home/christopher-bradley/Documents/PHD/data/Outlines/barra_bboxs_aus.gpkg"
+grazing_modified_pastures = "/home/christopher-bradley/Documents/PHD/data/Outlines/NLUM_v7_250_AgProbabilitySurfaces_2020_21_geo_package_20241128/NLUM_v7_probSurf_2021_320_3_GRAZ_NOTIMBSP.tif"
+# cropping_winter_cereals = "/home/christopher-bradley/Documents/PHD/data/Outlines/NLUM_v7_250_AgProbabilitySurfaces_2020_21_geo_package_20241128/NLUM_v7_probSurf_2021_331_5_W_CER.tif"
+
+
+# %%
+# Create a copy of barra_bboxs in just the pixels where grazing_modified_pastures is not no data.
+da_graz = rxr.open_rasterio(grazing_modified_pastures, masked=True).isel(band=0).squeeze()
+valid_mask = (~da_graz.isnull()).astype('uint8').values
+
+# %%
+polygons = [
+    shape(geom)
+    for geom, val in shapes(valid_mask, transform=da_graz.rio.transform())
+    if val == 1
+]
+
+# %%
+# %%time
+gdf_valid = gpd.GeoDataFrame(geometry=polygons, crs=da_graz.rio.crs).dissolve()
+
+# %%
+# %%time
+gdf_bboxs = gpd.read_file(barra_bboxs).to_crs(da_graz.rio.crs)
+barra_grazing = gdf_bboxs[gdf_bboxs.intersects(gdf_valid.geometry.iloc[0])].reset_index(drop=True)
+
+# %%
+# %%time
+print(f'{len(barra_grazing)} / {len(gdf_bboxs)} barra tiles intersect grazing modified pastures')
+outpath = barra_bboxs.replace('.gpkg', '_grazing.gpkg')
+barra_grazing.to_file(outpath, driver='GPKG')
+print(f'Saved: {outpath}')
+

@@ -22,7 +22,7 @@ def test_expand_tifs_filters_and_calls(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_expand_tif(filename, folder_merged_arg, sub_outdir, gpkg):
+    def fake_expand_tif(filename, folder_merged_arg, sub_outdir, gpkg, **kwargs):
         calls.append((Path(filename).name, Path(sub_outdir)))
 
     monkeypatch.setattr(expand_module, "expand_tif", fake_expand_tif)
@@ -52,7 +52,7 @@ def test_expand_tifs_respects_limit(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_expand_tif(filename, folder_merged_arg, sub_outdir, gpkg):
+    def fake_expand_tif(filename, folder_merged_arg, sub_outdir, gpkg, **kwargs):
         calls.append(Path(filename).name)
 
     monkeypatch.setattr(expand_module, "expand_tif", fake_expand_tif)

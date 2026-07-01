@@ -4,7 +4,7 @@ Shelterbelts
 .. image:: https://badge.fury.io/py/shelterbelts.svg
    :target: https://pypi.org/project/shelterbelts/
 
-.. image:: https://img.shields.io/github/license/ChristopherBradley/shelterbelts.svg
+.. image:: https://img.shields.io/badge/license-MIT-blue.svg
    :target: https://github.com/ChristopherBradley/shelterbelts/blob/main/LICENSE
 
 |
@@ -16,16 +16,16 @@ for measuring their impacts on agricultural productivity at scale.
 Key Features
 ------------
 
-1. **Tree categorisation** — classifies pixels as scattered trees, patch core, patch edge, or corridors based on nearby connectivity.
-2. **Shelter categorisation** — determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to `Stewart et al. 2024 <http://doi.org/10.25919/qh4m-8988>`_
-3. **Cover categorisation** — integrates `ESA WorldCover 2021 <https://esa-worldcover.org/>`_ land-cover classes (grassland, cropland, urban, water) with shelter categories
-4. **Buffer categorisation** — identify riparian and roadside tree buffers using the `National Surface Hydrology Lines <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/83107>`_ and `National Roads <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684>`_ datasets
-5. **Shelter metrics** — compute patch and class landscape statistics similar to `FragStats <https://fragstats.org/index.php/documentation>`_
-6. **Opportunities mapping** — identify locations where additional tree planting would provide the greatest shelter benefit
-7. **API integrations** — download data from `ANU BARRA-C2 <https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/f2551_3726_7908_8861>`_ (wind), `WRI Canopy Height <https://registry.opendata.aws/dataforgood-fb-forestsv2/>`_, and `ESA WorldCover <https://esa-worldcover.org/>`_
-8. **Command-line interface** — all index modules can be run in python scripts or directly from the terminal
-9. **Scalable** — designed for national-scale processing on HPC systems (NCI Gadi)
-10. **Classifying trees from raw inputs** — LAZ point clouds (via PDAL), Sentinel-2 imagery (with a bundled pre-trained neural network), or train your own model on labelled tiles
+1. **Tree categorisation**: classifies pixels as scattered trees, patch core, patch edge, or corridors based on nearby connectivity.
+2. **Shelter categorisation**: determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to `Stewart et al. 2024 <http://doi.org/10.25919/qh4m-8988>`_
+3. **Cover categorisation**: integrates `ESA WorldCover 2021 <https://esa-worldcover.org/>`_ land-cover classes (grassland, cropland, urban, water) with shelter categories
+4. **Buffer categorisation**: identify riparian and roadside tree buffers using the `National Surface Hydrology Lines <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/83107>`_ and `National Roads <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684>`_ datasets
+5. **Shelter metrics**: compute patch and class landscape statistics similar to `FragStats <https://fragstats.org/index.php/documentation>`_
+6. **Opportunities mapping**: identify potential locations for additional tree plantings (currently a work-in-progress)
+7. **API integrations**: download data from `ANU BARRA-C2 <https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/f2551_3726_7908_8861>`_ (wind), `WRI Canopy Height <https://registry.opendata.aws/dataforgood-fb-forestsv2/>`_, and `ESA WorldCover <https://esa-worldcover.org/>`_
+8. **Command-line interface**: all index modules can be run in python scripts or directly from the terminal
+9. **Scalable**: designed for national-scale processing on HPC systems (NCI Gadi)
+10. **Classifying trees from raw inputs**: LAZ point clouds (via PDAL), Sentinel-2 imagery (with a bundled pre-trained neural network), or train your own model on labelled tiles
 
 Example Output
 --------------
@@ -84,8 +84,8 @@ The main parameters for categorising shelterbelts are:
      - Description
    * - ``min_patch_size``
      - 20
-     - 10
-     - 30
+     - 15
+     - 25
      - Minimum area (pixels) to classify as a patch rather than scattered trees
    * - ``min_core_size``
      - 1000
@@ -94,17 +94,12 @@ The main parameters for categorising shelterbelts are:
      - Minimum patch size (pixels) to classify as a core area
    * - ``edge_size``
      - 3
-     - 1
+     - 2
      - 5
      - Distance (pixels) defining the edge region around patch cores
-   * - ``max_gap_size``
-     - 1
-     - 0
-     - 2
-     - Maximum gap (pixels) to bridge when connecting tree clusters
    * - ``buffer_width``
+     - 4
      - 3
-     - 1
      - 5
      - Number of pixels away from a feature that still counts as within the buffer
    * - ``distance_threshold``
@@ -119,28 +114,23 @@ The main parameters for categorising shelterbelts are:
      - Percentage tree cover within ``distance_threshold`` that counts as sheltered
    * - ``wind_threshold``
      - 20
-     - 10
-     - 30
+     - 15
+     - 25
      - Wind speed threshold in km/h
    * - ``wind_method``
      - WINDWARD
      - MOST_COMMON
-     - ALL
+     - ANY
      - Method to determine primary wind direction
-   * - ``strict_core_area``
-     - True
-     - False
-     - True
-     - Whether to enforce strict connectivity for core areas
    * - ``min_shelterbelt_length``
+     - 20
      - 15
-     - 10
-     - 30
+     - 25
      - Minimum skeleton length (pixels) to classify a cluster as linear
    * - ``max_shelterbelt_width``
      - 6
-     - 4
-     - 8
+     - 5
+     - 7
      - Maximum skeleton width (pixels) to classify a cluster as linear
 
 
@@ -151,4 +141,3 @@ API Reference
    :maxdepth: 2
 
    modules
-   workflow_at_scale

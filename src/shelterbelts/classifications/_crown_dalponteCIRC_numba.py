@@ -269,19 +269,21 @@ def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th
         ids.append(int(val))
 
     stats = {
-        "mean_height_m":   [],
-        "median_height_m": [],
-        "q3_height_m":     [],
-        "p90_height_m":    [],
-        "max_height_m":    [],
+        # "mean_height_m":   [],
+        # "median_height_m": [],
+        # "q3_height_m":     [],
+        # "p90_height_m":    [],
+        "p95_height_m":    [],
+        # "max_height_m":    [],
     }
     for v in ids:
         px = chm_raw[crowns == v]
-        stats["mean_height_m"].append(float(px.mean()))
-        stats["median_height_m"].append(float(np.median(px)))
-        stats["q3_height_m"].append(float(np.percentile(px, 75)))
-        stats["p90_height_m"].append(float(np.percentile(px, 90)))
-        stats["max_height_m"].append(float(px.max()))
+        # stats["mean_height_m"].append(float(px.mean()))
+        # stats["median_height_m"].append(float(np.median(px)))
+        # stats["q3_height_m"].append(float(np.percentile(px, 75)))
+        # stats["p90_height_m"].append(float(np.percentile(px, 90)))
+        stats["p95_height_m"].append(float(np.percentile(px, 95))) # If running at scale, we want to minimise extra data storage. This is the height stat Nick recommended.
+        # stats["max_height_m"].append(float(px.max()))
 
     gdf = gpd.GeoDataFrame({"treeID": ids, **stats}, geometry=geoms, crs=crs)
     gpkg_path = os.path.join(outdir, f'{stub}_crowns.gpkg')

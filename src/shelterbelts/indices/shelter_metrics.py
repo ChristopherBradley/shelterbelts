@@ -382,9 +382,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     - ellipse_outline_raster.tif: Ellipse boundary for each cluster
     - shortest_path_raster.tif: Skeleton path along each cluster
     - perpendicular_raster.tif: Perpendicular width measurements
-    - widths_raster.tif: Width values at each skeleton pixel
-    - labelled_categories.tif: Unique integer ID for each cluster (dtype int32); view in QGIS with Paletted/Unique Values
-    - labelled_categories.png: Cluster IDs with ellipse overlays
+    - shelterbelt_widths.tif: Width values at each skeleton pixel
 
     Examples
     --------
@@ -454,10 +452,10 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
         ds_labels = da_filtered.to_dataset(name="filtered")
         raster_dict = {
             'assigned_labels':assigned_labels,
-            'ellipse_outline_raster':ellipse_outline_raster,
+            'ellipse_outlines':ellipse_outline_raster,
             'shortest_path_raster':shortest_path_raster,
             'perpendicular_raster':perpendicular_raster,
-            'widths_raster':widths_raster
+            'shelterbelt_widths':widths_raster
         }
         for raster_key, raster_variable in raster_dict.items():
             ds_labels[raster_key] = (["y", "x"], raster_variable)

@@ -14,8 +14,17 @@ from sklearn.preprocessing import StandardScaler
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Quiet tensorflow import-time logging.
 logging.getLogger("numexpr.utils").setLevel(logging.ERROR)
 
-from tensorflow import keras
-from tensorflow.keras.callbacks import EarlyStopping
+_keras = None
+
+def _import_keras():
+    """Only import tensorflow when actually needed. 
+    Hopefully this resolves the segfault issue on Apple-Silicon computers preventing any tests from running.
+    """
+    global _keras
+    if _keras is None:
+        from tensorflow import keras
+        _keras = keras
+    return _keras
 
 
 def my_train_test_split(df, stratification_columns=[], train_frac=0.7, random_state=0):
@@ -78,6 +87,7 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, o
     print("Saved", filename_scaler)
 
     # One-hot encode the output features
+    keras = _import_keras()
     y_train = keras.utils.to_categorical(df_train[output_column], 2)
     y_test = keras.utils.to_categorical(df_test[output_column], 2)
 
@@ -86,6 +96,7 @@ def inputs_outputs_split(df_train, df_test, outdir, stub, non_input_variables, o
     
 def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_size, outdir='TEST', stub='.'):
     """Train a 3-layer dense NN with early stopping, save the keras file, and plot accuracy/loss curves."""
+    keras = _import_keras()
     dropout=0.1
     model = keras.Sequential([
         keras.layers.Dense(256, activation='relu'),    
@@ -99,8 +110,8 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
         
         keras.layers.Dense(2, activation='softmax')
     ])
-    early_stopping = EarlyStopping(
-        monitor='val_loss', 
+    early_stopping = keras.callbacks.EarlyStopping(
+        monitor='val_loss',
         patience=30,           # For some reason the BWh training still seemed to be impatient after ~10 epochs
         restore_best_weights=True 
     )
