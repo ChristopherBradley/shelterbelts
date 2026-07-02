@@ -50,10 +50,10 @@ for measuring their impacts on agricultural productivity at scale.</p>
 <h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Tree categorisation</strong>: classifies pixels as scattered trees, patch core, patch edge, or corridors based on nearby connectivity.</p></li>
-<li><p><strong>Shelter categorisation</strong>: determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to <a class="reference external" href="http://doi.org/10.25919/qh4m-8988">Stewart et al. 2024</a></p></li>
-<li><p><strong>Cover categorisation</strong>: integrates <a class="reference external" href="https://esa-worldcover.org/">ESA WorldCover 2021</a> land-cover classes (grassland, cropland, urban, water) with shelter categories</p></li>
+<li><p><strong>Cover categorisation</strong>: overlays <a class="reference external" href="https://esa-worldcover.org/">ESA WorldCover 2021</a> land-cover classes (grassland, cropland, urban, water) onto the tree categories</p></li>
 <li><p><strong>Buffer categorisation</strong>: identify riparian and roadside tree buffers using the <a class="reference external" href="https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/83107">National Surface Hydrology Lines</a> and <a class="reference external" href="https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684">National Roads</a> datasets</p></li>
-<li><p><strong>Shelter metrics</strong>: compute patch and class landscape statistics similar to <a class="reference external" href="https://fragstats.org/index.php/documentation">FragStats</a></p></li>
+<li><p><strong>Shelter categorisation</strong>: determine sheltered vs. unsheltered farmland based on tree density or wind direction, similar to <a class="reference external" href="http://doi.org/10.25919/qh4m-8988">Stewart et al. 2024</a></p></li>
+<li><p><strong>Patch &amp; class metrics</strong>: compute patch and class landscape statistics similar to <a class="reference external" href="https://fragstats.org/index.php/documentation">FragStats</a></p></li>
 <li><p><strong>Opportunities mapping</strong>: identify potential locations for additional tree plantings (currently a work-in-progress)</p></li>
 <li><p><strong>API integrations</strong>: download data from <a class="reference external" href="https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/f2551_3726_7908_8861">ANU BARRA-C2</a> (wind), <a class="reference external" href="https://registry.opendata.aws/dataforgood-fb-forestsv2/">WRI Canopy Height</a>, and <a class="reference external" href="https://esa-worldcover.org/">ESA WorldCover</a></p></li>
 <li><p><strong>Command-line interface</strong>: all index modules can be run in python scripts or directly from the terminal</p></li>
@@ -64,8 +64,8 @@ for measuring their impacts on agricultural productivity at scale.</p>
 <section id="example-output">
 <h2>Example Output<a class="headerlink" href="#example-output" title="Link to this heading">¶</a></h2>
 <p>The plot below shows the full categorisation pipeline: a binary tree-cover
-raster on the left, and the final buffer categories (with gullies, roads, and
-ridges identified) on the right.</p>
+raster on the left, and the final shelter categories on the right (sheltered
+grassland and cropland labelled by the type of tree providing the shelter).</p>
 <p>(<a class="reference download internal" download="" href="_downloads/7687700e0eb3dce28682ab5ebdbac43e/index-1.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>)</p>
 <figure class="align-default">
 <img alt="_images/index-1.hires.png" class="plot-directive" src="_images/index-1.hires.png" />
@@ -175,11 +175,12 @@ ridges identified) on the right.</p>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html#indices">Indices</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#tree-categories">Tree Categories</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules.html#shelter-categories">Shelter Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#cover-categories">Cover Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#buffer-categories">Buffer Categories</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules.html#shelter-metrics">Shelter Metrics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#catchments">Catchments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#patch-metrics">Patch Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#shelter-categories">Shelter Categories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#class-metrics">Class Metrics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#full-indices-pipeline">Full Indices Pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#opportunities">Opportunities</a></li>
 </ul>
@@ -234,11 +235,12 @@ ridges identified) on the right.</p>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html#indices">Indices</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#tree-categories">Tree Categories</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules.html#shelter-categories">Shelter Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#cover-categories">Cover Categories</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#buffer-categories">Buffer Categories</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules.html#shelter-metrics">Shelter Metrics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#catchments">Catchments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#patch-metrics">Patch Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#shelter-categories">Shelter Categories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#class-metrics">Class Metrics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#full-indices-pipeline">Full Indices Pipeline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#opportunities">Opportunities</a></li>
 </ul>

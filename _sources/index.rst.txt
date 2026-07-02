@@ -17,10 +17,10 @@ Key Features
 ------------
 
 1. **Tree categorisation**: classifies pixels as scattered trees, patch core, patch edge, or corridors based on nearby connectivity.
-2. **Shelter categorisation**: determine sheltered vs. unsheltered areas based on tree density or wind direction, similar to `Stewart et al. 2024 <http://doi.org/10.25919/qh4m-8988>`_
-3. **Cover categorisation**: integrates `ESA WorldCover 2021 <https://esa-worldcover.org/>`_ land-cover classes (grassland, cropland, urban, water) with shelter categories
-4. **Buffer categorisation**: identify riparian and roadside tree buffers using the `National Surface Hydrology Lines <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/83107>`_ and `National Roads <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684>`_ datasets
-5. **Shelter metrics**: compute patch and class landscape statistics similar to `FragStats <https://fragstats.org/index.php/documentation>`_
+2. **Cover categorisation**: overlays `ESA WorldCover 2021 <https://esa-worldcover.org/>`_ land-cover classes (grassland, cropland, urban, water) onto the tree categories
+3. **Buffer categorisation**: identify riparian and roadside tree buffers using the `National Surface Hydrology Lines <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/83107>`_ and `National Roads <https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/147684>`_ datasets
+4. **Shelter categorisation**: determine sheltered vs. unsheltered farmland based on tree density or wind direction, similar to `Stewart et al. 2024 <http://doi.org/10.25919/qh4m-8988>`_
+5. **Patch & class metrics**: compute patch and class landscape statistics similar to `FragStats <https://fragstats.org/index.php/documentation>`_
 6. **Opportunities mapping**: identify potential locations for additional tree plantings (currently a work-in-progress)
 7. **API integrations**: download data from `ANU BARRA-C2 <https://geonetwork.nci.org.au/geonetwork/srv/eng/catalog.search#/metadata/f2551_3726_7908_8861>`_ (wind), `WRI Canopy Height <https://registry.opendata.aws/dataforgood-fb-forestsv2/>`_, and `ESA WorldCover <https://esa-worldcover.org/>`_
 8. **Command-line interface**: all index modules can be run in python scripts or directly from the terminal
@@ -31,15 +31,15 @@ Example Output
 --------------
 
 The plot below shows the full categorisation pipeline: a binary tree-cover
-raster on the left, and the final buffer categories (with gullies, roads, and
-ridges identified) on the right.
+raster on the left, and the final shelter categories on the right (sheltered
+grassland and cropland labelled by the type of tree providing the shelter).
 
 .. plot::
 
     import matplotlib.pyplot as plt
     import rioxarray as rxr
     from shelterbelts.indices.all_indices import indices_tif
-    from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
+    from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
     from shelterbelts.utils.visualisation import _plot_categories_on_axis
     from shelterbelts.utils.filepaths import get_filename
 
@@ -48,11 +48,11 @@ ridges identified) on the right.
     tree_cmap = {0: (255, 255, 255), 1: (14, 138, 0)}
     tree_labels = {0: 'No Trees', 1: 'Woody Vegetation'}
 
-    ds_linear, _ = indices_tif(tree_file, outdir='/tmp', stub='test')
+    ds_shelter, _ = indices_tif(tree_file, outdir='/tmp', stub='test')
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
     _plot_categories_on_axis(ax1, da_trees, tree_cmap, tree_labels, 'Example Input', legend_inside=True)
-    _plot_categories_on_axis(ax2, ds_linear['linear_categories'], linear_categories_cmap, linear_categories_labels, 'Example Output', legend_inside=True)
+    _plot_categories_on_axis(ax2, ds_shelter['shelter_categories'], shelter_categories_cmap, shelter_categories_labels, 'Example Output', legend_inside=True)
     plt.tight_layout()
 
 

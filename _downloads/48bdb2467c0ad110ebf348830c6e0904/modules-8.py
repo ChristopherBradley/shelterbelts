@@ -1,4 +1,4 @@
-from shelterbelts.indices.shelter_metrics import patch_metrics, linear_categories_cmap, linear_categories_labels
+from shelterbelts.indices.patch_metrics import patch_metrics, linear_categories_cmap, linear_categories_labels
 from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.utils.visualisation import visualise_categories_sidebyside
 
