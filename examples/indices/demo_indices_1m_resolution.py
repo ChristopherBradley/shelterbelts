@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -29,7 +29,7 @@
 
 # %%
 from shelterbelts.indices.all_indices import indices_tif
-from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 from shelterbelts.utils.visualisation import visualise_categories
 from shelterbelts.utils.filepaths import _repo_root
 
@@ -51,7 +51,7 @@ ds1, df1 = indices_tif(
     distance_threshold=100,
     buffer_width=40,
     max_shelterbelt_width=60,
-    min_shelterbelt_length=150,
+    min_shelterbelt_length=100,
     min_patch_size=200,
     edge_size=30,
     min_core_size=10000,
@@ -60,9 +60,9 @@ ds1, df1 = indices_tif(
 
 # %%
 visualise_categories(
-    ds1['linear_categories'],
-    colormap=linear_categories_cmap,
-    labels=linear_categories_labels,
+    ds1['shelter_categories'],
+    colormap=shelter_categories_cmap,
+    labels=shelter_categories_labels,
     title='Percent method',
 )
 
@@ -85,7 +85,7 @@ ds4, df4 = indices_tif(
     distance_threshold=100,
     buffer_width=40,
     max_shelterbelt_width=60,
-    min_shelterbelt_length=200,
+    min_shelterbelt_length=100,
     min_patch_size=200,
     edge_size=30,
     min_core_size=10000,
@@ -94,9 +94,9 @@ ds4, df4 = indices_tif(
 
 # %%
 visualise_categories(
-    ds4['linear_categories'],
-    colormap=linear_categories_cmap,
-    labels=linear_categories_labels,
+    ds4['shelter_categories'],
+    colormap=shelter_categories_cmap,
+    labels=shelter_categories_labels,
     title='Default wind (WINDWARD)',
 )
 
@@ -116,7 +116,7 @@ ds5, df5 = indices_tif(
     distance_threshold=100,
     buffer_width=50,
     max_shelterbelt_width=70,
-    min_shelterbelt_length=150,
+    min_shelterbelt_length=100,
     min_patch_size=150,
     edge_size=50,
     min_core_size=100000,
@@ -126,9 +126,9 @@ ds5, df5 = indices_tif(
 
 # %%
 visualise_categories(
-    ds5['linear_categories'],
-    colormap=linear_categories_cmap,
-    labels=linear_categories_labels,
+    ds5['shelter_categories'],
+    colormap=shelter_categories_cmap,
+    labels=shelter_categories_labels,
     title='More shelter windmethod (ANY)',
 )
 
@@ -148,7 +148,7 @@ ds6, df6 = indices_tif(
     distance_threshold=100,
     buffer_width=30,
     max_shelterbelt_width=50,
-    min_shelterbelt_length=250,
+    min_shelterbelt_length=100,
     min_patch_size=250,
     edge_size=20,
     min_core_size=1000,
@@ -158,9 +158,9 @@ ds6, df6 = indices_tif(
 
 # %%
 visualise_categories(
-    ds6['linear_categories'],
-    colormap=linear_categories_cmap,
-    labels=linear_categories_labels,
+    ds6['shelter_categories'],
+    colormap=shelter_categories_cmap,
+    labels=shelter_categories_labels,
     title='Less shelterbelts wind (MOST_COMMON)',
 )
 
@@ -179,7 +179,7 @@ pairs = [
     (ds6, 'Less shelter'),
 ]
 for ax, (ds, title) in zip(axes.flat, pairs):
-    _plot_categories_on_axis(ax, ds['linear_categories'], linear_categories_cmap, linear_categories_labels, title, legend_inside=True)
+    _plot_categories_on_axis(ax, ds['shelter_categories'], shelter_categories_cmap, shelter_categories_labels, title, legend_inside=True)
 plt.tight_layout()
 plt.show()
 

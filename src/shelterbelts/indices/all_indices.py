@@ -21,10 +21,10 @@ from shelterbelts.apis.worldcover import worldcover_centrepoint
 from shelterbelts.apis.osm import osm_roads
 
 from shelterbelts.indices.tree_categories import tree_categories
-from shelterbelts.indices.shelter_categories import shelter_categories
 from shelterbelts.indices.cover_categories import cover_categories
 from shelterbelts.indices.buffer_categories import buffer_categories
-from shelterbelts.indices.shelter_metrics import patch_metrics
+from shelterbelts.indices.patch_metrics import patch_metrics
+from shelterbelts.indices.shelter_categories import shelter_categories
 from shelterbelts.indices.catchments import catchments, gullies_cmap, ridges_cmap
 
 # 11 secs for all these imports
@@ -54,12 +54,26 @@ GEE_legend = {
   18: 'Linear Patches',
   19: 'Non-linear Patches',
   20: 'Shrubland',
-  30: 'Grassland',
+  30: 'Unsheltered Grassland',
   31: 'Unsheltered Grassland',
   32: 'Sheltered Grassland',
-  40: 'Cropland',
+  33: 'Grassland sheltered by Patch Edge',
+  34: 'Grassland sheltered by Other Trees',
+  35: 'Grassland sheltered by Trees in Gullies',
+  36: 'Grassland sheltered by Trees on Ridges',
+  37: 'Grassland sheltered by Trees next to Roads',
+  38: 'Grassland sheltered by Linear Patches',
+  39: 'Grassland sheltered by Non-linear Patches',
+  40: 'Unsheltered Cropland',
   41: 'Unsheltered Cropland',
   42: 'Sheltered Cropland',
+  43: 'Cropland sheltered by Patch Edge',
+  44: 'Cropland sheltered by Other Trees',
+  45: 'Cropland sheltered by Trees in Gullies',
+  46: 'Cropland sheltered by Trees on Ridges',
+  47: 'Cropland sheltered by Trees next to Roads',
+  48: 'Cropland sheltered by Linear Patches',
+  49: 'Cropland sheltered by Non-linear Patches',
   50: 'Built-up',
   60: 'Bare',
   70: 'Snow and ice',
@@ -131,7 +145,7 @@ def indices_tif(percent_tif, outdir=".",
     Returns
     -------
     ds : xarray.Dataset
-        Dataset with linear_categories and labelled_categories bands.
+        Dataset with shelter_categories, linear_categories and labelled_categories bands.
     df : pandas.DataFrame
         Per-cluster patch metrics (skeleton length/width, category, etc.).
 
@@ -142,7 +156,7 @@ def indices_tif(percent_tif, outdir=".",
         import matplotlib.pyplot as plt
         import rioxarray as rxr
         from shelterbelts.indices.all_indices import indices_tif
-        from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
+        from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
         from shelterbelts.utils.visualisation import _plot_categories_on_axis
         from shelterbelts.utils.filepaths import get_filename
 
@@ -151,11 +165,11 @@ def indices_tif(percent_tif, outdir=".",
         tree_cmap = {0: (255, 255, 255), 1: (14, 138, 0)}
         tree_labels = {0: 'No Trees', 1: 'Woody Vegetation'}
 
-        ds_linear, _ = indices_tif(tree_file, outdir='/tmp', stub='test')
+        ds_shelter, _ = indices_tif(tree_file, outdir='/tmp', stub='test')
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 11))
         _plot_categories_on_axis(ax1, da_trees, tree_cmap, tree_labels, 'Example Input', legend_inside=True)
-        _plot_categories_on_axis(ax2, ds_linear['linear_categories'], linear_categories_cmap, linear_categories_labels, 'Example Output', legend_inside=True)
+        _plot_categories_on_axis(ax2, ds_shelter['shelter_categories'], shelter_categories_cmap, shelter_categories_labels, 'Example Output', legend_inside=True)
         plt.tight_layout()
 
     """
@@ -195,14 +209,16 @@ def indices_tif(percent_tif, outdir=".",
 
     ds_woody_veg = da_trees.to_dataset(name='woody_veg')
     ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=debug, plot=debug)
-    ds_shelter = shelter_categories(ds_tree_categories, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug, crop_pixels=crop_pixels)
-    ds_cover = cover_categories(ds_shelter, da_worldcover, outdir=outdir, stub=stub, savetif=debug, plot=debug)
-
+    ds_cover = cover_categories(ds_tree_categories, da_worldcover, outdir=outdir, stub=stub, savetif=debug, plot=debug)
     ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=debug, plot=debug)
-    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size) 
+    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
+
+    # Determine sheltered farmland and (for wind methods) the type of tree providing the shelter.
+    # Runs last, on the full tree classification. wind_method=None falls back to the density method.
+    ds_shelter = shelter_categories(ds_linear, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug)
 
     # Trying to avoid memory accumulation
-    for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_shelter, ds_cover, ds_buffer]:
+    for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_cover, ds_buffer, ds_linear]:
         try:
             ds.close()
             del ds
@@ -210,7 +226,7 @@ def indices_tif(percent_tif, outdir=".",
             pass
     gc.collect()
     mem_info = process.memory_full_info()
-    return ds_linear, df_patches
+    return ds_shelter, df_patches
 
 _AUSTRALIA_BOUNDS = (-44, 113, -10, 154)  # (lat_min, lon_min, lat_max, lon_max)
 
@@ -259,7 +275,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     Returns
     -------
     ds : xarray.Dataset
-        Dataset with linear_categories and labelled_categories bands.
+        Dataset with shelter_categories, linear_categories and labelled_categories bands.
     df : pandas.DataFrame
         Per-cluster patch metrics.
 
@@ -330,11 +346,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size,
         min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size,
         strict_core_area=strict_core_area, save_tif=debug, plot=debug)
-    ds_shelter = shelter_categories(ds_tree_categories, wind_data=ds_wind,
-        wind_method=wind_method, wind_threshold=wind_threshold,
-        distance_threshold=distance_threshold, density_threshold=density_threshold,
-        outdir=outdir, stub=stub, savetif=debug, plot=debug, crop_pixels=crop_pixels)
-    ds_cover = cover_categories(ds_shelter, da_worldcover, outdir=outdir, stub=stub,
+    ds_cover = cover_categories(ds_tree_categories, da_worldcover, outdir=outdir, stub=stub,
         savetif=debug, plot=debug)
     ds_buffer = buffer_categories(ds_cover, gullies_tif, ridges_data=None,
         roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width,
@@ -344,7 +356,13 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
         min_shelterbelt_length=min_shelterbelt_length,
         max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
 
-    return ds_linear, df_patches
+    # Determine sheltered farmland and (for wind methods) the type of tree providing the shelter.
+    # Runs last, on the full tree classification. wind_method=None falls back to the density method.
+    ds_shelter = shelter_categories(ds_linear, wind_data=ds_wind, wind_method=wind_method,
+        wind_threshold=wind_threshold, distance_threshold=distance_threshold,
+        density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug)
+
+    return ds_shelter, df_patches
 
 
 def indices_csv(csv, outdir=".",

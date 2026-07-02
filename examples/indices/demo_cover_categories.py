@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -16,7 +16,7 @@
 # %% [markdown]
 # # Cover Categories Demo
 #
-# Demonstrates the `cover_categories` function, which combines shelter categories with WorldCover land cover types.
+# Demonstrates the `cover_categories` function, which overlays WorldCover land cover types onto the tree categories.
 
 # %% [markdown]
 # ## Setup
@@ -29,14 +29,14 @@ from shelterbelts.utils.visualisation import visualise_categories
 from shelterbelts.indices.cover_categories import cover_categories, cover_categories_cmap, cover_categories_labels
 
 # Example data
-shelter_file = get_filename('g2_26729_shelter_categories.tif')
+tree_file = get_filename('g2_26729_tree_categories.tif')
 worldcover_file = get_filename('g2_26729_worldcover.tif')
 
 # %% [markdown]
 # ## Default Parameters
 
 # %%
-ds = cover_categories(shelter_file, worldcover_file)
+ds = cover_categories(tree_file, worldcover_file)
 ds
 
 # %%
@@ -51,10 +51,10 @@ visualise_categories(
 # ## Using Datasets as input
 
 # %%
-da_shelter = rxr.open_rasterio(shelter_file).squeeze('band').drop_vars('band')
+da_tree = rxr.open_rasterio(tree_file).squeeze('band').drop_vars('band')
 da_worldcover = rxr.open_rasterio(worldcover_file).squeeze('band').drop_vars('band')
 
-ds2 = cover_categories(da_shelter, da_worldcover)
+ds2 = cover_categories(da_tree, da_worldcover)
 visualise_categories(
     ds2['cover_categories'],
     colormap=cover_categories_cmap,
@@ -68,7 +68,7 @@ visualise_categories(
 # !python -m shelterbelts.indices.cover_categories --help
 
 # %%
-# !python -m shelterbelts.indices.cover_categories {shelter_file} {worldcover_file}
+# !python -m shelterbelts.indices.cover_categories {tree_file} {worldcover_file}
 
 # %% [markdown]
 # ### Cleanup

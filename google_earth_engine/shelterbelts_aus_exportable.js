@@ -1,6 +1,7 @@
 
 Map.setOptions('SATELLITE');
 Map.drawingTools().setShown(false);
+Map.drawingTools().setDrawModes(['rectangle']);
 
 var greenPalette = [
   '#e5f5e0','#c7e9c0','#a1d99b','#74c476','#41ab5d',
@@ -391,6 +392,15 @@ var exportButton = ui.Button({
       });
     });
   }
+});
+
+Map.drawingTools().onDraw(function() {
+  var layers = Map.drawingTools().layers();
+  while (layers.length() > 1) {
+    layers.remove(layers.get(0));
+  }
+  Map.drawingTools().stop();
+  statusLabel.setValue('Rectangle drawn. Click "Get download link".');
 });
 
 exportPanel.add(ui.Panel(
