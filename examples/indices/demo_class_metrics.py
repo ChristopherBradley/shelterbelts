@@ -23,14 +23,15 @@
 from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.indices.class_metrics import class_metrics
 
-# Example data
-linear_file = get_filename('g2_26729_linear_categories.tif')
+# Example data: a shelter_categories output (the last pipeline step), so the Shelter sheet
+# reflects the sheltered vs unsheltered split by tree type
+shelter_file = get_filename('g2_26729_shelter_categories.tif')
 
 # %% [markdown]
 # ## Class Metrics
 
 # %%
-dfs = class_metrics(linear_file)
+dfs = class_metrics(shelter_file)
 
 # %%
 dfs['Overall']
@@ -51,7 +52,7 @@ dfs['Shelter']
 # !python -m shelterbelts.indices.class_metrics --help
 
 # %%
-# !python -m shelterbelts.indices.class_metrics {linear_file} --stub command_line
+# !python -m shelterbelts.indices.class_metrics {shelter_file} --stub command_line
 
 # %% [markdown]
 # ### Cleanup

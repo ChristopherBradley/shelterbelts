@@ -203,11 +203,11 @@ def shelter_categories(linear_data, wind_data=None, height_tif=None, outdir='.',
     stub : str, optional
         Prefix for output filenames.
     wind_method : str, optional
-        Either 'WINDWARD', 'MOST_COMMON', 'MAX', 'HAPPENED', 'ANY', or 'MULTI_LAYER' (default: WINDWARD).
+        Either 'WINDWARD', 'MOST_COMMON', 'MAX', 'HAPPENED', 'ANY', or 'MULTI_LAYER'.
         MOST_COMMON assumes only downwind shelter, using the most common wind direction above the wind_threshold.
         WINDWARD assumes downwind shelter to distance_threshold, and upwind shelter to (distance_threshold / 2).
         MAX assumes shelter from the direction of maximum wind speed.
-        HAPPENED refers to any direction where the winds exceeded the wind_threshold in the wind dataset.
+        HAPPENED refers to any direction where the winds exceeded the wind_threshold.
         ANY refers to all 8 compass directions.
         MULTI_LAYER saves an 8-band GeoTIFF (bands clockwise: N, NE, E, SE, S, SW, W, NW). Does not require wind_data.
     wind_threshold : int, optional
@@ -247,6 +247,56 @@ def shelter_categories(linear_data, wind_data=None, height_tif=None, outdir='.',
     >>> ds = shelter_categories(linear_file, wind_data=wind_file, outdir='/tmp', plot=False, savetif=False)
     >>> 'shelter_categories' in set(ds.data_vars)
     True
+
+    Here's how different parameters affect the shelter categorisation:
+
+    .. plot::
+
+        import rioxarray as rxr
+        from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
+        from shelterbelts.utils.filepaths import get_filename
+        from shelterbelts.utils.visualisation import visualise_categories_sidebyside
+
+        linear_file = get_filename('g2_26729_linear_categories.tif')
+        wind_file = get_filename('g2_26729_barra_daily.nc')
+        da = rxr.open_rasterio(linear_file).isel(band=0).drop_vars('band')
+        ds_linear = da.to_dataset(name='linear_categories')
+
+        # density_threshold: 3 vs 10 (density method, no wind data)
+        ds1 = shelter_categories(ds_linear, outdir='/tmp', stub='dens1', plot=False, savetif=False, density_threshold=3)
+        ds2 = shelter_categories(ds_linear, outdir='/tmp', stub='dens2', plot=False, savetif=False, density_threshold=10)
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="density_threshold=3", title2="density_threshold=10"
+        )
+
+        # wind_method: MOST_COMMON vs WINDWARD
+        ds1 = shelter_categories(ds_linear, wind_data=wind_file, outdir='/tmp', stub='wind1', plot=False, savetif=False, wind_method='MOST_COMMON')
+        ds2 = shelter_categories(ds_linear, wind_data=wind_file, outdir='/tmp', stub='wind2', plot=False, savetif=False, wind_method='WINDWARD')
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="wind_method=MOST_COMMON", title2="wind_method=WINDWARD"
+        )
+
+        # distance_threshold: 10 vs 30 (with wind data)
+        ds1 = shelter_categories(ds_linear, wind_data=wind_file, outdir='/tmp', stub='dist1', plot=False, savetif=False, distance_threshold=10, wind_method='MOST_COMMON')
+        ds2 = shelter_categories(ds_linear, wind_data=wind_file, outdir='/tmp', stub='dist2', plot=False, savetif=False, distance_threshold=30, wind_method='MOST_COMMON')
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="distance_threshold=10", title2="distance_threshold=30"
+        )
+
+        # wind_threshold: 10 vs 30 (km/h)
+        ds1 = shelter_categories(ds_linear, wind_data=wind_file, outdir='/tmp', stub='wt1', plot=False, savetif=False, wind_threshold=10, wind_method='MOST_COMMON')
+        ds2 = shelter_categories(ds_linear, wind_data=wind_file, outdir='/tmp', stub='wt2', plot=False, savetif=False, wind_threshold=30, wind_method='MOST_COMMON')
+        visualise_categories_sidebyside(
+            ds1['shelter_categories'], ds2['shelter_categories'],
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+            title1="wind_threshold=10", title2="wind_threshold=30"
+        )
     """
     if isinstance(linear_data, xr.Dataset):
         ds_input = linear_data.copy(deep=True)
@@ -386,16 +436,15 @@ def shelter_categories(linear_data, wind_data=None, height_tif=None, outdir='.',
         filename_distance_or_density = os.path.join(outdir, f"{stub}_shelter_distances.tif")
 
     else:
-        # Density method: sheltered if enough tree cover nearby. No single sheltering tree.
+        # Density method based on percent tree cover nearby, rather than distance from trees.
         da_percent_trees = compute_tree_densities(tree_percent, max_distance=distance_threshold)
         sheltered = da_percent_trees >= density_threshold
         da_distance_or_percent = da_percent_trees
         filename_distance_or_density = os.path.join(outdir, f"{stub}_shelter_densities.tif")
 
     da_shelter_categories = _label_farmland(da, grassland, cropland, sheltered, source_digit)
-    da_distance_or_percent = da_distance_or_percent.rio.write_crs(da.rio.crs)  # Some methods lose the crs
+    da_distance_or_percent = da_distance_or_percent.rio.write_crs(da.rio.crs)  # Some methods lose the crs due to xr.where()
 
-    # Crop the output if it was expanded before the pipeline started
     if crop_pixels is not None and crop_pixels != 0:
         da_shelter_categories = da_shelter_categories.isel(x=slice(crop_pixels, -crop_pixels), y=slice(crop_pixels, -crop_pixels))
         da_distance_or_percent = da_distance_or_percent.isel(x=slice(crop_pixels, -crop_pixels), y=slice(crop_pixels, -crop_pixels))

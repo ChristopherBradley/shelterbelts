@@ -77,15 +77,15 @@ def class_metrics(shelter_data, outdir=".", stub="TEST", save_excel=True):
     Using file paths as input:
 
     >>> from shelterbelts.utils.filepaths import get_filename
-    >>> linear_file = get_filename('g2_26729_linear_categories.tif')
-    >>> dfs = class_metrics(linear_file, outdir='/tmp', save_excel=False)
+    >>> shelter_file = get_filename('g2_26729_shelter_categories.tif')
+    >>> dfs = class_metrics(shelter_file, outdir='/tmp', save_excel=False)
     >>> len(dfs) == 4
     True
 
     Using a Dataset carrying the shelter_categories band:
 
     >>> import rioxarray as rxr
-    >>> da = rxr.open_rasterio(linear_file).squeeze('band').drop_vars('band')
+    >>> da = rxr.open_rasterio(shelter_file).squeeze('band').drop_vars('band')
     >>> ds = da.to_dataset(name='shelter_categories')
     >>> dfs = class_metrics(ds, outdir='/tmp', save_excel=False)
     >>> len(dfs) == 4
