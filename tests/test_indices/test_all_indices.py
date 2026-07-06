@@ -28,13 +28,23 @@ def test_indices_tif():
     assert df is not None, "indices_tif should return a pandas DataFrame"
 
 
+def _counts(ds, band):
+    """Category-code counts for a band of the returned dataset."""
+    return dict(zip(*np.unique(ds[band].values, return_counts=True)))
+
+
+def _sheltered(shelter_cats):
+    """Total sheltered farmland: grassland 32-39 + cropland 42-49 (density uses the generic 32/42)."""
+    return sum(c for code, c in shelter_cats.items() if 32 <= code < 40 or 42 <= code < 50)
+
+
 def test_indices_tif_more_shelterbelts():
     """Test more-shelterbelts configuration against default, comparing each parameter's effect"""
     # Run default configuration
-    indices_tif(test_filename, outdir='outdir', tmpdir='tmpdir', stub="default")
+    ds_default, _ = indices_tif(test_filename, outdir='outdir', tmpdir='tmpdir', stub="default")
 
     # Run more-shelterbelts configuration
-    indices_tif(
+    ds_more, _ = indices_tif(
         test_filename,
         outdir='outdir',
         tmpdir='tmpdir',
@@ -47,18 +57,12 @@ def test_indices_tif_more_shelterbelts():
         min_shelterbelt_length=10,  # Allows shelterbelts to be shorter
     )
 
-    # Load both outputs
-    default_tif = os.path.join('outdir', 'default_linear_categories.tif')
-    more_tif = os.path.join('outdir', 'more-shelterbelts_linear_categories.tif')
-    assert os.path.exists(default_tif), f"Default output {default_tif} not created"
-    assert os.path.exists(more_tif), f"More-shelterbelts output {more_tif} not created"
+    assert os.path.exists(os.path.join('outdir', 'default_linear_categories.tif'))
+    assert os.path.exists(os.path.join('outdir', 'more-shelterbelts_linear_categories.tif'))
 
-    da_default = rxr.open_rasterio(default_tif).isel(band=0).drop_vars('band')
-    da_more = rxr.open_rasterio(more_tif).isel(band=0).drop_vars('band')
-
-    # Get category counts for both
-    default_cats = dict(zip(*np.unique(da_default.values, return_counts=True)))
-    more_cats = dict(zip(*np.unique(da_more.values, return_counts=True)))
+    # Everything reads from the final shelter_categories band (tree codes preserved, farmland re-encoded)
+    default_cats = _counts(ds_default, 'shelter_categories')
+    more_cats = _counts(ds_more, 'shelter_categories')
 
     # 1. min_patch_size=5 (Less scattered trees) - should have fewer scattered trees (11)
     default_scattered = default_cats.get(11, 0)
@@ -72,9 +76,9 @@ def test_indices_tif_more_shelterbelts():
     assert more_edge > default_edge, \
         f"edge_size=5 should increase patch edge: default={default_edge}, more={more_edge}"
 
-    # 3 & 4. distance_threshold=30 + density_threshold=3 (Allows more sheltered areas) - should have more sheltered (32, 42)
-    default_sheltered = default_cats.get(32, 0) + default_cats.get(42, 0)
-    more_sheltered = more_cats.get(32, 0) + more_cats.get(42, 0)
+    # 3 & 4. distance_threshold=30 + density_threshold=3 (Allows more sheltered areas) - should have more sheltered
+    default_sheltered = _sheltered(default_cats)
+    more_sheltered = _sheltered(more_cats)
     assert more_sheltered > default_sheltered, \
         f"distance_threshold=30 + density_threshold=3 should increase sheltered areas: default={default_sheltered}, more={more_sheltered}"
 
@@ -94,10 +98,10 @@ def test_indices_tif_more_shelterbelts():
 def test_indices_tif_less_shelterbelts():
     """Test less-shelterbelts configuration against default, comparing each parameter's effect"""
     # Run default configuration
-    indices_tif(test_filename, outdir='outdir', tmpdir='tmpdir', stub="default")
+    ds_default, _ = indices_tif(test_filename, outdir='outdir', tmpdir='tmpdir', stub="default")
 
     # Run less-shelterbelts configuration
-    indices_tif(
+    ds_less, _ = indices_tif(
         test_filename,
         outdir='outdir',
         tmpdir='tmpdir',
@@ -110,18 +114,12 @@ def test_indices_tif_less_shelterbelts():
         max_shelterbelt_width=4,  # Forces shelterbelts to be thinner
     )
 
-    # Load both outputs
-    default_tif = os.path.join('outdir', 'default_linear_categories.tif')
-    less_tif = os.path.join('outdir', 'less-shelterbelts_linear_categories.tif')
-    assert os.path.exists(default_tif), f"Default output {default_tif} not created"
-    assert os.path.exists(less_tif), f"Less-shelterbelts output {less_tif} not created"
+    assert os.path.exists(os.path.join('outdir', 'default_linear_categories.tif'))
+    assert os.path.exists(os.path.join('outdir', 'less-shelterbelts_linear_categories.tif'))
 
-    da_default = rxr.open_rasterio(default_tif).isel(band=0).drop_vars('band')
-    da_less = rxr.open_rasterio(less_tif).isel(band=0).drop_vars('band')
-
-    # Get category counts for both
-    default_cats = dict(zip(*np.unique(da_default.values, return_counts=True)))
-    less_cats = dict(zip(*np.unique(da_less.values, return_counts=True)))
+    # Everything reads from the final shelter_categories band (tree codes preserved, farmland re-encoded)
+    default_cats = _counts(ds_default, 'shelter_categories')
+    less_cats = _counts(ds_less, 'shelter_categories')
 
     # 1. min_patch_size=30 (More scattered trees) - should have more scattered trees (11)
     default_scattered = default_cats.get(11, 0)
@@ -129,9 +127,9 @@ def test_indices_tif_less_shelterbelts():
     assert less_scattered > default_scattered, \
         f"min_patch_size=30 should increase scattered trees: default={default_scattered}, less={less_scattered}"
 
-    # 2. distance_threshold=10 + density_threshold=10 (Forces less sheltered areas) - should have fewer sheltered (32, 42)
-    default_sheltered = default_cats.get(32, 0) + default_cats.get(42, 0)
-    less_sheltered = less_cats.get(32, 0) + less_cats.get(42, 0)
+    # 2. distance_threshold=10 + density_threshold=10 (Forces less sheltered areas) - should have fewer sheltered
+    default_sheltered = _sheltered(default_cats)
+    less_sheltered = _sheltered(less_cats)
     assert less_sheltered < default_sheltered, \
         f"distance_threshold=10 + density_threshold=10 should decrease sheltered areas: default={default_sheltered}, less={less_sheltered}"
 
@@ -156,7 +154,7 @@ def test_indices_latlon():
         outdir='outdir', tmpdir='tmpdir', stub='test_latlon', debug=True
     )
     assert ds is not None
-    assert 'linear_categories' in ds.data_vars
+    assert 'shelter_categories' in ds.data_vars
     assert df is not None
 
 

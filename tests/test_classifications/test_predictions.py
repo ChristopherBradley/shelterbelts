@@ -2,8 +2,14 @@ import os
 import pickle
 import joblib
 
+import pytest
+
+from _tf_guard import TF_AVAILABLE, TF_SKIP_REASON
 from shelterbelts.classifications.predictions import tif_prediction_ds, _load_keras_model
 from shelterbelts.utils.filepaths import sentinel_sample, get_pretrained_nn, get_pretrained_scaler
+
+# Skip (rather than segfault) on environments with a broken TensorFlow build.
+pytestmark = pytest.mark.skipif(not TF_AVAILABLE, reason=TF_SKIP_REASON)
 
 
 def _load_ds():

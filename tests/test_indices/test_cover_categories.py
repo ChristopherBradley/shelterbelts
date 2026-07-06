@@ -4,14 +4,14 @@ from shelterbelts.indices.cover_categories import cover_categories
 
 
 stub = 'g2_26729'
-shelter_categories_file = f"data/{stub}_shelter_categories.tif"
+tree_categories_file = f"data/{stub}_tree_categories.tif"
 worldcover_file = f"data/{stub}_worldcover.tif"
 
 
 def test_cover_categories_basic():
     """Basic test for cover_categories function"""
     ds = cover_categories(
-        shelter_categories_file,
+        tree_categories_file,
         worldcover_file,
         outdir='outdir',
         stub=stub
@@ -28,7 +28,7 @@ def test_cover_categories_no_save():
         os.remove(f"outdir/{stub}_cover_categories.tif")
     
     ds = cover_categories(
-        shelter_categories_file,
+        tree_categories_file,
         worldcover_file,
         outdir='outdir',
         stub=stub,
@@ -43,7 +43,7 @@ def test_cover_categories_no_plot():
         os.remove(f"outdir/{stub}_cover_categories.png")
     
     ds = cover_categories(
-        shelter_categories_file,
+        tree_categories_file,
         worldcover_file,
         outdir='outdir',
         stub=stub,

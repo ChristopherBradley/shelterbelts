@@ -1,6 +1,6 @@
 import os
 
-from shelterbelts.indices.shelter_metrics import patch_metrics, class_metrics, linear_categories_labels
+from shelterbelts.indices.patch_metrics import patch_metrics, linear_categories_labels
 
 
 stub = 'g2_26729'
@@ -40,14 +40,3 @@ def test_patch_metrics_category_name_not_nan():
     assert df["category_name"].isin(valid_names).all(), (
         f"Unexpected category names: {set(df['category_name']) - valid_names}"
     )
-
-
-def test_class_metrics_basic():
-    """Basic test for class_metrics function"""
-    dfs = class_metrics(
-        f"data/{stub}_linear_categories.tif",
-        outdir="outdir",
-        stub=stub,
-        save_excel=True
-    )
-    assert os.path.exists(f"outdir/{stub}_class_metrics.xlsx")

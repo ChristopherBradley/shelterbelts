@@ -1,12 +1,14 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_filter: -all
 #     formats: ipynb,py:percent
+#     notebook_metadata_filter: jupytext,-widgets,-varInspector
 #     text_representation:
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -15,6 +17,8 @@
 
 # %% [markdown]
 # # LiDAR Processing
+#
+# **Requires the conda environment** (`conda env create -f environment.yml`), not just `pip install shelterbelts`.
 #
 # ``lidar.py`` takes a .laz file and generates a canopy height model and percent cover raster (or binary tif), which can be used as input to the rest of the shelter pipeline. You can download .laz files for any location in NSW at [ELVIS](https://elevation.fsdf.org.au/).
 

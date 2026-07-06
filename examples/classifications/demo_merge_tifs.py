@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from shelterbelts.classifications.merge_tifs import merge_tifs
 from shelterbelts.utils.filepaths import quartered_tifs_dir, _repo_root
 from shelterbelts.utils.visualisation import visualise_categories
-from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_categories_labels
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 
 # %%
 # Listing the files to merge
@@ -40,7 +40,7 @@ from shelterbelts.indices.shelter_metrics import linear_categories_cmap, linear_
 da = merge_tifs(quartered_tifs_dir, suffix='.tif', dont_reproject=True)
 
 # %%
-visualise_categories(da, colormap=linear_categories_cmap, labels=linear_categories_labels,
+visualise_categories(da, colormap=shelter_categories_cmap, labels=shelter_categories_labels,
                      title='Merged tifs (no deduplication)')
 
 # %% [markdown]
@@ -53,5 +53,5 @@ da_dedup = merge_tifs(quartered_tifs_dir, tmpdir='tmpdir', suffix='.tif',
                       dont_reproject=True, dedup=True)
 
 # %%
-visualise_categories(da_dedup, colormap=linear_categories_cmap, labels=linear_categories_labels,
+visualise_categories(da_dedup, colormap=shelter_categories_cmap, labels=shelter_categories_labels,
                      title='Merged tifs (with deduplication)')
