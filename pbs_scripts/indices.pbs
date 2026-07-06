@@ -23,7 +23,7 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 # year=2018
 # year=2020
 
-tmpdir="$PBS_JOBFS"  # Opus says using /scratch/xe2/cb8590/tmp causes concurrency blocking issues
+tmpdir="$PBS_JOBFS"  # Using /scratch/xe2/cb8590/tmp causes concurrency blocking issues
 
 # To test with a single tile before running the full indices.sh:
 #   qsub -v param_stub=subfolder_1 indices.pbs
@@ -80,7 +80,7 @@ tmpdir="$PBS_JOBFS"  # Opus says using /scratch/xe2/cb8590/tmp causes concurrenc
 # Lidar CHM 1m resolution — default percent method
 # expand_tifs.pbs outputs to expanded/chms/ (appends stem of folder_to_expand)
 folder=/scratch/xe2/cb8590/lidar_processing/expanded/chms
-outdir=/scratch/xe2/cb8590/lidar_processing/indices_default_percentmethod_sw20_mca2000
+outdir=/scratch/xe2/cb8590/lidar_processing/indices_default_percentmethod_expanded
 
 echo "Default percent method (1m lidar CHM)"
 # python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub chms --cover_threshold 5 --crop_pixels 0 --distance_threshold 100 --buffer_width 40 --max_shelterbelt_width 60 --min_shelterbelt_length 150 --min_patch_size 500 --edge_size 30 --min_core_size 10000    # Good parameters for the 1m sample

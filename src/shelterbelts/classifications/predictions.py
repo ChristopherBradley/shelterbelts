@@ -228,14 +228,14 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     return tif_prediction_ds(ds, outdir, tile_id, model, scaler, savetif)
 
 
-def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False, weighted_average=False, nci_only=False):
+def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False, weighted_average=False, nci_only=False, dc=None):
     """Download a year of Sentinel-2 imagery for a bbox and run the tree classifier."""
     start_date = f"{year}-01-01"
     end_date = f"{year}-12-31"
 
     if IS_GADI or nci_only:
         from shelterbelts.classifications.sentinel_nci import download_ds2_bbox
-        ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False, input_crs=src_crs)
+        ds = download_ds2_bbox(bounds, start_date, end_date, outdir, stub, save=False, input_crs=src_crs, dc=dc)
     else:
         from shelterbelts.classifications.sentinel_dea import download_ds2_bbox
         t = Transformer.from_crs(src_crs, "EPSG:4326", always_xy=True)
@@ -259,9 +259,14 @@ def run_worker(rows, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, multi
         model = keras.models.load_model(os.path.join(nn_dir, f'nn_{nn_stub}_all.keras'))
         scaler = joblib.load(os.path.join(nn_dir, f'scaler_{nn_stub}_all.pkl'))
 
+    dc = None
+    if IS_GADI:
+        from shelterbelts.classifications.sentinel_nci import get_datacube
+        dc = get_datacube()
+
     for row in rows:
         try:
-            tif_prediction_bbox(*row, model, scaler, confidence=confidence, weighted_average=multi_model)
+            tif_prediction_bbox(*row, model, scaler, confidence=confidence, weighted_average=multi_model, dc=dc)  # Passing the datacube to avoid reconnecting each time, saves ~10% compute.
         except Exception:
             print(f"Error in row {row}:", flush=True)
             traceback.print_exc(file=sys.stdout)
