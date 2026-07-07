@@ -326,31 +326,32 @@ var exportPanel = ui.Panel({
   style: {position: 'bottom-left', padding: '8px', width: '230px'}
 });
 
-exportPanel.add(ui.Label('Download layer', {
-  fontWeight: 'bold', fontSize: '12px', margin: '0 0 4px 0'
+exportPanel.add(ui.Label('Download a layer', {
+  fontWeight: 'bold', fontSize: '13px', margin: '0 0 6px 0'
 }));
 
+// Widgets are defined here but added to the panel further down, in stepped order.
 var layerSelect = ui.Select({
   items: Object.keys(exportLayers),
   placeholder: 'Select layer...',
-  style: {width: '210px', margin: '0 0 4px 0'}
+  style: {width: '210px', margin: '0 0 2px 0'},
+  onChange: function() {
+    statusLabel.setValue('Layer chosen. Now click "Get download link"');
+  }
 });
-exportPanel.add(layerSelect);
 
-var statusLabel = ui.Label('Draw a rectangle, then click Export.', {
-  fontSize: '10px', color: 'gray', margin: '0 0 4px 0', whiteSpace: 'pre-line'
+var statusLabel = ui.Label('Click "Draw Region" above', {
+  fontSize: '10px', color: 'gray', margin: '8px 0 0 0', whiteSpace: 'pre-line'
 });
-exportPanel.add(statusLabel);
 
 var downloadLink = ui.Label('', {
-  fontSize: '10px', color: 'blue', textDecoration: 'underline',
-  margin: '4px 0 0 0', shown: false
+  fontSize: '11px', color: 'blue', textDecoration: 'underline',
+  margin: '2px 0 0 0', shown: false
 });
-exportPanel.add(downloadLink);
 
 var drawButton = ui.Button({
   label: 'Draw region',
-  style: {margin: '0 4px 0 0'},
+  style: {stretch: 'horizontal', margin: '0'},
   onClick: function() {
     Map.drawingTools().setShown(false);
     Map.drawingTools().setShape('rectangle');
@@ -362,7 +363,7 @@ var drawButton = ui.Button({
     }
     Map.drawingTools().draw();
     downloadLink.style().set('shown', false);
-    statusLabel.setValue('Draw a rectangle on the map.');
+    statusLabel.setValue('Now draw a rectangle on the map');
   }
 });
 
@@ -370,6 +371,7 @@ var MAX_AREA_M2 = 100 * 1e6;  // 10 km × 10 km
 
 var exportButton = ui.Button({
   label: 'Get download link',
+  style: {stretch: 'horizontal', margin: '0'},
   onClick: function() {
     var name = layerSelect.getValue();
     if (!name) {
@@ -422,12 +424,26 @@ Map.drawingTools().onDraw(function() {
   while (geoms.length() > 1) {
     geoms.remove(geoms.get(0));
   }
-  statusLabel.setValue('Rectangle drawn. Click "Get download link".');
+  if (layerSelect.getValue()) {
+    statusLabel.setValue('Rectangle drawn. Now click "Get download link"');
+  } else {
+    statusLabel.setValue('Rectangle drawn. Now click "Select Layer..."');
+  }
 });
 
-exportPanel.add(ui.Panel(
-  [drawButton, exportButton],
-  ui.Panel.Layout.Flow('horizontal')
-));
+// Assemble the panel as three numbered steps.
+var stepStyle = {fontSize: '11px', fontWeight: 'bold', margin: '6px 0 3px 0'};
+
+exportPanel.add(ui.Label('Step 1: Draw a rectangle on the map', stepStyle));
+exportPanel.add(drawButton);
+
+exportPanel.add(ui.Label('Step 2: Choose the layer to download', stepStyle));
+exportPanel.add(layerSelect);
+
+exportPanel.add(ui.Label('Step 3: Get the download link, then click it', stepStyle));
+exportPanel.add(exportButton);
+
+exportPanel.add(statusLabel);
+exportPanel.add(downloadLink);
 
 Map.add(exportPanel);
