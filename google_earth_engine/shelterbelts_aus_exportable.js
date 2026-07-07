@@ -3,6 +3,16 @@ Map.setOptions('SATELLITE');
 Map.drawingTools().setShown(false);
 Map.drawingTools().setDrawModes(['rectangle']);
 
+// Use a single dedicated layer for the export region so only one rectangle
+// can ever exist at a time.
+while (Map.drawingTools().layers().length() > 0) {
+  Map.drawingTools().layers().remove(Map.drawingTools().layers().get(0));
+}
+var exportRegionLayer = ui.Map.GeometryLayer({
+  geometries: null, name: 'exportRegion', color: 'yellow'
+});
+Map.drawingTools().layers().add(exportRegionLayer);
+
 var greenPalette = [
   '#e5f5e0','#c7e9c0','#a1d99b','#74c476','#41ab5d',
   '#238b45','#006d2c','#00441b'
@@ -342,9 +352,14 @@ var drawButton = ui.Button({
   label: 'Draw region',
   style: {margin: '0 4px 0 0'},
   onClick: function() {
-    Map.drawingTools().setShown(true);
+    Map.drawingTools().setShown(false);
     Map.drawingTools().setShape('rectangle');
-    Map.drawingTools().clear();
+    // clear() doesn't empty our custom layer, so remove its geometries directly
+    // (this remove-loop is the same one that works at export time).
+    var geoms = exportRegionLayer.geometries();
+    while (geoms.length() > 0) {
+      geoms.remove(geoms.get(0));
+    }
     Map.drawingTools().draw();
     downloadLink.style().set('shown', false);
     statusLabel.setValue('Draw a rectangle on the map.');
@@ -361,12 +376,17 @@ var exportButton = ui.Button({
       statusLabel.setValue('Please select a layer first.');
       return;
     }
-    var drawn = Map.drawingTools().layers();
-    if (drawn.length() === 0) {
+    var geoms = exportRegionLayer.geometries();
+    if (geoms.length() === 0) {
       statusLabel.setValue('Please draw a region first.');
       return;
     }
-    var geometry = drawn.get(0).toGeometry();
+    // Safety net: if more than one rectangle was drawn, keep only the newest so
+    // the download is always a single region.
+    while (geoms.length() > 1) {
+      geoms.remove(geoms.get(0));
+    }
+    var geometry = exportRegionLayer.toGeometry();
     statusLabel.setValue('Checking area...');
     downloadLink.style().set('shown', false);
     geometry.area({maxError: 1}).evaluate(function(area) {
@@ -394,12 +414,14 @@ var exportButton = ui.Button({
   }
 });
 
+// Belt-and-suspenders: if the runtime does emit a draw event, prune to the
+// newest rectangle in real time. (In the Code Editor no draw event fires, so
+// the single-shot draw + export-time prune above are what actually enforce it.)
 Map.drawingTools().onDraw(function() {
-  var layers = Map.drawingTools().layers();
-  while (layers.length() > 1) {
-    layers.remove(layers.get(0));
+  var geoms = exportRegionLayer.geometries();
+  while (geoms.length() > 1) {
+    geoms.remove(geoms.get(0));
   }
-  Map.drawingTools().stop();
   statusLabel.setValue('Rectangle drawn. Click "Get download link".');
 });
 
