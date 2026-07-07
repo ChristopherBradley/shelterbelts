@@ -60,7 +60,6 @@ def test_indices_tif_more_shelterbelts():
     assert os.path.exists(os.path.join('outdir', 'default_linear_categories.tif'))
     assert os.path.exists(os.path.join('outdir', 'more-shelterbelts_linear_categories.tif'))
 
-    # Everything reads from the final shelter_categories band (tree codes preserved, farmland re-encoded)
     default_cats = _counts(ds_default, 'shelter_categories')
     more_cats = _counts(ds_more, 'shelter_categories')
 
@@ -76,19 +75,19 @@ def test_indices_tif_more_shelterbelts():
     assert more_edge > default_edge, \
         f"edge_size=5 should increase patch edge: default={default_edge}, more={more_edge}"
 
-    # 3 & 4. distance_threshold=30 + density_threshold=3 (Allows more sheltered areas) - should have more sheltered
+    # 3 & 4. distance_threshold=30 + density_threshold=3 - should have more sheltered
     default_sheltered = _sheltered(default_cats)
     more_sheltered = _sheltered(more_cats)
     assert more_sheltered > default_sheltered, \
         f"distance_threshold=30 + density_threshold=3 should increase sheltered areas: default={default_sheltered}, more={more_sheltered}"
 
-    # 5. buffer_width=5 (Thicker riparian & road buffers) - should have more buffer trees (15, 16, 17)
+    # 5. buffer_width=5 - should have more buffer trees (15, 16, 17)
     default_buffers = default_cats.get(15, 0) + default_cats.get(16, 0) + default_cats.get(17, 0)
     more_buffers = more_cats.get(15, 0) + more_cats.get(16, 0) + more_cats.get(17, 0)
     assert more_buffers > default_buffers, \
         f"buffer_width=5 should increase buffer trees: default={default_buffers}, more={more_buffers}"
 
-    # 6. min_shelterbelt_length=10 (Allows shelterbelts to be shorter) - should have more linear patches (18)
+    # 6. min_shelterbelt_length=10 - should have more linear patches (18)
     default_linear = default_cats.get(18, 0)
     more_linear = more_cats.get(18, 0)
     assert more_linear > default_linear, \
@@ -117,29 +116,28 @@ def test_indices_tif_less_shelterbelts():
     assert os.path.exists(os.path.join('outdir', 'default_linear_categories.tif'))
     assert os.path.exists(os.path.join('outdir', 'less-shelterbelts_linear_categories.tif'))
 
-    # Everything reads from the final shelter_categories band (tree codes preserved, farmland re-encoded)
     default_cats = _counts(ds_default, 'shelter_categories')
     less_cats = _counts(ds_less, 'shelter_categories')
 
-    # 1. min_patch_size=30 (More scattered trees) - should have more scattered trees (11)
+    # 1. min_patch_size=30 - should have more scattered trees (11)
     default_scattered = default_cats.get(11, 0)
     less_scattered = less_cats.get(11, 0)
     assert less_scattered > default_scattered, \
         f"min_patch_size=30 should increase scattered trees: default={default_scattered}, less={less_scattered}"
 
-    # 2. distance_threshold=10 + density_threshold=10 (Forces less sheltered areas) - should have fewer sheltered
+    # 2. distance_threshold=10 + density_threshold=10  - should have fewer sheltered
     default_sheltered = _sheltered(default_cats)
     less_sheltered = _sheltered(less_cats)
     assert less_sheltered < default_sheltered, \
         f"distance_threshold=10 + density_threshold=10 should decrease sheltered areas: default={default_sheltered}, less={less_sheltered}"
 
-    # 3. buffer_width=2 (Thinner riparian & road buffers) - should have fewer buffer trees (15, 16, 17)
+    # 3. buffer_width=2 - should have fewer buffer trees (15, 16, 17)
     default_buffers = default_cats.get(15, 0) + default_cats.get(16, 0) + default_cats.get(17, 0)
     less_buffers = less_cats.get(15, 0) + less_cats.get(16, 0) + less_cats.get(17, 0)
     assert less_buffers < default_buffers, \
         f"buffer_width=2 should decrease buffer trees: default={default_buffers}, less={less_buffers}"
 
-    # 4. max_shelterbelt_width=4 (Forces shelterbelts to be thinner) - should have fewer/different linear patches (18, 19)
+    # 4. max_shelterbelt_width=4 - should have fewer/different linear patches (18, 19)
     default_patches = default_cats.get(18, 0) + default_cats.get(19, 0)
     less_patches = less_cats.get(18, 0) + less_cats.get(19, 0)
     # With thinner shelterbelts, some may get reclassified to non-linear, so patches may be different
@@ -166,3 +164,20 @@ def test_indices_tifs():
     indices_tifs(folder, suffix='tiff')
 
     # why did this work on one the first time (not both), but is now starting with 0 percent_tifs?
+
+
+def test_indices_tif_opportunities():
+    """opportunities=True should also save an opportunities tif with valid category codes."""
+    ds, _ = indices_tif(test_filename, outdir='outdir', tmpdir='tmpdir', stub='opp', opportunities=True)
+
+    opp_tif = 'outdir/opp_opportunities.tif'
+    assert os.path.exists(opp_tif), "opportunities tif should be saved when opportunities=True"
+
+    opp = rxr.open_rasterio(opp_tif).isel(band=0).values
+    # 0=nothing, 15-18=planting opportunities (tree category by feature), 3X/4X=would-be sheltered grass/crop
+    assert set(np.unique(opp).tolist()).issubset({0, 15, 16, 17, 18} | set(range(30, 50)))
+
+    # Every would-be-sheltered pixel must have been unsheltered farmland in the original shelter
+    orig = ds['shelter_categories'].values
+    assert np.isin(orig[(opp >= 32) & (opp <= 39)], [30, 31]).all(), "would-be grassland must be unsheltered originally"
+    assert np.isin(orig[(opp >= 42) & (opp <= 49)], [40, 41]).all(), "would-be cropland must be unsheltered originally"

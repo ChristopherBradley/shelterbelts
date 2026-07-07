@@ -23,6 +23,5 @@ def test_class_metrics_shelter_split():
     dfs = class_metrics(shelter_file, outdir="outdir", stub=stub, save_excel=False)
     df_shelter = dfs['Shelter']
     assert {'Sheltered', 'Unsheltered'} <= set(df_shelter.columns)
-    # The fixture has genuinely sheltered farmland, so the split is not degenerate
     assert df_shelter.loc['Grassland', 'Sheltered'] > 0
     assert df_shelter.loc['Total', 'Sheltered'] > 0

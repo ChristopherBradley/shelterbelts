@@ -1,14 +1,17 @@
 # +
 import os
 import glob
+import math
 import pathlib
 import argparse
+import subprocess, sys
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 import rioxarray as rxr
 import geopandas as gpd
-from shapely.geometry import box      
+from shapely.geometry import box
 from scipy.ndimage import binary_dilation
 
 import networkx as nx
@@ -20,8 +23,9 @@ from skimage.measure import find_contours
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize
 from shelterbelts.indices.catchments import catchments  # This takes a while to import
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
-from shelterbelts.utils.filepaths import nsw_dem_dir, hydrolines_gdb, roads_gdb
+from shelterbelts.utils.filepaths import nsw_dem_dir, hydrolines_gdb, roads_gdb, worldcover_dir, worldcover_geojson
 
 # -
 
@@ -30,19 +34,14 @@ from shelterbelts.utils.filepaths import nsw_dem_dir, hydrolines_gdb, roads_gdb
 # +
 nsw_dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
 
-opportunity_cmap = {  # Should refactor to make this plural for consistency
-    0:(255, 255, 255),
-    5:(29, 153, 105),
-    6:(127, 168, 57),
-    7:(129, 146, 124),
-    8:(190, 160, 60)
-}
+opportunity_cmap = dict(shelter_categories_cmap)
 opportunity_labels = {
-    0:'',
-    5:'Opportunities in Gullies',
-    6:'Opportunities on Ridges',
-    7:'Opportunities next to Roads',
-    8:'Opportunities along Contours'
+    **shelter_categories_labels,
+    # 0: '',
+    # 15: 'Opportunities in Gullies',
+    # 16: 'Opportunities on Ridges',
+    # 17: 'Opportunities next to Roads',
+    # 18: 'Opportunities along Contours',
 }
 inverted_labels = {v: k for k, v in opportunity_labels.items()}
 
@@ -245,12 +244,12 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_dem, da_world
     buffered_contours = binary_dilation(contours_array, structure=gap_kernel)
     contour_opportunities = buffered_contours & grass_crops & ~da_trees & ~gully_opportunities & ~buffered_roads & ~buffered_ridges  # Could just override a single numpy array as we go.
     
-    # There should be no overlaps, so the order of assigning shouldn't matter
+    # There should be no overlaps, so the order of assigning shouldn't matter.
     opportunities = np.zeros_like(da_trees, dtype=np.uint8)
-    opportunities[gully_opportunities.astype(bool)] = 5   
-    opportunities[ridge_opportunities.astype(bool)] = 6
-    opportunities[road_opportunities.astype(bool)] = 7
-    opportunities[contour_opportunities.astype(bool)] = 8
+    opportunities[gully_opportunities.astype(bool)] = 15
+    opportunities[ridge_opportunities.astype(bool)] = 16
+    opportunities[road_opportunities.astype(bool)] = 17
+    opportunities[contour_opportunities.astype(bool)] = 18
     
     # Creating the xarray
     ds = da_trees.to_dataset(name='woody_veg')
@@ -354,7 +353,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         Dataset containing:
 
         - **woody_veg**: Original binary tree/no-tree classification
-        - **opportunities**: Opportunity categories (values 0, 5, 6, 7, 8)
+        - **opportunities**: Opportunity categories (values 0, 15, 16, 17, 18)
 
     Notes
     -----
@@ -469,20 +468,22 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
         da_worldcover = da_worldcover.rio.reproject_match(da_trees)
 
-    # Load DEM
+    # Load DEM (only needed for contours or ridge/gully catchments, so skip the download otherwise)
     if isinstance(dem_data, xr.DataArray):
         da_dem = dem_data
     elif isinstance(dem_data, str):
         da_dem = rxr.open_rasterio(dem_data).isel(band=0).drop_vars('band')
-    else:
+    elif contour_spacing or ridges:
         gs_bounds = gpd.GeoSeries([box(*da_trees.rio.bounds())], crs=da_trees.rio.crs)
         bbox_3857 = list(gs_bounds.to_crs('EPSG:3857').bounds.iloc[0])
         unique_stub = stub
         dem_stub = f'{stub}_dem_opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'
-        mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, unique_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=False) 
+        mosaic, out_meta = merge_tiles_bbox(bbox_3857, tmpdir, unique_stub, nsw_dem_dir, nsw_dem_gpkg, 'filename', verbose=False)
         ds_dem = merged_ds(mosaic, out_meta, 'dem')
         ds_dem = ds_dem.rio.reproject_match(ds)
         da_dem = ds_dem['dem']
+    else:
+        da_dem = None
 
     # If gullies/ridges not provided and not using pre-loaded data, derive from catchments
     if gullies_data is None and ridges_data is None and ridges:
@@ -507,32 +508,85 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
     return ds_opportunities
 
 
-# Could generalise and reuse the indices_tifs function from all_indices.py (previously run_pipeline_tifs/full_pipelines.py). The only issue is that would mean the parameters would have to be passed as *args or **kwargs which I think is less readable.
-def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=1,
-                  width=3, ridges=False, num_catchments=10, min_branch_length=10, 
-                  contour_spacing=10, min_contour_length=100, equal_area=False, 
-                  savetif=True, plot=False, crop_pixels=0, limit=None):
-    """Run the opportunities function on every tif in the folder and mosaic the outputs at the end"""
-
-    folder_stem = pathlib.Path(folder).stem
-    if not stub:
-        stub = f'opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
-    
-    outdir = os.path.join(folder, f'{folder_stem}_{stub}')
-    os.makedirs(outdir, exist_ok=True)
-    percent_tifs = glob.glob(f'{folder}/*.tif')
-    if limit:
-        percent_tifs = percent_tifs[:limit]
-    for percent_tif in percent_tifs:
+def opportunities_csv(csv, outdir='.', stub=None, tmpdir='.', cover_threshold=1,
+                  width=3, ridges=False, num_catchments=10, min_branch_length=10,
+                  contour_spacing=10, min_contour_length=100, equal_area=False,
+                  savetif=True, plot=False, crop_pixels=0):
+    """Run opportunities() on every percent_tif listed in the 'filename' column of a csv."""
+    df = pd.read_csv(csv)
+    for percent_tif in df['filename']:
         tif_stem = pathlib.Path(percent_tif).stem
-        tif_stub = f"{tif_stem}_{stub}"     # This stub needs to include the exact lat lon of the tile. 
+        tif_stub = f"{tif_stem}_{stub}" if stub else tif_stem    # This stub needs to include the exact lat lon of the tile.
         opportunities(percent_tif, outdir=outdir, stub=tif_stub, tmpdir=tmpdir,
                   cover_threshold=cover_threshold, width=width, ridges=ridges,
                   num_catchments=num_catchments, min_branch_length=min_branch_length,
                   contour_spacing=contour_spacing, min_contour_length=min_contour_length,
                   equal_area=equal_area, savetif=savetif, plot=plot, crop_pixels=crop_pixels)
-        
-    # outdir = folder
+
+
+def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=1,
+                  width=3, ridges=False, num_catchments=10, min_branch_length=10,
+                  contour_spacing=10, min_contour_length=100, equal_area=False,
+                  savetif=True, plot=False, crop_pixels=0, limit=None, tiles_per_csv=100):
+    """Run the opportunities function on every tif in the folder and mosaic the outputs at the end.
+
+    The tiles are split into CSV chunks and each chunk is processed in its own
+    ``subprocess.Popen`` (via :func:`opportunities_csv`), mirroring
+    ``all_indices.indices_tifs``. This bounds memory use on NCI/Gadi, where
+    looping over a whole folder in a single process accumulates memory.
+    """
+
+    folder_stem = pathlib.Path(folder).stem
+    if not stub:
+        stub = f'opportunities_w{width}_r{ridges}_nc{num_catchments}_bl{min_branch_length}_cs{contour_spacing}_cl{min_contour_length}_e{equal_area}'   # Need to make unique for parallelisation
+
+    outdir = os.path.join(folder, f'{folder_stem}_{stub}')
+    os.makedirs(outdir, exist_ok=True)
+    percent_tifs = glob.glob(f'{folder}/*.tif')
+    if limit:
+        percent_tifs = percent_tifs[:limit]
+
+    # Split the tiles into CSV chunks, one Popen subprocess per chunk to avoid memory accumulation
+    df = pd.DataFrame(percent_tifs, columns=["filename"])
+    csv_filenames = []
+    for i in range(math.ceil(len(df) / tiles_per_csv)):
+        chunk = df[i*tiles_per_csv : (i+1)*tiles_per_csv]
+        filename = os.path.join(tmpdir, f"{stub}_opportunities_{i}.csv")     # The stub already encodes the params, so parallel runs don't clash
+        chunk.to_csv(filename, index=False)
+        csv_filenames.append(filename)
+        print("Saved:", filename, flush=True)
+
+    script = os.path.join(os.path.dirname(__file__), "opportunities.py")     # Use the module filename for robustness
+    for i, filename in enumerate(csv_filenames):
+        print(f"Launching Popen subprocess for filename {i+1}/{len(csv_filenames)}:", filename, flush=True)
+        cmd = [
+            sys.executable,
+            script,
+            str(filename),
+            "--outdir", str(outdir),
+            "--stub", str(stub),
+            "--tmpdir", str(tmpdir),
+            "--cover_threshold", str(cover_threshold),
+            "--width", str(width),
+            "--num_catchments", str(num_catchments),
+            "--min_branch_length", str(min_branch_length),
+            "--contour_spacing", str(contour_spacing),
+            "--min_contour_length", str(min_contour_length),
+            "--crop_pixels", str(crop_pixels),
+        ]
+        if ridges:
+            cmd += ["--ridges"]
+        if equal_area:
+            cmd += ["--equal_area"]
+        if not savetif:
+            cmd += ["--no-savetif"]
+        if plot:
+            cmd += ["--plot"]
+
+        # Popen a subprocess to hopefully avoid memory accumulation
+        p = subprocess.Popen(cmd)
+        p.wait()
+
     # Could just use the merge_tifs function instead of reimplementing like this each time.
     gdf = bounding_boxes(outdir, filetype='opportunities.tif', stub=stub)
     
@@ -548,20 +602,26 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=1,
 
 
 # +
-# Would be slightly more computationally efficient to generate the opportunities from within all_indices.py than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
+def int_or_none(value):
+    """argparse type that round-trips None through subprocess calls (str(None) == 'None')."""
+    if value is None or value == "None":
+        return None
+    return int(value)
+
+# Best for performance to generate the opportunities from within all_indices.py than from it's own pbs script, since we already load a bunch of the layers (trees, hydrolines, worldcover)
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Suggest opportunities for new trees based on ridges, gullies, and contours."
     )
 
-    parser.add_argument("percent_tif", help="Input percentage cover tree tif file")
+    parser.add_argument("percent_tif", help="Input percentage cover tree tif file, folder of tifs, or CSV with a 'filename' column")
     parser.add_argument("--outdir", default=".", help="Output directory for saving results (default: current directory)")
     parser.add_argument("--stub", default=None, help="Prefix for output filenames (default: derived from input)")
     parser.add_argument("--tmpdir", default=".", help="Temporary working directory (default: current directory)")
     parser.add_argument("--cover_threshold", type=int, default=1, help="Tree cover threshold percentage (default: 1)")
     parser.add_argument("--width", type=int, default=1, help="Buffer width in pixels (default: 1)")
     parser.add_argument("--ridges", action="store_true", help="Include opportunities on ridges (default: False)")
-    parser.add_argument("--num_catchments", type=int, default=10, help="Number of catchments for ridges/gullies (default: 10)")
+    parser.add_argument("--num_catchments", type=int_or_none, default=10, help="Number of catchments for ridges/gullies (default: 10)")
     parser.add_argument("--min_branch_length", type=int, default=10, help="Minimum branch length for hydrolines (default: 10)")
     parser.add_argument("--contour_spacing", type=int, default=10, help="Pixel spacing between contours (default: 10)")
     parser.add_argument("--min_contour_length", type=int, default=100, help="Minimum contour length to consider (default: 100)")
@@ -581,7 +641,25 @@ if __name__ == "__main__":
     parser = parse_arguments()
     args = parser.parse_args()
 
-    if args.percent_tif.endswith('.tif'):
+    if args.percent_tif.endswith('.csv'):
+        opportunities_csv(
+            csv=args.percent_tif,
+            outdir=args.outdir,
+            stub=args.stub,
+            tmpdir=args.tmpdir,
+            cover_threshold=args.cover_threshold,
+            width=args.width,
+            ridges=args.ridges,
+            num_catchments=args.num_catchments,
+            min_branch_length=args.min_branch_length,
+            contour_spacing=args.contour_spacing,
+            min_contour_length=args.min_contour_length,
+            equal_area=args.equal_area,
+            savetif=args.savetif,
+            plot=args.plot,
+            crop_pixels=args.crop_pixels
+        )
+    elif args.percent_tif.endswith('.tif'):
         opportunities(
             percent_tif=args.percent_tif,
             outdir=args.outdir,

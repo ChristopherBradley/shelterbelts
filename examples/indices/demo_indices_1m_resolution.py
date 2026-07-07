@@ -1,7 +1,9 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_filter: -all
 #     formats: ipynb,py:percent
+#     notebook_metadata_filter: jupytext,-widgets,-varInspector
 #     text_representation:
 #       extension: .py
 #       format_name: percent
@@ -182,6 +184,42 @@ for ax, (ds, title) in zip(axes.flat, pairs):
     _plot_categories_on_axis(ax, ds['shelter_categories'], shelter_categories_cmap, shelter_categories_labels, title, legend_inside=True)
 plt.tight_layout()
 plt.show()
+
+# %% [markdown]
+# ## Opportunities
+#
+
+# %%
+# %%time
+import rioxarray as rxr
+from shelterbelts.indices.opportunities import opportunity_cmap, opportunity_labels
+
+ds = indices_tif(
+    percent_tif,
+    outdir=outdir,
+    stub='crowns_percent',
+    cover_threshold=1,
+    crop_pixels=0,
+    distance_threshold=100,
+    buffer_width=40,
+    max_shelterbelt_width=60,
+    min_shelterbelt_length=100,
+    min_patch_size=200,
+    edge_size=30,
+    min_core_size=10000,
+    opportunities=True,
+    debug=debug,
+)
+
+# %%
+# Compare this with the "Default percent" method from above to see where trees and shelter have been added.
+da_opportunities = rxr.open_rasterio(f'{outdir}/crowns_percent_opportunities.tif').isel(band=0).drop_vars('band')
+visualise_categories(
+    da_opportunities,
+    colormap=opportunity_cmap,
+    labels=opportunity_labels,
+    title='Shelter opportunities (1 m)',
+)
 
 # %% [markdown]
 # ### Cleanup

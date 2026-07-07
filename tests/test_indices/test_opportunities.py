@@ -2,6 +2,8 @@ import numpy as np
 import rioxarray as rxr
 
 from shelterbelts.indices.opportunities import opportunities_da, opportunities
+from shelterbelts.indices.all_indices import opportunity_shelter
+from shelterbelts.indices.shelter_categories import shelter_categories
 
 
 stub = 'g2_26729'
@@ -10,6 +12,8 @@ roads_file = f'data/{stub}_roads.tif'
 gullies_file = f'data/{stub}_hydrolines.tif'
 dem_file = f'data/{stub}_DEM-H.tif'
 worldcover_file = f'data/{stub}_worldcover.tif'
+linear_file = f'data/{stub}_linear_categories.tif'
+wind_file = f'data/{stub}_barra_daily.nc'
 
 
 def _load_aligned():
@@ -23,6 +27,11 @@ def _load_aligned():
     return da_trees, da_roads, da_gullies, da_dem, da_worldcover
 
 
+def _load_linear():
+    da_linear = rxr.open_rasterio(linear_file).isel(band=0).drop_vars('band')
+    return da_linear.to_dataset(name='linear_categories')
+
+
 def test_opportunities_da_basic():
     """Basic test for opportunities_da using real data."""
     da_trees, da_roads, da_gullies, da_dem, da_worldcover = _load_aligned()
@@ -34,7 +43,7 @@ def test_opportunities_da_basic():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 5, 6, 7, 8})
+    assert unique_vals.issubset({0, 15, 16, 17, 18})
 
 
 def test_opportunities_da_width():
@@ -94,7 +103,7 @@ def test_opportunities_with_file_paths():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 5, 6, 7, 8})
+    assert unique_vals.issubset({0, 15, 16, 17, 18})
 
 
 def test_opportunities_does_not_mutate_input():
@@ -119,7 +128,7 @@ def test_opportunities_crop_and_rasterize():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 5, 6, 7, 8})
+    assert unique_vals.issubset({0, 15, 16, 17, 18})
 
 
 def test_opportunities_contour_spacing():
@@ -135,8 +144,8 @@ def test_opportunities_contour_spacing():
         outdir='outdir', stub='test_cs20', savetif=False, plot=False, contour_spacing=20,
     )
 
-    n_cs5 = (ds_cs5['opportunities'].values == 8).sum()
-    n_cs20 = (ds_cs20['opportunities'].values == 8).sum()
+    n_cs5 = (ds_cs5['opportunities'].values == 18).sum()
+    n_cs20 = (ds_cs20['opportunities'].values == 18).sum()
     # More contours (smaller spacing) should produce at least as many contour opportunities
     assert n_cs5 >= n_cs20
 
@@ -151,4 +160,56 @@ def test_opportunities_equal_area():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 5, 6, 7, 8})
+    assert unique_vals.issubset({0, 15, 16, 17, 18})
+
+
+def _opportunities_for_shelter():
+    """A realistic opportunities dataset aligned to the linear_categories grid."""
+    da_trees, da_roads, da_gullies, da_dem, da_worldcover = _load_aligned()
+    return opportunities_da(
+        da_trees, da_roads, da_gullies, None, da_dem, da_worldcover,
+        width=3, savetif=False, plot=False,
+    )
+
+
+# Opportunity codes: 0 = nothing, 15-18 = opportunity trees, 32-39/42-49 = would-be sheltered farmland
+_VALID_OPPORTUNITY_CODES = {0, 15, 16, 17, 18} | set(range(30, 50))
+
+
+def test_opportunity_shelter_density():
+    """opportunity_shelter (density method) flags farmland that becomes newly sheltered as 3X/4X."""
+    ds_linear = _load_linear()
+    ds_shelter = shelter_categories(ds_linear, outdir='outdir', stub='os_dens', savetif=False, plot=False)
+    ds_opp = _opportunities_for_shelter()
+
+    ds_res = opportunity_shelter(ds_opp, ds_linear, ds_shelter, outdir='outdir', stub='os_dens', savetif=False)
+
+    opp = ds_res['opportunities'].values
+    orig = ds_shelter['shelter_categories'].values
+    assert set(np.unique(opp).tolist()).issubset(_VALID_OPPORTUNITY_CODES)
+    # Would-be-sheltered pixels (3X grassland / 4X cropland) must have been unsheltered farmland before planting
+    grass_wouldbe = (opp >= 32) & (opp <= 39)
+    crop_wouldbe = (opp >= 42) & (opp <= 49)
+    assert np.isin(orig[grass_wouldbe], [30, 31]).all()
+    assert np.isin(orig[crop_wouldbe], [40, 41]).all()
+    # Planting only ever adds shelter, so some previously-unsheltered farmland should now qualify
+    assert (grass_wouldbe | crop_wouldbe).sum() > 0
+
+
+def test_opportunity_shelter_wind():
+    """opportunity_shelter also works through the wind (distance) method branch, attributing shelter by source."""
+    ds_linear = _load_linear()
+    ds_shelter = shelter_categories(ds_linear, wind_data=wind_file, wind_method='WINDWARD',
+                                    outdir='outdir', stub='os_wind', savetif=False, plot=False)
+    ds_opp = _opportunities_for_shelter()
+
+    ds_res = opportunity_shelter(ds_opp, ds_linear, ds_shelter, ds_wind=wind_file, wind_method='WINDWARD',
+                                 outdir='outdir', stub='os_wind', savetif=False)
+
+    opp = ds_res['opportunities'].values
+    orig = ds_shelter['shelter_categories'].values
+    assert set(np.unique(opp).tolist()).issubset(_VALID_OPPORTUNITY_CODES)
+    grass_wouldbe = (opp >= 32) & (opp <= 39)
+    crop_wouldbe = (opp >= 42) & (opp <= 49)
+    assert np.isin(orig[grass_wouldbe], [30, 31]).all()
+    assert np.isin(orig[crop_wouldbe], [40, 41]).all()

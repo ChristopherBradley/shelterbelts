@@ -1,7 +1,9 @@
 # ---
 # jupyter:
 #   jupytext:
+#     cell_metadata_filter: -all
 #     formats: ipynb,py:percent
+#     notebook_metadata_filter: jupytext,-widgets,-varInspector
 #     text_representation:
 #       extension: .py
 #       format_name: percent
@@ -31,8 +33,9 @@ from shelterbelts.indices.all_indices import indices_latlon
 from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 from shelterbelts.utils.visualisation import visualise_categories, visualise_categories_sidebyside
 
-# Default location: Milgadara, NSW, Australia
-lat, lon, buffer = -34.389, 148.469, 0.01  # distance in degrees in each direction, so 0.01 is ~2km x 2km
+# Default location: Milgadara, NSW, Australia. These coordinates sit within the bundled g2 test-data
+# extent, so the roads/hydrolines GDB vectors populate even without the full Geoscience Australia GDBs.
+lat, lon, buffer = -34.379, 148.425, 0.01  # distance in degrees in each direction, so 0.01 is ~2km x 2km
 
 # %% [markdown]
 # ## Default Parameters
@@ -115,6 +118,23 @@ visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
     colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="wind_method=MOST_COMMON", title2="wind_method=WINDWARD"
+)
+
+# %% [markdown]
+# ## Opportunities
+
+# %%
+import rioxarray as rxr
+from shelterbelts.indices.opportunities import opportunity_cmap, opportunity_labels
+
+# lat, lon, buffer = -34.389, 148.469, 0.01
+lat, lon, buffer = -34.382, 148.424, 0.01  # Adjusted to a location that has a road running through it for demonstration purposes
+indices_latlon(lat, lon, buffer, opportunities=True, stub='milgadara')
+da_opportunities = rxr.open_rasterio('milgadara_opportunities.tif').isel(band=0).drop_vars('band')
+visualise_categories(
+    da_opportunities,
+    colormap=opportunity_cmap,
+    labels=opportunity_labels,
 )
 
 # %% [markdown]

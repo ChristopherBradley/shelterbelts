@@ -7,6 +7,7 @@ import pathlib
 import pandas as pd
 import geopandas as gpd
 import rioxarray as rxr
+import xarray as xr
 from shapely.geometry import box
 
 # Trying to avoid memory issues
@@ -25,7 +26,8 @@ from shelterbelts.indices.cover_categories import cover_categories
 from shelterbelts.indices.buffer_categories import buffer_categories
 from shelterbelts.indices.patch_metrics import patch_metrics
 from shelterbelts.indices.shelter_categories import shelter_categories
-from shelterbelts.indices.catchments import catchments, gullies_cmap, ridges_cmap
+from shelterbelts.indices.catchments import catchments
+from shelterbelts.indices.opportunities import opportunities_da, opportunity_cmap, opportunity_labels
 
 # 11 secs for all these imports
 # -
@@ -36,9 +38,66 @@ from shelterbelts.utils.filepaths import (
     roads_gdb,
     IS_GADI,
 )
-from shelterbelts.utils.visualisation import tif_categorical
+from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 
 process = psutil.Process(os.getpid())
+
+
+def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, wind_method=None,
+                        wind_threshold=20, distance_threshold=20, density_threshold=5,
+                        outdir='.', stub='TEST', savetif=True, plot=False):
+    """Calculate farmland that would become sheltered if trees were planted at the opportunity locations.
+
+    Parameters
+    ----------
+    ds_opportunities : xarray.Dataset
+        Output of :func:`opportunities_da`
+    ds_linear : xarray.Dataset
+        The 'linear_categories' classification the original shelter was derived from.
+    ds_shelter : xarray.Dataset
+        The original 'shelter_categories'.
+    ds_wind, wind_method, wind_threshold, distance_threshold, density_threshold
+        Passed to :func:`shelter_categories`; use the same values as the original shelter step.
+    outdir, stub, savetif, plot
+        Where/whether to save the combined ``{stub}_opportunities.tif`` and PNG.
+
+    Returns
+    -------
+    xarray.Dataset
+        ``ds_opportunities`` with the would-be-sheltered farmland codes (3X grassland, 4X cropland,
+        where X is the sheltering opportunity tree) merged into 'opportunities'.
+    """
+    da_opp = ds_opportunities['opportunities']
+    opportunity_trees = da_opp > 0
+
+    if bool(opportunity_trees.any()):
+        # Add the opportunity pixels as trees on a copy of linear trees before re-running the shelter-categories
+        da_linear = ds_linear['linear_categories']
+        da_planted = xr.where(opportunity_trees, da_opp, da_linear).astype('uint8').rio.write_crs(da_linear.rio.crs)
+
+        ds_planted = shelter_categories(
+            da_planted.to_dataset(name='linear_categories'), wind_data=ds_wind, wind_method=wind_method,
+            wind_threshold=wind_threshold, distance_threshold=distance_threshold,
+            density_threshold=density_threshold, savetif=False, plot=False)
+        new = ds_planted['shelter_categories']
+        orig = ds_shelter['shelter_categories']
+
+        # Sheltered grassland is encoded 32-39 and sheltered cropland 42-49 (see shelter_categories_labels).
+        newly_grassland = (new >= 32) & (new <= 39) & ~((orig >= 32) & (orig <= 39)) & (da_opp == 0)
+        newly_cropland = (new >= 42) & (new <= 49) & ~((orig >= 42) & (orig <= 49)) & (da_opp == 0)
+
+        da_opp = xr.where(newly_grassland, new, da_opp)
+        da_opp = xr.where(newly_cropland, new, da_opp)
+        ds_opportunities['opportunities'] = da_opp.astype('uint8').rio.write_crs(ds_opportunities['opportunities'].rio.crs)
+
+    if savetif:
+        filename = os.path.join(outdir, f"{stub}_opportunities.tif")
+        tif_categorical(ds_opportunities['opportunities'], filename, opportunity_cmap)
+    if plot:
+        filename_png = os.path.join(outdir, f"{stub}_opportunities.png")
+        visualise_categories(ds_opportunities['opportunities'], filename_png, opportunity_cmap, opportunity_labels, "Opportunities")
+
+    return ds_opportunities
 
 
 GEE_legend = {
@@ -89,9 +148,11 @@ def indices_tif(percent_tif, outdir=".",
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
+                     opportunities=False,
+                     worldcover_data=None, gullies_data=None, roads_data=None,
                      debug=False):
     """
-    Run the complete indices pipeline for a single percent-cover GeoTIFF. 
+    Run the complete indices pipeline for a single percent-cover GeoTIFF.
 
     Parameters
     ----------
@@ -139,6 +200,13 @@ def indices_tif(percent_tif, outdir=".",
         Minimum skeleton length (in pixels) to classify a cluster as linear.
     max_shelterbelt_width : int, optional
         Maximum skeleton width (in pixels) to classify a cluster as linear.
+    opportunities : bool, optional
+        Generate an opportunities tif showing tree and shelter opportunities near gullies and roads.
+        Uses buffer_width as the buffer around roads/gullies for planting opportunities.
+    worldcover_data, gullies_data, roads_data : optional
+        Pre-loaded WorldCover DataArray / gullies Dataset / roads Dataset to use instead of loading
+        them from the Australian tile and GDB sources. Lets callers such as :func:`indices_latlon`
+        reuse this pipeline with their own data. When None (the default) they are loaded here.
     debug : bool, optional
         If True, intermediate TIFFs/plots are saved for debugging.
 
@@ -189,15 +257,26 @@ def indices_tif(percent_tif, outdir=".",
     gs_bounds = gpd.GeoSeries([box(*da_percent.rio.bounds())], crs=da_percent.rio.crs)
     bbox_4326 = list(gs_bounds.to_crs('EPSG:4326').bounds.iloc[0])
     
-    # import pdb; pdb.set_trace()
     # Anything that might be run in parallel needs a unique filename, so we don't get rasterio merge conflicts
     worldcover_stub = f'{data_folder}_{stub}_{wind_method}_w{wind_threshold}_c{cover_threshold}_m{min_patch_size}_e{edge_size}_g{max_gap_size}_di{distance_threshold}_de{density_threshold}_b{buffer_width}_mc{min_core_size}_msl{min_shelterbelt_length}_msw{max_shelterbelt_width}_sca{strict_core_area}' # 
     
-    mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False)
-    ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
-    da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
-    gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies')
-    gdf_roads, ds_roads = crop_and_rasterize(da_percent, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, layer='NationalRoads_2025_09', feature_name='roads')
+    if worldcover_data is not None:
+        da_worldcover = worldcover_data
+        ds_worldcover = None
+    else:
+        mosaic, out_meta = merge_tiles_bbox(bbox_4326, tmpdir, worldcover_stub, worldcover_dir, worldcover_geojson, 'filename', verbose=False)
+        ds_worldcover = merged_ds(mosaic, out_meta, 'worldcover')
+        da_worldcover = ds_worldcover['worldcover'].rename({'longitude':'x', 'latitude':'y'})
+
+    if gullies_data is not None:
+        ds_hydrolines = gullies_data
+    else:
+        gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies')
+
+    if roads_data is not None:
+        ds_roads = roads_data
+    else:
+        gdf_roads, ds_roads = crop_and_rasterize(da_percent, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, layer='NationalRoads_2025_09', feature_name='roads')
 
     if wind_method and wind_method != "None":  # Handling conversion of None to "None" when using subprocess
         lat = (bbox_4326[1] + bbox_4326[3])/2
@@ -216,6 +295,26 @@ def indices_tif(percent_tif, outdir=".",
     # Determine sheltered farmland and (for wind methods) the type of tree providing the shelter.
     # Runs last, on the full tree classification. wind_method=None falls back to the density method.
     ds_shelter = shelter_categories(ds_linear, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug)
+
+    if opportunities:
+        # Reproject the layers onto the tree grid
+        da_worldcover_matched = da_worldcover.rio.reproject_match(da_trees)
+
+        # Casting to uint8 because rioxarray.reproject_match can't derive a nodata value for bool masks
+        da_roads_opp = ds_roads['roads'].astype('uint8').rio.reproject_match(da_trees)
+        da_gullies_opp = ds_hydrolines['gullies'].astype('uint8').rio.reproject_match(da_trees)
+        ds_opportunities = opportunities_da(
+            da_trees.astype('uint8'), da_roads_opp, da_gullies_opp,
+            None, None, da_worldcover_matched,          # da_ridges=None, da_dem=None, since these don't seem as reliable/interesting yet.
+            outdir=outdir, stub=stub, tmpdir=tmpdir,
+            width=buffer_width, contour_spacing=0,
+            savetif=False, plot=False, crop_pixels=crop_pixels,
+        )
+        opportunity_shelter(
+            ds_opportunities, ds_linear, ds_shelter, ds_wind=ds_wind, wind_method=wind_method,
+            wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold,
+            outdir=outdir, stub=stub, savetif=True, plot=debug,
+        )
 
     # Trying to avoid memory accumulation
     for ds in [ds_worldcover, ds_roads, ds_hydrolines, ds_woody_veg, ds_tree_categories, ds_cover, ds_buffer, ds_linear]:
@@ -237,13 +336,14 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
                    min_patch_size=20, edge_size=3, max_gap_size=1,
                    distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                    crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
+                   opportunities=False,
                    debug=False):
     """
     Run the complete indices pipeline for a lat/lon location, auto-downloading all required data.
 
-    Downloads canopy height (Meta/Tolan global CHM), ESA WorldCover, terrain tiles for
-    gully/ridge delineation, and OpenStreetMap roads. BARRA wind data is only downloaded
-    when wind_method is set.
+    Downloads canopy height (Meta/Tolan global CHM), ESA WorldCover, gullies (Australian hydrolines
+    GDB or, outside Australia, terrain tiles), roads (Australian NationalRoads GDB or OpenStreetMap),
+    and BARRA if the wind_method is set.
 
     Parameters
     ----------
@@ -253,24 +353,12 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
         Longitude in WGS 84 (EPSG:4326).
     buffer : float, optional
         Half-width of the region of interest in degrees (~5 km at 0.05).
-    outdir : str, optional
-        Output directory for saving results.
-    tmpdir : str, optional
-        Directory for temporary/cached files.
     stub : str, optional
-        Prefix for output filenames. Defaults to "{lat:.3f}_{lon:.3f}".
-    wind_method : str or None, optional
-        Method used to infer shelter direction. See :func:`indices_tif` for options.
-    wind_threshold : int, optional
-        Wind speed threshold in km/h.
+        Prefix for output filenames.
     height_threshold : float, optional
         Canopy height (metres) above which a 1 m pixel is classified as tree.
     cover_threshold : int, optional
         Minimum percentage of tree-pixels within a 10 m cell to count it as tree.
-        The 1 m binary raster is average-resampled to 10 m (giving 0–100 % cover) before
-        this threshold is applied, matching the behaviour of :func:`indices_tif`.
-    min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, debug : optional
-        Same as :func:`indices_tif`.
 
     Returns
     -------
@@ -281,9 +369,10 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
 
     Notes
     -----
-    For locations in Australia, higher-quality roads and hydrolines are available from the Geoscience
-    NationalRoads GDB and SurfaceHydrologyLinesRegional GDB. Set
-    shelterbelts.utils.filepaths.roads_gdb and hydrolines_gdb to use them.
+    In Australia the higher-quality Geoscience Australia GDB vectors are used automatically when they
+    exist and cover the point: gullies from shelterbelts.utils.filepaths.hydrolines_gdb and roads from
+    roads_gdb. Otherwise (outside Australia, the GDB not installed, or the GDB has no features for this
+    point) gullies are derived from downloaded terrain tiles and roads from OpenStreetMap.
     """
     from rasterio.enums import Resampling
     from DAESIM_preprocess.terrain_tiles import terrain_tiles
@@ -301,68 +390,67 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     # 2. WorldCover (EPSG:4326) — provides the reference 10 m grid
     da_worldcover = worldcover_centrepoint(lat, lon, buffer)
 
-    # 3. Average-resample 1 m binary → 0–100 % cover at 10 m, then threshold
+    # 3. Average-resample the 1 m canopy height model to a 10m percent cover tif
     da_trees_pct = da_trees_1m.rio.reproject_match(da_worldcover, resampling=Resampling.average) * 100
-    da_trees = da_trees_pct >= cover_threshold
-    ds_woody_veg = da_trees.to_dataset(name='woody_veg')
+    percent_tif = os.path.join(tmpdir, f"{stub}_trees_percent.tif")
+    da_trees_pct.rio.to_raster(percent_tif)
+    da_trees = da_trees_pct >= cover_threshold   # only used for rasterizing the OSM roads onto the tree grid
 
-    # 4. DEM → gullies + ridges
-    # terrain_tiles calls gdalwarp as a subprocess; ensure the conda env bin and PROJ db are findable
-    import sys
-    _env_bin = os.path.dirname(sys.executable)
-    if _env_bin not in os.environ.get('PATH', ''):
-        os.environ['PATH'] = _env_bin + os.pathsep + os.environ.get('PATH', '')
-    if 'PROJ_DATA' not in os.environ:
-        _proj_data = os.path.join(os.path.dirname(_env_bin), 'share', 'proj')
-        if os.path.exists(_proj_data):
-            os.environ['PROJ_DATA'] = _proj_data
-    terrain_tiles(lat, lon, buffer, outdir=tmpdir, stub=stub, tmpdir=tmpdir, verbose=debug)
-    terrain_tif = os.path.join(tmpdir, f"{stub}_terrain.tif")
-    ds_catch = catchments(terrain_tif, outdir=tmpdir, stub=stub, savetif=debug, plot=debug)
-    gullies_tif = os.path.join(tmpdir, f"{stub}_gullies.tif")
-    # ridges_tif = os.path.join(tmpdir, f"{stub}_ridges.tif")
-    tif_categorical(ds_catch['gullies'], gullies_tif, colormap=gullies_cmap)
-    # tif_categorical(ds_catch['ridges'], ridges_tif, colormap=ridges_cmap)
-
-    # 5. Roads via OSM; note better Australian data if relevant
     lat_min, lon_min, lat_max, lon_max = _AUSTRALIA_BOUNDS
-    if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
-        if not (os.path.exists(hydrolines_gdb) and os.path.exists(roads_gdb)):
-            print(
-                "Tip: For higher-quality roads and hydrolines in Australia, download the "
-                "NationalRoads GDB and SurfaceHydrologyLinesRegional GDB and set "
-                "shelterbelts.utils.filepaths.roads_gdb / hydrolines_gdb."
-            )
-    _, ds_roads = osm_roads(da_trees, outdir=tmpdir, stub=stub, savetif=debug, save_gpkg=debug)
+    in_australia = lat_min <= lat <= lat_max and lon_min <= lon <= lon_max
 
-    # 6. Wind — only downloaded when wind_method is set
-    if wind_method and wind_method != "None":
-        ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020,
-                              gdata=IS_GADI, plot=debug, save_netcdf=debug)
-    else:
-        ds_wind = None
+    # 4. Gullies: choose the National hydrolines GDB when the point is inside Australia,
+    #    otherwise derive them from downloaded terrain tiles.
+    ds_gullies = None
+    if in_australia and os.path.exists(hydrolines_gdb):
+        _, ds_gul = crop_and_rasterize(da_trees, hydrolines_gdb, outdir=tmpdir, stub=stub,
+            savetif=debug, save_gpkg=debug, feature_name='gullies')
+        if bool(ds_gul['gullies'].values.any()):
+            ds_gullies = ds_gul
+        else:
+            print("No hydrolines cover this point in hydrolines_gdb - generating from DEM instead. "
+                  "Tip: For more accurate gullies in Australia, download the National Surface Hydrolines GDB from Geoscience and specify the path in utils.filepaths.hydrolines_gdb.")
+    if ds_gullies is None:
+        # terrain_tiles calls gdalwarp as a subprocess so we need to ensure the conda env bin and PROJ db are findable
+        import sys
+        _env_bin = os.path.dirname(sys.executable)
+        if _env_bin not in os.environ.get('PATH', ''):
+            os.environ['PATH'] = _env_bin + os.pathsep + os.environ.get('PATH', '')
+        if 'PROJ_DATA' not in os.environ:
+            _proj_data = os.path.join(os.path.dirname(_env_bin), 'share', 'proj')
+            if os.path.exists(_proj_data):
+                os.environ['PROJ_DATA'] = _proj_data
+        terrain_tiles(lat, lon, buffer, outdir=tmpdir, stub=stub, tmpdir=tmpdir, verbose=debug)
+        terrain_tif = os.path.join(tmpdir, f"{stub}_terrain.tif")
+        ds_catch = catchments(terrain_tif, outdir=tmpdir, stub=stub, savetif=debug, plot=debug)
+        # The catchment gullies are a bool mask, so cast to uint8 so reproject_match can derive a nodata value.
+        ds_gullies = ds_catch['gullies'].astype('uint8').to_dataset(name='gullies')
 
-    # 7. Pipeline (mirrors indices_tif, worldcover already in memory)
-    ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size,
-        min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size,
-        strict_core_area=strict_core_area, save_tif=debug, plot=debug)
-    ds_cover = cover_categories(ds_tree_categories, da_worldcover, outdir=outdir, stub=stub,
-        savetif=debug, plot=debug)
-    ds_buffer = buffer_categories(ds_cover, gullies_tif, ridges_data=None,
-        roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width,
-        savetif=debug, plot=debug)
-    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug,
-        save_csv=debug, save_labels=debug, crop_pixels=crop_pixels,
-        min_shelterbelt_length=min_shelterbelt_length,
-        max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
+    # 5. Roads: choose NationalRoads GDB when the point is in Australia,
+    #    otherwise fall back to OpenStreetMap.
+    ds_roads = None
+    if in_australia and os.path.exists(roads_gdb):
+        _, ds_rd = crop_and_rasterize(da_trees, roads_gdb, outdir=tmpdir, stub=stub,
+            savetif=debug, save_gpkg=debug, layer='NationalRoads_2025_09', feature_name='roads')
+        if bool(ds_rd['roads'].values.any()):
+            ds_roads = ds_rd
+        else:
+            print("No roads cover this point in roads_gdb — falling back to OpenStreetMap. "
+                  "Tip: For better compute efficiency in Australia, you can pre-download the full NationalRoads GDB and set the path in utils.filepaths.roads_gdb.")
+    if ds_roads is None:
+        _, ds_roads = osm_roads(da_trees, outdir=tmpdir, stub=stub, savetif=debug, save_gpkg=debug)
 
-    # Determine sheltered farmland and (for wind methods) the type of tree providing the shelter.
-    # Runs last, on the full tree classification. wind_method=None falls back to the density method.
-    ds_shelter = shelter_categories(ds_linear, wind_data=ds_wind, wind_method=wind_method,
-        wind_threshold=wind_threshold, distance_threshold=distance_threshold,
-        density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug)
-
-    return ds_shelter, df_patches
+    # 6. Run the indices_tif pipeline
+    return indices_tif(
+        percent_tif, outdir=outdir, tmpdir=tmpdir, stub=stub,
+        wind_method=wind_method, wind_threshold=wind_threshold, cover_threshold=cover_threshold,
+        min_patch_size=min_patch_size, edge_size=edge_size, max_gap_size=max_gap_size,
+        distance_threshold=distance_threshold, density_threshold=density_threshold,
+        buffer_width=buffer_width, strict_core_area=strict_core_area, crop_pixels=crop_pixels,
+        min_core_size=min_core_size, min_shelterbelt_length=min_shelterbelt_length,
+        max_shelterbelt_width=max_shelterbelt_width, opportunities=opportunities,
+        worldcover_data=da_worldcover, gullies_data=ds_gullies, roads_data=ds_roads, debug=debug,
+    )
 
 
 def indices_csv(csv, outdir=".",
@@ -371,6 +459,7 @@ def indices_csv(csv, outdir=".",
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
+                     opportunities=False,
                      debug=False):
     """
     Run the indices pipeline for every file listed in a CSV.
@@ -390,7 +479,7 @@ def indices_csv(csv, outdir=".",
     df = pd.read_csv(csv)
     for percent_tif in df['filename']:
         # The provided stub needs to be None, because we want to use the percent_tif filename instead. 
-        indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, debug=debug)
+        indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, opportunities=opportunities, debug=debug)
 
 
 def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
@@ -398,6 +487,7 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
                       cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                       crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif',
+                      opportunities=False,
                       debug=False):
     """
     Run the indices pipeline over a folder of binary or integer tifs representing percentage tree cover.
@@ -469,10 +559,12 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
             "--crop_pixels", str(crop_pixels),
             "--min_core_size", str(min_core_size),
             "--min_shelterbelt_length", str(min_shelterbelt_length),
-            "--max_shelterbelt_width", str(max_shelterbelt_width)
+            "--max_shelterbelt_width", str(max_shelterbelt_width),
         ]
         if not strict_core_area:
             cmd += ["--no-strict-core-area"]
+        if opportunities:
+            cmd += ["--opportunities"]
         if debug:
             cmd += ["--debug"]
     
@@ -504,6 +596,7 @@ def parse_arguments():
     parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="Minimum skeleton length (in pixels) to classify a cluster as linear")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="Maximum skeleton width (in pixels) to classify a cluster as linear")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
+    parser.add_argument('--opportunities', action='store_true', default=False, help='Also classify tree-planting opportunities near roads and gullies (default: False)')
     parser.add_argument('--debug', action='store_true', default=False, help='Save intermediate TIFFs and plots for debugging (default: False)')
 
     return parser
@@ -532,6 +625,7 @@ if __name__ == "__main__":
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
+            opportunities=args.opportunities,
             debug=args.debug,
         )
     elif args.folder.endswith('.csv'):
@@ -554,6 +648,7 @@ if __name__ == "__main__":
             min_core_size=args.min_core_size,
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
+            opportunities=args.opportunities,
             debug=args.debug,
         )
     else:
@@ -578,5 +673,6 @@ if __name__ == "__main__":
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
             suffix=args.suffix,
+            opportunities=args.opportunities,
             debug=args.debug,
         )
