@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -N delete_outside_ag_tiles
+#PBS -P xe2
+#PBS -q normal
+#PBS -l walltime=2:00:00
+#PBS -l ncpus=1
+#PBS -l mem=4GB
+#PBS -l jobfs=1GB
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -j oe
+
+# Deletes small per-tile prediction tifs outside the grazing/no-BWH agricultural mask from
+# scratch, for years where we don't need Australia-wide tiles for the shelterbelts pipeline.
+# Leaves merged tifs, footprints gpkgs, and any other subdirectories (e.g. linear_tifs_*)
+# untouched -- see analysis/delete_outside_ag_tiles.py for the exact scoping.
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+
+echo "=== 2024 expanded ==="
+python delete_outside_ag_tiles.py /scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2024/expanded
+
+echo
+echo "=== 2017 subfolders ==="
+python delete_outside_ag_tiles.py /scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2017/subfolders

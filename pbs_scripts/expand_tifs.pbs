@@ -16,15 +16,16 @@
 # gpkg=/scratch/xe2/cb8590/barra_trees_s4_aus_4326_weightings_median_2020/subfolders/barra_trees_s4_aus_4326_weightings_median_2020_subfolders__footprints.gpkg
 
 ## Running on aus predictions at scale
-# folder_to_expand=/scratch/xe2/cb8590/$folder_year/subfolders/$stub
-# folder_merged=/scratch/xe2/cb8590/$folder_year/subfolders 
-# outdir=/scratch/xe2/cb8590/$folder_year/expanded
+folder_to_expand=/scratch/xe2/cb8590/$folder_year/subfolders/$stub
+folder_merged=/scratch/xe2/cb8590/$folder_year/subfolders
+outdir=/scratch/xe2/cb8590/$folder_year/expanded
+gpkg=/scratch/xe2/cb8590/barra_trees_s4_ag_noxy_df_4326_2025/subfolders/subfolders__footprints.gpkg
 
 ## Running on lidar classifications
-folder_to_expand=/scratch/xe2/cb8590/lidar_processing/chms
-folder_merged=/scratch/xe2/cb8590/lidar_processing 
-outdir=/scratch/xe2/cb8590/lidar_processing/expanded2
-gpkg=lidar_processing_chms__chm_crowns_res1_uint8_footprints.gpkg
+# folder_to_expand=/scratch/xe2/cb8590/lidar_processing/chms
+# folder_merged=/scratch/xe2/cb8590/lidar_processing/chms
+# outdir=/scratch/xe2/cb8590/lidar_processing/expanded2
+# gpkg=/scratch/xe2/cb8590/lidar_processing/chms/lidar_processing_chms__chm_crowns_res1_uint8_footprints.gpkg
 
 echo "Starting expand_tif.pbs for folder_to_expand $folder_to_expand, outdir $outdir"
 
@@ -36,4 +37,5 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python expand_tifs.py $folder_to_expand $folder_merged $outdir --gpkg $gpkg --suffix chm_crowns_res1_uint8.tif  --num_pixels 200 --pixel_size 1
+python expand_tifs.py $folder_to_expand $folder_merged $outdir --gpkg $gpkg --suffix _predicted.tif --num_pixels 20 --pixel_size 10
+# python expand_tifs.py $folder_to_expand $folder_merged $outdir --gpkg $gpkg --suffix chm_crowns_res1_uint8.tif  --num_pixels 200 --pixel_size 1
