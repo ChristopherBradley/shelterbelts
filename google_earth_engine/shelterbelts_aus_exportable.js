@@ -425,7 +425,7 @@ Map.drawingTools().onDraw(function() {
     geoms.remove(geoms.get(0));
   }
   if (layerSelect.getValue()) {
-    statusLabel.setValue('Rectangle drawn. Now click "Get download link"');
+    statusLabel.setValue('Layer selected. Now click "Get download link"');
   } else {
     statusLabel.setValue('Rectangle drawn. Now click "Select Layer..."');
   }

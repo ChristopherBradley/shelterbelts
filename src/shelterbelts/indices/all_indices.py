@@ -290,7 +290,7 @@ def indices_tif(percent_tif, outdir=".",
     ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=debug, plot=debug)
     ds_cover = cover_categories(ds_tree_categories, da_worldcover, outdir=outdir, stub=stub, savetif=debug, plot=debug)
     ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=debug, plot=debug)
-    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
+    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, save_gpkg=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
 
     # Determine sheltered farmland and (for wind methods) the type of tree providing the shelter.
     # Runs last, on the full tree classification. wind_method=None falls back to the density method.

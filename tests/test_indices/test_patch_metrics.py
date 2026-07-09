@@ -9,7 +9,7 @@ stub = 'g2_26729'
 def test_patch_metrics_basic():
     """Basic test for patch_metrics function"""
     ds, df = patch_metrics(
-        f"data/{stub}_buffer_categories.tif",
+        f"data/{stub}_gullies_and_roads_buffer_categories.tif",
         outdir="outdir",
         stub=stub
     )
@@ -22,7 +22,7 @@ def test_patch_metrics_basic():
 def test_patch_metrics_category_name_not_nan():
     """Verify that category_name is populated for every row in patch_metrics output."""
     _, df = patch_metrics(
-        f"data/{stub}_buffer_categories.tif",
+        f"data/{stub}_gullies_and_roads_buffer_categories.tif",
         outdir="outdir",
         stub=stub,
         plot=False,
