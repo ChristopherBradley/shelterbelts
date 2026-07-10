@@ -242,7 +242,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
                 skel_new[r, c] = True
             skel = skel_new
             if len(path) >= 2:
-                paths[lbl] = path  # ordered centreline for the vector output
+                paths[lbl] = path
         except Exception:
             # If pathfinding fails, keep original skeleton (and skip the vector centreline)
             pass
@@ -325,8 +325,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
             Whether to save label-related tif files (assigned_labels, ellipse_outline_raster,
             shortest_path_raster, perpendicular_raster, widths_raster).
         save_gpkg : bool, optional
-            Whether to save a vector GeoPackage of the shelterbelt centrelines, with the
-            patch metrics (including category_id/category_name) as attributes.
+            Whether to save a vector GeoPackage of the shelterbelt centrelines.
         min_shelterbelt_length : int, optional
             Minimum skeleton length (in pixels) to classify a cluster as linear.
         max_shelterbelt_width : int, optional
@@ -355,7 +354,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     - shortest_path_raster.tif: Skeleton path along each cluster
     - perpendicular_raster.tif: Perpendicular width measurements
     - shelterbelt_widths.tif: Width values at each skeleton pixel
-    - centrelines.gpkg: Vector centreline (LineString) per shelterbelt with patch metrics as attributes
+    - centrelines.gpkg: Vector centreline (LineString) per shelterbelt
 
     Examples
     --------
@@ -483,18 +482,18 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
 
         da_linear.data[remaining_mask] = mapped_categories
 
-    # Save the shelterbelt centrelines as a vector GeoPackage (attributes = final patch metrics)
+    # Save the shelterbelt centrelines as a vector GeoPackage
     if save_gpkg and len(df_patch_metrics) > 0:
         x_coords = da_filtered.x.values
         y_coords = da_filtered.y.values
         geometries, rows = [], []
         for _, row in df_patch_metrics.iterrows():
             path = centreline_paths.get(row['label'])
-            if path is None:  # pathfinding failed for this cluster, so skip the centreline
+            if path is None: 
                 continue
             coords = [(x_coords[c], y_coords[r]) for r, c in path]
             geometries.append(LineString(coords))
-            rows.append(row)
+            rows.append(row)  # Keep all the other attributes from df_patch_metrics in the gpkg.
         if geometries:
             gdf = gpd.GeoDataFrame(rows, geometry=geometries, crs=da_filtered.rio.crs)
             filename_gpkg = os.path.join(outdir, f'{stub}_centrelines.gpkg')
