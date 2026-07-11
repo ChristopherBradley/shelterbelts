@@ -27,9 +27,10 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 # Run the script
 python lidar.py /g/data/xe2/cb8590/Outlines_Lidar/lidar_7x7_recent.gpkg \
     --outdir /scratch/xe2/cb8590/lidar_processing/chms \
-    --dem /g/data/xe2/cb8590/NSW_5m_DEMs \
     --delineate_crowns \
-    --uint8
+    --uint8 \
+    # --dem /g/data/xe2/cb8590/NSW_5m_DEMs # Was having issues with the CRS not matching, might want to look into this more later.
+
 
 # python lidar.py '/scratch/xe2/cb8590/lidar/DATA_587060/NSW Government - Spatial Services/Point Clouds/AHD' --outdir /scratch/xe2/cb8590/lidar/DATA_587060/chm_1m --resolution 1 --just_chm --limit 10  # A folder of laz files
 # python lidar.py /scratch/xe2/cb8590/lidar/Young201709-LID1-C3-AHD_6306194_55_0002_0002.laz --outdir /scratch/xe2/cb8590/tmp --stub TEST --resolution 1 --category5  # A single laz file

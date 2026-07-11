@@ -1,18 +1,6 @@
 #!/usr/bin/env python
 """
-tif_value_counts.py — pixel value_counts across many GeoTIFFs, at scale.
-
-Counts how many pixels take each value across a set of uint8 rasters (values
-0-100, nodata 255) — like a pd.value_counts, but aggregated over many tifs.
-Optionally splits the counts by spatial zone: supply a polygon file (gpkg/shp)
-and a column to group by, and pixels are counted within each polygon/zone.
-
-Memory safety: each raster is streamed in row-chunks so peak memory stays low
-regardless of raster size, and the ONLY thing that accumulates across tifs are
-the small length-256 count vectors (one per zone). Nothing holds onto raster
-arrays, so there is no memory growth as the number of tifs increases. When
-zones are used, the zone label raster is also built one window at a time, so it
-never materialises a full-tile label array either.
+This file calculates pixel value_counts across many GeoTIFFs.
 
 Usage:
     # Whole folder, global counts only (cheapest):
@@ -28,9 +16,6 @@ Usage:
 
 Output CSV columns:
     zone, value, label, count, percent, is_nodata
-The special zone "ALL" holds the global (whole-dataset) counts. When no zones
-file is given, only the "ALL" zone is written. `percent` is percent of valid
-(non-nodata) pixels within that zone.
 """
 
 import os
@@ -47,19 +32,18 @@ from rasterio.windows import transform as window_transform
 from rasterio.features import rasterize
 from shapely.geometry import box
 
-# uint8 rasters => 256 possible values. Values are 0-100; 255 is nodata.
+# Using uint8 rasters
 N_VALUES = 256
 NODATA = 255
-ALL_ZONE = "ALL"          # name of the global (whole-dataset) zone
+ALL_ZONE = "ALL"
 UNZONED = "(unzoned)"     # pixels falling outside every polygon (zone id 0)
 
-# Read this many rows at a time. 2048 rows x ~9000 cols x uint8 ~= 18 MB per
-# chunk, so peak memory is tiny and independent of raster height.
+# ~18 MB per chunk
 CHUNK_ROWS = 2048
 
 
 def prepare_zones(zones_file, zone_col, dst_crs):
-    """Load a polygon file, dissolve by `zone_col`, reproject to `dst_crs`.
+    """Load a polygon file, dissolve by `zone_col` and reproject to `dst_crs`.
 
     Returns (shapes, id_to_name):
       shapes     : list of (geometry, zone_id) tuples for rasterize(), zone_id
@@ -87,18 +71,13 @@ def prepare_zones(zones_file, zone_col, dst_crs):
 
 def _accumulate(block, counts, n_values=N_VALUES, zone_ids=None,
                 zone_counts=None):
-    """Add one raster window's value-counts into the running totals.
+    """Add one raster window's value-counts into the running totals."""
 
-    Always updates the global `counts`. If `zone_ids` (a same-shape int label
-    array) and `zone_counts` (a {zone_id: length-n_values array} dict) are
-    given, also updates per-zone counts.
-    """
     flat_vals = block.ravel()
     counts += np.bincount(flat_vals, minlength=n_values)
 
     if zone_ids is not None and zone_counts is not None:
-        # One combined bincount over (zone_id * n_values + value) is far faster
-        # than masking the array once per zone. The 2D result is (zone, value).
+        # One combined bincount is faster than masking the array once per zone
         flat_zones = zone_ids.ravel().astype(np.int32)
         max_zone = int(flat_zones.max())
         combined = flat_zones * n_values + flat_vals
@@ -148,8 +127,7 @@ def count_tif(tif_path, n_values=N_VALUES, chunk_rows=CHUNK_ROWS,
                         dtype=zone_dtype,
                     )
                 else:
-                    # Tile touches no polygon: every pixel is unzoned (id 0),
-                    # so it's still accounted for and zones sum to the total.
+                    # Tile touches no polygon so every pixel is unzoned
                     zone_ids = np.zeros((nrows, width), dtype=zone_dtype)
             _accumulate(block, counts, n_values, zone_ids, zone_counts)
             del block, zone_ids
