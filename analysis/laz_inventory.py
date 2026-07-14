@@ -6,7 +6,8 @@ Scans all `.laz` files under a root directory and writes a GeoPackage with:
 - points per square metre (ppm) derived from header bbox and point count
 - classification level parsed from filename (-C<n>- or _C<n>_ segment)
 - MGA zone parsed from filename
-- acquisition year parsed from filename
+- acquisition year and month parsed from filename
+- acquisition product code parsed from filename (e.g. LID1, LID2, PHO3)
 
 """
 import os
@@ -32,16 +33,49 @@ _OFF_BBOX = 179              # 4 x float64: MaxX, MinX, MaxY, MinY
 _HEADER_BYTES = 383          # enough to cover every field above
 
 
-def extract_year(name):
-    """Copied from analysis/demo_year_parsing.py."""
+_PRODUCT_RE = re.compile(r'-([A-Za-z]+\d)-C\d+-')
+
+
+def extract_year_month(name):
+    """Acquisition (year, month) parsed from the filename.
+
+    Extends the plain-year regex from analysis/demo_year_parsing.py: most NSW
+    tile names encode the date as YYYYMM (e.g. 'Young201709'), so once the
+    year digits are found we also check for two trailing month digits. Some
+    datasets (e.g. ACT) only encode YYYY, in which case month is None -- two
+    tiles that only differ within that missing month can't be told apart by
+    date alone, which is why product type is also used as a tie-break in
+    laz_recent.py.
+    """
     if not isinstance(name, str):
-        return None
+        return None, None
     if name.startswith('Laura22021'):
-        return 2021
+        return 2021, None
     if name.startswith('Herbert1Lidar2020') or name.startswith('Herbert2Lidar2020'):
-        return 2020
-    m = re.search(r'20\d\d', name)
-    return int(m.group()) if m else None
+        return 2020, None
+    m = re.search(r'(20\d\d)(\d{2})?', name)
+    if not m:
+        return None, None
+    year = int(m.group(1))
+    month = None
+    if m.group(2):
+        mm = int(m.group(2))
+        if 1 <= mm <= 12:
+            month = mm
+    return year, month
+
+
+def extract_product(filename):
+    """Acquisition product code from the filename, e.g. 'LID1', 'LID2', 'PHO3'.
+
+    'PHO*' codes are photogrammetry-derived point clouds: they tend to have a
+    much higher points-per-metre than airborne LiDAR ('LID*') covering the
+    same tile, even though LiDAR is the better data source. Returns None if
+    no product token is found (e.g. the ACT '<year>_<n>ppm' naming, which is
+    real LiDAR despite not matching this pattern).
+    """
+    m = _PRODUCT_RE.search(os.path.basename(filename))
+    return m.group(1) if m else None
 
 
 def _parse_classification(filename):
@@ -119,6 +153,7 @@ def build_inventory(laz_root, output_gpkg, limit=None, nthreads=32):
 
         name = os.path.basename(laz_file)
         zone = _parse_mga_zone(laz_file)
+        year, month = extract_year_month(name)
 
         if zone is not None:
             # Reproject all four corners and take the envelope (a UTM box is not
@@ -134,7 +169,9 @@ def build_inventory(laz_root, output_gpkg, limit=None, nthreads=32):
 
         rows.append({
             'filepath': laz_file,
-            'year': extract_year(name),
+            'year': year,
+            'month': month,
+            'product': extract_product(laz_file),
             'classification_level': _parse_classification(laz_file),
             'mga_zone': zone,
             'point_count': h['point_count'],
