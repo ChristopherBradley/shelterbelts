@@ -358,7 +358,11 @@ Map.add(legend);
 // Export layers — ordered to match the layer panel (top to bottom)
 paramCombos.forEach(function(combo) {
   exportLayers['Shelter categories 2025 (' + combo.label + ') (10m)'] = shelterCategoriesByCombo[combo.key];
+});
+paramCombos.forEach(function(combo) {
   exportLayers['Shelter distances 2025 (' + combo.label + ') (10m)'] = shelterDistancesByCombo[combo.key];
+});
+paramCombos.forEach(function(combo) {
   exportLayers['Planting opportunities 2025 (' + combo.label + ') (10m)'] = opportunitiesByCombo[combo.key];
 });
 exportLayers['WorldCover 2020 (10m)'] = wc;
