@@ -64,7 +64,12 @@ def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir="."
     return download_ds2_bbox(bbox, start_date, end_date, outdir, stub, save)
 
 
-def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True, input_crs='epsg:4326'):
+def get_datacube(app='sentinel_download'):
+    """Create a Datacube connection, for sharing across multiple downloads instead of reconnecting per tile."""
+    return datacube.Datacube(app=app)
+
+
+def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outdir=".", stub="TEST", save=True, input_crs='epsg:4326', dc=None):
     """
     Download a Sentinel-2 surface reflectance stack for a bounding box and date range. Uses a 10% cloud threshold and downloads all 10 bands.
 
@@ -84,6 +89,8 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
         Save the Dataset to {outdir}/{stub}_ds2_{year}.pkl.
     input_crs : str, optional
         CRS of the bbox.
+    dc : datacube.Datacube, optional
+        Reuse an existing Datacube connection.
 
     Returns
     -------
@@ -100,7 +107,8 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
     output_crs = 'EPSG:3857'
     query = define_query_range(lat_range, lon_range, time_range, input_crs, output_crs)
 
-    dc = datacube.Datacube(app='sentinel_download')
+    if dc is None:
+        dc = get_datacube()
     ds = load_and_process_data(dc, query)
 
     if save:
@@ -115,6 +123,7 @@ def download_ds2_bbox(bbox, start_date="2020-01-01", end_date="2021-01-01", outd
 
 def run_download_gdf(gdf, outdir, start_date='2020-01-01', end_date='2021-01-01'):
     """Run :func:`download_ds2_bbox` on every row in the GeoDataFrame."""
+    dc = get_datacube()
     for _, row in gdf.iterrows():
         filename = row['filename']
         if 'start_date' in gdf.columns and 'end_date' in gdf.columns:
@@ -125,7 +134,7 @@ def run_download_gdf(gdf, outdir, start_date='2020-01-01', end_date='2021-01-01'
 
         try:
             print(f"Downloading: {stub}_{start_date}_{end_date}", flush=True)
-            download_ds2_bbox(bounds, start_date, end_date, outdir, stub)
+            download_ds2_bbox(bounds, start_date, end_date, outdir, stub, dc=dc)
         except Exception:
             print(f"Error in downloading: {stub}_{start_date}_{end_date}:", flush=True)
             traceback.print_exc(file=sys.stdout)

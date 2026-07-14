@@ -21,16 +21,13 @@ Canopy Height
 Indices
 =======
 
+The pipeline runs in this order: tree categories → cover categories → buffer
+categories → patch metrics → shelter categories → class metrics.
 
 Tree Categories
 ---------------
 
 .. autofunction:: shelterbelts.indices.tree_categories.tree_categories
-
-Shelter Categories
-------------------
-
-.. autofunction:: shelterbelts.indices.shelter_categories.shelter_categories
 
 Cover Categories
 ----------------
@@ -42,23 +39,25 @@ Buffer Categories
 
 .. autofunction:: shelterbelts.indices.buffer_categories.buffer_categories
 
-Shelter Metrics
----------------
-
-Patch Metrics
-~~~~~~~~~~~~~
-
-.. autofunction:: shelterbelts.indices.shelter_metrics.patch_metrics
-
-Class Metrics
-~~~~~~~~~~~~~
-
-.. autofunction:: shelterbelts.indices.shelter_metrics.class_metrics
-
 Catchments
 ----------
 
 .. autofunction:: shelterbelts.indices.catchments.catchments
+
+Patch Metrics
+-------------
+
+.. autofunction:: shelterbelts.indices.patch_metrics.patch_metrics
+
+Shelter Categories
+------------------
+
+.. autofunction:: shelterbelts.indices.shelter_categories.shelter_categories
+
+Class Metrics
+-------------
+
+.. autofunction:: shelterbelts.indices.class_metrics.class_metrics
 
 Full Indices Pipeline
 ----------------------

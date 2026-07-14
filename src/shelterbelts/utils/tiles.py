@@ -236,7 +236,9 @@ def crop_and_rasterize(geotif, feature_gdb, outdir=".", stub="TEST", save_gpkg=T
 
     if save_gpkg:
         cropped_path = os.path.join(outdir, f"{stub}_{layer}_cropped.gpkg")
-        gdf.to_file(cropped_path)
+        # Set the layer name explicitly: gdf.to_file otherwise derives it from the filename stem, and
+        # stubs containing '.'/'-' (e.g. lat/lon stubs like '-34.379_148.425') are invalid GPKG layer names.
+        gdf.to_file(cropped_path, layer=feature_name)
         print("Saved:", cropped_path)
 
     gdf = gdf.to_crs(da.rio.crs)

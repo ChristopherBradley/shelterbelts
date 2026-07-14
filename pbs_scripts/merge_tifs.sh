@@ -11,7 +11,8 @@
 
 # BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2024/expanded  # Used this one to merge the indices
 # BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_2020_actnsw_4326_weightings_median/expanded
-BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazing_no_bwh # Used this one to merge the indices
+# BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazing_no_bwh # Used this one to merge the indices
+BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_ag_noxy_df_4326_2025/subfolders  # Merging the raw 2025 ag predictions
 
 
 # FOLDER_SUFFIX=less_percentmethod
@@ -19,7 +20,8 @@ BASE_DIR=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazi
 # FOLDER_SUFFIX=more_percentmethod
 # FOLDER_SUFFIX=less_windmethod
 # FOLDER_SUFFIX=default_windmethod
-FOLDER_SUFFIX=more_windmethod
+# FOLDER_SUFFIX=more_windmethod
+FOLDER_SUFFIX=        # For merging the predictions, we just want to merge all the files in the subfolder, so don't need a suffix.
 
 for folder in "$BASE_DIR"/*"$FOLDER_SUFFIX"; do
     if [ -d "$folder" ]; then

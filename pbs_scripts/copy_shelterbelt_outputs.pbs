@@ -1,0 +1,48 @@
+#!/bin/bash
+#PBS -N copy_shelterbelt_outputs
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l walltime=2:00:00
+#PBS -l ncpus=1
+#PBS -l mem=2GB
+#PBS -l jobfs=1GB
+#PBS -l storage=scratch/xe2+gdata/xe2
+#PBS -j oe
+
+# Copies merged prediction tifs + footprints gpkgs from scratch to gdata for regional
+# aggregation work, keeping a folder structure that mirrors the scratch layout but
+# dropping the huge numbers of individual unmerged tiles.
+
+set -e
+
+DST=/g/data/xe2/cb8590/shelterbelt_outputs
+
+# --- 2020 / subfolders: flat dir, merged tifs + one footprints gpkg ---
+SRC=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2020/subfolders
+OUT=$DST/barra_trees_s4_aus_noxy_df_4326_2020/subfolders
+mkdir -p "$OUT"
+rsync -av --include='*_merged_predicted.tif' --include='*.gpkg' --exclude='*' "$SRC/" "$OUT/"
+
+# --- 2024 / subfolders: flat dir, merged tifs + one footprints gpkg ---
+SRC=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2024/subfolders
+OUT=$DST/barra_trees_s4_aus_noxy_df_4326_2024/subfolders
+mkdir -p "$OUT"
+rsync -av --include='*_merged_predicted.tif' --include='*.gpkg' --exclude='*' "$SRC/" "$OUT/"
+
+# --- 2017 / subfolders: merged tifs at top level, one footprints gpkg per lat_lon subdir
+#     (skip the individual unmerged tiles inside each lat_lon subdir) ---
+SRC=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2017/subfolders
+OUT=$DST/barra_trees_s4_aus_noxy_df_4326_2017/subfolders
+mkdir -p "$OUT"
+rsync -av -m --include='*/' --include='*_merged_predicted.tif' --include='*.gpkg' --exclude='*' "$SRC/" "$OUT/"
+
+# --- 2020 / expanded_grazing_no_bwh: merged tifs at top level, one footprints gpkg per
+#     linear_tifs_* variant subdir (skip the individual unmerged/symlinked tiles) ---
+SRC=/scratch/xe2/cb8590/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazing_no_bwh
+OUT=$DST/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazing_no_bwh
+mkdir -p "$OUT"
+rsync -av -m --include='*/' --include='*_merged_*.tif' --include='*.gpkg' --exclude='*' "$SRC/" "$OUT/"
+
+echo "Done. Contents of $DST:"
+find "$DST" -type f | wc -l
+du -sh "$DST"

@@ -8,7 +8,8 @@ from shelterbelts.indices.tree_categories import tree_categories, parse_argument
 from shelterbelts.indices.shelter_categories import shelter_categories, parse_arguments as parse_shelter_args
 from shelterbelts.indices.cover_categories import cover_categories, parse_arguments as parse_cover_args
 from shelterbelts.indices.buffer_categories import buffer_categories, parse_arguments as parse_buffer_args
-from shelterbelts.indices.shelter_metrics import patch_metrics, class_metrics, parse_arguments as parse_shelter_metrics_args
+from shelterbelts.indices.patch_metrics import patch_metrics, parse_arguments as parse_patch_metrics_args
+from shelterbelts.indices.class_metrics import class_metrics, parse_arguments as parse_class_metrics_args
 
 from shelterbelts.apis.worldcover import worldcover, parse_arguments as parse_worldcover_args
 from shelterbelts.apis.barra_daily import barra_daily, parse_arguments as parse_barra_daily_args
@@ -22,9 +23,9 @@ from shelterbelts.indices.opportunities import opportunities, parse_arguments as
     (shelter_categories, parse_shelter_args),
     (cover_categories, parse_cover_args),
     (buffer_categories, parse_buffer_args),
-    (patch_metrics, parse_shelter_metrics_args),
-    (class_metrics, parse_shelter_metrics_args),
-    (worldcover, parse_worldcover_args),  
+    (patch_metrics, parse_patch_metrics_args),
+    (class_metrics, parse_class_metrics_args),
+    (worldcover, parse_worldcover_args),
     (barra_daily, parse_barra_daily_args),
     (catchments, parse_catchments_args),
     (canopy_height, parse_canopy_height_args),
