@@ -149,6 +149,40 @@ Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
 
 
 ///////////////////////////////////////////////////////////
+// Parameter combinations — each has its own asset collections for
+// planting opportunities, shelter distances, and shelter categories.
+var paramCombos = [
+  {key: 'default_windmethod',    label: 'default wind method'},
+  {key: 'less_windmethod',       label: 'less wind method'},
+  {key: 'more_windmethod',       label: 'more wind method'},
+  {key: 'default_percentmethod', label: 'default percent method', distanceAsset: 'shelter_densities'},
+];
+var defaultComboKey = 'default_windmethod';
+
+var distanceMax = 20;
+var ylGn = ['ffffe5', 'f7fcb9', 'd9f0a3', 'addd8e', '78c679', '41ab5d', '238443', '006837', '004529'];
+var ylGnInvertedForDistance = ylGn.slice().reverse();
+
+var opportunitiesByCombo = {};
+var shelterDistancesByCombo = {};
+var shelterCategoriesByCombo = {};
+
+// NOTE: the GEE Layers panel shows the most-recently-added layer at the TOP,
+// i.e. panel order is the REVERSE of the order Map.addLayer is called in.
+// So everything below is added in reverse of the desired panel order
+// (bottom-most layer first, top-most layer last).
+
+///////////////////////////////////////////////////////////
+// Canopy Height Model v2 (Meta & WRI) — added first so it ends up at the bottom
+var viridis = ['440154','482878','3e4989','31688e','26828e','1f9e89','35b779','6ece58','b5de2b','fde725'];
+var chm = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
+Map.addLayer(
+  chm.updateMask(chm.gt(0)),
+  {min: 0, max: 25, palette: viridis},
+  'Meta Canopy Height v2', false, 0.8
+);
+
+///////////////////////////////////////////////////////////
 // WorldCover 2020
 var wcClasses = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100];
 var wcPalette = ['006400', 'ffbb22', 'ffff4c', 'f096ff', 'fa0000',
@@ -162,40 +196,39 @@ Map.addLayer(
   'WorldCover 2020', false, 1
 );
 
-///////////////////////////////////////////////////////////
-// Canopy Height Model v2 (Meta & WRI)
-var viridis = ['440154','482878','3e4989','31688e','26828e','1f9e89','35b779','6ece58','b5de2b','fde725'];
-var chm = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
-Map.addLayer(
-  chm.updateMask(chm.gt(0)),
-  {min: 0, max: 25, palette: viridis},
-  'Meta Canopy Height v2', false, 0.8
-);
+// Planting opportunities (added in reverse combo order, so the panel shows them in combo order)
+paramCombos.slice().reverse().forEach(function(combo) {
+  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
+  var opportunitiesImg = ee.ImageCollection(assetPrefix + 'opportunities').mosaic();
+  opportunitiesByCombo[combo.key] = styleCategoricalImage(
+    opportunitiesImg, 'Planting opportunities 2025 (' + combo.label + ')', false, shelterPalette, 1);
+});
 
-///////////////////////////////////////////////////////////
-// Planting opportunities (near gullies and roads)
-var opportunitiesImg = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus2025_ag_default_windmethod_opportunities').mosaic();
-var opportunities2025 = styleCategoricalImage(opportunitiesImg, 'Planting opportunities 2025', false, shelterPalette, 1);
+// Shelter distances (added in reverse combo order)
+paramCombos.slice().reverse().forEach(function(combo) {
+  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
+  var shelterDistancesImg = ee.ImageCollection(assetPrefix + (combo.distanceAsset || 'shelter_distances')).mosaic();
+  var shelterDistances = shelterDistancesImg.updateMask(shelterDistancesImg.gt(0));
+  shelterDistancesByCombo[combo.key] = shelterDistances;
+  Map.addLayer(
+    shelterDistances,
+    {min: 1, max: distanceMax, palette: ylGnInvertedForDistance},
+    'Shelter distances 2025 (' + combo.label + ')', false, 1
+  );
+});
 
-///////////////////////////////////////////////////////////
-// Shelter distances
+// Shelter categories (added in reverse combo order, last one added ends up on top)
+paramCombos.slice().reverse().forEach(function(combo) {
+  var isDefault = combo.key === defaultComboKey;
+  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
+  var shelterCategoriesImg = ee.ImageCollection(assetPrefix + 'shelter_categories').mosaic();
+  shelterCategoriesByCombo[combo.key] = styleCategoricalImage(
+    shelterCategoriesImg, 'Shelter categories 2025 (' + combo.label + ')', isDefault, shelterPalette, 1);
+});
 
-var distanceMax = 20;
-var ylGn = ['ffffe5', 'f7fcb9', 'd9f0a3', 'addd8e', '78c679', '41ab5d', '238443', '006837', '004529'];
-var ylGnInvertedForDistance = ylGn.slice().reverse();
-
-var shelterDistancesImg = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus2025_ag_default_windmethod_shelter_distances').mosaic();
-var shelterDistances2025 = shelterDistancesImg.updateMask(shelterDistancesImg.gt(0));
-Map.addLayer(
-  shelterDistances2025,
-  {min: 1, max: distanceMax, palette: ylGnInvertedForDistance},
-  'Shelter distances 2025', false, 1
-);
-
-///////////////////////////////////////////////////////////
-// Shelter categories
-var shelterCategoriesImg = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus2025_ag_default_windmethod_shelter_categories').mosaic();
-var shelterCategories2025 = styleCategoricalImage(shelterCategoriesImg, 'Shelter categories 2025 (default wind method)', true, shelterPalette, 1);
+var opportunities2025 = opportunitiesByCombo[defaultComboKey];
+var shelterDistances2025 = shelterDistancesByCombo[defaultComboKey];
+var shelterCategories2025 = shelterCategoriesByCombo[defaultComboKey];
 
 
 //////////////////////////////////////////////////////////
@@ -323,11 +356,13 @@ Map.add(legend);
 
 //////////////////////////////////////////////////////////////////////
 // Export layers — ordered to match the layer panel (top to bottom)
-exportLayers['Shelter categories 2025 (10m)'] = shelterCategories2025;
-exportLayers['Shelter distances 2025 (10m)'] = shelterDistances2025;
-exportLayers['Planting opportunities 2025 (10m)'] = opportunities2025;
-exportLayers['Canopy Height v2 (1m)'] = chm;
+paramCombos.forEach(function(combo) {
+  exportLayers['Shelter categories 2025 (' + combo.label + ') (10m)'] = shelterCategoriesByCombo[combo.key];
+  exportLayers['Shelter distances 2025 (' + combo.label + ') (10m)'] = shelterDistancesByCombo[combo.key];
+  exportLayers['Planting opportunities 2025 (' + combo.label + ') (10m)'] = opportunitiesByCombo[combo.key];
+});
 exportLayers['WorldCover 2020 (10m)'] = wc;
+exportLayers['Canopy Height v2 (1m)'] = chm;
 
 //////////////////////////////////////////////////////////////////////
 // Export panel
