@@ -440,12 +440,6 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
         df_patch_metrics["category_id"] = dominant_categories
         df_patch_metrics["category_name"] = df_patch_metrics["category_id"].map(linear_categories_labels)
 
-        # Save the patch metrics
-        if save_csv:
-            filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
-            df_patch_metrics.to_csv(filename, index=False)
-            print("Saved:", filename)
-
     # Assign linear and non-linear categories
     da_linear = da_filtered
     for i, row in df_patch_metrics.iterrows():
@@ -460,6 +454,12 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
             da_linear.data[mask] = new_class
             df_patch_metrics.loc[i, 'category_id'] = new_class
             df_patch_metrics.loc[i, 'category_name'] = linear_categories_labels[new_class]
+
+    # Save the patch metrics, now that category_id/category_name reflect the final linear/non-linear reclassification
+    if len(df_patch_metrics) > 0 and save_csv:
+        filename = os.path.join(outdir, f'{stub}_patch_metrics.csv')
+        df_patch_metrics.to_csv(filename, index=False)
+        print("Saved:", filename)
 
     # Reassign the remaining corridor/other pixels to the corresponding cluster's category
     remaining_mask = (da_linear.data == 14)
