@@ -8,7 +8,7 @@ var HEIGHT_MAX = 25;
 
 ///////////////////////////////////////////////////////////
 // LiDAR CHM (background)
-var chm = ee.Image('projects/christopher-bradley-phd/assets/1m_chm_7x7');
+var chm = ee.ImageCollection('projects/christopher-bradley-phd/assets/chm_crowns_res1_uint8').mosaic();
 Map.addLayer(
   chm.updateMask(chm.gt(0)),
   {min: HEIGHT_MIN, max: HEIGHT_MAX, palette: viridis},

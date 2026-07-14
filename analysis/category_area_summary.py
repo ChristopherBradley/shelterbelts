@@ -16,12 +16,44 @@ import os
 import glob
 import argparse
 
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from shelterbelts.indices.all_indices import GEE_legend
 
 ALL_ZONE = "ALL"
 PIXEL_SIZE_M = 10  # raster resolution, for pixel-count -> hectare conversion
+
+# Mirrors shelterPalette in google_earth_engine/shelterbelts_aus_exportable.js
+# (RGB 0-255) so bar colours match the GEE map colours for the same category.
+SHELTER_PALETTE = {
+    0:   (255, 255, 255),
+    10:  (0, 100, 0),
+    11:  (122, 82, 0),
+    12:  (8, 79, 0),
+    13:  (14, 138, 0),
+    14:  (22, 212, 0),
+    15:  (29, 153, 105),
+    16:  (127, 168, 57),
+    17:  (129, 146, 124),
+    18:  (190, 160, 60),
+    19:  (165, 195, 45),
+    20:  (255, 187, 34),
+    30:  (255, 255, 76),
+    31:  (203, 219, 115),
+    32:  (255, 255, 76),
+    40:  (240, 150, 255),
+    41:  (146, 104, 143),
+    42:  (240, 150, 255),
+    50:  (250, 0, 0),
+    60:  (180, 180, 180),
+    70:  (240, 240, 240),
+    80:  (0, 100, 200),
+    90:  (0, 150, 160),
+    95:  (0, 207, 117),
+    100: (250, 230, 160),
+}
 
 
 def parse_value_range(value_range):
@@ -51,21 +83,9 @@ def find_methods(input_dir, suffix):
 UNIT_COLUMNS = {"hectares": "count", "pixels": "count", "percentage": "percent"}
 
 
-def category_area_summary(input_dir, suffix, value_range, zone=ALL_ZONE,
-                           methods=None, legend=GEE_legend,
-                           pixel_size_m=PIXEL_SIZE_M, units="hectares"):
-    """Build a category-x-method table from matching value-count CSVs.
-
-    methods : optional {method_name: csv_path} dict. Defaults to every file
-        in `input_dir` ending with `suffix` (see find_methods()).
-    units : 'hectares' (count converted via pixel_size_m, rounded to the
-        nearest whole number), 'pixels' (raw count), or 'percentage' (the
-        source CSV's 'percent' column, i.e. % of valid pixels in the zone,
-        formatted as e.g. '13.45%').
-    Returns a DataFrame indexed by category label, one column per method.
-    """
-    if units not in UNIT_COLUMNS:
-        raise ValueError(f"units must be one of {list(UNIT_COLUMNS)}, got {units!r}")
+def _numeric_table(input_dir, suffix, value_range, zone, methods, legend,
+                    pixel_size_m, units, order_by):
+    """Shared loading logic: raw per-method values (unformatted), sorted."""
     if methods is None:
         methods = find_methods(input_dir, suffix)
     if not methods:
@@ -97,6 +117,37 @@ def category_area_summary(input_dir, suffix, value_range, zone=ALL_ZONE,
     )
     table.index.name = "category"
 
+    if order_by:
+        if order_by in table.columns:
+            table = table.sort_values(order_by, ascending=False)
+        else:
+            print(f"Warning: order_by column '{order_by}' not in "
+                  f"{list(table.columns)}; leaving table unsorted", flush=True)
+    return table
+
+
+def category_area_summary(input_dir, suffix, value_range, zone=ALL_ZONE,
+                           methods=None, legend=GEE_legend,
+                           pixel_size_m=PIXEL_SIZE_M, units="hectares",
+                           order_by="default"):
+    """Build a category-x-method table from matching value-count CSVs.
+
+    methods : optional {method_name: csv_path} dict. Defaults to every file
+        in `input_dir` ending with `suffix` (see find_methods()).
+    units : 'hectares' (count converted via pixel_size_m, rounded to the
+        nearest whole number), 'pixels' (raw count), or 'percentage' (the
+        source CSV's 'percent' column, i.e. % of valid pixels in the zone,
+        formatted as e.g. '13.45%').
+    order_by : method column to sort rows by, descending (default: 'default').
+        Pass '' / None to leave rows in category-value order.
+    Returns a DataFrame indexed by category label, one column per method.
+    """
+    if units not in UNIT_COLUMNS:
+        raise ValueError(f"units must be one of {list(UNIT_COLUMNS)}, got {units!r}")
+
+    table = _numeric_table(input_dir, suffix, value_range, zone, methods,
+                           legend, pixel_size_m, units, order_by)
+
     if units in ("hectares", "pixels"):
         table = table.round(0).astype(int)
     else:
@@ -104,16 +155,71 @@ def category_area_summary(input_dir, suffix, value_range, zone=ALL_ZONE,
     return table
 
 
+def plot_category_bars(input_dir, suffix, value_range, zone=ALL_ZONE,
+                        methods=None, legend=GEE_legend,
+                        pixel_size_m=PIXEL_SIZE_M, order_by="default",
+                        palette=SHELTER_PALETTE, title=None, output_png=None):
+    """Bar chart of hectares by category, coloured per SHELTER_PALETTE.
+
+    Bar height is the 'default' method's hectares; asymmetric error bars
+    span the 'less'/'more' methods (whichever is lower/higher), so they
+    read as an uncertainty range around the default estimate. Requires
+    'default', 'less', and 'more' columns/methods to be present.
+    """
+    hectares = _numeric_table(input_dir, suffix, value_range, zone, methods,
+                              legend, pixel_size_m, "hectares", order_by)
+    required = {"default", "less", "more"}
+    if not required.issubset(hectares.columns):
+        raise ValueError(f"Plotting needs {sorted(required)} columns/methods, "
+                         f"got {list(hectares.columns)}")
+
+    values = parse_value_range(value_range)
+    label_to_value = {legend.get(v, str(v)): v for v in values}
+    colors = [tuple(c / 255 for c in palette.get(label_to_value.get(cat), (127, 127, 127)))
+              for cat in hectares.index]
+
+    default = hectares["default"].astype(float)
+    lower = np.minimum(hectares["less"], hectares["more"])
+    upper = np.maximum(hectares["less"], hectares["more"])
+    err_low = (default - lower).clip(lower=0)
+    err_high = (upper - default).clip(lower=0)
+
+    fig, ax = plt.subplots(figsize=(max(6, 0.9 * len(default)), 6))
+    ax.bar(hectares.index, default, color=colors, edgecolor="black", linewidth=0.5,
+           yerr=[err_low, err_high], capsize=4, ecolor="black")
+    ax.set_ylabel("Hectares")
+    ax.set_title(title or f"Tree Categories - Australia 4km ag zones")
+    ax.yaxis.set_major_formatter(lambda y, _: f"{y:,.0f}")
+    plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
+
+    label_pad = default.max() * 0.02
+    for x, (val, top) in enumerate(zip(default, default + err_high)):
+        ax.text(x, top + label_pad, f"{val:,.0f}", ha="center", va="bottom", fontsize=8)
+    ax.margins(y=0.12)
+
+    fig.tight_layout()
+
+    if output_png:
+        os.makedirs(os.path.dirname(os.path.abspath(output_png)), exist_ok=True)
+        fig.savefig(output_png, dpi=150)
+        print(f"Saved: {output_png}", flush=True)
+    return fig
+
+
 def run(input_dir, suffix, value_range, zone=ALL_ZONE, output_csv=None,
-        units="hectares"):
+        units="hectares", order_by="default", output_png=None):
     table = category_area_summary(input_dir, suffix, value_range, zone=zone,
-                                   units=units)
+                                   units=units, order_by=order_by)
     print(table.to_string(), flush=True)
 
     if output_csv:
         os.makedirs(os.path.dirname(os.path.abspath(output_csv)), exist_ok=True)
         table.to_csv(output_csv)
         print(f"Saved: {output_csv}", flush=True)
+
+    if output_png:
+        plot_category_bars(input_dir, suffix, value_range, zone=zone,
+                           order_by=order_by, output_png=output_png)
     return table
 
 
@@ -135,9 +241,18 @@ if __name__ == "__main__":
     parser.add_argument("--units", default="hectares",
                         choices=list(UNIT_COLUMNS),
                         help="Units for the table cells (default: hectares).")
+    parser.add_argument("--order_by", default="default",
+                        help="Method column to sort rows by, descending. "
+                            "Pass '' to leave rows in category-value order "
+                            "(default: 'default').")
     parser.add_argument("--output_csv", default=None,
                         help="Where to write the summary table.")
+    parser.add_argument("--output_png", default=None,
+                        help="If given, also save a bar chart (hectares, "
+                            "coloured per SHELTER_PALETTE, with less/more "
+                            "as error bars around the default method).")
     args = parser.parse_args()
 
     run(args.input_dir, args.suffix, args.value_range, zone=args.zone,
-        output_csv=args.output_csv, units=args.units)
+        output_csv=args.output_csv, units=args.units, order_by=args.order_by,
+        output_png=args.output_png)
