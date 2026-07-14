@@ -21,6 +21,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from shelterbelts.indices.all_indices import GEE_legend
+from shelterbelts.indices.shelter_categories import (
+    shelter_categories_cmap, _blend_rgb, _tree_blend_amount,
+)
+from shelterbelts.indices.patch_metrics import linear_categories_cmap
 
 ALL_ZONE = "ALL"
 PIXEL_SIZE_M = 10  # raster resolution, for pixel-count -> hectare conversion
@@ -54,6 +58,17 @@ SHELTER_PALETTE = {
     95:  (0, 207, 117),
     100: (250, 230, 160),
 }
+
+# shelter_categories.py deliberately reuses the grassland colours for sheltered
+# cropland too (30-39/40-49 look identical in the tif output, by design) - but
+# that makes grassland-vs-cropland charts hard to tell apart, so for charts
+# only, rebuild the same tree-blend using a pink cropland base colour instead.
+CROPLAND_BASE = (240, 150, 255)  # matches the cropland colour in SHELTER_PALETTE
+CROPLAND_PALETTE = dict(shelter_categories_cmap)
+CROPLAND_PALETTE[40] = CROPLAND_BASE
+for _digit in range(2, 10):
+    CROPLAND_PALETTE[40 + _digit] = _blend_rgb(
+        CROPLAND_BASE, linear_categories_cmap[10 + _digit], _tree_blend_amount)
 
 
 def parse_value_range(value_range):
@@ -158,23 +173,39 @@ def category_area_summary(input_dir, suffix, value_range, zone=ALL_ZONE,
 def plot_category_bars(input_dir, suffix, value_range, zone=ALL_ZONE,
                         methods=None, legend=GEE_legend,
                         pixel_size_m=PIXEL_SIZE_M, order_by="default",
-                        palette=SHELTER_PALETTE, title=None, output_png=None):
+                        category_order=None, palette=SHELTER_PALETTE,
+                        title=None, output_png=None, ax=None,
+                        value_fontsize=8):
     """Bar chart of hectares by category, coloured per SHELTER_PALETTE.
 
     Bar height is the 'default' method's hectares; asymmetric error bars
     span the 'less'/'more' methods (whichever is lower/higher), so they
     read as an uncertainty range around the default estimate. Requires
     'default', 'less', and 'more' columns/methods to be present.
+
+    category_order : optional explicit list of category labels (rows), used
+        instead of `order_by` sorting — e.g. to keep the same row order
+        across several panels of a grid (see plot_category_grid()).
+    ax : optional matplotlib Axes to draw into (e.g. one panel of a grid).
+        If omitted, a new standalone figure is created (and saved to
+        `output_png`, if given).
     """
     hectares = _numeric_table(input_dir, suffix, value_range, zone, methods,
-                              legend, pixel_size_m, "hectares", order_by)
+                              legend, pixel_size_m, "hectares",
+                              order_by=None if category_order else order_by)
+    if category_order is not None:
+        hectares = hectares.reindex(category_order).fillna(0.0)
     required = {"default", "less", "more"}
     if not required.issubset(hectares.columns):
         raise ValueError(f"Plotting needs {sorted(required)} columns/methods, "
                          f"got {list(hectares.columns)}")
 
     values = parse_value_range(value_range)
-    label_to_value = {legend.get(v, str(v)): v for v in values}
+    # Some codes share a label (e.g. 30/31 both 'Unsheltered Grassland', 31
+    # being a legacy code) - keep the first (smallest/canonical) value's colour.
+    label_to_value = {}
+    for v in values:
+        label_to_value.setdefault(legend.get(v, str(v)), v)
     colors = [tuple(c / 255 for c in palette.get(label_to_value.get(cat), (127, 127, 127)))
               for cat in hectares.index]
 
@@ -184,19 +215,152 @@ def plot_category_bars(input_dir, suffix, value_range, zone=ALL_ZONE,
     err_low = (default - lower).clip(lower=0)
     err_high = (upper - default).clip(lower=0)
 
-    fig, ax = plt.subplots(figsize=(max(6, 0.9 * len(default)), 6))
+    region = "Australia" if zone == ALL_ZONE else zone
+    title = title or f"Tree Categories - {region}"
+
+    standalone = ax is None
+    if standalone:
+        # Widen the figure for long titles so they don't get clipped by the canvas.
+        width = max(6, 0.9 * len(default), 0.11 * len(title))
+        fig, ax = plt.subplots(figsize=(width, 6))
+    else:
+        fig = ax.figure
+
     ax.bar(hectares.index, default, color=colors, edgecolor="black", linewidth=0.5,
            yerr=[err_low, err_high], capsize=4, ecolor="black")
     ax.set_ylabel("Hectares")
-    ax.set_title(title or f"Tree Categories - Australia 4km ag zones")
+    ax.set_title(title)
     ax.yaxis.set_major_formatter(lambda y, _: f"{y:,.0f}")
     plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
 
     label_pad = default.max() * 0.02
     for x, (val, top) in enumerate(zip(default, default + err_high)):
-        ax.text(x, top + label_pad, f"{val:,.0f}", ha="center", va="bottom", fontsize=8)
+        ax.text(x, top + label_pad, f"{val:,.0f}", ha="center", va="bottom",
+                fontsize=value_fontsize)
     ax.margins(y=0.12)
 
+    if standalone:
+        fig.tight_layout()
+        if output_png:
+            os.makedirs(os.path.dirname(os.path.abspath(output_png)), exist_ok=True)
+            fig.savefig(output_png, dpi=150)
+            print(f"Saved: {output_png}", flush=True)
+    return fig
+
+
+def plot_category_grid(input_dir, suffix, value_range, layout, order_by="default",
+                       legend=GEE_legend, pixel_size_m=PIXEL_SIZE_M,
+                       palette=SHELTER_PALETTE, suptitle=None, output_png=None):
+    """Grid of per-zone bar charts (see plot_category_bars), one panel per
+    zone, all sharing the same category row order.
+
+    layout : list of rows, each a list of zone names, e.g.
+        [["Western Australia", "Northern Territory", "Queensland", "New South Wales"],
+         ["South Australia", "Victoria", "Tasmania", "Australian Capital Territory"]]
+        Blank cells (row shorter than the widest row) are left empty.
+    order_by : method column used to rank categories for the shared row
+        order, computed once across the whole-dataset ALL zone.
+    """
+    category_order = list(_numeric_table(
+        input_dir, suffix, value_range, ALL_ZONE, None, legend, pixel_size_m,
+        "hectares", order_by).index)
+
+    nrows = len(layout)
+    ncols = max(len(row) for row in layout)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4.5, nrows * 5), squeeze=False)
+
+    for r, row_zones in enumerate(layout):
+        for c in range(ncols):
+            ax = axes[r][c]
+            if c >= len(row_zones):
+                ax.axis("off")
+                continue
+            plot_category_bars(input_dir, suffix, value_range, zone=row_zones[c],
+                               legend=legend, pixel_size_m=pixel_size_m,
+                               category_order=category_order, palette=palette,
+                               title=row_zones[c], ax=ax, value_fontsize=7)
+
+    fig.suptitle(suptitle or "Tree Categories by State", fontsize=16)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+
+    if output_png:
+        os.makedirs(os.path.dirname(os.path.abspath(output_png)), exist_ok=True)
+        fig.savefig(output_png, dpi=150)
+        print(f"Saved: {output_png}", flush=True)
+    return fig
+
+
+def plot_category_panels(panels, suptitle=None, output_png=None):
+    """Stack several independent plot_category_bars() panels in one figure,
+    one per row - e.g. grassland above cropland, each with its own suffix,
+    value_range, category_order and palette.
+
+    panels : list of kwarg-dicts for plot_category_bars() (everything except
+        `ax`), one per row.
+    """
+    fig, axes = plt.subplots(len(panels), 1, figsize=(9, 5 * len(panels)), squeeze=False)
+    for ax, panel_kwargs in zip(axes[:, 0], panels):
+        plot_category_bars(**panel_kwargs, ax=ax)
+
+    if suptitle:
+        fig.suptitle(suptitle, fontsize=16)
+    fig.tight_layout(rect=(0, 0, 1, 0.96) if suptitle else (0, 0, 1, 1))
+
+    if output_png:
+        os.makedirs(os.path.dirname(os.path.abspath(output_png)), exist_ok=True)
+        fig.savefig(output_png, dpi=150)
+        print(f"Saved: {output_png}", flush=True)
+    return fig
+
+
+def category_totals(input_dir, suffix, value_range, zone=ALL_ZONE, methods=None,
+                    legend=GEE_legend, pixel_size_m=PIXEL_SIZE_M):
+    """Sum hectares across every category in `value_range`, per method.
+
+    Returns a Series indexed by method (e.g. 'default'/'less'/'more').
+    """
+    table = _numeric_table(input_dir, suffix, value_range, zone, methods,
+                           legend, pixel_size_m, "hectares", order_by=None)
+    return table.sum(axis=0)
+
+
+def plot_totals_bars(bars, title=None, output_png=None, value_fontsize=9):
+    """Single-panel bar chart comparing totals from different (possibly
+    unrelated) category_totals() calls - e.g. unsheltered vs. sheltered
+    totals for grassland and cropland side by side, on one shared scale.
+
+    bars : list of dicts, each with:
+        label       : bar's x-axis label.
+        color       : (r, g, b), 0-255.
+        input_dir, suffix, value_range : passed to category_totals().
+        zone, methods : optional, passed to category_totals().
+    """
+    labels, defaults, err_low, err_high, colors = [], [], [], [], []
+    for b in bars:
+        totals = category_totals(b["input_dir"], b["suffix"], b["value_range"],
+                                 zone=b.get("zone", ALL_ZONE), methods=b.get("methods"))
+        default = float(totals["default"])
+        lower = min(totals["less"], totals["more"])
+        upper = max(totals["less"], totals["more"])
+        labels.append(b["label"])
+        defaults.append(default)
+        err_low.append(max(default - lower, 0))
+        err_high.append(max(upper - default, 0))
+        colors.append(tuple(c / 255 for c in b["color"]))
+
+    fig, ax = plt.subplots(figsize=(max(6, 1.3 * len(bars)), 6))
+    ax.bar(labels, defaults, color=colors, edgecolor="black", linewidth=0.5,
+           yerr=[err_low, err_high], capsize=4, ecolor="black")
+    ax.set_ylabel("Hectares")
+    ax.set_title(title or "Category totals")
+    ax.yaxis.set_major_formatter(lambda y, _: f"{y:,.0f}")
+    plt.setp(ax.get_xticklabels(), rotation=20, ha="right")
+
+    label_pad = max(defaults) * 0.02
+    for x, (val, top) in enumerate(zip(defaults, [d + e for d, e in zip(defaults, err_high)])):
+        ax.text(x, top + label_pad, f"{val:,.0f}", ha="center", va="bottom",
+                fontsize=value_fontsize)
+    ax.margins(y=0.12)
     fig.tight_layout()
 
     if output_png:
@@ -207,7 +371,7 @@ def plot_category_bars(input_dir, suffix, value_range, zone=ALL_ZONE,
 
 
 def run(input_dir, suffix, value_range, zone=ALL_ZONE, output_csv=None,
-        units="hectares", order_by="default", output_png=None):
+        units="hectares", order_by="default", output_png=None, title=None):
     table = category_area_summary(input_dir, suffix, value_range, zone=zone,
                                    units=units, order_by=order_by)
     print(table.to_string(), flush=True)
@@ -219,7 +383,7 @@ def run(input_dir, suffix, value_range, zone=ALL_ZONE, output_csv=None,
 
     if output_png:
         plot_category_bars(input_dir, suffix, value_range, zone=zone,
-                           order_by=order_by, output_png=output_png)
+                           order_by=order_by, output_png=output_png, title=title)
     return table
 
 
@@ -251,8 +415,12 @@ if __name__ == "__main__":
                         help="If given, also save a bar chart (hectares, "
                             "coloured per SHELTER_PALETTE, with less/more "
                             "as error bars around the default method).")
+    parser.add_argument("--title", default=None,
+                        help="Bar chart title. Defaults to "
+                            "'Tree Categories - <zone>' "
+                            "('Australia' when --zone is ALL).")
     args = parser.parse_args()
 
     run(args.input_dir, args.suffix, args.value_range, zone=args.zone,
         output_csv=args.output_csv, units=args.units, order_by=args.order_by,
-        output_png=args.output_png)
+        output_png=args.output_png, title=args.title)
