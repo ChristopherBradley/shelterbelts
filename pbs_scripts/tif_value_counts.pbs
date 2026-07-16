@@ -1,0 +1,51 @@
+#!/bin/bash
+#PBS -N tif_value_counts
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+
+# Count the number of pixels of each value (0-100, nodata 255) across a set of
+# uint8 GeoTIFFs, like a pd.value_counts aggregated over many rasters.
+#
+# One cheap serial job handles the whole folder: streaming + chunked reads keep
+# peak memory ~700MB and total runtime ~10 min for all 148 tifs, so 1 cpu / 4GB
+# is the minimum-SU configuration (~0.4 SU total on the normal queue). Splitting
+# into 148 jobs would cost MORE SU (per-job python/conda startup dominates the
+# ~4s of real work per tif) and clutter the queue, so a single job is used.
+#
+# Override at submit time, e.g. for per-zone counts:
+#   qsub -v zones_file=<gpkg>,zone_col=<col>,output_csv=<csv> tif_value_counts.pbs
+# Leave zones_file empty for global counts only.
+
+tif_folder=${tif_folder:-/g/data/xe2/cb8590/shelterbelt_outputs/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazing_no_bwh}
+suffix=${suffix:-default_windmethod_merged_y2020_predicted_expanded20_linear_categories.tif}
+output_csv=${output_csv:-/scratch/xe2/cb8590/tif_value_counts/default_windmethod_value_counts.csv}
+zones_file=${zones_file:-}
+zone_col=${zone_col:-}
+
+echo "Starting tif_value_counts.pbs"
+echo "  tif_folder = $tif_folder"
+echo "  suffix     = $suffix"
+echo "  zones_file = $zones_file"
+echo "  zone_col   = $zone_col"
+echo "  output_csv = $output_csv"
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+cd /home/147/cb8590/Projects/shelterbelts2/analysis
+
+zone_args=""
+if [ -n "$zones_file" ]; then
+    zone_args="--zones_file $zones_file --zone_col $zone_col"
+fi
+
+python tif_value_counts.py \
+    --tif_folder "$tif_folder" \
+    --suffix "$suffix" \
+    --output_csv "$output_csv" \
+    $zone_args

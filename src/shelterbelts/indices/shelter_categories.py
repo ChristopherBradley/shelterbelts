@@ -31,23 +31,24 @@ for _digit, _name in _tree_source_labels.items():
     _cropland_labels[40 + _digit] = f'Cropland sheltered by {_name}'
 
 
-def _interp_cmap(start_rgb, end_rgb, codes):
-    """Linearly interpolate an RGB gradient across a list of integer codes."""
-    n = len(codes)
-    cmap = {}
-    for i, code in enumerate(codes):
-        t = i / (n - 1) if n > 1 else 0.0
-        cmap[code] = tuple(int(round(s + (e - s) * t)) for s, e in zip(start_rgb, end_rgb))
-    return cmap
+def _blend_rgb(rgb_a, rgb_b, t):
+    """Linearly interpolate between two RGB colours; t=0 -> rgb_a, t=1 -> rgb_b."""
+    return tuple(int(round(a + (b - a) * t)) for a, b in zip(rgb_a, rgb_b))
 
 
-# Yellow/olive gradient for grassland shelter, pink/purple gradient for cropland shelter
-_grassland_cmap = _interp_cmap((255, 255, 153), (102, 102, 0), list(range(30, 40)))
-_cropland_cmap = _interp_cmap((255, 204, 229), (102, 0, 102), list(range(40, 50)))
-_grassland_cmap[30] = (255, 255, 76)   # worldcover grassland base colour
-_cropland_cmap[40] = (240, 150, 255)   # worldcover cropland base colour
-_grassland_cmap[31] = (0, 0, 0)        # legacy 'Unsheltered Grassland' from the old version
-_cropland_cmap[41] = (0, 0, 0)         # legacy 'Unsheltered Cropland' from the old version
+# Blend the sheltered colour towards the actual sheltering tree's colour
+_tree_blend_amount = 0.6  # 0 = pure farmland colour, 1 = pure tree colour
+_grassland_base = (255, 255, 76)  # worldcover grassland base colour
+_sheltered_by_digit = {
+    _digit: _blend_rgb(_grassland_base, linear_categories_cmap[10 + _digit], _tree_blend_amount)
+    for _digit in range(2, 10)
+}
+
+_grassland_cmap = {30: _grassland_base, 31: (0, 0, 0)}  # 31 is the legacy 'Unsheltered Grassland' code
+_cropland_cmap = {40: _grassland_base, 41: (0, 0, 0)}   # 41 is the legacy 'Unsheltered Cropland' code
+for _digit, _colour in _sheltered_by_digit.items():
+    _grassland_cmap[30 + _digit] = _colour
+    _cropland_cmap[40 + _digit] = _colour
 
 shelter_categories_labels = linear_categories_labels | _grassland_labels | _cropland_labels
 shelter_categories_cmap = linear_categories_cmap | _grassland_cmap | _cropland_cmap
