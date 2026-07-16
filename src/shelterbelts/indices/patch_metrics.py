@@ -495,10 +495,6 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
 def combine_patch_metrics_csvs(folder, output_csv=None, suffix='_patch_metrics.csv'):
     """Concatenate all per-tile ``*_patch_metrics.csv`` files in a folder into one CSV.
 
-    Each row keeps a ``tile`` column identifying the source tile (the filename minus ``suffix``),
-    so the per-patch metrics remain traceable after the per-tile CSVs are deleted. Used when
-    merging an indices output folder down to just the merged tifs + one combined metrics CSV.
-
     Parameters
     ----------
     folder : str
