@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N indices_eval
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=4GB
+#PBS -P xe2
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/xe2+gdata/ob53+scratch/xe2
+#PBS -q normal
+#PBS -j oe
+
+# Run the shelterbelt indices pipeline (e1/e2/e3/windmethod) on one chunk of
+# eval ground-truth percentcover tiles. Parametrised via qsub -v:
+#   chunk_csv   : CSV with a 'stub' column
+#   gt_dir      : folder of {stub}_percentcover.tif
+#   out_base    : output base (writes e1/ e2/ e3/ windmethod/ subdirs)
+#   cover_threshold (default 10)
+
+cover_threshold=${cover_threshold:-10}
+tmpdir=${tmpdir:-$PBS_JOBFS/indices_work}
+
+echo "indices_eval.pbs  chunk=$chunk_csv  gt_dir=$gt_dir  out_base=$out_base  ct=$cover_threshold"
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+cd /home/147/cb8590/Projects/shelterbelts2/analysis
+
+python indices_batch_run.py "$chunk_csv" \
+    --gt_dir "$gt_dir" \
+    --out_base "$out_base" \
+    --tmpdir "$tmpdir" \
+    --cover_threshold "$cover_threshold"
