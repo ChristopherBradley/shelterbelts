@@ -1,5 +1,7 @@
 import os
+import glob
 import argparse
+from pathlib import Path
 
 # +
 import numpy as np
@@ -402,10 +404,10 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     else:
         da = buffer_data
 
-    # Pixel-wise majority filter to cleanup straggler pixels. Changes the da directly.
+    # Pixel-wise majority filter to cleanup straggler pixels.
     da_filtered = pixel_majority_filter(da)
 
-    # Crop the output if it was expanded before the pipeline started
+    # Now that we've rearranged the pipeline, we should probably be doing the cropping after the shelter_categories.py instead of here...
     if crop_pixels is not None and crop_pixels != 0:
         da_filtered = da_filtered.isel(
             x=slice(crop_pixels, -crop_pixels),
@@ -514,6 +516,44 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
         visualise_categories(da_linear, filename, linear_categories_cmap, linear_categories_labels, "Linear Categories")
 
     return ds, df_patch_metrics
+
+
+def combine_patch_metrics_csvs(folder, output_csv=None, suffix='_patch_metrics.csv'):
+    """Concatenate all per-tile ``*_patch_metrics.csv`` files in a folder into one CSV.
+
+    Parameters
+    ----------
+    folder : str
+        Directory containing the per-tile patch-metrics CSVs.
+    output_csv : str, optional
+        Where to write the combined CSV. Defaults to ``<folder>/<folder_stem>{suffix}`` (which
+        does not itself end in a per-tile stem, so it won't be re-globbed on a second run).
+    suffix : str, optional
+        Filename suffix identifying the per-tile CSVs (default ``_patch_metrics.csv``).
+
+    Returns
+    -------
+    str or None
+        Path to the combined CSV, or None if no matching per-tile CSVs were found.
+    """
+    if output_csv is None:
+        output_csv = os.path.join(folder, f"{Path(folder).stem}{suffix}")
+
+    files = sorted(f for f in glob.glob(os.path.join(folder, f'*{suffix}'))
+                   if os.path.abspath(f) != os.path.abspath(output_csv))
+    if not files:
+        print(f"No '*{suffix}' files found in {folder}")
+        return None
+
+    dfs = []
+    for f in files:
+        df = pd.read_csv(f)
+        df.insert(0, 'tile', Path(f).name[:-len(suffix)])
+        dfs.append(df)
+    df_all = pd.concat(dfs, ignore_index=True)
+    df_all.to_csv(output_csv, index=False)
+    print(f"Combined {len(files)} CSVs ({len(df_all)} rows) -> {output_csv}")
+    return output_csv
 
 
 def parse_arguments():

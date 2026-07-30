@@ -291,9 +291,6 @@ def indices_tif(percent_tif, outdir=".",
     ds_cover = cover_categories(ds_tree_categories, da_worldcover, outdir=outdir, stub=stub, savetif=debug, plot=debug)
     ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=debug, plot=debug)
     ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, save_gpkg=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
-
-    # Determine sheltered farmland and (for wind methods) the type of tree providing the shelter.
-    # Runs last, on the full tree classification. wind_method=None falls back to the density method.
     ds_shelter = shelter_categories(ds_linear, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug)
 
     if opportunities:
@@ -486,7 +483,7 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
                       wind_method=None, wind_threshold=20,
                       cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif',
+                      crop_pixels=0, limit=None, tiles_per_csv=1000, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif',
                       opportunities=False,
                       debug=False):
     """

@@ -1,14 +1,15 @@
 import os
 import argparse
 
-import osmnx as ox
 import geopandas as gpd
 import rioxarray as rxr
 from shapely.geometry import box
 from rasterio.features import rasterize
-from osmnx._errors import InsufficientResponseError
 
 from shelterbelts.utils.visualisation import tif_categorical
+
+# osmnx is only needed for the OpenStreetMap roads fallback (outside Australia / no roads GDB).
+# It's a heavy import (~16s), so load it lazily inside osm_roads() rather than at module import.
 
 roads_cmap = {
     0: (255, 255, 255),
@@ -54,6 +55,8 @@ def osm_roads(geotif_or_da, outdir=".", stub="TEST", savetif=True, save_gpkg=Tru
     bbox_gdf = bbox_gdf.to_crs("EPSG:4326")
     bbox_list = list(bbox_gdf.total_bounds)
 
+    import osmnx as ox
+    from osmnx._errors import InsufficientResponseError
     try:
         roads = ox.features_from_bbox(bbox_list, {"highway": highway_types})
     except InsufficientResponseError:
