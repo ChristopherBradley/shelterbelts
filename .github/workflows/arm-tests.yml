@@ -1,8 +1,8 @@
 name: ARM Tests (experiment)
 
-# Apple Silicon only, so a run takes a couple of minutes instead of waiting on
-# every other operating system. Temporary - for working out why pdal and
-# tensorflow segfault when imported into the same process on macos-latest.
+# Apple Silicon only, so a run takes a few minutes instead of waiting on every
+# other operating system. Temporary, for working out why pdal and tensorflow
+# segfault when imported into the same process on macos-latest.
 
 # Runs on every push to this branch: workflow_dispatch would only be dispatchable
 # once the file reaches the default branch, which it should not until it works.
@@ -11,53 +11,15 @@ on:
     branches:
       - claude
 
+# A new push supersedes whatever is still running for this branch.
+concurrency:
+  group: arm-tests
+  cancel-in-progress: true
+
 jobs:
-  # Baseline: the environment as it stands today, with tensorflow coming from a
-  # pip wheel. Records which C++ runtime each library links against and which
-  # import orders survive, without pytest in the way.
-  diagnose-pip-tensorflow:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up conda environment
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          environment-file: environment.yml
-          activate-environment: shelterbelts
-          miniforge-version: latest
-
-      - name: C++ runtime linkage
-        shell: bash -l {0}
-        run: |
-          SP=$(python -c "import site; print(site.getsitepackages()[0])")
-          echo "--- tensorflow build ---"
-          python -c "import tensorflow as tf; print(tf.__version__, tf.__file__)" 2>/dev/null || echo "(import failed)"
-          echo "--- pdal python extension ---"
-          otool -L "$SP"/pdal/libpdalpython*.so | grep -iE "c\+\+" || echo "(none)"
-          echo "--- libpdalcpp ---"
-          otool -L "$CONDA_PREFIX"/lib/libpdalcpp.dylib | grep -iE "c\+\+" || echo "(none)"
-          echo "--- libtensorflow_cc ---"
-          otool -L "$SP"/tensorflow/libtensorflow_cc.2.dylib | grep -iE "c\+\+" || echo "(none)"
-          echo "--- libc++ shipped in the env ---"
-          ls -la "$CONDA_PREFIX"/lib/libc++* 2>/dev/null || echo "(none - env uses the system libc++)"
-
-      - name: Import order matrix
-        shell: bash -l {0}
-        run: |
-          probe () {
-            python -c "$1" >/dev/null 2>&1
-            echo "exit=$?  <-  $1"
-          }
-          probe "import pdal"
-          probe "import tensorflow"
-          probe "import pdal, tensorflow"
-          probe "import tensorflow, pdal"
-
-  # Candidate fix: take tensorflow from conda-forge instead of pip, so it is
-  # built against the same C++ runtime as pdal and everything else in the env.
   conda-tensorflow:
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -79,30 +41,33 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      - name: C++ runtime linkage
-        shell: bash -l {0}
-        run: |
-          SP=$(python -c "import site; print(site.getsitepackages()[0])")
-          echo "--- tensorflow build (expect a conda-forge version, not a pip wheel) ---"
-          python -c "import tensorflow as tf; print(tf.__version__, tf.__file__)" 2>/dev/null || echo "(import failed)"
-          conda list tensorflow
-          echo "--- pdal python extension ---"
-          otool -L "$SP"/pdal/libpdalpython*.so | grep -iE "c\+\+" || echo "(none)"
-          echo "--- libtensorflow_cc ---"
-          otool -L "$SP"/tensorflow/libtensorflow_cc*.dylib 2>/dev/null | grep -iE "c\+\+" || echo "(no bundled libtensorflow_cc)"
-
+      # Cheap regression check on the actual cause: pdal links conda-forge's
+      # libc++ and the tensorflow pip wheel links the system one, so whichever
+      # loaded second used to segfault. Both orders should survive now that
+      # tensorflow comes from conda-forge and shares pdal's C++ runtime.
       - name: Import order matrix
         shell: bash -l {0}
+        timeout-minutes: 5
         run: |
+          SP=$(python -c "import site; print(site.getsitepackages()[0])")
+          python -c "import tensorflow as tf; print('tensorflow', tf.__version__)"
+          otool -L "$SP"/pdal/libpdalpython*.so | grep -iE "c\+\+" || true
           probe () {
             python -c "$1" >/dev/null 2>&1
             echo "exit=$?  <-  $1"
           }
-          probe "import pdal"
-          probe "import tensorflow"
           probe "import pdal, tensorflow"
           probe "import tensorflow, pdal"
 
-      - name: Run pytest
+      # Split so a slow network test cannot hide a slow classification test.
+      # --durations names the offenders, which in-progress logs will not show.
+      - name: pytest (no network)
         shell: bash -l {0}
-        run: pytest tests/
+        timeout-minutes: 20
+        run: pytest tests/ --ignore=tests/test_apis -v --durations=0
+
+      - name: pytest (apis, network bound)
+        if: always()
+        shell: bash -l {0}
+        timeout-minutes: 20
+        run: pytest tests/test_apis -v --durations=0
