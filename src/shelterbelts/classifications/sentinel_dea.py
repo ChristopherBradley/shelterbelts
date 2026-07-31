@@ -52,7 +52,7 @@ def download_ds2(tif, start_date="2020-01-01", end_date="2021-01-01", outdir="."
     da = rxr.open_rasterio(tif).isel(band=0).drop_vars('band')
     da_4326 = da.rio.reproject('EPSG:4326')
     bbox = da_4326.rio.bounds()
-    stub = tif.split('/')[-1].split('.')[0]
+    stub = os.path.basename(tif).split('.')[0]
     return download_ds2_bbox(bbox, start_date, end_date, outdir, stub, save)
 
 

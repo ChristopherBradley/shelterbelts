@@ -247,7 +247,7 @@ def indices_tif(percent_tif, outdir=".",
     """
     if stub is None:
         # stub = "_".join(percent_tif.split('/')[-1].split('.')[0].split('_')[:2])  # e.g. 'Junee201502-PHO3-C0-AHD_5906174'
-        stub = percent_tif.split('/')[-1].split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
+        stub = os.path.basename(percent_tif).split('.')[0][:50] # Hopefully there's something unique in the first 50 characters
     # Extract data_folder from ELVIS filenaming system, or use a generic stub if not found
     data_folder_idx = percent_tif.find('DATA')
     if data_folder_idx != -1:

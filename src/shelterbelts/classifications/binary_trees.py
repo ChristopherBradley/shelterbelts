@@ -77,7 +77,7 @@ def worldcover_trees(input_data, outdir=".", stub=None, savetif=True, plot=True)
     if isinstance(input_data, str):
         da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
         if stub is None:
-            stub = input_data.split('/')[-1].split('.')[0]
+            stub = os.path.basename(input_data).split('.')[0]
     else:
         da = input_data
         if stub is None:
@@ -158,7 +158,7 @@ def canopy_height_trees(input_data, outdir=".", stub=None, savetif=True, plot=Tr
     if isinstance(input_data, str):
         da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
         if stub is None:
-            stub = input_data.split('/')[-1].split('.')[0]
+            stub = os.path.basename(input_data).split('.')[0]
     else:
         da = input_data
         if stub is None:

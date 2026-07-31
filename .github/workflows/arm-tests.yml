@@ -1,8 +1,8 @@
 name: ARM Tests (experiment)
 
 # Apple Silicon only, so a run takes a few minutes instead of waiting on every
-# other operating system. Temporary, for working out why pdal and tensorflow
-# segfault when imported into the same process on macos-latest.
+# other operating system. Temporary, for working out why the tensorflow tests
+# hang on macos-latest once the pdal/tensorflow segfault is out of the way.
 
 # Runs on every push to this branch: workflow_dispatch would only be dispatchable
 # once the file reaches the default branch, which it should not until it works.
@@ -11,7 +11,6 @@ on:
     branches:
       - claude
 
-# A new push supersedes whatever is still running for this branch.
 concurrency:
   group: arm-tests
   cancel-in-progress: true
@@ -19,20 +18,14 @@ concurrency:
 jobs:
   conda-tensorflow:
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
-      - name: Add tensorflow to the conda dependencies
-        run: |
-          python3 - <<'PY'
-          import pathlib
-          p = pathlib.Path("environment.yml")
-          t = p.read_text()
-          assert "\n  - pip\n" in t, t
-          p.write_text(t.replace("\n  - pip\n", "\n  - tensorflow\n  - pip\n"))
-          print(p.read_text())
-          PY
+      # environment.yml now pulls tensorflow from conda-forge itself, so there is
+      # nothing to patch here any more - just record what is being solved.
+      - name: Show environment.yml
+        run: cat environment.yml
 
       - name: Set up conda environment
         uses: conda-incubator/setup-miniconda@v3
@@ -41,33 +34,59 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      # Cheap regression check on the actual cause: pdal links conda-forge's
-      # libc++ and the tensorflow pip wheel links the system one, so whichever
-      # loaded second used to segfault. Both orders should survive now that
-      # tensorflow comes from conda-forge and shares pdal's C++ runtime.
-      - name: Import order matrix
+      # Is stock tensorflow slow here, or is it something this repo does with it?
+      # dump_traceback_later prints every thread's stack if a step wedges, which is
+      # the only way to see inside a hang - GitHub withholds in-progress logs.
+      - name: Stock tensorflow timings
         shell: bash -l {0}
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
-          SP=$(python -c "import site; print(site.getsitepackages()[0])")
-          python -c "import tensorflow as tf; print('tensorflow', tf.__version__)"
-          otool -L "$SP"/pdal/libpdalpython*.so | grep -iE "c\+\+" || true
-          probe () {
-            python -c "$1" >/dev/null 2>&1
-            echo "exit=$?  <-  $1"
-          }
-          probe "import pdal, tensorflow"
-          probe "import tensorflow, pdal"
+          python - <<'PY'
+          import faulthandler, time
+          faulthandler.dump_traceback_later(240, exit=True)
+          t = time.time(); import tensorflow as tf; print(f"import tensorflow: {time.time()-t:.1f}s", flush=True)
+          t = time.time(); from tensorflow import keras; print(f"import keras: {time.time()-t:.1f}s", flush=True)
+          import numpy as np
+          t = time.time()
+          m = keras.Sequential([keras.layers.Dense(8, activation="relu"), keras.layers.Dense(2)])
+          m.compile(optimizer="adam", loss="mse")
+          print(f"build+compile: {time.time()-t:.1f}s", flush=True)
+          x = np.random.rand(256, 4).astype("float32"); y = np.random.rand(256, 2).astype("float32")
+          t = time.time(); m.fit(x, y, epochs=1, verbose=0); print(f"fit 1 epoch: {time.time()-t:.1f}s", flush=True)
+          t = time.time(); m.predict(x, verbose=0); print(f"predict: {time.time()-t:.1f}s", flush=True)
+          PY
 
-      # Split so a slow network test cannot hide a slow classification test.
-      # --durations names the offenders, which in-progress logs will not show.
-      - name: pytest (no network)
+      # Same again but through this repo's code path, including the pretrained
+      # model, and with pdal already imported the way a real test session has it.
+      - name: Repo model load timings
         shell: bash -l {0}
-        timeout-minutes: 20
-        run: pytest tests/ --ignore=tests/test_apis -v --durations=0
+        timeout-minutes: 10
+        run: |
+          python - <<'PY'
+          import faulthandler, time
+          faulthandler.dump_traceback_later(240, exit=True)
+          t = time.time(); import pdal; print(f"import pdal: {time.time()-t:.1f}s", flush=True)
+          from shelterbelts.utils.filepaths import get_pretrained_nn, get_pretrained_scaler, sentinel_sample
+          t = time.time()
+          from shelterbelts.classifications.predictions import _load_keras_model, tif_prediction_ds
+          print(f"import predictions: {time.time()-t:.1f}s", flush=True)
+          t = time.time(); model = _load_keras_model(get_pretrained_nn()); print(f"load_model: {time.time()-t:.1f}s", flush=True)
+          import joblib, pickle
+          scaler = joblib.load(get_pretrained_scaler())
+          with open(sentinel_sample, "rb") as f:
+              ds = pickle.load(f)
+          t = time.time()
+          tif_prediction_ds(ds, outdir=".", stub="timing", model=model, scaler=scaler, savetif=False)
+          print(f"tif_prediction_ds: {time.time()-t:.1f}s", flush=True)
+          PY
 
-      - name: pytest (apis, network bound)
+      # faulthandler_timeout makes pytest dump all thread stacks for any test that
+      # runs longer than this, naming the hang instead of just timing out silently.
+      - name: pytest (tensorflow tests only)
         if: always()
         shell: bash -l {0}
-        timeout-minutes: 20
-        run: pytest tests/test_apis -v --durations=0
+        timeout-minutes: 15
+        run: |
+          pytest tests/test_classifications/test_predictions.py \
+                 tests/test_classifications/test_training.py \
+                 -v --durations=0 -o faulthandler_timeout=180

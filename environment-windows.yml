@@ -1,0 +1,23 @@
+# Windows only - use environment.yml everywhere else.
+#
+# conda-forge has no win-64 build of tensorflow (it stops at 1.14), so tensorflow
+# is left to the pip wheel that pyproject.toml already asks for. That is safe here:
+# the C++ runtime clash environment.yml works around is macOS dyld behaviour, where
+# a process ends up with both the system libc++ and conda-forge's and the second
+# library to load binds against the wrong one. Windows resolves its runtime per-DLL,
+# and pip tensorflow alongside conda pdal passes the test suite there.
+name: shelterbelts
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pdal  # Used for lidar processing
+  - python-pdal
+  - pandoc    # Markdown to PDF conversion for the JOSS paper
+  - tectonic  # LaTeX engine for compiling the JOSS paper to PDF
+  - rasterio
+  - numba  # Install with conda (pulls a prebuilt llvmlite) so pip doesn't build from source (needs LLVM)
+  - pip
+  - pip:
+      - -e .[dev]

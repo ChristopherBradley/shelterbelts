@@ -10,6 +10,11 @@ dependencies:
   - tectonic  # LaTeX engine for compiling the JOSS paper to PDF
   - rasterio
   - numba  # Install with conda (pulls a prebuilt llvmlite) so pip doesn't build from source (needs LLVM)
+  # Must come from conda-forge rather than the pip wheel. The wheel links the system
+  # libc++ while python-pdal links conda-forge's, and on macOS the two C++ runtimes
+  # cannot share a process - whichever gets imported second segfaults. conda-forge
+  # has no Windows build of tensorflow, so Windows uses environment-windows.yml.
+  - tensorflow
   - pip
   - pip:
       - -e .[dev]
