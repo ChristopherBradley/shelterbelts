@@ -2,10 +2,6 @@ name: Tests
 
 on:
   workflow_dispatch:
-  # Temporary while the cross-platform setup is being proven on the claude branch.
-  push:
-    branches:
-      - claude
 
 jobs:
   pytest:

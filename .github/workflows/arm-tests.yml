@@ -29,12 +29,12 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      # model.predict() hangs in tf.data's iterator_get_next, but only in the code
-      # path that has already imported pdal - the same stock predict ran in 0.1s
-      # without it. These probes separate the two, and check whether calling the
-      # model directly (no tf.data involved) sidesteps it. Each runs in its own
-      # process and self-aborts after 90s, so one hang does not eat the whole job.
-      - name: Where does keras deadlock
+      # Established so far: with pdal imported, anything that goes through tf.data
+      # (predict, fit) deadlocks in iterator_get_next, while a direct eager call to
+      # the model returns instantly. Pinning tensorflow to one op thread did not
+      # help. These probes check whether import order or warming tf.data before
+      # pdal loads avoids it, which would beat rewriting the repo's predict/fit.
+      - name: Does import order or a warmup avoid the deadlock
         shell: bash -l {0}
         timeout-minutes: 20
         run: |
@@ -42,34 +42,56 @@ jobs:
           cat > "$RUNNER_TEMP/probe.py" <<'PY'
           import faulthandler, sys, time
           faulthandler.dump_traceback_later(60, exit=True)
-          mode = sys.argv[1]
-          if "pdal" in mode:
-              t = time.time(); import pdal; print(f"  imported pdal {time.time()-t:.1f}s", flush=True)
           import numpy as np
+          mode = sys.argv[1]
+
+          def load_pdal():
+              t = time.time(); import pdal
+              print(f"  imported pdal {time.time()-t:.1f}s", flush=True)
+
+          if mode == "pdal_first_train_on_batch":
+              load_pdal()
+
           import tensorflow as tf
           from tensorflow import keras
-          if "serial" in mode:
-              tf.config.threading.set_inter_op_parallelism_threads(1)
-              tf.config.threading.set_intra_op_parallelism_threads(1)
+
           m = keras.Sequential([keras.Input(shape=(4,)),
                                 keras.layers.Dense(8, activation="relu"),
                                 keras.layers.Dense(2)])
           m.compile(optimizer="adam", loss="mse")
           x = np.random.rand(20000, 4).astype("float32")
           y = np.random.rand(20000, 2).astype("float32")
-          if "fit" in mode:
-              t = time.time(); m.fit(x, y, epochs=1, verbose=0); print(f"  fit OK {time.time()-t:.1f}s", flush=True)
-          if "predict" in mode:
-              t = time.time(); m.predict(x, verbose=0); print(f"  predict OK {time.time()-t:.1f}s", flush=True)
-          if "direct" in mode:
-              t = time.time()
-              out = np.concatenate([m(x[i:i+8192], training=False).numpy()
-                                    for i in range(0, len(x), 8192)])
-              print(f"  direct call OK {time.time()-t:.1f}s shape={out.shape}", flush=True)
+
+          def timed(label, fn):
+              t = time.time(); fn(); print(f"  {label} OK {time.time()-t:.1f}s", flush=True)
+
+          if mode == "tf_first_predict":
+              load_pdal()
+              timed("predict", lambda: m.predict(x, verbose=0))
+          elif mode == "tf_warm_then_pdal_predict":
+              timed("warmup predict", lambda: m.predict(x, verbose=0))
+              load_pdal()
+              timed("predict after pdal", lambda: m.predict(x, verbose=0))
+          elif mode == "tf_first_fit":
+              load_pdal()
+              timed("fit", lambda: m.fit(x, y, epochs=1, verbose=0))
+          elif mode == "tf_warm_then_pdal_fit":
+              timed("warmup fit", lambda: m.fit(x, y, epochs=1, verbose=0))
+              load_pdal()
+              timed("fit after pdal", lambda: m.fit(x, y, epochs=1, verbose=0))
+          elif mode == "pdal_first_train_on_batch":
+              # train_on_batch takes numpy directly, so it never builds a tf.data pipeline
+              def loop():
+                  for i in range(0, len(x), 4096):
+                      m.train_on_batch(x[i:i+4096], y[i:i+4096])
+              timed("train_on_batch loop", loop)
+          else:
+              raise SystemExit(f"unknown mode {mode}")
           PY
-          for mode in pdal-direct pdal-fit pdal-predict-serial pdal-predict; do
+          for mode in tf_first_predict tf_warm_then_pdal_predict tf_first_fit \
+                      tf_warm_then_pdal_fit pdal_first_train_on_batch; do
             echo "=== $mode ==="
             python "$RUNNER_TEMP/probe.py" "$mode" > "$RUNNER_TEMP/$mode.log" 2>&1
             echo "  rc=$?"
-            grep -E "OK|Timeout|Error" "$RUNNER_TEMP/$mode.log" | head -4
+            grep -E "OK|Timeout|Error" "$RUNNER_TEMP/$mode.log" | head -5
           done
