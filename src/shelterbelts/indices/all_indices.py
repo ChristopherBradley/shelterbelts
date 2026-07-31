@@ -12,7 +12,6 @@ from shapely.geometry import box
 
 # Trying to avoid memory issues
 import gc
-import psutil
 import subprocess, sys
 
 from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize
@@ -39,8 +38,6 @@ from shelterbelts.utils.filepaths import (
     IS_GADI,
 )
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
-
-process = psutil.Process(os.getpid())
 
 
 def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, wind_method=None,
@@ -148,7 +145,7 @@ def indices_tif(percent_tif, outdir=".",
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
-                     opportunities=False,
+                     opportunities=False, height_tif=None, save_gpkg=False, save_patch_csv=False,
                      worldcover_data=None, gullies_data=None, roads_data=None,
                      debug=False):
     """
@@ -203,6 +200,13 @@ def indices_tif(percent_tif, outdir=".",
     opportunities : bool, optional
         Generate an opportunities tif showing tree and shelter opportunities near gullies and roads.
         Uses buffer_width as the buffer around roads/gullies for planting opportunities.
+    height_tif : str, optional
+        Path to a canopy-height GeoTIFF (metres). When provided, the distance_threshold uses a relative distance in tree heights,
+        rather than an absolute distance in pixels.
+    save_gpkg : bool, optional
+        Save the per-tile shelterbelt centrelines vector ``{stub}_centrelines.gpkg`` from patch_metrics.
+    save_patch_csv : bool, optional
+        Save the per-tile ``{stub}_patch_metrics.csv``.
     worldcover_data, gullies_data, roads_data : optional
         Pre-loaded WorldCover DataArray / gullies Dataset / roads Dataset to use instead of loading
         them from the Australian tile and GDB sources. Lets callers such as :func:`indices_latlon`
@@ -278,7 +282,7 @@ def indices_tif(percent_tif, outdir=".",
     else:
         gdf_roads, ds_roads = crop_and_rasterize(da_percent, roads_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, layer='NationalRoads_2025_09', feature_name='roads')
 
-    if wind_method and wind_method != "None":  # Handling conversion of None to "None" when using subprocess
+    if wind_method and wind_method not in ("None", "MULTI_LAYER"):  # Handling conversion of None to "None" when using subprocess. MULTI_LAYER computes all 8 directions itself and needs no wind data.
         lat = (bbox_4326[1] + bbox_4326[3])/2
         lon = (bbox_4326[0] + bbox_4326[2])/2
         ds_wind = barra_daily(lat=lat, lon=lon, start_year=2020, end_year=2020, gdata=IS_GADI, plot=False, save_netcdf=False) # This line is currently the limiting factor since it takes 4 secs
@@ -290,11 +294,8 @@ def indices_tif(percent_tif, outdir=".",
     ds_tree_categories = tree_categories(ds_woody_veg, outdir, stub, min_patch_size=min_patch_size, min_core_size=min_core_size, edge_size=edge_size, max_gap_size=max_gap_size, strict_core_area=strict_core_area, save_tif=debug, plot=debug)
     ds_cover = cover_categories(ds_tree_categories, da_worldcover, outdir=outdir, stub=stub, savetif=debug, plot=debug)
     ds_buffer = buffer_categories(ds_cover, ds_hydrolines, roads_data=ds_roads, outdir=outdir, stub=stub, buffer_width=buffer_width, savetif=debug, plot=debug)
-    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=debug, save_labels=False, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
-
-    # Determine sheltered farmland and (for wind methods) the type of tree providing the shelter.
-    # Runs last, on the full tree classification. wind_method=None falls back to the density method.
-    ds_shelter = shelter_categories(ds_linear, wind_data=ds_wind, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=debug, plot=debug)
+    ds_linear, df_patches = patch_metrics(ds_buffer, outdir, stub, plot=debug, save_csv=(save_patch_csv or debug), save_labels=False, save_gpkg=save_gpkg, crop_pixels=crop_pixels, min_shelterbelt_length=min_shelterbelt_length, max_shelterbelt_width=max_shelterbelt_width, min_patch_size=min_patch_size)
+    ds_shelter = shelter_categories(ds_linear, wind_data=ds_wind, height_tif=height_tif, wind_method=wind_method, wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold, outdir=outdir, stub=stub, savetif=True, plot=debug)
 
     if opportunities:
         # Reproject the layers onto the tree grid
@@ -324,7 +325,6 @@ def indices_tif(percent_tif, outdir=".",
         except Exception:
             pass
     gc.collect()
-    mem_info = process.memory_full_info()
     return ds_shelter, df_patches
 
 _AUSTRALIA_BOUNDS = (-44, 113, -10, 154)  # (lat_min, lon_min, lat_max, lon_max)
@@ -459,7 +459,7 @@ def indices_csv(csv, outdir=".",
                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
                      crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
-                     opportunities=False,
+                     opportunities=False, height_tif=None, save_gpkg=False, save_patch_csv=False,
                      debug=False):
     """
     Run the indices pipeline for every file listed in a CSV.
@@ -472,22 +472,38 @@ def indices_csv(csv, outdir=".",
     ----------
     csv : str
         Path to a CSV file containing a `filename` column with input TIFF paths.
+        An optional `height_tif` column may give a per-tile canopy-height GeoTIFF; when present
+        it overrides the height_tif argument for that row.
     Other parameters
         Passed through to :func:`indices_tif` (see that function for details).
 
     """
     df = pd.read_csv(csv)
-    for percent_tif in df['filename']:
-        # The provided stub needs to be None, because we want to use the percent_tif filename instead. 
-        indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, opportunities=opportunities, debug=debug)
+    has_height_col = 'height_tif' in df.columns
+    n_ok, n_fail = 0, 0
+    for row in df.itertuples(index=False):
+        percent_tif = row.filename
+        # Per-row height tif from the CSV takes precedence, otherwise fall back to the shared argument.
+        row_height_tif = getattr(row, 'height_tif', None) if has_height_col else height_tif
+        if isinstance(row_height_tif, float) and pd.isna(row_height_tif):
+            row_height_tif = None
+        # Isolate each tile so one degenerate tile doesn't abort the rest of the region's tiles.
+        try:
+            # The provided stub is None, so we can use the percent_tif filename instead.
+            indices_tif(percent_tif, outdir, tmpdir, None, wind_method, wind_threshold, cover_threshold, min_patch_size, edge_size, max_gap_size, distance_threshold, density_threshold, buffer_width, strict_core_area, crop_pixels, min_core_size, min_shelterbelt_length, max_shelterbelt_width, opportunities=opportunities, height_tif=row_height_tif, save_gpkg=save_gpkg, save_patch_csv=save_patch_csv, debug=debug)
+            n_ok += 1
+        except Exception as exc:
+            n_fail += 1
+            print(f"SKIPPED tile (error): {percent_tif}: {type(exc).__name__}: {exc}", flush=True)
+    print(f"indices_csv finished: {n_ok} ok, {n_fail} skipped", flush=True)
 
 
 def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
                       wind_method=None, wind_threshold=20,
                       cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
                       distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=100, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif',
-                      opportunities=False,
+                      crop_pixels=0, limit=None, tiles_per_csv=1000, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif',
+                      opportunities=False, height_dir=None, save_gpkg=False, save_patch_csv=False,
                       debug=False):
     """
     Run the indices pipeline over a folder of binary or integer tifs representing percentage tree cover.
@@ -504,6 +520,8 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
         Extra stub for csv filenames and downstream tifs.
     tiles_per_csv : int, optional
         Number of tiles grouped per subprocess CSV.
+    height_dir : str, optional
+        Directory of per-tile canopy-height tifs, named identically to the percent-cover tifs in ``folder``. 
     Other parameters
         Passed through to :func:`indices_tif` (see that function for details).
 
@@ -515,8 +533,8 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
     if limit:
         percent_tifs = percent_tifs[:limit]
 
-    if limit is None: # Don't remove tifs if we've specified a limit, because it's just for testing so I want reproducible results.
-        # Remove tifs that have already been processed (sometimes I have to run this multiple times if a process runs out of memory or rasterio gives a parallelisation conflict)
+    if limit is None: # Don't remove tifs if we've specified a limit because this argument is just used for testing when I want reproducible results.
+        # Remove tifs that have already been processed (sometimes I have to run the pipeline multiple times if jobs don't finish)
         processed = glob.glob(f'{outdir}/*.tif')
         processed_stems = [pathlib.Path(tif).stem for tif in processed]
         percent_tifs = [
@@ -526,6 +544,9 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
         print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])
+    if height_dir is not None:
+        # Match each percent tif to a same-named height tif so indices_csv can pass it per-row.
+        df["height_tif"] = [os.path.join(height_dir, os.path.basename(t)) for t in df["filename"]]
     csv_filenames = []
     chunk_size = tiles_per_csv
     for i in range(math.ceil(len(df) / chunk_size)):
@@ -565,6 +586,10 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
             cmd += ["--no-strict-core-area"]
         if opportunities:
             cmd += ["--opportunities"]
+        if save_gpkg:
+            cmd += ["--save_gpkg"]
+        if save_patch_csv:
+            cmd += ["--save_patch_csv"]
         if debug:
             cmd += ["--debug"]
     
@@ -596,7 +621,11 @@ def parse_arguments():
     parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="Minimum skeleton length (in pixels) to classify a cluster as linear")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="Maximum skeleton width (in pixels) to classify a cluster as linear")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
+    parser.add_argument("--height_tif", default=None, help="Canopy-height GeoTIFF (metres) for a single input tif; shelter distance is then measured in tree heights")
+    parser.add_argument("--height_dir", default=None, help="Directory of per-tile canopy-height GeoTIFFs (named identically to the input tifs) for folder mode")
     parser.add_argument('--opportunities', action='store_true', default=False, help='Also classify tree-planting opportunities near roads and gullies (default: False)')
+    parser.add_argument('--save_gpkg', action='store_true', default=False, help='Save per-tile shelterbelt centrelines GeoPackage from patch_metrics (default: False)')
+    parser.add_argument('--save_patch_csv', action='store_true', default=False, help='Save per-tile patch_metrics.csv so combine_patch_metrics_csvs can stamp the source tile (default: False)')
     parser.add_argument('--debug', action='store_true', default=False, help='Save intermediate TIFFs and plots for debugging (default: False)')
 
     return parser
@@ -626,6 +655,9 @@ if __name__ == "__main__":
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
             opportunities=args.opportunities,
+            height_tif=args.height_tif,
+            save_gpkg=args.save_gpkg,
+            save_patch_csv=args.save_patch_csv,
             debug=args.debug,
         )
     elif args.folder.endswith('.csv'):
@@ -649,6 +681,9 @@ if __name__ == "__main__":
             min_shelterbelt_length=args.min_shelterbelt_length,
             max_shelterbelt_width=args.max_shelterbelt_width,
             opportunities=args.opportunities,
+            height_tif=args.height_tif,
+            save_gpkg=args.save_gpkg,
+            save_patch_csv=args.save_patch_csv,
             debug=args.debug,
         )
     else:
@@ -674,5 +709,8 @@ if __name__ == "__main__":
             max_shelterbelt_width=args.max_shelterbelt_width,
             suffix=args.suffix,
             opportunities=args.opportunities,
+            height_dir=args.height_dir,
+            save_gpkg=args.save_gpkg,
+            save_patch_csv=args.save_patch_csv,
             debug=args.debug,
         )

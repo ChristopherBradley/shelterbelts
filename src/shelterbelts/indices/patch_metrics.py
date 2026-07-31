@@ -1,11 +1,15 @@
 import os
+import glob
 import argparse
+from pathlib import Path
 
 # +
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import rioxarray as rxr
 import xarray as xr
+from shapely.geometry import LineString
 from scipy import ndimage
 from skimage.morphology import skeletonize
 from skimage.measure import regionprops
@@ -182,6 +186,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
     dist_to_empty = ndimage.distance_transform_edt(~safe_empty_mask)
 
     results = []
+    paths = {}  # ordered skeleton centreline (row, col) per label, for vector output
     width_raster = np.zeros_like(tree_mask, dtype=float)
     props = regionprops(assigned_labels)
 
@@ -238,8 +243,10 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
             for r, c in path:
                 skel_new[r, c] = True
             skel = skel_new
+            if len(path) >= 2:
+                paths[lbl] = path
         except Exception:
-            # If pathfinding fails, keep original skeleton
+            # If pathfinding fails, keep original skeleton (and skip the vector centreline)
             pass
 
         shortest_path_raster[skel] = lbl
@@ -295,11 +302,11 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
 
     df = pd.DataFrame(results)
 
-    return df, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster
+    return df, paths, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster
 
 
 def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True, save_tif=True, save_labels=True,
-                  min_shelterbelt_length=15, max_shelterbelt_width=6, min_patch_size=20, crop_pixels=None):
+                  save_gpkg=True, min_shelterbelt_length=15, max_shelterbelt_width=6, min_patch_size=20, crop_pixels=None):
     """Calculate patch metrics and cleanup the tree pixel categories.
 
     Parameters
@@ -319,6 +326,8 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
         save_labels : bool, optional
             Whether to save label-related tif files (assigned_labels, ellipse_outline_raster,
             shortest_path_raster, perpendicular_raster, widths_raster).
+        save_gpkg : bool, optional
+            Whether to save a vector GeoPackage of the shelterbelt centrelines.
         min_shelterbelt_length : int, optional
             Minimum skeleton length (in pixels) to classify a cluster as linear.
         max_shelterbelt_width : int, optional
@@ -347,14 +356,15 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     - shortest_path_raster.tif: Skeleton path along each cluster
     - perpendicular_raster.tif: Perpendicular width measurements
     - shelterbelt_widths.tif: Width values at each skeleton pixel
+    - centrelines.gpkg: Vector centreline (LineString) per shelterbelt
 
     Examples
     --------
     Using file paths as input:
 
     >>> from shelterbelts.utils.filepaths import get_filename
-    >>> buffer_file = get_filename('g2_26729_buffer_categories.tif')
-    >>> ds, df = patch_metrics(buffer_file, outdir='/tmp', stub='test', plot=False, save_csv=False, save_tif=False)
+    >>> buffer_file = get_filename('g2_26729_gullies_and_roads_buffer_categories.tif')
+    >>> ds, df = patch_metrics(buffer_file, outdir='/tmp', stub='test', plot=False, save_csv=False, save_tif=False, save_gpkg=False)
     >>> 'linear_categories' in set(ds.data_vars)
     True
 
@@ -363,7 +373,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     >>> import rioxarray as rxr
     >>> da = rxr.open_rasterio(buffer_file).squeeze('band').drop_vars('band')
     >>> ds_buffer = da.to_dataset(name='buffer_categories')
-    >>> ds, df = patch_metrics(ds_buffer, outdir='/tmp', stub='test', plot=False, save_csv=False, save_tif=False)
+    >>> ds, df = patch_metrics(ds_buffer, outdir='/tmp', stub='test', plot=False, save_csv=False, save_tif=False, save_gpkg=False)
     >>> 'linear_categories' in set(ds.data_vars)
     True
 
@@ -394,10 +404,10 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     else:
         da = buffer_data
 
-    # Pixel-wise majority filter to cleanup straggler pixels. Changes the da directly.
+    # Pixel-wise majority filter to cleanup straggler pixels.
     da_filtered = pixel_majority_filter(da)
 
-    # Crop the output if it was expanded before the pipeline started
+    # Now that we've rearranged the pipeline, we should probably be doing the cropping after the shelter_categories.py instead of here...
     if crop_pixels is not None and crop_pixels != 0:
         da_filtered = da_filtered.isel(
             x=slice(crop_pixels, -crop_pixels),
@@ -409,7 +419,7 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     assigned_labels = split_disconnected_clusters(assigned_labels)  # The ellipses go haywire if the clusters are not connected
 
     # Find the skeleton of each cluster
-    df_patch_metrics, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels, min_patch_size=min_patch_size, save_labels=save_labels)
+    df_patch_metrics, centreline_paths, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels, min_patch_size=min_patch_size, save_labels=save_labels)
 
     # Save these intermediate rasters
     if save_tif and save_labels:
@@ -474,6 +484,24 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
 
         da_linear.data[remaining_mask] = mapped_categories
 
+    # Save the shelterbelt centrelines as a vector GeoPackage
+    if save_gpkg and len(df_patch_metrics) > 0:
+        x_coords = da_filtered.x.values
+        y_coords = da_filtered.y.values
+        geometries, rows = [], []
+        for _, row in df_patch_metrics.iterrows():
+            path = centreline_paths.get(row['label'])
+            if path is None: 
+                continue
+            coords = [(x_coords[c], y_coords[r]) for r, c in path]
+            geometries.append(LineString(coords))
+            rows.append(row)  # Keep all the other attributes from df_patch_metrics in the gpkg.
+        if geometries:
+            gdf = gpd.GeoDataFrame(rows, geometry=geometries, crs=da_filtered.rio.crs)
+            filename_gpkg = os.path.join(outdir, f'{stub}_centrelines.gpkg')
+            gdf.to_file(filename_gpkg, driver='GPKG')
+            print("Saved:", filename_gpkg)
+
     ds = da_linear.to_dataset(name="linear_categories")
     ds['labelled_categories'] = (["y", "x"], assigned_labels)  # just so the output ds has both
 
@@ -490,6 +518,44 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
     return ds, df_patch_metrics
 
 
+def combine_patch_metrics_csvs(folder, output_csv=None, suffix='_patch_metrics.csv'):
+    """Concatenate all per-tile ``*_patch_metrics.csv`` files in a folder into one CSV.
+
+    Parameters
+    ----------
+    folder : str
+        Directory containing the per-tile patch-metrics CSVs.
+    output_csv : str, optional
+        Where to write the combined CSV. Defaults to ``<folder>/<folder_stem>{suffix}`` (which
+        does not itself end in a per-tile stem, so it won't be re-globbed on a second run).
+    suffix : str, optional
+        Filename suffix identifying the per-tile CSVs (default ``_patch_metrics.csv``).
+
+    Returns
+    -------
+    str or None
+        Path to the combined CSV, or None if no matching per-tile CSVs were found.
+    """
+    if output_csv is None:
+        output_csv = os.path.join(folder, f"{Path(folder).stem}{suffix}")
+
+    files = sorted(f for f in glob.glob(os.path.join(folder, f'*{suffix}'))
+                   if os.path.abspath(f) != os.path.abspath(output_csv))
+    if not files:
+        print(f"No '*{suffix}' files found in {folder}")
+        return None
+
+    dfs = []
+    for f in files:
+        df = pd.read_csv(f)
+        df.insert(0, 'tile', Path(f).name[:-len(suffix)])
+        dfs.append(df)
+    df_all = pd.concat(dfs, ignore_index=True)
+    df_all.to_csv(output_csv, index=False)
+    print(f"Combined {len(files)} CSVs ({len(df_all)} rows) -> {output_csv}")
+    return output_csv
+
+
 def parse_arguments():
     """Parse command line arguments with default values."""
     parser = argparse.ArgumentParser()
@@ -501,6 +567,7 @@ def parse_arguments():
     parser.add_argument('--no-save-csv', dest='save_csv', action='store_false', default=True, help='Disable CSV output (default: enabled)')
     parser.add_argument('--no-save-tif', dest='save_tif', action='store_false', default=True, help='Disable GeoTIFF output (default: enabled)')
     parser.add_argument('--no-save-labels', dest='save_labels', action='store_false', default=True, help='Disable label raster output (default: enabled)')
+    parser.add_argument('--no-save-gpkg', dest='save_gpkg', action='store_false', default=True, help='Disable centreline GeoPackage output (default: enabled)')
     parser.add_argument('--min_shelterbelt_length', default=15, type=int, help='Minimum skeleton length (in pixels) to classify a cluster as linear (default: 15)')
     parser.add_argument('--max_shelterbelt_width', default=6, type=int, help='Maximum skeleton width (in pixels) to classify a cluster as linear (default: 6)')
     parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees (default: 20)')
@@ -515,5 +582,5 @@ if __name__ == '__main__':
 
     # Run patch_metrics on the buffer file
     ds, df = patch_metrics(args.buffer_data, args.outdir, args.stub, args.plot, args.save_csv,
-                          args.save_tif, args.save_labels, args.min_shelterbelt_length,
+                          args.save_tif, args.save_labels, args.save_gpkg, args.min_shelterbelt_length,
                           args.max_shelterbelt_width, args.min_patch_size, args.crop_pixels)

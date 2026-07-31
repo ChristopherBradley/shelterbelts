@@ -3,8 +3,7 @@ Map.setOptions('SATELLITE');
 Map.drawingTools().setShown(false);
 Map.drawingTools().setDrawModes(['rectangle']);
 
-// Use a single dedicated layer for the export region so only one rectangle
-// can ever exist at a time.
+// Use a single dedicated layer for the export region so only one rectangle can ever exist at a time.
 while (Map.drawingTools().layers().length() > 0) {
   Map.drawingTools().layers().remove(Map.drawingTools().layers().get(0));
 }
@@ -13,63 +12,114 @@ var exportRegionLayer = ui.Map.GeometryLayer({
 });
 Map.drawingTools().layers().add(exportRegionLayer);
 
-var greenPalette = [
-  '#e5f5e0','#c7e9c0','#a1d99b','#74c476','#41ab5d',
-  '#238b45','#006d2c','#00441b'
-];
 
-var shelterPalette = {
-  0:   [255, 255, 255],  // White: Outside region
+///////////////////////////////////////////////////////////////////////////
+// Setup for colour schemes
+
+function blendRgb(rgbA, rgbB, t) {
+  // t=0 -> rgbA, t=1 -> rgbB
+  return [0, 1, 2].map(function(k) {
+    return Math.round(rgbA[k] + (rgbB[k] - rgbA[k]) * t);
+  });
+}
+
+function mergeDicts() {
+  var out = {};
+  for (var i = 0; i < arguments.length; i++) {
+    var d = arguments[i];
+    Object.keys(d).forEach(function(k) { out[k] = d[k]; });
+  }
+  return out;
+}
+
+// Base categories 
+var basePalette = {
+  0:   [255, 255, 255],  // White: Outside region / not trees
   10:  [0, 100, 0],      // Green: Worldcover tree cover
   11:  [122, 82, 0],     // Brown: Scattered Trees
   12:  [8, 79, 0],       // Dark green: Patch core
   13:  [14, 138, 0],     // Medium green: Patch edge
   14:  [22, 212, 0],     // Bright green: Other trees
   15:  [29, 153, 105],   // Bluey green: Trees in gullies
-  16:  [127, 168, 57],   // Orange: Trees on ridges
+  16:  [127, 168, 57],   // Olive: Trees on ridges
   17:  [129, 146, 124],  // Silver: Trees next to roads
-  
-  18: [190, 160, 60],  // Light brown: Linear patches
-  19: [165, 195, 45],  // Bright olive green: Non-linear patches
-
+  18:  [190, 160, 60],   // Light brown: Linear patches (shelterbelts)
+  19:  [165, 195, 45],   // Bright olive green: Non-linear patches
   20:  [255, 187, 34],   // Orange: Shrubs
-  30:  [255, 255, 76],   // Yellow: Worldcover grassland
-  31:  [203, 219, 115],  // Dull yellow: unsheltered grassland
-  32:  [255, 255, 76],   // Bright yellow: sheltered grassland
-  40:  [240, 150, 255],  // Pink: Worldcover cropland
-  41:  [146, 104, 143],  // Dull pink: unsheltered cropland
-  42:  [240, 150, 255],  // bright pink: sheltered cropland
+  30:  [255, 255, 76],   // Yellow: Worldcover grassland (unsheltered)
+  40:  [240, 150, 255],  // Pink: Worldcover cropland (unsheltered)
   50:  [250, 0, 0],      // Red: Built-up
   60:  [180, 180, 180],  // Grey: Bare
   70:  [240, 240, 240],  // White: Snow
   80:  [0, 100, 200],    // Blue: Water
   90:  [0, 150, 160],    // Worldcover wetland
   95:  [0, 207, 117],    // Worldcover mangroves
-  100: [250, 230, 160],  // Worldcover moss and Lichen
+  100: [250, 230, 160],  // Worldcover moss and lichen
 };
 
-var fullyTransparentClasses = [0, 31, 41];
-var partialTransparentClasses = [32, 42];
-var shelteredTransparency = 0.3;
+// Values used to calculate the sheltered colours
+var treeSourceColourByDigit = {
+  2: basePalette[12],  // Patch core
+  3: basePalette[13],  // Patch edge
+  4: basePalette[14],  // Other trees
+  5: basePalette[15],  // Trees in gullies
+  6: basePalette[16],  // Trees on ridges
+  7: basePalette[17],  // Trees next to roads
+  8: basePalette[18],  // Linear patches
+  9: basePalette[19],  // Non-linear patches
+};
+var treeSourceLabelByDigit = {
+  2: 'Patch Core',
+  3: 'Patch Edge',
+  4: 'Other Trees',
+  5: 'Trees in Gullies',
+  6: 'Trees on Ridges',
+  7: 'Trees next to Roads',
+  8: 'Linear Patches',
+  9: 'Non-linear Patches',
+};
+var shelterDigits = [2, 3, 4, 5, 6, 7, 8, 9];
+
+// Blend the (grassland) base colour towards the actual sheltering tree's colour 
+var treeBlendAmount = 0.6;  // 0 = pure farmland colour, 1 = pure tree colour
+var shelteredByDigit = {};
+shelterDigits.forEach(function(digit) {
+  shelteredByDigit[digit] = blendRgb(basePalette[30], treeSourceColourByDigit[digit], treeBlendAmount);
+});
+
+var grasslandByTreeType = {30: basePalette[30], 31: [0, 0, 0]};
+var croplandByTreeType  = {40: basePalette[30], 41: [0, 0, 0]};
+shelterDigits.forEach(function(digit) {
+  grasslandByTreeType[30 + digit] = shelteredByDigit[digit];
+  croplandByTreeType[40 + digit]  = shelteredByDigit[digit];
+});
+
+var shelterPalette = mergeDicts(basePalette, grasslandByTreeType, croplandByTreeType);
+
+
+///////////////////////////////////////////////////////////////////////////
+// Shared styling helper for both shelter categories & opportunities
+var fullyTransparentClasses = [0, 30, 31, 40, 41];
+var partialTransparentClasses = [32, 33, 34, 35, 36, 37, 38, 39, 42, 43, 44, 45, 46, 47, 48, 49];
+var shelteredTransparency = 0.35;
 
 var exportLayers = {};
 
-// Function for plotting shelter categories with some transparency
-function styleShelterImage(img, layerName, checkbox, transparency) {
-   // Normalize ImageCollection to Image
+function styleCategoricalImage(img, layerName, checkbox, palette, transparency) {
+  // Normalize ImageCollection to Image
   if (img instanceof ee.ImageCollection) {
     img = img.mosaic();
   }
-  
+
   // Remove fully transparent classes
-  var classKeys = Object.keys(shelterPalette)
+  var classKeys = Object.keys(palette)
     .map(function(k){ return parseInt(k, 10); })
     .filter(function(k){ return fullyTransparentClasses.indexOf(k) === -1; })
     .sort(function(a,b){ return a - b; });
-    
+
   // Create a consecutive colour scheme
   var paletteHex = classKeys.map(function(k){
-    var rgb = shelterPalette[k];
+    var rgb = palette[k];
     return '#' + rgb.map(function(c){
       var h = c.toString(16);
       return (h.length === 1) ? '0' + h : h;
@@ -79,26 +129,58 @@ function styleShelterImage(img, layerName, checkbox, transparency) {
   var bandName = img.bandNames().get(0);
   var classesImg = img.select([bandName]);
   var remapped = classesImg.remap(classKeys, targetIndices, -1);
-    var baseMask = remapped.neq(-1);
-  
-  // Add partial transparency for some classes
+  var baseMask = remapped.neq(-1);
+
+  // Add partial transparency for sheltered farmland, so the shelter attribution shows through gently
   var mask = baseMask;
   partialTransparentClasses.forEach(function(cls) {
     mask = mask.where(classesImg.eq(cls), shelteredTransparency);
   });
   var styled = remapped.updateMask(mask);
-  
-  // Add to the map
+
   Map.addLayer(styled,
                {min: 0, max: targetIndices.length - 1, palette: paletteHex},
                layerName, checkbox, transparency);
-  
+
   return styled;
 }
 
-// Map.centerObject(image, 10);
 Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
 
+
+///////////////////////////////////////////////////////////
+// Parameter combinations — each has its own asset collections for
+// planting opportunities, shelter distances, and shelter categories.
+var paramCombos = [
+  {key: 'default_windmethod',    label: 'default wind method'},
+  {key: 'less_windmethod',       label: 'less wind method'},
+  {key: 'more_windmethod',       label: 'more wind method'},
+  {key: 'default_percentmethod', label: 'default percent method', distanceAsset: 'shelter_densities'},
+];
+var defaultComboKey = 'default_windmethod';
+
+var distanceMax = 20;
+var ylGn = ['ffffe5', 'f7fcb9', 'd9f0a3', 'addd8e', '78c679', '41ab5d', '238443', '006837', '004529'];
+var ylGnInvertedForDistance = ylGn.slice().reverse();
+
+var opportunitiesByCombo = {};
+var shelterDistancesByCombo = {};
+var shelterCategoriesByCombo = {};
+
+// NOTE: the GEE Layers panel shows the most-recently-added layer at the TOP,
+// i.e. panel order is the REVERSE of the order Map.addLayer is called in.
+// So everything below is added in reverse of the desired panel order
+// (bottom-most layer first, top-most layer last).
+
+///////////////////////////////////////////////////////////
+// Canopy Height Model v2 (Meta & WRI) — added first so it ends up at the bottom
+var viridis = ['440154','482878','3e4989','31688e','26828e','1f9e89','35b779','6ece58','b5de2b','fde725'];
+var chm = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
+Map.addLayer(
+  chm.updateMask(chm.gt(0)),
+  {min: 0, max: 25, palette: viridis},
+  'Meta Canopy Height v2', false, 0.8
+);
 
 ///////////////////////////////////////////////////////////
 // WorldCover 2020
@@ -114,73 +196,39 @@ Map.addLayer(
   'WorldCover 2020', false, 1
 );
 
-///////////////////////////////////////////////////////////
-// Canopy Height Model v2 (Meta & WRI)
-var viridis = ['440154','482878','3e4989','31688e','26828e','1f9e89','35b779','6ece58','b5de2b','fde725'];
-var chm = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
-Map.addLayer(
-  chm.updateMask(chm.gt(0)),
-  {min: 0, max: 25, palette: viridis},
-  'Meta Canopy Height v2', false, 0.8
-);
+// Planting opportunities (added in reverse combo order, so the panel shows them in combo order)
+paramCombos.slice().reverse().forEach(function(combo) {
+  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
+  var opportunitiesImg = ee.ImageCollection(assetPrefix + 'opportunities').mosaic();
+  opportunitiesByCombo[combo.key] = styleCategoricalImage(
+    opportunitiesImg, 'Planting opportunities 2025 (' + combo.label + ')', false, shelterPalette, 1);
+});
 
-///////////////////////////////////////////////////////////
-// Aus trees
-var aus2017 = ee.ImageCollection([
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat8-18'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat20-24'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat26-28'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat30-32'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_2017_noxy_predictions_lat34-42')
-]).mosaic();
-Map.addLayer(aus2017.updateMask(aus2017.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2017 tree confidence 50%', false, 0.65);
-Map.addLayer(aus2017.updateMask(aus2017.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2017 tree confidence 90%', false, 0.65);
+// Shelter distances (added in reverse combo order)
+paramCombos.slice().reverse().forEach(function(combo) {
+  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
+  var shelterDistancesImg = ee.ImageCollection(assetPrefix + (combo.distanceAsset || 'shelter_distances')).mosaic();
+  var shelterDistances = shelterDistancesImg.updateMask(shelterDistancesImg.gt(0));
+  shelterDistancesByCombo[combo.key] = shelterDistances;
+  Map.addLayer(
+    shelterDistances,
+    {min: 1, max: distanceMax, palette: ylGnInvertedForDistance},
+    'Shelter distances 2025 (' + combo.label + ')', false, 1
+  );
+});
 
-// I combined some of these into image collections manually with drag dropping, before deciding later it was easier to this in the app code.
-var aus2020 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_2020_noxy_predictions').mosaic();
-Map.addLayer(aus2020.updateMask(aus2020.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2020 tree confidence 50%', false, 0.65);
-Map.addLayer(aus2020.updateMask(aus2020.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2020 tree confidence 90%', false, 0.65);
+// Shelter categories (added in reverse combo order, last one added ends up on top)
+paramCombos.slice().reverse().forEach(function(combo) {
+  var isDefault = combo.key === defaultComboKey;
+  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
+  var shelterCategoriesImg = ee.ImageCollection(assetPrefix + 'shelter_categories').mosaic();
+  shelterCategoriesByCombo[combo.key] = styleCategoricalImage(
+    shelterCategoriesImg, 'Shelter categories 2025 (' + combo.label + ')', isDefault, shelterPalette, 1);
+});
 
-var aus2024 = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus2024_noxy_predictions').mosaic();
-Map.addLayer(aus2024.updateMask(aus2024.gt(50)), {min: 50, max: 100, palette: ['00FF00']}, '2024 tree confidence 50%', false, 0.65);
-Map.addLayer(aus2024.updateMask(aus2024.gt(90)), {min: 90, max: 100, palette: ['00FF00']}, '2024 tree confidence 90%', false, 0.65);
-
-
-///////////////////////////////////////////////////////////
-// Shelter classifications
-var moreDensityImg = ee.ImageCollection([
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat10-26'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat28-32'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-percentmethod_lat34-42')
-]).mosaic();
-styleShelterImage(moreDensityImg, '2020 more density method', false);
-
-var lessDensityImg = ee.ImageCollection([
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat10-26'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat28-32'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-percentmethod_lat34-42')
-]).mosaic();
-styleShelterImage(lessDensityImg, '2020 less density method', false);
-
-var defaultDensityImg = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-percentmethod').mosaic();
-styleShelterImage(defaultDensityImg, '2020 default density method', false);
-
-var moreWindImg = ee.ImageCollection([
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat10-28'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat28-32'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_more-windmethod_lat34-42')
-]).mosaic();
-styleShelterImage(moreWindImg, '2020 more wind method', false);
-
-var lessWindImg = ee.ImageCollection([
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat10-26'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat28-32'),
-  ee.Image('projects/ee-christopher-bradley/assets/Aus_ag2020_less-windmethod_lat34-42')
-]).mosaic();
-styleShelterImage(lessWindImg, '2020 less wind method', false);
-
-var defaultWindImg = ee.ImageCollection('projects/ee-christopher-bradley/assets/Aus_ag2020_default-windmethod').mosaic();
-styleShelterImage(defaultWindImg, '2020 default wind method', true);
+var opportunities2025 = opportunitiesByCombo[defaultComboKey];
+var shelterDistances2025 = shelterDistancesByCombo[defaultComboKey];
+var shelterCategories2025 = shelterCategoriesByCombo[defaultComboKey];
 
 
 //////////////////////////////////////////////////////////
@@ -196,7 +244,7 @@ var infoPanel = ui.Panel({
 
 // Title
 infoPanel.add(ui.Label({
-  value: 'Shelterbelts',
+  value: 'Shelterbelts 2025',
   style: {fontWeight: 'bold', fontSize: '14px', margin: '0 0 2px 0'}
 }));
 
@@ -219,9 +267,8 @@ infoPanel.add(ui.Label(
 Map.add(infoPanel);
 
 
-
 //////////////////////////////////////////////////////////////////////
-// // Adding a legend. 
+// Adding a legend.
 var classLabels = {
   0: 'Not Trees',
   10: 'Tree cover',
@@ -235,12 +282,8 @@ var classLabels = {
   18: 'Linear Patches',
   19: 'Non-linear Patches',
   20: 'Shrubland',
-  30: 'Grassland',
-  31: 'Unsheltered Grassland',
-  32: 'Sheltered Grassland',
-  40: 'Cropland',
-  41: 'Unsheltered Cropland',
-  42: 'Sheltered Cropland',
+  30: 'Grassland (unsheltered)',
+  40: 'Cropland (unsheltered)',
   50: 'Built-up',
   60: 'Bare',
   70: 'Snow and ice',
@@ -249,15 +292,20 @@ var classLabels = {
   95: 'Mangroves',
   100: 'Moss and lichen'
 };
+shelterDigits.forEach(function(digit) {
+  classLabels[30 + digit] = 'Sheltered by ' + treeSourceLabelByDigit[digit];
+});
 
-// // Manually choosing values, because there are some that don't show up enough to be worthwhile.
-var presentClasses = [11, 12, 13, 15, 17, 18, 19, 32, 42, 50, 80, 20, 60];
+// Manually choosing values, because there are some that don't show up enough to be worthwhile,
+var presentClasses = [11, 12, 13, 15, 16, 17, 18, 19, 20,
+                       50, 60, 80,
+                      33, 35, 36, 37, 38, 39];
 
 var legend = ui.Panel({
   style: {
     position: 'top-right',
     padding: '4px 8px',
-    maxWidth: '200px',
+    maxWidth: '210px',
     maxHeight: '40vh'
   }
 });
@@ -266,7 +314,7 @@ legend.add(ui.Label({
   value: 'Shelter Categories',
   style: {
     fontWeight: 'bold',
-    fontSize: '11px', 
+    fontSize: '11px',
     margin: '0 0 2px 0'
   }
 }));
@@ -279,25 +327,25 @@ presentClasses.forEach(function(v) {
       var h = c.toString(16);
       return h.length === 1 ? '0' + h : h;
     }).join('');
-    
+
     var colorBox = ui.Label('', {
       backgroundColor: hex,
-      padding: '6px', // Reduced from 8px
+      padding: '6px',
       margin: '0'
     });
-    
+
     var desc = ui.Label({
       value: label,
       style: {
-        margin: '0 0 0 4px', // Reduced spacing
-        fontSize: '10px' // Smaller text
+        margin: '0 0 0 4px',
+        fontSize: '10px'
       }
     });
-    
+
     var row = ui.Panel({
       widgets: [colorBox, desc],
       layout: ui.Panel.Layout.Flow('horizontal'),
-      style: {margin: '1px 0'} // Reduced vertical spacing
+      style: {margin: '1px 0'}
     });
     legend.add(row);
   }
@@ -308,17 +356,13 @@ Map.add(legend);
 
 //////////////////////////////////////////////////////////////////////
 // Export layers — ordered to match the layer panel (top to bottom)
-exportLayers['Shelter 2020 default wind (10m)'] = defaultWindImg;
-exportLayers['Shelter 2020 less wind (10m)'] = lessWindImg;
-exportLayers['Shelter 2020 more wind (10m)'] = moreWindImg;
-exportLayers['Shelter 2020 default density (10m)'] = defaultDensityImg;
-exportLayers['Shelter 2020 less density (10m)'] = lessDensityImg;
-exportLayers['Shelter 2020 more density (10m)'] = moreDensityImg;
-exportLayers['Tree predictions 2024 (10m)'] = aus2024;
-exportLayers['Tree predictions 2020 (10m)'] = aus2020;
-exportLayers['Tree predictions 2017 (10m)'] = aus2017;
-exportLayers['Canopy Height v2 (1m)'] = chm;
+paramCombos.forEach(function(combo) {
+  exportLayers['Shelter categories 2025 (' + combo.label + ') (10m)'] = shelterCategoriesByCombo[combo.key];
+  exportLayers['Shelter distances 2025 (' + combo.label + ') (10m)'] = shelterDistancesByCombo[combo.key];
+  exportLayers['Planting opportunities 2025 (' + combo.label + ') (10m)'] = opportunitiesByCombo[combo.key];
+});
 exportLayers['WorldCover 2020 (10m)'] = wc;
+exportLayers['Canopy Height v2 (1m)'] = chm;
 
 //////////////////////////////////////////////////////////////////////
 // Export panel
@@ -355,8 +399,8 @@ var drawButton = ui.Button({
   onClick: function() {
     Map.drawingTools().setShown(false);
     Map.drawingTools().setShape('rectangle');
-    // clear() doesn't empty our custom layer, so remove its geometries directly
-    // (this remove-loop is the same one that works at export time).
+
+    // clear() doesn't empty the custom layer, so remove its geometries directly
     var geoms = exportRegionLayer.geometries();
     while (geoms.length() > 0) {
       geoms.remove(geoms.get(0));
@@ -416,9 +460,7 @@ var exportButton = ui.Button({
   }
 });
 
-// Belt-and-suspenders: if the runtime does emit a draw event, prune to the
-// newest rectangle in real time. (In the Code Editor no draw event fires, so
-// the single-shot draw + export-time prune above are what actually enforce it.)
+// Whenever a draw event occurs, prune to just newest rectangle.
 Map.drawingTools().onDraw(function() {
   var geoms = exportRegionLayer.geometries();
   while (geoms.length() > 1) {

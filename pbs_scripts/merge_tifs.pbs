@@ -5,7 +5,7 @@
 #PBS -l jobfs=1GB
 #PBS -P xe2
 #PBS -l walltime=10:00:00
-#PBS -l storage=gdata/xe2
+#PBS -l storage=gdata/xe2+scratch/xe2
 #PBS -q normal
 
 # base_dir=/scratch/xe2/cb8590/barra_trees_s4_2024/subfolders/lat_28_lon_140
@@ -28,7 +28,19 @@ source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
 conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 
 # Run the script
-python merge_tifs.py $base_dir --suffix _predicted.tif --subdir '' --tmpdir /tmp --crs EPSG:3857 --dont_reproject  # Merging the 2025 ag predictions before expanding. Needs 16GB
+# 2025 ag indices full-run: one job merges ALL index tif types present in base_dir, then combines
+# the per-tile patch_metrics CSVs into one (kept in the parent so it survives per-tile-folder deletion).
+# base_dir is passed via `qsub -v base_dir=...`. Handles both wind (shelter_distances) + density (shelter_densities) folders.
+for suf in _shelter_categories.tif _shelter_densities.tif _shelter_distances.tif _opportunities.tif; do
+    if ls ${base_dir}/*${suf} >/dev/null 2>&1; then
+        python merge_tifs.py "$base_dir" --suffix "$suf" --subdir '' --tmpdir /tmp --crs EPSG:3857 --dont_reproject
+    fi
+done
+python -c "from shelterbelts.indices.patch_metrics import combine_patch_metrics_csvs; import os; combine_patch_metrics_csvs('$base_dir', output_csv=os.path.join(os.path.dirname('$base_dir'), os.path.basename('$base_dir')+'_patch_metrics.csv'))"
+
+# --- older single-suffix invocations (kept for reference) ---
+# python merge_tifs.py $base_dir --suffix "$suffix" --subdir '' --tmpdir /tmp --crs EPSG:3857 --dont_reproject  # single index tif type via -v suffix
+# python merge_tifs.py $base_dir --suffix _predicted.tif --subdir '' --tmpdir /tmp --crs EPSG:3857 --dont_reproject  # Merging the 2025 ag predictions before expanding. Needs 16GB
 # python merge_tifs.py $base_dir --suffix linear_categories.tif --subdir '' --tmpdir /scratch/xe2/cb8590/tmp --crs EPSG:3857 --dont_reproject  # Merging the indices
 # python merge_tifs.py $base_dir --suffix _y2020_predicted_expanded20_linear_categories.tif --subdir '' --tmpdir /scratch/xe2/cb8590/tmp --crs EPSG:3857 --dont_reproject  # Merging the indices
 
