@@ -29,21 +29,14 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      # Everything up to test_training now passes on both macs, then keras fit
-      # aborts. pytest captured whatever was written before the abort, so run it
-      # with -s and with tensorflow's C++ logging turned back on to see it.
-      - name: test_training with output captured
-        shell: bash -l {0}
-        timeout-minutes: 12
-        run: |
-          set +e
-          TF_CPP_MIN_LOG_LEVEL=0 pytest tests/test_classifications/test_training.py -v -s 2>&1 | tail -60
-          echo "rc=${PIPESTATUS[0]}"
-
-      # Narrow which part of train_model's compile/fit aborts. Each variant runs in
-      # its own process so one abort does not take the rest with it.
-      - name: Which part of the model aborts
-        if: always()
+      # keras fit aborts on both macs with conda-forge tensorflow:
+      #   Assertion failed: (f == nullptr || dynamic_cast<To>(f) != nullptr),
+      #   function down_cast, file external/local_xla/xla/tsl/platform/default/casts.h
+      # which is a debug assertion the conda-forge macOS build ships enabled. It
+      # only fires when a metric is attached, so look for a spelling that avoids
+      # it. Each variant runs in its own process so one abort does not take the
+      # rest with it.
+      - name: Which metric spelling avoids the assertion
         shell: bash -l {0}
         timeout-minutes: 15
         run: |
@@ -67,30 +60,31 @@ jobs:
               keras.layers.Dense(64, activation='relu'), keras.layers.Dropout(0.1),
               keras.layers.Dense(2, activation='softmax'),
           ])
-          kw = {}
-          loss, metrics = 'CategoricalCrossentropy', ['CategoricalAccuracy']
-          if variant == "full":
-              kw = dict(callbacks=[keras.callbacks.EarlyStopping(monitor='val_loss', patience=30,
-                                                                 restore_best_weights=True)],
-                        validation_data=(X_test, y_test))
-          elif variant == "no_callbacks":
-              kw = dict(validation_data=(X_test, y_test))
-          elif variant == "no_validation":
-              kw = dict()
-          elif variant == "lowercase_names":
-              loss, metrics = 'categorical_crossentropy', ['categorical_accuracy']
-              kw = dict(validation_data=(X_test, y_test))
-          elif variant == "no_metrics":
-              metrics = None
-              kw = dict(validation_data=(X_test, y_test))
+          # The metric is what fires conda-forge's leftover debug assertion in
+          # tsl's down_cast. Look for a spelling of "report accuracy per epoch"
+          # that avoids it, so the training curves can still be plotted.
+          compile_kw = dict(optimizer=keras.optimizers.Adam(learning_rate=0.001),
+                            loss='CategoricalCrossentropy')
+          kw = dict(validation_data=(X_test, y_test))
+          if variant == "metric_string":
+              compile_kw["metrics"] = ['CategoricalAccuracy']
+          elif variant == "metric_instance":
+              compile_kw["metrics"] = [keras.metrics.CategoricalAccuracy()]
+          elif variant == "metric_accuracy":
+              compile_kw["metrics"] = ['accuracy']
+          elif variant == "run_eagerly":
+              compile_kw["metrics"] = ['CategoricalAccuracy']
+              compile_kw["run_eagerly"] = True
+          elif variant == "jit_false":
+              compile_kw["metrics"] = ['CategoricalAccuracy']
+              compile_kw["jit_compile"] = False
 
-          model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
-                        loss=loss, metrics=metrics)
+          model.compile(**compile_kw)
           t = time.time()
           model.fit(X_train, y_train, epochs=2, batch_size=32, verbose=0, **kw)
           print(f"  {variant} OK {time.time()-t:.1f}s", flush=True)
           PY
-          for v in no_validation no_metrics lowercase_names no_callbacks full; do
+          for v in metric_instance metric_accuracy run_eagerly jit_false metric_string; do
             echo "=== $v ==="
             TF_CPP_MIN_LOG_LEVEL=0 python "$RUNNER_TEMP/nn.py" "$v" > "$RUNNER_TEMP/$v.log" 2>&1
             echo "  rc=$?"
