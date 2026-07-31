@@ -1,0 +1,37 @@
+#!/bin/bash
+#PBS -N snakes_bbox
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=0:30:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+#PBS -j oe
+
+# Generates a 1m CHM (masked to delineated crowns) and a crowns gpkg for a single
+# ACT2020 laz tile. One job is submitted per tile (snakes_bbox.sh) so the whole
+# ~254-tile snakes_bbox run finishes in ~1 hour instead of ~15h serial. The
+# per-tile tifs/gpkgs are merged afterwards by snakes_bbox_merge.py.
+#
+# Peak RSS on a dense median tile is ~3.5GB, so 4GB is the cheapest safe tier;
+# any tile that OOMs at 4GB leaves no output and can be rerun at 8GB.
+#
+# LAZ=/scratch/xe2/cb8590/elvis-shelterbelts/ACT2020/ACT2020-...-AHD_6586066_55_0001_0001.laz
+# STUB=ACT2020-...-AHD_6586066_55_0001_0001
+# OUTDIR=/scratch/xe2/cb8590/lidar_processing/snakes/chms
+
+echo "Starting snakes_bbox.pbs for LAZ=$LAZ"
+
+cd /home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+
+python lidar.py "$LAZ" \
+    --outdir "$OUTDIR" \
+    --stub "$STUB" \
+    --resolution 10 \
+    --just_chm \
+    --delineate_crowns \
+    --uint8

@@ -178,7 +178,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -218,6 +218,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
             {"type": "filters.hag_nn"},
         ]
 
+    # Force the raster to cover the tile's full extent, so we don't get smaller rasters when there are less trees.
+    full_minx, full_miny, full_maxx, full_maxy, _ = _get_laz_bounds(infile, epsg)
+    bounds_str = f"([{full_minx},{full_maxx}],[{full_miny},{full_maxy}])"
+
     # Create the canopy height tif
     chm_tif = os.path.join(outdir, f'{stub}_chm_res{chm_resolution}.tif')
     chm_json = {
@@ -231,6 +235,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
              "gdaldriver": "GTiff",
              "dimension": "HeightAboveGround",
              "output_type": "max",
+             "bounds": bounds_str,
              "nodata": -9999}
         ]
     }
@@ -240,28 +245,31 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     if delineate_crowns:
         gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
+        chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
         if gdf_crowns is not None and len(gdf_crowns) > 0:
             # Mask the CHM to only pixels inside delineated crowns so that
             # non-tree objects (powerlines, buildings) get removed.
-            chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
             chm_masked = chm_raw.rio.clip(
                 gdf_crowns.geometry.values,
                 gdf_crowns.crs,
                 drop=False,
                 # all_touched=True, Any polygon touching this pixel counts. By default, the polygon has the pass through the centre of the pixel.
             ).fillna(0)
-            if uint8:
-                chm_masked = (chm_masked.where(chm_masked < 100, 100)
-                                        .where(chm_masked != -9999, 0)
-                                        .round()
-                                        .astype('uint8')
-                                        .rio.write_nodata(0))
-            original_chm_tif = chm_tif
-            suffix = '_uint8' if uint8 else ''
-            chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}{suffix}.tif')
-            chm_masked.rio.to_raster(chm_tif)
-            print(f"Saved: {chm_tif}", flush=True)
-            os.remove(original_chm_tif)
+        else:
+            # No crowns delineated still creates a (empty) tif so mosaicks don't have a gap. 
+            chm_masked = chm_raw.fillna(0)
+        if uint8:
+            chm_masked = (chm_masked.where(chm_masked < 100, 100)
+                                    .where(chm_masked != -9999, 0)
+                                    .round()
+                                    .astype('uint8')
+                                    .rio.write_nodata(0))
+        original_chm_tif = chm_tif
+        suffix = '_uint8' if uint8 else ''
+        chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}{suffix}.tif')
+        chm_masked.rio.to_raster(chm_tif)
+        print(f"Saved: {chm_tif}", flush=True)
+        os.remove(original_chm_tif)
 
     if just_chm:
         return None, None
@@ -299,7 +307,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     return chm, da_tree
 
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False):
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True):
     """Apply :func:`lidar` to every .laz file in laz_folder."""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     if limit is not None:
@@ -308,12 +316,12 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = laz_file.split('/')[-1].split('.')[0]
-        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8)
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
 
-def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, column='filepath'):
+def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, column='filepath', save_crowns_gpkg=True):
     """Apply :func:`lidar` to every row in a GeoPackage, reading laz paths from column."""
     gdf = gpd.read_file(gpkg_file)
     if limit is not None:
@@ -322,11 +330,11 @@ def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, categor
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = laz_file.split('/')[-1].split('.')[0]
-        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8)
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True):
     """
     Convert a LAZ point cloud into a canopy-height and tree-cover raster.
 
@@ -375,6 +383,9 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
         Run the pycrown Dalponte tree delineation and save the polygons as a gpkg.
     veg_only : bool, optional
         Restrict CHM rasterisation to points classified as high (class 5) vegetation if these exist.
+    save_crowns_gpkg : bool, optional
+        Save the delineated crowns to a GeoPackage (only used when delineate_crowns=True).
+        Set to False to skip writing the gpkg and only use the returned GeoDataFrame in memory.
 
     Returns
     -------
@@ -418,7 +429,7 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
             print("No existing classifications, generating our own canopy height model instead")
 
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=resolved_dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8)
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=resolved_dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
     return chm, da_tree
 
 
@@ -439,6 +450,7 @@ def parse_arguments():
     parser.add_argument("--limit", default=None, help="Number of laz files to process when passing a folder. Default: None")
     parser.add_argument("--dem", default=None, help="Path to a DEM GeoTiff, or a folder of DEM GeoTiffs (the best-matching tile is selected automatically). Default: None")
     parser.add_argument("--delineate_crowns", action="store_true", help="Delineate individual tree crowns and save as a GeoPackage. Default: False")
+    parser.add_argument("--no_save_crowns_gpkg", action="store_true", help="Skip saving the delineated crowns to a GeoPackage (only used with --delineate_crowns). Default: False")
     parser.add_argument("--no_veg_only", action="store_true", help="Use all points for the CHM even when vegetation classifications exist. Default: False")
     parser.add_argument("--uint8", action="store_true", help="Convert the CHM to uint8. Default: False")
     return parser.parse_args()
@@ -464,6 +476,7 @@ if __name__ == '__main__':
             delineate_crowns=args.delineate_crowns,
             veg_only=not args.no_veg_only,
             uint8=args.uint8,
+            save_crowns_gpkg=not args.no_save_crowns_gpkg,
         )
     elif args.laz_file.endswith('.gpkg'):
         lidar_gpkg(
@@ -481,6 +494,7 @@ if __name__ == '__main__':
             delineate_crowns=args.delineate_crowns,
             veg_only=not args.no_veg_only,
             uint8=args.uint8,
+            save_crowns_gpkg=not args.no_save_crowns_gpkg,
         )
     else:
         lidar_folder(
@@ -499,4 +513,5 @@ if __name__ == '__main__':
             delineate_crowns=args.delineate_crowns,
             veg_only=not args.no_veg_only,
             uint8=args.uint8,
+            save_crowns_gpkg=not args.no_save_crowns_gpkg,
         )

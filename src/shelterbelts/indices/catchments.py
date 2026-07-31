@@ -15,9 +15,14 @@ from skimage.morphology import thin
 import rasterio
 import rioxarray as rxr
 
-from DAESIM_preprocess.topography import dirmap, pysheds_accumulation
 from shelterbelts.utils.visualisation import tif_categorical, plot_catchments
 # -
+
+# pysheds + DAESIM_preprocess are a ~14s import only needed for the terrain-tiles gullies fallback
+# (catchments()), not the Australian hydrolines-GDB path the batch pipeline uses. They're loaded
+# lazily via _ensure_pysheds(); dirmap / pysheds_accumulation are bound to the real objects there.
+dirmap = None
+pysheds_accumulation = None
 
 gullies_cmap = {
     0: (255, 255, 255),
@@ -29,56 +34,72 @@ ridges_cmap = {
 }
 
 # +
-# Monkey patch extract_river_network - their function seems to be broken in later versions of numpy because of line 1417 should be np.false_ instead of the python type False
-import geojson
-import pysheds._sgrid as _self
-from pysheds.sview import View
-from pysheds.grid import Grid
+_pysheds_ready = False
 
-def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8, 16, 32),
-                            routing='d8', algorithm='iterative', **kwargs):
-    
-    if routing.lower() == 'd8':
-        fdir_overrides = {'dtype' : np.int64, 'nodata' : fdir.nodata}
-    else:
-        raise NotImplementedError('Only implemented for `d8` routing.')
+def _ensure_pysheds():
+    """Import pysheds / DAESIM_preprocess (~14s) and apply the extract_river_network monkeypatch, once.
 
-    # Literally just changed this line from False to np.bool_(False)
-    mask_overrides = {'dtype' : np.bool_, 'nodata' : np.bool_(False)}
-    
-    kwargs.update(fdir_overrides)
-    fdir = self._input_handler(fdir, **kwargs)
-    kwargs.update(mask_overrides)
-    mask = self._input_handler(mask, **kwargs)
-    nodata_cells = self._get_nodata_cells(fdir)
-    invalid_cells = ~np.isin(fdir.ravel(), dirmap).reshape(fdir.shape)
-    fdir[nodata_cells] = 0
-    fdir[invalid_cells] = 0
-    maskleft, maskright, masktop, maskbottom = self._pop_rim(mask, nodata=False)
-    masked_fdir = np.where(mask, fdir, 0).astype(np.int64)
-    startnodes = np.arange(fdir.size, dtype=np.int64)
-    endnodes = _self._flatten_fdir_numba(masked_fdir, dirmap).reshape(fdir.shape)
-    indegree = np.bincount(endnodes.ravel(), minlength=fdir.size).astype(np.uint8)
-    orig_indegree = np.copy(indegree)
-    startnodes = startnodes[(indegree == 0)]
-    if algorithm.lower() == 'iterative':
-        profiles = _self._d8_stream_network_iter_numba(endnodes, indegree,
-                                                        orig_indegree, startnodes)
-    elif algorithm.lower() == 'recursive':
-        profiles = _self._d8_stream_network_recur_numba(endnodes, indegree,
-                                                        orig_indegree, startnodes)
-    else:
-        raise ValueError('Algorithm must be `iterative` or `recursive`.')
-    featurelist = []
-    for index, profile in enumerate(profiles):
-        yi, xi = np.unravel_index(list(profile), fdir.shape)
-        x, y = View.affine_transform(self.affine, xi, yi)
-        line = geojson.LineString(np.column_stack([x, y]).tolist())
-        featurelist.append(geojson.Feature(geometry=line, id=index))
-    geo = geojson.FeatureCollection(featurelist)
-    return geo
-    
-Grid.extract_river_network = patched_extract_river_network
+    pysheds' extract_river_network is broken on newer numpy (it passes a python ``False`` where a
+    ``np.bool_`` is needed); the patched version below fixes just that one line. Deferred to first use
+    so the batch indices pipeline (which uses the Australian hydrolines GDB, never pysheds) doesn't
+    pay the import cost.
+    """
+    global _pysheds_ready, dirmap, pysheds_accumulation
+    if _pysheds_ready:
+        return
+    import geojson
+    import pysheds._sgrid as _self
+    from pysheds.sview import View
+    from pysheds.grid import Grid
+    from DAESIM_preprocess.topography import dirmap as _dirmap, pysheds_accumulation as _pysheds_accumulation
+
+    def patched_extract_river_network(self, fdir, mask, dirmap=(64, 128, 1, 2, 4, 8, 16, 32),
+                                routing='d8', algorithm='iterative', **kwargs):
+
+        if routing.lower() == 'd8':
+            fdir_overrides = {'dtype' : np.int64, 'nodata' : fdir.nodata}
+        else:
+            raise NotImplementedError('Only implemented for `d8` routing.')
+
+        # Literally just changed this line from False to np.bool_(False)
+        mask_overrides = {'dtype' : np.bool_, 'nodata' : np.bool_(False)}
+
+        kwargs.update(fdir_overrides)
+        fdir = self._input_handler(fdir, **kwargs)
+        kwargs.update(mask_overrides)
+        mask = self._input_handler(mask, **kwargs)
+        nodata_cells = self._get_nodata_cells(fdir)
+        invalid_cells = ~np.isin(fdir.ravel(), dirmap).reshape(fdir.shape)
+        fdir[nodata_cells] = 0
+        fdir[invalid_cells] = 0
+        maskleft, maskright, masktop, maskbottom = self._pop_rim(mask, nodata=False)
+        masked_fdir = np.where(mask, fdir, 0).astype(np.int64)
+        startnodes = np.arange(fdir.size, dtype=np.int64)
+        endnodes = _self._flatten_fdir_numba(masked_fdir, dirmap).reshape(fdir.shape)
+        indegree = np.bincount(endnodes.ravel(), minlength=fdir.size).astype(np.uint8)
+        orig_indegree = np.copy(indegree)
+        startnodes = startnodes[(indegree == 0)]
+        if algorithm.lower() == 'iterative':
+            profiles = _self._d8_stream_network_iter_numba(endnodes, indegree,
+                                                            orig_indegree, startnodes)
+        elif algorithm.lower() == 'recursive':
+            profiles = _self._d8_stream_network_recur_numba(endnodes, indegree,
+                                                            orig_indegree, startnodes)
+        else:
+            raise ValueError('Algorithm must be `iterative` or `recursive`.')
+        featurelist = []
+        for index, profile in enumerate(profiles):
+            yi, xi = np.unravel_index(list(profile), fdir.shape)
+            x, y = View.affine_transform(self.affine, xi, yi)
+            line = geojson.LineString(np.column_stack([x, y]).tolist())
+            featurelist.append(geojson.Feature(geometry=line, id=index))
+        geo = geojson.FeatureCollection(featurelist)
+        return geo
+
+    Grid.extract_river_network = patched_extract_river_network
+    dirmap = _dirmap
+    pysheds_accumulation = _pysheds_accumulation
+    _pysheds_ready = True
 
 
 # -
@@ -237,8 +258,9 @@ def catchments(terrain_tif, outdir=".", stub="TEST", tmpdir=".", num_catchments=
         plot_catchments_sidebyside(ds5, ds20, title1='num_catchments=5', title2='num_catchments=20')
 
     """
+    _ensure_pysheds()  # lazy ~14s import of pysheds/DAESIM, only when the DEM gully fallback is actually used
     da = rxr.open_rasterio(terrain_tif).isel(band=0).drop_vars('band')
-    
+
     # Make sure the input dtype is np.float64 for pysheds to work in the latest version of numpy
     if da.dtype != 'float64':
         da = da.astype(np.float64)

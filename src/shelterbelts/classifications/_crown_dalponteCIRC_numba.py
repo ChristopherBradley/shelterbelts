@@ -205,7 +205,7 @@ def _crown_dalponteCIRC(Chm, Trees, th_seed, th_crown, th_tree, max_crown):
 
 # def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=10, th_seed=0.45, th_crown=0.55):  # Defaults from Dalponte and Coomes 2016 
 
-def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th_seed=0.01, th_crown=0.4):  # Defaults from Pucino et al. 2026 
+def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th_seed=0.01, th_crown=0.4, save_gpkg=True):  # Defaults from Pucino et al. 2026
     """Delineate individual tree crowns from a CHM tif using the Dalponte CIRC algorithm.
 
     Smooths the CHM, detects local maxima as tree tops, runs circular region
@@ -224,6 +224,9 @@ def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th
         Minimum height in metres for a pixel to be considered a tree.
     max_crown_m : float, optional
         Maximum crown radius in metres.
+    save_gpkg : bool, optional
+        Save the crown polygons to a GeoPackage. If False, only the
+        GeoDataFrame is returned. Default True.
 
     Returns
     -------
@@ -286,7 +289,10 @@ def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th
         # stats["max_height_m"].append(float(px.max()))
 
     gdf = gpd.GeoDataFrame({"treeID": ids, **stats}, geometry=geoms, crs=crs)
-    gpkg_path = os.path.join(outdir, f'{stub}_crowns.gpkg')
-    gdf.to_file(gpkg_path, driver="GPKG")
-    print(f"Saved: {gpkg_path} ({len(gdf)} crowns)")
+
+    if save_gpkg:
+        gpkg_path = os.path.join(outdir, f'{stub}_crowns.gpkg')
+        gdf.to_file(gpkg_path, driver="GPKG")
+        print(f"Saved: {gpkg_path} ({len(gdf)} crowns)")
+
     return gdf

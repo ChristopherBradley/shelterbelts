@@ -24,8 +24,12 @@ def merge_gpkg(base_dir, suffix='.gpkg', output_format='gpkg'):
         if i % 10 == 0:
             print(f"  Read {i}/{len(filenames)}: {os.path.basename(f)}")
 
+    # Reproject everything to the first file's CRS to avoid pd.concat errors
+    common_crs = gdfs[0].crs
+    gdfs = [gdf if gdf.crs == common_crs else gdf.to_crs(common_crs) for gdf in gdfs]
+
     merged = pd.concat(gdfs, ignore_index=True)
-    merged = gpd.GeoDataFrame(merged, crs=gdfs[0].crs)
+    merged = gpd.GeoDataFrame(merged, crs=common_crs)
 
     parent_dir = os.path.dirname(base_dir)
     parent_name = os.path.basename(parent_dir)
