@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  training-abort:
+  tensorflow-version:
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
@@ -29,64 +29,57 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      # keras fit aborts on both macs with conda-forge tensorflow:
+      # conda-forge's macOS tensorflow 2.19.1 aborts as soon as a metric is
+      # attached to compile, on a debug assertion a release build would not have:
       #   Assertion failed: (f == nullptr || dynamic_cast<To>(f) != nullptr),
-      #   function down_cast, file external/local_xla/xla/tsl/platform/default/casts.h
-      # which is a debug assertion the conda-forge macOS build ships enabled. It
-      # only fires when a metric is attached, so look for a spelling that avoids
-      # it. Each variant runs in its own process so one abort does not take the
-      # rest with it.
-      - name: Which metric spelling avoids the assertion
+      #   function down_cast, .../xla/tsl/platform/default/casts.h
+      # Linux ships the identical tensorflow 2.19.1 and keras 3.15.1 and passes,
+      # so this is specific to the macOS builds. Both macOS arches also have
+      # 2.16.1, 2.17.0 and 2.18.0, so find the newest one that does not abort -
+      # a version pin is a far cleaner fix than reshaping the model code.
+      - name: Which tensorflow version survives a metric
         shell: bash -l {0}
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
           set +e
           cat > "$RUNNER_TEMP/nn.py" <<'PY'
-          import faulthandler, sys, time
-          faulthandler.dump_traceback_later(120, exit=True)
+          import faulthandler, time
+          faulthandler.dump_traceback_later(180, exit=True)
           import numpy as np
+          import tensorflow as tf
           from tensorflow import keras
-
-          variant = sys.argv[1]
+          import keras as keras_pkg
+          print(f"  tensorflow {tf.__version__} / keras {keras_pkg.__version__}", flush=True)
           rng = np.random.default_rng(0)
-          X_train = rng.random((2000, 12)).astype("float32")
-          X_test = rng.random((500, 12)).astype("float32")
-          y_train = keras.utils.to_categorical(rng.integers(0, 2, 2000), 2)
-          y_test = keras.utils.to_categorical(rng.integers(0, 2, 500), 2)
-
+          X = rng.random((2000, 12)).astype("float32")
+          Xv = rng.random((500, 12)).astype("float32")
+          y = keras.utils.to_categorical(rng.integers(0, 2, 2000), 2)
+          yv = keras.utils.to_categorical(rng.integers(0, 2, 500), 2)
           model = keras.Sequential([
               keras.layers.Dense(256, activation='relu'), keras.layers.Dropout(0.1),
               keras.layers.Dense(128, activation='relu'), keras.layers.Dropout(0.1),
               keras.layers.Dense(64, activation='relu'), keras.layers.Dropout(0.1),
               keras.layers.Dense(2, activation='softmax'),
           ])
-          # The metric is what fires conda-forge's leftover debug assertion in
-          # tsl's down_cast. Look for a spelling of "report accuracy per epoch"
-          # that avoids it, so the training curves can still be plotted.
-          compile_kw = dict(optimizer=keras.optimizers.Adam(learning_rate=0.001),
-                            loss='CategoricalCrossentropy')
-          kw = dict(validation_data=(X_test, y_test))
-          if variant == "metric_string":
-              compile_kw["metrics"] = ['CategoricalAccuracy']
-          elif variant == "metric_instance":
-              compile_kw["metrics"] = [keras.metrics.CategoricalAccuracy()]
-          elif variant == "metric_accuracy":
-              compile_kw["metrics"] = ['accuracy']
-          elif variant == "run_eagerly":
-              compile_kw["metrics"] = ['CategoricalAccuracy']
-              compile_kw["run_eagerly"] = True
-          elif variant == "jit_false":
-              compile_kw["metrics"] = ['CategoricalAccuracy']
-              compile_kw["jit_compile"] = False
-
-          model.compile(**compile_kw)
+          model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
+                        loss='CategoricalCrossentropy', metrics=['CategoricalAccuracy'])
           t = time.time()
-          model.fit(X_train, y_train, epochs=2, batch_size=32, verbose=0, **kw)
-          print(f"  {variant} OK {time.time()-t:.1f}s", flush=True)
+          h = model.fit(X, y, epochs=2, batch_size=32, verbose=0,
+                        validation_data=(Xv, yv),
+                        callbacks=[keras.callbacks.EarlyStopping(monitor='val_loss', patience=30,
+                                                                 restore_best_weights=True)])
+          print(f"  fit with metric OK {time.time()-t:.1f}s  history={sorted(h.history)}", flush=True)
           PY
-          for v in metric_instance metric_accuracy run_eagerly jit_false metric_string; do
-            echo "=== $v ==="
-            TF_CPP_MIN_LOG_LEVEL=0 python "$RUNNER_TEMP/nn.py" "$v" > "$RUNNER_TEMP/$v.log" 2>&1
+          probe () {
+            TF_CPP_MIN_LOG_LEVEL=0 python "$RUNNER_TEMP/nn.py" > "$RUNNER_TEMP/out.log" 2>&1
             echo "  rc=$?"
-            grep -viE "^\s*$|oneDNN|TF-TRT|cpu_feature" "$RUNNER_TEMP/$v.log" | tail -5
+            grep -E "tensorflow [0-9]|OK |Assertion failed|Timeout" "$RUNNER_TEMP/out.log" | head -3
+          }
+          echo "=== as solved by environment.yml ==="
+          probe
+          for v in 2.18.0 2.17.0 2.16.1; do
+            echo "=== tensorflow $v ==="
+            mamba install -y -q "tensorflow=$v" > "$RUNNER_TEMP/install-$v.log" 2>&1 \
+              || { echo "  install failed"; tail -5 "$RUNNER_TEMP/install-$v.log"; continue; }
+            probe
           done
