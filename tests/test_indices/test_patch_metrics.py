@@ -1,5 +1,7 @@
 import os
 
+import pandas as pd
+
 from shelterbelts.indices.patch_metrics import patch_metrics, linear_categories_labels
 
 
@@ -39,4 +41,31 @@ def test_patch_metrics_category_name_not_nan():
     valid_names = set(linear_categories_labels.values())
     assert df["category_name"].isin(valid_names).all(), (
         f"Unexpected category names: {set(df['category_name']) - valid_names}"
+    )
+
+
+def test_patch_metrics_csv_matches_returned_df():
+    """The saved CSV should be relabelled to linear/non-linear, not left as the
+    intermediate 'Other Trees' (category 14) placeholder.
+    """
+    _, df = patch_metrics(
+        f"data/{stub}_buffer_categories.tif",
+        outdir="outdir",
+        stub=stub,
+        plot=False,
+        save_csv=True,
+        save_tif=False,
+        save_labels=False,
+    )
+    csv_df = pd.read_csv(f"outdir/{stub}_patch_metrics.csv")
+
+    assert not (csv_df["category_id"] == 14).any(), (
+        "patch_metrics.csv still contains rows with the intermediate "
+        "'Other Trees' (category_id 14) label:\n"
+        f"{csv_df[csv_df['category_id'] == 14]}"
+    )
+
+    # The saved CSV should match what the function returns in memory
+    pd.testing.assert_frame_equal(
+        csv_df.reset_index(drop=True), df.reset_index(drop=True), check_dtype=False
     )

@@ -8,18 +8,10 @@
 #PBS -l storage=gdata/xe2+scratch/xe2
 #PBS -q normal
 
-# Count the number of pixels of each value (0-100, nodata 255) across a set of
-# uint8 GeoTIFFs, like a pd.value_counts aggregated over many rasters.
-#
-# One cheap serial job handles the whole folder: streaming + chunked reads keep
-# peak memory ~700MB and total runtime ~10 min for all 148 tifs, so 1 cpu / 4GB
-# is the minimum-SU configuration (~0.4 SU total on the normal queue). Splitting
-# into 148 jobs would cost MORE SU (per-job python/conda startup dominates the
-# ~4s of real work per tif) and clutter the queue, so a single job is used.
-#
-# Override at submit time, e.g. for per-zone counts:
-#   qsub -v zones_file=<gpkg>,zone_col=<col>,output_csv=<csv> tif_value_counts.pbs
-# Leave zones_file empty for global counts only.
+# Count the number of pixels of each value across a set of uint8 GeoTIFFs, 
+# like a pd.value_counts aggregated over many rasters.
+# Uses chunking to avoid memory accumulation.
+
 
 tif_folder=${tif_folder:-/g/data/xe2/cb8590/shelterbelt_outputs/barra_trees_s4_aus_noxy_df_4326_2020/expanded_grazing_no_bwh}
 suffix=${suffix:-default_windmethod_merged_y2020_predicted_expanded20_linear_categories.tif}

@@ -5,7 +5,7 @@
 #PBS -l jobfs=1GB
 #PBS -P xe2
 #PBS -l walltime=10:00:00
-#PBS -l storage=gdata/xe2+gdata/ob53
+#PBS -l storage=gdata/xe2+gdata/ob53+scratch/xe2
 #PBS -q normal
 
 export GDAL_CACHEMAX=64
@@ -77,11 +77,21 @@ tmpdir="$PBS_JOBFS"  # Using /scratch/xe2/cb8590/tmp causes concurrency blocking
 # outdir=${basedir}/linear_tifs_${param_stub}_less_windmethod
 # python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub $param_stub --cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --edge_size 2 --min_core_size 100 --wind_threshold 25
 
+# Aus ag trees 2025 — default percent method + opportunities, one 2-degree region.
+# Outputs (per tile): shelter_categories.tif, shelter_densities.tif, opportunities.tif, patch_metrics.csv
+folder=/scratch/xe2/cb8590/barra_trees_s4_ag_noxy_df_4326_2025/expanded/lat_32_lon_148
+outdir=/scratch/xe2/cb8590/barra_trees_s4_ag_noxy_df_4326_2025/indices/lat_32_lon_148
+echo "Starting indices.pbs 2025 region run for folder $folder, outdir $outdir"
+python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub lat_32_lon_148 --cover_threshold 50 --crop_pixels 20 --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20 --opportunities
+
+# # Single-tile / 10-tile TEST version
+# folder=/scratch/xe2/cb8590/tmp_indices_test_2025
+# outdir=/scratch/xe2/cb8590/tmp_indices_test_2025_out
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub test2025 --cover_threshold 50 --crop_pixels 20 --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20 --opportunities
+
 # Lidar CHM 1m resolution — default percent method
 # expand_tifs.pbs outputs to expanded/chms/ (appends stem of folder_to_expand)
-folder=/scratch/xe2/cb8590/lidar_processing/expanded/chms
-outdir=/scratch/xe2/cb8590/lidar_processing/indices_default_percentmethod_expanded
-
-echo "Default percent method (1m lidar CHM)"
-# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub chms --cover_threshold 5 --crop_pixels 0 --distance_threshold 100 --buffer_width 40 --max_shelterbelt_width 60 --min_shelterbelt_length 150 --min_patch_size 500 --edge_size 30 --min_core_size 10000    # Good parameters for the 1m sample
-python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub chms --cover_threshold 5 --crop_pixels 200 --distance_threshold 100 --buffer_width 40 --max_shelterbelt_width 15 --min_shelterbelt_length 100 --min_patch_size 500 --edge_size 30 --min_core_size 10000    # Good parameters for the 1m sample
+# folder=/scratch/xe2/cb8590/lidar_processing/expanded/chms
+# outdir=/scratch/xe2/cb8590/lidar_processing/indices_default_percentmethod_expanded
+# echo "Default percent method (1m lidar CHM)"
+# python all_indices.py "$folder" --outdir "$outdir" --tmpdir "$tmpdir" --param_stub chms --cover_threshold 5 --crop_pixels 200 --distance_threshold 100 --buffer_width 40 --max_shelterbelt_width 15 --min_shelterbelt_length 100 --min_patch_size 500 --edge_size 30 --min_core_size 10000    # Good parameters for the 1m sample

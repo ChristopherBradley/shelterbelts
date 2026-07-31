@@ -1,7 +1,6 @@
 # +
 # This is what originally generated barra_bboxs_full.gpkg, barra_bboxs_aus.gpkg + the state gpkgs, 
 # and the per-attempt chunked sub-gpkgs used by pbs_scripts/predictions.sh.
-# Accidentally deleted in a previous commit :(
 
 import os
 import glob

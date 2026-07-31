@@ -218,6 +218,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
             {"type": "filters.hag_nn"},
         ]
 
+    # Force the raster to cover the tile's full extent, so we don't get smaller rasters when there are less trees.
+    full_minx, full_miny, full_maxx, full_maxy, _ = _get_laz_bounds(infile, epsg)
+    bounds_str = f"([{full_minx},{full_maxx}],[{full_miny},{full_maxy}])"
+
     # Create the canopy height tif
     chm_tif = os.path.join(outdir, f'{stub}_chm_res{chm_resolution}.tif')
     chm_json = {
@@ -231,6 +235,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
              "gdaldriver": "GTiff",
              "dimension": "HeightAboveGround",
              "output_type": "max",
+             "bounds": bounds_str,
              "nodata": -9999}
         ]
     }
@@ -239,29 +244,36 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     print(f"Saved: {chm_tif}", flush=True)
 
     if delineate_crowns:
+<<<<<<< HEAD
+        gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
+        chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
+=======
         gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold, save_gpkg=save_crowns_gpkg)
+>>>>>>> af49e6e51149d0c831ef2fee3ee278ea761432dc
         if gdf_crowns is not None and len(gdf_crowns) > 0:
             # Mask the CHM to only pixels inside delineated crowns so that
             # non-tree objects (powerlines, buildings) get removed.
-            chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
             chm_masked = chm_raw.rio.clip(
                 gdf_crowns.geometry.values,
                 gdf_crowns.crs,
                 drop=False,
                 # all_touched=True, Any polygon touching this pixel counts. By default, the polygon has the pass through the centre of the pixel.
             ).fillna(0)
-            if uint8:
-                chm_masked = (chm_masked.where(chm_masked < 100, 100)
-                                        .where(chm_masked != -9999, 0)
-                                        .round()
-                                        .astype('uint8')
-                                        .rio.write_nodata(0))
-            original_chm_tif = chm_tif
-            suffix = '_uint8' if uint8 else ''
-            chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}{suffix}.tif')
-            chm_masked.rio.to_raster(chm_tif)
-            print(f"Saved: {chm_tif}", flush=True)
-            os.remove(original_chm_tif)
+        else:
+            # No crowns delineated still creates a (empty) tif so mosaicks don't have a gap. 
+            chm_masked = chm_raw.fillna(0)
+        if uint8:
+            chm_masked = (chm_masked.where(chm_masked < 100, 100)
+                                    .where(chm_masked != -9999, 0)
+                                    .round()
+                                    .astype('uint8')
+                                    .rio.write_nodata(0))
+        original_chm_tif = chm_tif
+        suffix = '_uint8' if uint8 else ''
+        chm_tif = os.path.join(outdir, f'{stub}_chm_crowns_res{chm_resolution}{suffix}.tif')
+        chm_masked.rio.to_raster(chm_tif)
+        print(f"Saved: {chm_tif}", flush=True)
+        os.remove(original_chm_tif)
 
     if just_chm:
         return None, None
