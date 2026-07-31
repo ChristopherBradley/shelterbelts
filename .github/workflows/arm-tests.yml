@@ -1,8 +1,8 @@
 name: ARM Tests (experiment)
 
 # Apple Silicon only, so a run takes a few minutes instead of waiting on every
-# other operating system. Temporary, for working out why the tensorflow tests
-# hang on macos-latest once the pdal/tensorflow segfault is out of the way.
+# other operating system. Temporary, for working out why keras deadlocks on
+# macos-latest once the pdal/tensorflow segfault is out of the way.
 
 # Runs on every push to this branch: workflow_dispatch would only be dispatchable
 # once the file reaches the default branch, which it should not until it works.
@@ -16,16 +16,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  conda-tensorflow:
+  deadlock:
     runs-on: macos-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
-      # environment.yml now pulls tensorflow from conda-forge itself, so there is
-      # nothing to patch here any more - just record what is being solved.
-      - name: Show environment.yml
-        run: cat environment.yml
 
       - name: Set up conda environment
         uses: conda-incubator/setup-miniconda@v3
@@ -34,59 +29,42 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      # Is stock tensorflow slow here, or is it something this repo does with it?
-      # dump_traceback_later prints every thread's stack if a step wedges, which is
-      # the only way to see inside a hang - GitHub withholds in-progress logs.
-      - name: Stock tensorflow timings
+      # model.predict() hangs in tf.data's iterator_get_next, but only in the code
+      # path that has already imported pdal - the same stock predict ran in 0.1s
+      # without it. These probes separate the two, and check whether calling the
+      # model directly (no tf.data involved) sidesteps it. Each runs in its own
+      # process and self-aborts after 90s, so one hang does not eat the whole job.
+      - name: Where does keras deadlock
         shell: bash -l {0}
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
-          python - <<'PY'
-          import faulthandler, time
-          faulthandler.dump_traceback_later(240, exit=True)
-          t = time.time(); import tensorflow as tf; print(f"import tensorflow: {time.time()-t:.1f}s", flush=True)
-          t = time.time(); from tensorflow import keras; print(f"import keras: {time.time()-t:.1f}s", flush=True)
+          cat > "$RUNNER_TEMP/probe.py" <<'PY'
+          import faulthandler, sys, time
+          faulthandler.dump_traceback_later(90, exit=True)
+          mode = sys.argv[1]
+          if "pdal" in mode:
+              t = time.time(); import pdal; print(f"  imported pdal {time.time()-t:.1f}s", flush=True)
           import numpy as np
-          t = time.time()
-          m = keras.Sequential([keras.layers.Dense(8, activation="relu"), keras.layers.Dense(2)])
+          from tensorflow import keras
+          m = keras.Sequential([keras.Input(shape=(4,)),
+                                keras.layers.Dense(8, activation="relu"),
+                                keras.layers.Dense(2)])
           m.compile(optimizer="adam", loss="mse")
-          print(f"build+compile: {time.time()-t:.1f}s", flush=True)
-          x = np.random.rand(256, 4).astype("float32"); y = np.random.rand(256, 2).astype("float32")
-          t = time.time(); m.fit(x, y, epochs=1, verbose=0); print(f"fit 1 epoch: {time.time()-t:.1f}s", flush=True)
-          t = time.time(); m.predict(x, verbose=0); print(f"predict: {time.time()-t:.1f}s", flush=True)
+          x = np.random.rand(20000, 4).astype("float32")
+          y = np.random.rand(20000, 2).astype("float32")
+          if "fit" in mode:
+              t = time.time(); m.fit(x, y, epochs=1, verbose=0); print(f"  fit OK {time.time()-t:.1f}s", flush=True)
+          if "predict" in mode:
+              t = time.time(); m.predict(x, verbose=0); print(f"  predict OK {time.time()-t:.1f}s", flush=True)
+          if "direct" in mode:
+              t = time.time()
+              out = np.concatenate([m(x[i:i+8192], training=False).numpy()
+                                    for i in range(0, len(x), 8192)])
+              print(f"  direct call OK {time.time()-t:.1f}s shape={out.shape}", flush=True)
           PY
-
-      # Same again but through this repo's code path, including the pretrained
-      # model, and with pdal already imported the way a real test session has it.
-      - name: Repo model load timings
-        shell: bash -l {0}
-        timeout-minutes: 10
-        run: |
-          python - <<'PY'
-          import faulthandler, time
-          faulthandler.dump_traceback_later(240, exit=True)
-          t = time.time(); import pdal; print(f"import pdal: {time.time()-t:.1f}s", flush=True)
-          from shelterbelts.utils.filepaths import get_pretrained_nn, get_pretrained_scaler, sentinel_sample
-          t = time.time()
-          from shelterbelts.classifications.predictions import _load_keras_model, tif_prediction_ds
-          print(f"import predictions: {time.time()-t:.1f}s", flush=True)
-          t = time.time(); model = _load_keras_model(get_pretrained_nn()); print(f"load_model: {time.time()-t:.1f}s", flush=True)
-          import joblib, pickle
-          scaler = joblib.load(get_pretrained_scaler())
-          with open(sentinel_sample, "rb") as f:
-              ds = pickle.load(f)
-          t = time.time()
-          tif_prediction_ds(ds, outdir=".", stub="timing", model=model, scaler=scaler, savetif=False)
-          print(f"tif_prediction_ds: {time.time()-t:.1f}s", flush=True)
-          PY
-
-      # faulthandler_timeout makes pytest dump all thread stacks for any test that
-      # runs longer than this, naming the hang instead of just timing out silently.
-      - name: pytest (tensorflow tests only)
-        if: always()
-        shell: bash -l {0}
-        timeout-minutes: 15
-        run: |
-          pytest tests/test_classifications/test_predictions.py \
-                 tests/test_classifications/test_training.py \
-                 -v --durations=0 -o faulthandler_timeout=180
+          for mode in predict pdal-predict pdal-fit pdal-direct; do
+            echo "=== $mode ==="
+            python "$RUNNER_TEMP/probe.py" "$mode" > "$RUNNER_TEMP/$mode.log" 2>&1
+            echo "  rc=$?"
+            tail -6 "$RUNNER_TEMP/$mode.log"
+          done
