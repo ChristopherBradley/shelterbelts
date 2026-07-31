@@ -49,7 +49,7 @@ def test_patch_metrics_csv_matches_returned_df():
     intermediate 'Other Trees' (category 14) placeholder.
     """
     _, df = patch_metrics(
-        f"data/{stub}_buffer_categories.tif",
+        f"data/{stub}_gullies_and_roads_buffer_categories.tif",
         outdir="outdir",
         stub=stub,
         plot=False,
