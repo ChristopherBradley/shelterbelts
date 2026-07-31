@@ -19,3 +19,51 @@ jobs:
       - name: Run pytest
         shell: bash -l {0}
         run: pytest tests/
+
+  pytest-macos-arm:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: shelterbelts
+          miniforge-version: latest
+
+      - name: Run pytest
+        shell: bash -l {0}
+        run: pytest tests/
+
+  pytest-macos-intel:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: shelterbelts
+          miniforge-version: latest
+
+      - name: Run pytest
+        shell: bash -l {0}
+        run: pytest tests/
+
+  pytest-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: shelterbelts
+          miniforge-version: latest
+
+      - name: Run pytest
+        shell: bash -l {0}
+        run: pytest tests/
