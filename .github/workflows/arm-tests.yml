@@ -38,14 +38,19 @@ jobs:
         shell: bash -l {0}
         timeout-minutes: 20
         run: |
+          set +e   # a probe that deadlocks must not abort the remaining probes
           cat > "$RUNNER_TEMP/probe.py" <<'PY'
           import faulthandler, sys, time
-          faulthandler.dump_traceback_later(90, exit=True)
+          faulthandler.dump_traceback_later(60, exit=True)
           mode = sys.argv[1]
           if "pdal" in mode:
               t = time.time(); import pdal; print(f"  imported pdal {time.time()-t:.1f}s", flush=True)
           import numpy as np
+          import tensorflow as tf
           from tensorflow import keras
+          if "serial" in mode:
+              tf.config.threading.set_inter_op_parallelism_threads(1)
+              tf.config.threading.set_intra_op_parallelism_threads(1)
           m = keras.Sequential([keras.Input(shape=(4,)),
                                 keras.layers.Dense(8, activation="relu"),
                                 keras.layers.Dense(2)])
@@ -62,9 +67,9 @@ jobs:
                                     for i in range(0, len(x), 8192)])
               print(f"  direct call OK {time.time()-t:.1f}s shape={out.shape}", flush=True)
           PY
-          for mode in predict pdal-predict pdal-fit pdal-direct; do
+          for mode in pdal-direct pdal-fit pdal-predict-serial pdal-predict; do
             echo "=== $mode ==="
             python "$RUNNER_TEMP/probe.py" "$mode" > "$RUNNER_TEMP/$mode.log" 2>&1
             echo "  rc=$?"
-            tail -6 "$RUNNER_TEMP/$mode.log"
+            grep -E "OK|Timeout|Error" "$RUNNER_TEMP/$mode.log" | head -4
           done
