@@ -244,12 +244,8 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     print(f"Saved: {chm_tif}", flush=True)
 
     if delineate_crowns:
-<<<<<<< HEAD
         gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
         chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
-=======
-        gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold, save_gpkg=save_crowns_gpkg)
->>>>>>> af49e6e51149d0c831ef2fee3ee278ea761432dc
         if gdf_crowns is not None and len(gdf_crowns) > 0:
             # Mask the CHM to only pixels inside delineated crowns so that
             # non-tree objects (powerlines, buildings) get removed.
