@@ -32,9 +32,23 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      - name: Run pytest
+      # tensorflow (pip-installed) segfaults on import here, crashing inside dyld while
+      # loading its _pywrap_cpu_feature_guard extension. Suspected cause: conda-forge
+      # activation scripts (e.g. from numba's OpenMP dep) set DYLD_LIBRARY_PATH to the
+      # env's lib/, which can make TF's bundled native code resolve symbols against
+      # incompatible conda-forge libs at load time. This step logs the env vars/scripts
+      # for evidence, then unsets them to test the hypothesis.
+      - name: Diagnose and run pytest
         shell: bash -l {0}
-        run: pytest tests/
+        run: |
+          echo "--- DYLD_LIBRARY_PATH ---"
+          echo "${DYLD_LIBRARY_PATH:-<unset>}"
+          echo "--- DYLD_FALLBACK_LIBRARY_PATH ---"
+          echo "${DYLD_FALLBACK_LIBRARY_PATH:-<unset>}"
+          echo "--- conda activate.d scripts ---"
+          ls -la "$CONDA_PREFIX/etc/conda/activate.d/" 2>/dev/null || echo "none found"
+          unset DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
+          pytest tests/
 
   pytest-macos-intel:
     runs-on: macos-15-intel
@@ -48,9 +62,23 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      - name: Run pytest
+      # tensorflow (pip-installed) segfaults on import here, crashing inside dyld while
+      # loading its _pywrap_cpu_feature_guard extension. Suspected cause: conda-forge
+      # activation scripts (e.g. from numba's OpenMP dep) set DYLD_LIBRARY_PATH to the
+      # env's lib/, which can make TF's bundled native code resolve symbols against
+      # incompatible conda-forge libs at load time. This step logs the env vars/scripts
+      # for evidence, then unsets them to test the hypothesis.
+      - name: Diagnose and run pytest
         shell: bash -l {0}
-        run: pytest tests/
+        run: |
+          echo "--- DYLD_LIBRARY_PATH ---"
+          echo "${DYLD_LIBRARY_PATH:-<unset>}"
+          echo "--- DYLD_FALLBACK_LIBRARY_PATH ---"
+          echo "${DYLD_FALLBACK_LIBRARY_PATH:-<unset>}"
+          echo "--- conda activate.d scripts ---"
+          ls -la "$CONDA_PREFIX/etc/conda/activate.d/" 2>/dev/null || echo "none found"
+          unset DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
+          pytest tests/
 
   pytest-windows:
     runs-on: windows-latest
