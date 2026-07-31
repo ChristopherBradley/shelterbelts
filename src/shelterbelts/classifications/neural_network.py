@@ -117,11 +117,34 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     )
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)  # Tried out a few different optimizers and this worked best for my use case
 
-    model.compile(optimizer=optimizer, loss = 'CategoricalCrossentropy', metrics = ['CategoricalAccuracy'])        
+    class RecordAccuracy(keras.callbacks.Callback):
+        """Record accuracy per epoch under the names a compiled metric would use.
+
+        Passing metrics= to compile() aborts the process on macOS. conda-forge's
+        tensorflow builds for macOS ship with debug assertions enabled, and every
+        published version dies on the same one the moment a metric is attached:
+
+            Assertion failed: (f == nullptr || dynamic_cast<To>(f) != nullptr),
+            function down_cast, .../xla/tsl/platform/default/casts.h
+
+        A release build compiles that assert out, which is why the identical
+        tensorflow and keras pass on Linux and Windows. Computing accuracy from
+        predictions gives the same numbers everywhere and keeps the plots below
+        working, without making the code conditional on the platform.
+        """
+        def on_epoch_end(self, epoch, logs=None):
+            if logs is None:
+                return
+            for name, X, y in (('categorical_accuracy', X_train, y_train),
+                               ('val_categorical_accuracy', X_test, y_test)):
+                predicted = self.model.predict(X, verbose=0).argmax(axis=1)
+                logs[name] = float((predicted == y.argmax(axis=1)).mean())
+
+    model.compile(optimizer=optimizer, loss = 'CategoricalCrossentropy')
 
     # Train the model
-    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, 
-                        callbacks=[early_stopping], validation_data=(X_test, y_test), verbose=2)
+    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size,
+                        callbacks=[early_stopping, RecordAccuracy()], validation_data=(X_test, y_test), verbose=2)
 
     # Save the model
     filename = os.path.join(outdir, f'nn_{stub}.keras')
