@@ -1,7 +1,7 @@
 name: ARM Tests (experiment)
 
 # Apple Silicon only, so a run takes a few minutes instead of waiting on every
-# other operating system. Temporary, while the pdal/tensorflow interaction on
+# other operating system. Temporary, while the remaining tensorflow failure on
 # macos-latest is being pinned down.
 
 # Runs on every push to this branch: workflow_dispatch would only be dispatchable
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deadlock:
+  training-abort:
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
@@ -29,42 +29,70 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      # Importing tensorflow first is now known to fix this, but that only helps
-      # code that remembers to do it. conda-forge's pdal metapackage drags in a
-      # pile of optional plugin dylibs (tiledb, draco, e57, cpd...) that this repo
-      # never uses, and one of those bringing its own threadpool would explain the
-      # clash. If skipping plugin loading is enough, dropping the metapackage is a
-      # cleaner fix than an import-order rule.
-      - name: Are pdal's optional plugins the trigger
+      # Everything up to test_training now passes on both macs, then keras fit
+      # aborts. pytest captured whatever was written before the abort, so run it
+      # with -s and with tensorflow's C++ logging turned back on to see it.
+      - name: test_training with output captured
+        shell: bash -l {0}
+        timeout-minutes: 12
+        run: |
+          set +e
+          TF_CPP_MIN_LOG_LEVEL=0 pytest tests/test_classifications/test_training.py -v -s 2>&1 | tail -60
+          echo "rc=${PIPESTATUS[0]}"
+
+      # Narrow which part of train_model's compile/fit aborts. Each variant runs in
+      # its own process so one abort does not take the rest with it.
+      - name: Which part of the model aborts
+        if: always()
         shell: bash -l {0}
         timeout-minutes: 15
         run: |
           set +e
-          cat > "$RUNNER_TEMP/probe.py" <<'PY'
+          cat > "$RUNNER_TEMP/nn.py" <<'PY'
           import faulthandler, sys, time
-          faulthandler.dump_traceback_later(60, exit=True)
+          faulthandler.dump_traceback_later(120, exit=True)
           import numpy as np
-          t = time.time(); import pdal
-          print(f"  imported pdal {time.time()-t:.1f}s  drivers={len(pdal.drivers.__dict__)}", flush=True)
           from tensorflow import keras
-          m = keras.Sequential([keras.Input(shape=(4,)),
-                                keras.layers.Dense(8, activation="relu"),
-                                keras.layers.Dense(2)])
-          m.compile(optimizer="adam", loss="mse")
-          x = np.random.rand(20000, 4).astype("float32")
-          t = time.time(); m.predict(x, verbose=0)
-          print(f"  predict OK {time.time()-t:.1f}s", flush=True)
-          PY
-          echo "=== pdal first, all plugins (control, expected to hang) ==="
-          python "$RUNNER_TEMP/probe.py" > "$RUNNER_TEMP/a.log" 2>&1; echo "  rc=$?"
-          grep -E "OK|Timeout|drivers=" "$RUNNER_TEMP/a.log" | head -3
-          echo "=== pdal first, PDAL_DRIVER_PATH pointed away from the plugins ==="
-          PDAL_DRIVER_PATH="$RUNNER_TEMP/no-plugins" python "$RUNNER_TEMP/probe.py" > "$RUNNER_TEMP/b.log" 2>&1; echo "  rc=$?"
-          grep -E "OK|Timeout|drivers=" "$RUNNER_TEMP/b.log" | head -3
 
-      # The actual goal: does the whole suite pass now, and how long does it take.
-      - name: Run pytest
-        if: always()
-        shell: bash -l {0}
-        timeout-minutes: 25
-        run: pytest tests/ -v --durations=15 -o faulthandler_timeout=300
+          variant = sys.argv[1]
+          rng = np.random.default_rng(0)
+          X_train = rng.random((2000, 12)).astype("float32")
+          X_test = rng.random((500, 12)).astype("float32")
+          y_train = keras.utils.to_categorical(rng.integers(0, 2, 2000), 2)
+          y_test = keras.utils.to_categorical(rng.integers(0, 2, 500), 2)
+
+          model = keras.Sequential([
+              keras.layers.Dense(256, activation='relu'), keras.layers.Dropout(0.1),
+              keras.layers.Dense(128, activation='relu'), keras.layers.Dropout(0.1),
+              keras.layers.Dense(64, activation='relu'), keras.layers.Dropout(0.1),
+              keras.layers.Dense(2, activation='softmax'),
+          ])
+          kw = {}
+          loss, metrics = 'CategoricalCrossentropy', ['CategoricalAccuracy']
+          if variant == "full":
+              kw = dict(callbacks=[keras.callbacks.EarlyStopping(monitor='val_loss', patience=30,
+                                                                 restore_best_weights=True)],
+                        validation_data=(X_test, y_test))
+          elif variant == "no_callbacks":
+              kw = dict(validation_data=(X_test, y_test))
+          elif variant == "no_validation":
+              kw = dict()
+          elif variant == "lowercase_names":
+              loss, metrics = 'categorical_crossentropy', ['categorical_accuracy']
+              kw = dict(validation_data=(X_test, y_test))
+          elif variant == "no_metrics":
+              metrics = None
+              kw = dict(validation_data=(X_test, y_test))
+
+          model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
+                        loss=loss, metrics=metrics)
+          t = time.time()
+          model.fit(X_train, y_train, epochs=2, batch_size=32, verbose=0, **kw)
+          print(f"  {variant} OK {time.time()-t:.1f}s", flush=True)
+          PY
+          for v in no_validation no_metrics lowercase_names no_callbacks full; do
+            echo "=== $v ==="
+            TF_CPP_MIN_LOG_LEVEL=0 python "$RUNNER_TEMP/nn.py" "$v" > "$RUNNER_TEMP/$v.log" 2>&1
+            echo "  rc=$?"
+            grep -viE "^\s*$|oneDNN|TF-TRT|cpu_feature" "$RUNNER_TEMP/$v.log" | tail -5
+          done
