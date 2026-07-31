@@ -1,8 +1,8 @@
 name: ARM Tests (experiment)
 
 # Apple Silicon only, so a run takes a few minutes instead of waiting on every
-# other operating system. Temporary, for working out why keras deadlocks on
-# macos-latest once the pdal/tensorflow segfault is out of the way.
+# other operating system. Temporary, while the pdal/tensorflow interaction on
+# macos-latest is being pinned down.
 
 # Runs on every push to this branch: workflow_dispatch would only be dispatchable
 # once the file reaches the default branch, which it should not until it works.
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   deadlock:
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -29,69 +29,42 @@ jobs:
           activate-environment: shelterbelts
           miniforge-version: latest
 
-      # Established so far: with pdal imported, anything that goes through tf.data
-      # (predict, fit) deadlocks in iterator_get_next, while a direct eager call to
-      # the model returns instantly. Pinning tensorflow to one op thread did not
-      # help. These probes check whether import order or warming tf.data before
-      # pdal loads avoids it, which would beat rewriting the repo's predict/fit.
-      - name: Does import order or a warmup avoid the deadlock
+      # Importing tensorflow first is now known to fix this, but that only helps
+      # code that remembers to do it. conda-forge's pdal metapackage drags in a
+      # pile of optional plugin dylibs (tiledb, draco, e57, cpd...) that this repo
+      # never uses, and one of those bringing its own threadpool would explain the
+      # clash. If skipping plugin loading is enough, dropping the metapackage is a
+      # cleaner fix than an import-order rule.
+      - name: Are pdal's optional plugins the trigger
         shell: bash -l {0}
-        timeout-minutes: 20
+        timeout-minutes: 15
         run: |
-          set +e   # a probe that deadlocks must not abort the remaining probes
+          set +e
           cat > "$RUNNER_TEMP/probe.py" <<'PY'
           import faulthandler, sys, time
           faulthandler.dump_traceback_later(60, exit=True)
           import numpy as np
-          mode = sys.argv[1]
-
-          def load_pdal():
-              t = time.time(); import pdal
-              print(f"  imported pdal {time.time()-t:.1f}s", flush=True)
-
-          if mode == "pdal_first_train_on_batch":
-              load_pdal()
-
-          import tensorflow as tf
+          t = time.time(); import pdal
+          print(f"  imported pdal {time.time()-t:.1f}s  drivers={len(pdal.drivers.__dict__)}", flush=True)
           from tensorflow import keras
-
           m = keras.Sequential([keras.Input(shape=(4,)),
                                 keras.layers.Dense(8, activation="relu"),
                                 keras.layers.Dense(2)])
           m.compile(optimizer="adam", loss="mse")
           x = np.random.rand(20000, 4).astype("float32")
-          y = np.random.rand(20000, 2).astype("float32")
-
-          def timed(label, fn):
-              t = time.time(); fn(); print(f"  {label} OK {time.time()-t:.1f}s", flush=True)
-
-          if mode == "tf_first_predict":
-              load_pdal()
-              timed("predict", lambda: m.predict(x, verbose=0))
-          elif mode == "tf_warm_then_pdal_predict":
-              timed("warmup predict", lambda: m.predict(x, verbose=0))
-              load_pdal()
-              timed("predict after pdal", lambda: m.predict(x, verbose=0))
-          elif mode == "tf_first_fit":
-              load_pdal()
-              timed("fit", lambda: m.fit(x, y, epochs=1, verbose=0))
-          elif mode == "tf_warm_then_pdal_fit":
-              timed("warmup fit", lambda: m.fit(x, y, epochs=1, verbose=0))
-              load_pdal()
-              timed("fit after pdal", lambda: m.fit(x, y, epochs=1, verbose=0))
-          elif mode == "pdal_first_train_on_batch":
-              # train_on_batch takes numpy directly, so it never builds a tf.data pipeline
-              def loop():
-                  for i in range(0, len(x), 4096):
-                      m.train_on_batch(x[i:i+4096], y[i:i+4096])
-              timed("train_on_batch loop", loop)
-          else:
-              raise SystemExit(f"unknown mode {mode}")
+          t = time.time(); m.predict(x, verbose=0)
+          print(f"  predict OK {time.time()-t:.1f}s", flush=True)
           PY
-          for mode in tf_first_predict tf_warm_then_pdal_predict tf_first_fit \
-                      tf_warm_then_pdal_fit pdal_first_train_on_batch; do
-            echo "=== $mode ==="
-            python "$RUNNER_TEMP/probe.py" "$mode" > "$RUNNER_TEMP/$mode.log" 2>&1
-            echo "  rc=$?"
-            grep -E "OK|Timeout|Error" "$RUNNER_TEMP/$mode.log" | head -5
-          done
+          echo "=== pdal first, all plugins (control, expected to hang) ==="
+          python "$RUNNER_TEMP/probe.py" > "$RUNNER_TEMP/a.log" 2>&1; echo "  rc=$?"
+          grep -E "OK|Timeout|drivers=" "$RUNNER_TEMP/a.log" | head -3
+          echo "=== pdal first, PDAL_DRIVER_PATH pointed away from the plugins ==="
+          PDAL_DRIVER_PATH="$RUNNER_TEMP/no-plugins" python "$RUNNER_TEMP/probe.py" > "$RUNNER_TEMP/b.log" 2>&1; echo "  rc=$?"
+          grep -E "OK|Timeout|drivers=" "$RUNNER_TEMP/b.log" | head -3
+
+      # The actual goal: does the whole suite pass now, and how long does it take.
+      - name: Run pytest
+        if: always()
+        shell: bash -l {0}
+        timeout-minutes: 25
+        run: pytest tests/ -v --durations=15 -o faulthandler_timeout=300
