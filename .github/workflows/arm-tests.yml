@@ -1,0 +1,104 @@
+name: ARM Tests (experiment)
+
+# Apple Silicon only, so a run takes a couple of minutes instead of waiting on
+# every other operating system. Temporary - for working out why pdal and
+# tensorflow segfault when imported into the same process on macos-latest.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # Baseline: the environment as it stands today, with tensorflow coming from a
+  # pip wheel. Records which C++ runtime each library links against and which
+  # import orders survive, without pytest in the way.
+  diagnose-pip-tensorflow:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: shelterbelts
+          miniforge-version: latest
+
+      - name: C++ runtime linkage
+        shell: bash -l {0}
+        run: |
+          SP=$(python -c "import site; print(site.getsitepackages()[0])")
+          echo "--- tensorflow build ---"
+          python -c "import tensorflow as tf; print(tf.__version__, tf.__file__)" 2>/dev/null || echo "(import failed)"
+          echo "--- pdal python extension ---"
+          otool -L "$SP"/pdal/libpdalpython*.so | grep -iE "c\+\+" || echo "(none)"
+          echo "--- libpdalcpp ---"
+          otool -L "$CONDA_PREFIX"/lib/libpdalcpp.dylib | grep -iE "c\+\+" || echo "(none)"
+          echo "--- libtensorflow_cc ---"
+          otool -L "$SP"/tensorflow/libtensorflow_cc.2.dylib | grep -iE "c\+\+" || echo "(none)"
+          echo "--- libc++ shipped in the env ---"
+          ls -la "$CONDA_PREFIX"/lib/libc++* 2>/dev/null || echo "(none - env uses the system libc++)"
+
+      - name: Import order matrix
+        shell: bash -l {0}
+        run: |
+          probe () {
+            python -c "$1" >/dev/null 2>&1
+            echo "exit=$?  <-  $1"
+          }
+          probe "import pdal"
+          probe "import tensorflow"
+          probe "import pdal, tensorflow"
+          probe "import tensorflow, pdal"
+
+  # Candidate fix: take tensorflow from conda-forge instead of pip, so it is
+  # built against the same C++ runtime as pdal and everything else in the env.
+  conda-tensorflow:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add tensorflow to the conda dependencies
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path("environment.yml")
+          t = p.read_text()
+          assert "\n  - pip\n" in t, t
+          p.write_text(t.replace("\n  - pip\n", "\n  - tensorflow\n  - pip\n"))
+          print(p.read_text())
+          PY
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: shelterbelts
+          miniforge-version: latest
+
+      - name: C++ runtime linkage
+        shell: bash -l {0}
+        run: |
+          SP=$(python -c "import site; print(site.getsitepackages()[0])")
+          echo "--- tensorflow build (expect a conda-forge version, not a pip wheel) ---"
+          python -c "import tensorflow as tf; print(tf.__version__, tf.__file__)" 2>/dev/null || echo "(import failed)"
+          conda list tensorflow
+          echo "--- pdal python extension ---"
+          otool -L "$SP"/pdal/libpdalpython*.so | grep -iE "c\+\+" || echo "(none)"
+          echo "--- libtensorflow_cc ---"
+          otool -L "$SP"/tensorflow/libtensorflow_cc*.dylib 2>/dev/null | grep -iE "c\+\+" || echo "(no bundled libtensorflow_cc)"
+
+      - name: Import order matrix
+        shell: bash -l {0}
+        run: |
+          probe () {
+            python -c "$1" >/dev/null 2>&1
+            echo "exit=$?  <-  $1"
+          }
+          probe "import pdal"
+          probe "import tensorflow"
+          probe "import pdal, tensorflow"
+          probe "import tensorflow, pdal"
+
+      - name: Run pytest
+        shell: bash -l {0}
+        run: pytest tests/
