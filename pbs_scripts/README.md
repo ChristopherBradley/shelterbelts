@@ -21,8 +21,13 @@ This folder contains scripts for running the shelterbelts pipeline at scale. Eve
 | 13 | Shelter indices | `indices.sh`  | Expanded tifs | Shelterbelt tifs |
 | 14 | Merge index outputs | `merge_tifs.sh` (re-run) | Shelterbelt tifs | Merged shelterbelt tifs |
 
-- Step 8 costs ~5 KSU per year for all agricultural regions in Australia
-- Steps 9-12 cost ~50 SU total for all agricultural regions in Australia
+### Compute cost (all ~133k 4 km tiles / 148 regions across agricultural Australia)
+
+- **Step 8** (Batch predict) costs **~5 KSU per year** for all agricultural regions in Australia.
+- **Steps 9-12** (bin → merge → footprints → expand) cost **~50 SU total**.
+- **Step 13** (Shelter indices) costs **~0.5 KSU per method** with the default wind method (~0.004 SU per 4 km tile × ~133k tiles; measured on the 2025 ag run). The `more_windmethod` (ANY = 8 directions) is ~2× (**~1.2 KSU**); the percent methods are cheaper (**~0.3-0.5 KSU**). The 2025 six-method run was therefore **~3-4 KSU total**.
+- **Step 14** (Merge index outputs) costs only **tens of SU** (one short merge job per ~200 km region).
+- For reference, the 2026 **Global Canopy Height v2** variant (10 m percent-cover binning → height-aware WINDWARD indices + opportunities → merge → Australia-wide value_counts) cost **~0.66 KSU total** for all ag regions: ~0.06 KSU binning, ~0.58 KSU indices+merge, the remainder value_counts + ag-boundary masking. All jobs ran at 4 GB / 1 CPU (peak ~2.7 GB).
 
 ## Auxiliary scripts
 
