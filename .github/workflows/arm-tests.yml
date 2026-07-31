@@ -4,8 +4,12 @@ name: ARM Tests (experiment)
 # every other operating system. Temporary - for working out why pdal and
 # tensorflow segfault when imported into the same process on macos-latest.
 
+# Runs on every push to this branch: workflow_dispatch would only be dispatchable
+# once the file reaches the default branch, which it should not until it works.
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - claude
 
 jobs:
   # Baseline: the environment as it stands today, with tensorflow coming from a
