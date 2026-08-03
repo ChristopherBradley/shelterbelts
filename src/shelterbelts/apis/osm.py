@@ -21,14 +21,19 @@ highway_types = ["motorway", "trunk", "primary", "secondary", "tertiary"]
 
 # overpass-api.de round-robins between backends (gall and lambert), and either one
 # can return 504 while the other is healthy - which one you get is down to DNS, so
-# the same query fails on one machine and succeeds on another. Fall back to the
-# mirrors rather than trusting a single endpoint.
+# the same query fails on one machine and succeeds on another. Retrying re-resolves
+# the name, and the mirrors are there for when the whole service is struggling.
+#
+# Every endpoint here must serve the full planet. A regional instance answers 200
+# with zero ways outside its own country, which would silently look like "no roads"
+# rather than an error - overpass.osm.ch does exactly that for Australia.
 overpass_endpoints = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.osm.ch/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
 ]
-overpass_timeout = 120
+overpass_passes = 2
+overpass_timeout = 90
 user_agent = "shelterbelts (https://github.com/ChristopherBradley/shelterbelts)"
 
 
@@ -36,23 +41,24 @@ def _overpass_ways(bbox_list):
     """Fetch the highway ways intersecting a bounding box, trying each endpoint in turn."""
     west, south, east, north = bbox_list
     query = (
-        f'[out:json][timeout:{overpass_timeout}];'
+        f'[out:json][timeout:60];'
         f'(way["highway"~"^({"|".join(highway_types)})$"]({south},{west},{north},{east}););'
         f'out geom;'
     )
 
     failures = []
-    for url in overpass_endpoints:
-        try:
-            response = requests.post(url, data=query, headers={"User-Agent": user_agent},
-                                     timeout=overpass_timeout)
-        except requests.RequestException as e:
-            failures.append(f"{url}: {type(e).__name__}")
-            continue
-        if response.status_code != 200:
-            failures.append(f"{url}: HTTP {response.status_code}")
-            continue
-        return response.json()["elements"]
+    for _ in range(overpass_passes):
+        for url in overpass_endpoints:
+            try:
+                response = requests.post(url, data=query, headers={"User-Agent": user_agent},
+                                         timeout=overpass_timeout)
+            except requests.RequestException as e:
+                failures.append(f"{url}: {type(e).__name__}")
+                continue
+            if response.status_code != 200:
+                failures.append(f"{url}: HTTP {response.status_code}")
+                continue
+            return response.json()["elements"]
 
     raise RuntimeError("No Overpass endpoint answered: " + ", ".join(failures))
 
