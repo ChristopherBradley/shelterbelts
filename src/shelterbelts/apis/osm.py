@@ -19,14 +19,7 @@ roads_labels = {
 }
 highway_types = ["motorway", "trunk", "primary", "secondary", "tertiary"]
 
-# overpass-api.de round-robins between backends (gall and lambert), and either one
-# can return 504 while the other is healthy - which one you get is down to DNS, so
-# the same query fails on one machine and succeeds on another. Retrying re-resolves
-# the name, and the mirrors are there for when the whole service is struggling.
-#
-# Every endpoint here must serve the full planet. A regional instance answers 200
-# with zero ways outside its own country, which would silently look like "no roads"
-# rather than an error - overpass.osm.ch does exactly that for Australia.
+# Overpass can be slow and unreliable, so it's better to manually downloaded gpkg's if available for the region of interest, e.g. the National Australia roads dataset, and use utils.tiles.crop_and_rasterize instead.
 overpass_endpoints = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
