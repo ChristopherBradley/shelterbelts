@@ -1,0 +1,73 @@
+name: OSM
+
+# Temporary workflow for tracking down the macos-arm Overpass failure.
+# Delete once the fix lands in tests.yml.
+
+on:
+  push:
+    branches: [osm-macos-arm]
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    name: diagnose-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: ubuntu, os: ubuntu-latest}
+          - {name: macos-arm, os: macos-latest}
+          - {name: macos-intel, os: macos-15-intel}
+          - {name: windows, os: windows-latest}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Probe Overpass connectivity
+        shell: bash
+        run: python .github/scripts/osm_diagnose.py
+
+  pytest:
+    name: pytest-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: ubuntu, os: ubuntu-latest, environment-file: environment.yml}
+          - {name: macos-arm, os: macos-latest, environment-file: environment.yml}
+          - {name: macos-intel, os: macos-15-intel, environment-file: environment.yml}
+          - {name: windows, os: windows-latest, environment-file: environment-windows.yml}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: ${{ matrix.environment-file }}
+          activate-environment: shelterbelts
+          miniforge-version: latest
+
+      - name: Run the OSM test
+        id: run
+        shell: bash -l {0}
+        run: |
+          mkdir -p outdir tmpdir
+          set +e
+          pytest tests/test_apis/test_osm.py -v > pytest_out.txt 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat pytest_out.txt
+
+      - name: Report pytest output
+        if: always()
+        shell: bash -l {0}
+        run: python .github/scripts/annotate.py pytest_out.txt pytest-${{ matrix.name }}
+
+      - name: Fail if the test failed
+        if: steps.run.outputs.status != '0'
+        shell: bash
+        run: exit 1
