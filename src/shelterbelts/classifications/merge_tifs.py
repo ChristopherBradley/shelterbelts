@@ -103,13 +103,14 @@ def merge_tifs(base_dir, tmpdir='/tmp', suffix='.tif', subdir='', crs=None, dont
             if not dont_reproject:
                 da = da.rio.reproject(final_crs)
 
-            outfile = f"{filename.split('/')[-1].split('.')[0]}_uint8.tif"
+            outfile = f"{os.path.basename(filename).split('.')[0]}_uint8.tif"
             outpath = os.path.join(outdir, outfile)
             da.rio.to_raster(outpath, compress="lzw")
             if i % 100 == 0:
                 print(f"Saved {i}/{len(filenames)}:", outpath)
 
-    stub = f"{'_'.join(outdir.split('/')[-2:]).split('.')[0]}_{suffix_stub}".rstrip('_')
+    outdir_stub = '_'.join(os.path.normpath(outdir).split(os.sep)[-2:]).split('.')[0]
+    stub = f"{outdir_stub}_{suffix_stub}".rstrip('_')
     gdf = bounding_boxes(outdir, crs=final_crs, stub=stub, filetype=suffix)
 
     full_bounds = [gdf.bounds['minx'].min(), gdf.bounds['miny'].min(), gdf.bounds['maxx'].max(), gdf.bounds['maxy'].max()]
@@ -142,8 +143,8 @@ def merge_tifs(base_dir, tmpdir='/tmp', suffix='.tif', subdir='', crs=None, dont
         gdf_dedup = gdf
         filename_dedup = os.path.join(outdir, f"{stub}_footprints.gpkg")
 
-    base_stub = base_dir.split('/')[-1]
-    stub = base_stub + '_' + outdir.split('/')[-1]  # Including the base stub so cropped filenames are unique to avoid parallelization errors.
+    base_stub = os.path.basename(base_dir)
+    stub = base_stub + '_' + os.path.basename(outdir)  # Including the base stub so cropped filenames are unique to avoid parallelization errors.
     mosaic, out_meta = merge_tiles_bbox(bbox, tmpdir, stub, outdir, filename_dedup, id_column='filename')  # Deliberately inverting the outdir and tmpdir so the output cropped files go to tmpdir
     ds = merged_ds(mosaic, out_meta, suffix_stub)  # This name shows up in QGIS next to 'Band 1'
     da = ds[suffix_stub].rio.reproject(final_crs)  # This cleans up the nan values around the edge

@@ -142,8 +142,11 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     p.execute()
     print("Saved:", counts_tif)
 
-    # Convert point counts into a binary raster
-    counts = rxr.open_rasterio(counts_tif).isel(band=0).drop_vars('band')
+    # Convert point counts into a binary raster. Read into memory and close the
+    # file, because the cleanup below removes it while counts is still in use, and
+    # Windows cannot remove an open file the way POSIX can.
+    with rxr.open_rasterio(counts_tif) as counts_src:
+        counts = counts_src.isel(band=0).drop_vars('band').load()
 
     if counts.rio.crs is None:
         # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -245,7 +248,8 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     if delineate_crowns:
         gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
-        chm_raw = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
+        with rxr.open_rasterio(chm_tif) as chm_src:
+            chm_raw = chm_src.isel(band=0).drop_vars('band').load()
         if gdf_crowns is not None and len(gdf_crowns) > 0:
             # Mask the CHM to only pixels inside delineated crowns so that
             # non-tree objects (powerlines, buildings) get removed.
@@ -274,8 +278,10 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     if just_chm:
         return None, None
 
-    # Open the canopy height and create a binary raster
-    chm = rxr.open_rasterio(chm_tif).isel(band=0).drop_vars('band')
+    # Open the canopy height and create a binary raster. Read into memory and close
+    # the file, because the cleanup below removes it while chm is still in use.
+    with rxr.open_rasterio(chm_tif) as chm_src:
+        chm = chm_src.isel(band=0).drop_vars('band').load()
 
     if chm.rio.crs is None:
         # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -315,7 +321,7 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
     for laz_file in laz_files:
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
-        stub = laz_file.split('/')[-1].split('.')[0]
+        stub = os.path.basename(laz_file).split('.')[0]
         chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
@@ -329,7 +335,7 @@ def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, categor
     for laz_file in gdf[column]:
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
-        stub = laz_file.split('/')[-1].split('.')[0]
+        stub = os.path.basename(laz_file).split('.')[0]
         chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()

@@ -233,7 +233,7 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     model = _import_keras().models.load_model(model_filename)
     scaler = joblib.load(scaler_filename)
 
-    tile_id = sentinel_filename.split('/')[-1].split('.')[0]
+    tile_id = os.path.basename(sentinel_filename).split('.')[0]
     return tif_prediction_ds(ds, outdir, tile_id, model, scaler, savetif)
 
 

@@ -145,8 +145,28 @@ def test_indices_tif_less_shelterbelts():
         f"max_shelterbelt_width=4 should affect linear/non-linear classification: default={default_patches}, less={less_patches}"
 
 
-def test_indices_latlon():
-    """Smoke test for indices_latlon using the ACT test area."""
+def test_indices_latlon(monkeypatch):
+    """Smoke test for indices_latlon using the ACT test area.
+
+    The OpenStreetMap lookup is stubbed out. overpass-api.de refuses connections
+    from GitHub's macOS arm runners (Errno 61, on every attempt, while the other
+    three platforms reach it fine), and this test is about the indices pipeline
+    hanging together rather than about Overpass being reachable. The stub stands
+    in for the road geometry osm_roads would have fetched, so everything
+    downstream of the request still runs for real.
+    """
+    import osmnx as ox
+    import geopandas as gpd
+    from shapely.geometry import LineString
+
+    # A road crossing the 0.005 degree buffer around the point below.
+    stub_roads = gpd.GeoDataFrame(
+        {'highway': ['residential']},
+        geometry=[LineString([(148.4655, -34.3925), (148.4725, -34.3855)])],
+        crs='EPSG:4326',
+    )
+    monkeypatch.setattr(ox, 'features_from_bbox', lambda *args, **kwargs: stub_roads)
+
     ds, df = indices_latlon(
         -34.389, 148.469, buffer=0.005,
         outdir='outdir', tmpdir='tmpdir', stub='test_latlon', debug=True

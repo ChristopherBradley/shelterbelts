@@ -179,7 +179,7 @@ def merge_inputs_outputs_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose
     end_date = str(ds.time[-1].dt.date.item())
 
     if alpha_folder is not None:
-        stub = tree_file.split('/')[-1].split('.')[0]
+        stub = os.path.basename(tree_file).split('.')[0]
         alpha_file = os.path.join(alpha_folder, f'{stub}_alpha_earth_embeddings_{year}.pkl')
         with open(alpha_file, 'rb') as file:
             ds_alpha = pickle.load(file)
@@ -192,7 +192,7 @@ def merge_inputs_outputs_ds(ds, tree_file, outdir, radius=4, spacing=10, verbose
     ds = ds[variables]
 
     df = jittered_grid(ds, spacing)
-    stub = tree_file.split('/')[-1].split('.')[0]  # filename without the path
+    stub = os.path.basename(tree_file).split('.')[0]  # filename without the path
     df["tile_id"] = stub
     df["year"] = year
     df["start_date"] = start_date
@@ -281,7 +281,7 @@ def tile_csvs(sentinel_folder, tree_folder, outdir=".", radius=4, spacing=10, li
 
     print("About to process n tiles:", len(sentinel_randomised))
     for sentinel_tile in sentinel_randomised:
-        stub = "_".join(sentinel_tile.split('/')[-1].split('_')[:-3])   # Remove the year_ds2_year
+        stub = "_".join(os.path.basename(sentinel_tile).split('_')[:-3])   # Remove the year_ds2_year
         tree_file = os.path.join(tree_folder, f"{stub}.tif{'f' if double_f else ''}")
         merge_inputs_outputs(sentinel_tile, tree_file, outdir, radius, spacing)
 

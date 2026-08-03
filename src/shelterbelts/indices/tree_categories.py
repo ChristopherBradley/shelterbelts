@@ -212,7 +212,7 @@ def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_co
         da = rxr.open_rasterio(input_data).isel(band=0).drop_vars('band')
         ds = da.to_dataset(name='woody_veg')
         if not stub:
-            stub = input_data.split('/')[-1].split('.')[0]
+            stub = os.path.basename(input_data).split('.')[0]
     else:
         ds = input_data.copy(deep=True)
         if not stub:

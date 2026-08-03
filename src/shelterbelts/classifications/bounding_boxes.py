@@ -65,7 +65,7 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
     if outdir is None:
         outdir = folder
     if stub is None:
-        stub = '_'.join(folder.split('/')[-2:]).split('.')[0]
+        stub = '_'.join(os.path.normpath(folder).split(os.sep)[-2:]).split('.')[0]
 
     veg_tifs = glob.glob(os.path.join(folder, f"*{filetype}"))
     veg_tifs = [f for f in veg_tifs if not os.path.isdir(f)]
@@ -132,8 +132,8 @@ def bounding_boxes(folder, outdir=None, stub=None, size_threshold=80, tif_cover_
             | (gdf['percent_trees'] < tif_cover_threshold)
         )
 
-    footprint_gpkg = f"{outdir}/{stub}_footprints.gpkg"
-    centroid_gpkg = f"{outdir}/{stub}_centroids.gpkg"
+    footprint_gpkg = os.path.join(outdir, f"{stub}_footprints.gpkg")
+    centroid_gpkg = os.path.join(outdir, f"{stub}_centroids.gpkg")
 
 
     if os.path.exists(footprint_gpkg):  # There's an odd error where it's sometimes fine to overwrite the gpkg, but sometimes not, so removing first to be safe.

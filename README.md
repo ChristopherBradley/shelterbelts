@@ -69,7 +69,7 @@ python -m shelterbelts.indices.tree_categories input.tif --min_patch_size 30 --e
 2. Add the miniconda filepath to your ~/.zhrc, e.g. export PATH="/opt/miniconda3/bin:$PATH"
 3. `git clone https://github.com/ChristopherBradley/shelterbelts.git`
 4. `cd shelterbelts`
-5. `conda env create -f environment.yml`
+5. `conda env create -f environment.yml` (on Windows use `environment-windows.yml`, which leaves tensorflow to pip because conda-forge has no Windows build of it)
 6. `conda activate shelterbelts`
 
 ## Setup on gadi at the National Computing Infrastructure (NCI)
