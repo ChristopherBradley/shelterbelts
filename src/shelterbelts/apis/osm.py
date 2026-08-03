@@ -2,14 +2,12 @@ import os
 import argparse
 
 import geopandas as gpd
+import requests
 import rioxarray as rxr
-from shapely.geometry import box
+from shapely.geometry import box, LineString
 from rasterio.features import rasterize
 
 from shelterbelts.utils.visualisation import tif_categorical
-
-# osmnx is only needed for the OpenStreetMap roads fallback (outside Australia / no roads GDB).
-# It's a heavy import (~16s), so load it lazily inside osm_roads() rather than at module import.
 
 roads_cmap = {
     0: (255, 255, 255),
@@ -20,6 +18,42 @@ roads_labels = {
     1: "Roads",
 }
 highway_types = ["motorway", "trunk", "primary", "secondary", "tertiary"]
+
+# Overpass can be slow and unreliable, so it's better to manually downloaded gpkg's if available for the region of interest, e.g. the National Australia roads dataset, and use utils.tiles.crop_and_rasterize instead.
+overpass_endpoints = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+]
+overpass_passes = 2
+overpass_timeout = 90
+user_agent = "shelterbelts (https://github.com/ChristopherBradley/shelterbelts)"
+
+
+def _overpass_ways(bbox_list):
+    """Fetch the highway ways intersecting a bounding box, trying each endpoint in turn."""
+    west, south, east, north = bbox_list
+    query = (
+        f'[out:json][timeout:60];'
+        f'(way["highway"~"^({"|".join(highway_types)})$"]({south},{west},{north},{east}););'
+        f'out geom;'
+    )
+
+    failures = []
+    for _ in range(overpass_passes):
+        for url in overpass_endpoints:
+            try:
+                response = requests.post(url, data=query, headers={"User-Agent": user_agent},
+                                         timeout=overpass_timeout)
+            except requests.RequestException as e:
+                failures.append(f"{url}: {type(e).__name__}")
+                continue
+            if response.status_code != 200:
+                failures.append(f"{url}: HTTP {response.status_code}")
+                continue
+            return response.json()["elements"]
+
+    raise RuntimeError("No Overpass endpoint answered: " + ", ".join(failures))
 
 
 def osm_roads(geotif_or_da, outdir=".", stub="TEST", savetif=True, save_gpkg=True):
@@ -55,14 +89,17 @@ def osm_roads(geotif_or_da, outdir=".", stub="TEST", savetif=True, save_gpkg=Tru
     bbox_gdf = bbox_gdf.to_crs("EPSG:4326")
     bbox_list = list(bbox_gdf.total_bounds)
 
-    import osmnx as ox
-    from osmnx._errors import InsufficientResponseError
-    try:
-        roads = ox.features_from_bbox(bbox_list, {"highway": highway_types})
-    except InsufficientResponseError:
-        roads = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
-
-    gdf = roads[roads.geometry.type.isin(["LineString", "MultiLineString"])] if len(roads) else roads
+    rows = []
+    for way in _overpass_ways(bbox_list):
+        points = way.get("geometry") or []
+        if len(points) < 2:
+            continue
+        rows.append({
+            **way.get("tags", {}),
+            "osmid": way["id"],
+            "geometry": LineString([(p["lon"], p["lat"]) for p in points]),
+        })
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:4326") if rows else gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
 
     if save_gpkg:
         filename = os.path.join(outdir, f"{stub}_roads.gpkg")

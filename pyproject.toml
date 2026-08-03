@@ -32,7 +32,6 @@ dependencies = [
     "scikit-learn",
     "fiona",
     "DAESIM_preprocess",
-    "osmnx",
     "xlsxwriter",
     "pyarrow",
     "tensorflow",
