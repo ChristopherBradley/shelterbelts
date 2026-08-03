@@ -118,20 +118,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)  # Tried out a few different optimizers and this worked best for my use case
 
     class RecordAccuracy(keras.callbacks.Callback):
-        """Record accuracy per epoch under the names a compiled metric would use.
-
-        Passing metrics= to compile() aborts the process on macOS. conda-forge's
-        tensorflow builds for macOS ship with debug assertions enabled, and every
-        published version dies on the same one the moment a metric is attached:
-
-            Assertion failed: (f == nullptr || dynamic_cast<To>(f) != nullptr),
-            function down_cast, .../xla/tsl/platform/default/casts.h
-
-        A release build compiles that assert out, which is why the identical
-        tensorflow and keras pass on Linux and Windows. Computing accuracy from
-        predictions gives the same numbers everywhere and keeps the plots below
-        working, without making the code conditional on the platform.
-        """
+        """Bespoke accuracy class to avoid errors on Apple Silicon. May reduce performance on other operating systems."""
         def on_epoch_end(self, epoch, logs=None):
             if logs is None:
                 return
