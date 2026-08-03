@@ -58,7 +58,7 @@ jobs:
         run: |
           mkdir -p outdir tmpdir
           set +e
-          pytest tests/test_apis/test_osm.py -v > pytest_out.txt 2>&1
+          pytest tests/test_apis/test_osm.py tests/test_indices/test_all_indices.py::test_indices_latlon -v > pytest_out.txt 2>&1
           echo "status=$?" >> "$GITHUB_OUTPUT"
           cat pytest_out.txt
 
