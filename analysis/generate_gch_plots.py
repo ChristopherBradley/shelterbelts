@@ -2,7 +2,7 @@
 """
 generate_gch_plots.py — GCH-derived equivalents of 4 of the generate_main_plots.py charts.
 
-outdir/tif_value_counts_gch holds 3 separate export folders (not a single
+outdir/tif_value_counts_gch2 holds 3 separate export folders (not a single
 'global' folder with default_/less_/more_ prefixed files like tif_value_counts_ag) -
 one per shelter-detection run, each using a different method/threshold and its
 own filename scheme:
@@ -33,7 +33,7 @@ from category_area_summary import (
 from generate_main_plots import SHELTER_ORDER
 from shelterbelts.indices.shelter_categories import shelter_categories_cmap
 
-GCH_ROOT = "outdir/tif_value_counts_gch"
+GCH_ROOT = "outdir/tif_value_counts_gch2"
 LESS_DIR = f"{GCH_ROOT}/tif_value_counts_gch_ag_less_percentmethod"
 DEFAULT_DIR = f"{GCH_ROOT}/tif_value_counts_gch_ag_masked"
 MORE_DIR = f"{GCH_ROOT}/tif_value_counts_gch_ag_more_windmethod"
