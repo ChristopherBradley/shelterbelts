@@ -38,20 +38,41 @@ def _blend_rgb(rgb_a, rgb_b, t):
 
 # Blend the sheltered colour towards the actual sheltering tree's colour
 _tree_blend_amount = 0.6  # 0 = pure farmland colour, 1 = pure tree colour
-_grassland_base = (255, 255, 76)  # worldcover grassland base colour
-_sheltered_by_digit = {
-    _digit: _blend_rgb(_grassland_base, linear_categories_cmap[10 + _digit], _tree_blend_amount)
-    for _digit in range(2, 10)
+_grassland_base = (255, 255, 76)   # worldcover grassland base colour
+_cropland_base = (240, 150, 255)   # worldcover cropland base colour
+_muted_grey = (170, 170, 170)      # blend target for the generic 'sheltered, no specific tree source' code
+
+# Digits 2-9 correspond to tree codes 12-19; digit 2 (Patch Core) has no dedicated 'sheltered
+# by X' name (see _tree_source_labels above), so it's used as the generic density-method code instead.
+_tree_colour_by_digit = {
+    _digit: linear_categories_cmap[10 + _digit]
+    for _digit in range(3, 10)
 }
 
-_grassland_cmap = {30: _grassland_base, 31: (0, 0, 0)}  # 31 is the legacy 'Unsheltered Grassland' code
-_cropland_cmap = {40: _grassland_base, 41: (0, 0, 0)}   # 41 is the legacy 'Unsheltered Cropland' code
-for _digit, _colour in _sheltered_by_digit.items():
-    _grassland_cmap[30 + _digit] = _colour
-    _cropland_cmap[40 + _digit] = _colour
+
+def _farmland_cmap(base_colour, offset):
+    """Build the 3X/4X shelter colourmap for a farmland base colour (offset 30 for grassland, 40 for cropland)."""
+    cmap = {
+        offset: base_colour,
+        offset + 1: (0, 0, 0),  # legacy 'Unsheltered' code
+        offset + 2: _blend_rgb(base_colour, _muted_grey, _tree_blend_amount),  # generic shelter (density method), no specific tree source
+    }
+    for _digit, _tree_colour in _tree_colour_by_digit.items():
+        cmap[offset + _digit] = _blend_rgb(base_colour, _tree_colour, _tree_blend_amount)
+    return cmap
+
+
+_grassland_cmap = _farmland_cmap(_grassland_base, 30)
+_cropland_cmap = _farmland_cmap(_grassland_base, 40)  # tif/GEE: cropland intentionally reuses the grassland colour scheme
 
 shelter_categories_labels = linear_categories_labels | _grassland_labels | _cropland_labels
 shelter_categories_cmap = linear_categories_cmap | _grassland_cmap | _cropland_cmap
+
+# PNG-friendly variant: cropland gets its own (pink-based) colours instead of reusing grassland's,
+# so grass and crops stay visually distinct. Everything else, including the 33-39/43-49 tree-source
+# blends, is identical to shelter_categories_cmap above.
+_cropland_cmap_png = _farmland_cmap(_cropland_base, 40)
+shelter_categories_cmap_png = linear_categories_cmap | _grassland_cmap | _cropland_cmap_png
 
 
 direction_map = {
@@ -461,7 +482,7 @@ def shelter_categories(linear_data, wind_data=None, height_tif=None, outdir='.',
 
     if plot:
         filename_png = os.path.join(outdir, f"{stub}_shelter_categories.png")
-        visualise_categories(ds['shelter_categories'], filename_png, shelter_categories_cmap, shelter_categories_labels, "Shelter Categories")
+        visualise_categories(ds['shelter_categories'], filename_png, shelter_categories_cmap_png, shelter_categories_labels, "Shelter Categories")
 
     return ds
 

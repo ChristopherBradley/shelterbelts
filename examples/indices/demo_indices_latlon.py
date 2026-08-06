@@ -30,7 +30,7 @@
 
 # %%
 from shelterbelts.indices.all_indices import indices_latlon
-from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap_png, shelter_categories_labels
 from shelterbelts.utils.visualisation import visualise_categories, visualise_categories_sidebyside
 
 # Default location: Milgadara, NSW, Australia. These coordinates sit within the bundled g2 test-data
@@ -51,7 +51,7 @@ df.head()
 # %%
 visualise_categories(
     ds['shelter_categories'],
-    colormap=shelter_categories_cmap,
+    colormap=shelter_categories_cmap_png,
     labels=shelter_categories_labels
 )
 
@@ -67,7 +67,7 @@ ds1, _ = indices_latlon(lat, lon, buffer=0.02, stub='buffer_medium')
 ds2, _ = indices_latlon(lat, lon, buffer=0.05, stub='buffer_large')
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
-    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+    colormap=shelter_categories_cmap_png, labels=shelter_categories_labels,
     title1="buffer=0.02 (~4 km)", title2="buffer=0.04 (~8 km)"
 )
 
@@ -82,7 +82,7 @@ ds1, _ = indices_latlon(lat, lon, buffer, height_threshold=1.0, stub='height1')
 ds2, _ = indices_latlon(lat, lon, buffer, height_threshold=8.0, stub='height8')
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
-    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+    colormap=shelter_categories_cmap_png, labels=shelter_categories_labels,
     title1="height_threshold=1 m", title2="height_threshold=8 m"
 )
 
@@ -98,7 +98,7 @@ ds1, _ = indices_latlon(lat, lon, buffer, cover_threshold=1, stub='cover1')
 ds2, _ = indices_latlon(lat, lon, buffer, cover_threshold=70, stub='cover70')
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
-    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+    colormap=shelter_categories_cmap_png, labels=shelter_categories_labels,
     title1="cover_threshold=1%", title2="cover_threshold=70%"
 )
 
@@ -116,7 +116,7 @@ ds1, _ = indices_latlon(lat, lon, buffer, wind_method='MOST_COMMON', stub='wind_
 ds2, _ = indices_latlon(lat, lon, buffer, wind_method='WINDWARD', stub='wind_windward')
 visualise_categories_sidebyside(
     ds1['shelter_categories'], ds2['shelter_categories'],
-    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
+    colormap=shelter_categories_cmap_png, labels=shelter_categories_labels,
     title1="wind_method=MOST_COMMON", title2="wind_method=WINDWARD"
 )
 
