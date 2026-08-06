@@ -125,7 +125,6 @@ visualise_categories_sidebyside(
 
 # %%
 import rioxarray as rxr
-from shelterbelts.indices.opportunities import opportunity_cmap, opportunity_labels
 
 # lat, lon, buffer = -34.389, 148.469, 0.01
 lat, lon, buffer = -34.382, 148.424, 0.01  # Adjusted to a location that has a road running through it for demonstration purposes
@@ -133,8 +132,8 @@ indices_latlon(lat, lon, buffer, opportunities=True, stub='milgadara')
 da_opportunities = rxr.open_rasterio('milgadara_opportunities.tif').isel(band=0).drop_vars('band')
 visualise_categories(
     da_opportunities,
-    colormap=opportunity_cmap,
-    labels=opportunity_labels,
+    colormap=shelter_categories_cmap_png,
+    labels=shelter_categories_labels,
 )
 
 # %% [markdown]

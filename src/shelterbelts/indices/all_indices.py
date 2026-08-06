@@ -24,9 +24,9 @@ from shelterbelts.indices.tree_categories import tree_categories
 from shelterbelts.indices.cover_categories import cover_categories
 from shelterbelts.indices.buffer_categories import buffer_categories
 from shelterbelts.indices.patch_metrics import patch_metrics
-from shelterbelts.indices.shelter_categories import shelter_categories
+from shelterbelts.indices.shelter_categories import shelter_categories, shelter_categories_cmap, shelter_categories_labels
 from shelterbelts.indices.catchments import catchments
-from shelterbelts.indices.opportunities import opportunities_da, opportunity_cmap, opportunity_labels
+from shelterbelts.indices.opportunities import opportunities_da
 
 # 11 secs for all these imports
 # -
@@ -89,10 +89,10 @@ def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, w
 
     if savetif:
         filename = os.path.join(outdir, f"{stub}_opportunities.tif")
-        tif_categorical(ds_opportunities['opportunities'], filename, opportunity_cmap)
+        tif_categorical(ds_opportunities['opportunities'], filename, shelter_categories_cmap)
     if plot:
         filename_png = os.path.join(outdir, f"{stub}_opportunities.png")
-        visualise_categories(ds_opportunities['opportunities'], filename_png, opportunity_cmap, opportunity_labels, "Opportunities")
+        visualise_categories(ds_opportunities['opportunities'], filename_png, shelter_categories_cmap, shelter_categories_labels, "Opportunities")
 
     return ds_opportunities
 

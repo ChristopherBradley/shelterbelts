@@ -34,17 +34,6 @@ from shelterbelts.utils.filepaths import nsw_dem_dir, hydrolines_gdb, roads_gdb,
 # +
 nsw_dem_gpkg = 'cb8590_NSW_5m_DEMs_3857_footprints.gpkg'
 
-opportunity_cmap = dict(shelter_categories_cmap)
-opportunity_labels = {
-    **shelter_categories_labels,
-    # 0: '',
-    # 15: 'Opportunities in Gullies',
-    # 16: 'Opportunities on Ridges',
-    # 17: 'Opportunities next to Roads',
-    # 18: 'Opportunities along Contours',
-}
-inverted_labels = {v: k for k, v in opportunity_labels.items()}
-
 
 # +
 def segmentation(river_mask, min_branch_length=10):
@@ -265,12 +254,12 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_dem, da_world
     if savetif:
         os.makedirs(outdir, exist_ok=True)
         filename = os.path.join(outdir,f"{stub}_opportunities.tif")
-        tif_categorical(ds['opportunities'], filename, opportunity_cmap)
+        tif_categorical(ds['opportunities'], filename, shelter_categories_cmap)
 
     if plot:
         # filename_png = os.path.join(outdir, f"{stub}_opportunities.png")
-        # visualise_categories(ds['opportunities'], filename_png, opportunity_cmap, opportunity_labels, "Opportunities")
-        visualise_categories(ds['opportunities'], None, opportunity_cmap, opportunity_labels, "Opportunities")
+        # visualise_categories(ds['opportunities'], filename_png, shelter_categories_cmap, shelter_categories_labels, "Opportunities")
+        visualise_categories(ds['opportunities'], None, shelter_categories_cmap, shelter_categories_labels, "Opportunities")
 
     return ds
 
@@ -377,7 +366,8 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
     .. plot::
 
         import rioxarray as rxr
-        from shelterbelts.indices.opportunities import opportunities, opportunity_cmap, opportunity_labels
+        from shelterbelts.indices.opportunities import opportunities
+        from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
         from shelterbelts.utils.filepaths import get_filename
         from shelterbelts.utils.visualisation import visualise_categories_sidebyside
 
@@ -394,7 +384,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         ds_gullies = opportunities(tree_file, roads_data=da_zero, gullies_data=gullies_file, **common, contour_spacing=0)
         visualise_categories_sidebyside(
             ds_roads['opportunities'], ds_gullies['opportunities'],
-            colormap=opportunity_cmap, labels=opportunity_labels,
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
             title1="Just roads", title2="Just gullies"
         )
 
@@ -402,7 +392,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         ds_w5 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, width=5)
         visualise_categories_sidebyside(
             ds_w1['opportunities'], ds_w5['opportunities'],
-            colormap=opportunity_cmap, labels=opportunity_labels,
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
             title1="width=1", title2="width=5"
         )
 
@@ -410,7 +400,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         ds_cs20 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, contour_spacing=20)
         visualise_categories_sidebyside(
             ds_cs5['opportunities'], ds_cs20['opportunities'],
-            colormap=opportunity_cmap, labels=opportunity_labels,
+            colormap=shelter_categories_cmap, labels=shelter_categories_labels,
             title1="contour_spacing=5", title2="contour_spacing=20"
         )
     """
@@ -597,7 +587,7 @@ def opportunities_folder(folder, stub=None, tmpdir='.', cover_threshold=1,
 
     basedir = os.path.dirname(outdir)
     filename_linear = os.path.join(basedir, f'{stub}_merged.tif')
-    tif_categorical(ds['opportunities'], filename_linear, opportunity_cmap) 
+    tif_categorical(ds['opportunities'], filename_linear, shelter_categories_cmap) 
     return ds
 
 

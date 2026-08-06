@@ -192,7 +192,7 @@ plt.show()
 # %%
 # %%time
 import rioxarray as rxr
-from shelterbelts.indices.opportunities import opportunity_cmap, opportunity_labels
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 
 ds = indices_tif(
     percent_tif,
@@ -216,8 +216,8 @@ ds = indices_tif(
 da_opportunities = rxr.open_rasterio(f'{outdir}/crowns_percent_opportunities.tif').isel(band=0).drop_vars('band')
 visualise_categories(
     da_opportunities,
-    colormap=opportunity_cmap,
-    labels=opportunity_labels,
+    colormap=shelter_categories_cmap,
+    labels=shelter_categories_labels,
     title='Shelter opportunities (1 m)',
 )
 

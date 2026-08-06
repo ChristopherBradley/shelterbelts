@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -16,14 +16,14 @@
 # %% [markdown]
 # # Opportunities Demo
 #
-# Demonstrates the `opportunities` function with different parameter values
-# using real data files.
+# Demonstrates the `opportunities` function with different parameter values.
 
 # %% [markdown]
 # ## Setup
 
 # %%
-from shelterbelts.indices.opportunities import opportunities, opportunity_cmap, opportunity_labels
+from shelterbelts.indices.opportunities import opportunities
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.utils.visualisation import visualise_categories_sidebyside, visualise_categories
 
@@ -49,8 +49,8 @@ ds_default
 # %%
 visualise_categories(
     ds_default['opportunities'],
-    colormap=opportunity_cmap,
-    labels=opportunity_labels
+    colormap=shelter_categories_cmap,
+    labels=shelter_categories_labels
 )
 
 # %% [markdown]
@@ -67,7 +67,7 @@ ds_gullies = opportunities(tree_file, roads_data=da_zero, gullies_data=gullies_f
 
 visualise_categories_sidebyside(
     ds_roads['opportunities'], ds_gullies['opportunities'],
-    colormap=opportunity_cmap, labels=opportunity_labels,
+    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="Just roads", title2="Just gullies"
 )
 
@@ -87,7 +87,7 @@ ds_w5 = opportunities(
 
 visualise_categories_sidebyside(
     ds_w1['opportunities'], ds_w5['opportunities'],
-    colormap=opportunity_cmap, labels=opportunity_labels,
+    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="width=1", title2="width=3"
 )
 
@@ -107,7 +107,7 @@ ds_cs20 = opportunities(
 
 visualise_categories_sidebyside(
     ds_cs5['opportunities'], ds_cs20['opportunities'],
-    colormap=opportunity_cmap, labels=opportunity_labels,
+    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="contour_spacing=5", title2="contour_spacing=20"
 )
 
