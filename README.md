@@ -95,7 +95,7 @@ Create an interactive session:
 `qsub -I -P xe2 -q copyq -l ncpus=1 -l mem=8GB -l walltime=02:00:00 -l storage=gdata/xe2+scratch/xe2+gdata/v10+gdata/ka08 -l wd`
 
 Run the main tests (excluding Sentinel-2 imagery):  
-`conda activate shelterbelts`  
+`conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts`  
 `pytest tests`
 
 Run one last Sentinel-2 test:  

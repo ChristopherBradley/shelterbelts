@@ -5,5 +5,5 @@
 formats = "ipynb,py:percent"
 
 # Notebook metadata to include in .py files
-notebook_metadata_filter = "jupytext,-widgets,-varInspector"
+notebook_metadata_filter = "jupytext,-widgets,-varInspector,-jupytext.text_representation.jupytext_version"
 cell_metadata_filter = "-all"

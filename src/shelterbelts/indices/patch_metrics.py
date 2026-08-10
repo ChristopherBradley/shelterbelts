@@ -87,7 +87,22 @@ def pixel_majority_filter(da, radius=3):
     return da_filtered
 
 
-def assign_labels(da_filtered, min_patch_size=20):
+def small_cluster_filter(da_filtered, min_patch_size=20, max_gap_size=1):
+    """Collapse tree clusters too small overall to matter into a single Scattered Trees label"""
+    arr = da_filtered.data
+    tree_mask = np.isin(arr, [11, 12, 13, 14, 15, 16, 17])
+    clustered = tree_clusters(tree_mask, max_gap_size)
+
+    sizes = np.bincount(clustered.ravel())
+    small_clusters = np.flatnonzero(sizes < min_patch_size)
+    small_clusters = small_clusters[small_clusters != 0]
+
+    result = arr.copy()
+    result[np.isin(clustered, small_clusters)] = 11
+    return xr.DataArray(result, coords=da_filtered.coords, dims=da_filtered.dims, attrs=da_filtered.attrs)
+
+
+def assign_labels(da_filtered, min_patch_size=20, max_gap_size=1):
     """Assign an id to each cluster of trees, and merge small clusters into nearby larger ones"""
 
     arr = da_filtered.data
@@ -113,7 +128,7 @@ def assign_labels(da_filtered, min_patch_size=20):
     # Assign cluster ids to the Other category
     category_id = 14
     da_category = (da_filtered == category_id)
-    labelled_category = tree_clusters(da_category, max_gap_size=1)
+    labelled_category = tree_clusters(da_category, max_gap_size=max_gap_size)
     labelled_category = labelled_category + assigned_labels.max()
     labelled_arr = labelled_category.data
     mask = (arr == category_id)
@@ -306,7 +321,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
 
 
 def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True, save_tif=True, save_labels=True,
-                  save_gpkg=True, min_shelterbelt_length=15, max_shelterbelt_width=6, min_patch_size=20, crop_pixels=None):
+                  save_gpkg=True, min_shelterbelt_length=15, max_shelterbelt_width=6, min_patch_size=20, max_gap_size=1, crop_pixels=None):
     """Calculate patch metrics and cleanup the tree pixel categories.
 
     Parameters
@@ -334,6 +349,8 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
             Maximum skeleton width (in pixels) to classify a cluster as linear.
         min_patch_size : int, optional
             Clusters smaller than this are merged into nearby larger clusters.
+        max_gap_size : int, optional
+            Maximum gap (pixels) to bridge when connecting tree clusters.
         crop_pixels : int, optional
             Number of pixels to crop from each edge of the output. Pass None to skip cropping.
 
@@ -414,8 +431,11 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
             y=slice(crop_pixels, -crop_pixels)
         )
 
+    # Collapse clusters below min_patch_size (and any mixed categories within them) to Scattered Trees
+    da_filtered = small_cluster_filter(da_filtered, min_patch_size, max_gap_size)
+
     # Assign labels and a cluster-wise majority filter on the labels (but doesn't change the da yet)
-    assigned_labels = assign_labels(da_filtered, min_patch_size)
+    assigned_labels = assign_labels(da_filtered, min_patch_size, max_gap_size)
     assigned_labels = split_disconnected_clusters(assigned_labels)  # The ellipses go haywire if the clusters are not connected
 
     # Find the skeleton of each cluster
@@ -481,6 +501,8 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
         else:
             label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # I don't think this done anything now that I have to split_disconnected_clusters before skeleton_stats
             mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
+            # Ensure majority_filter produces edge pixels rather than core pixels
+            mapped_categories = np.where(mapped_categories == 12, 13, mapped_categories)
 
         da_linear.data[remaining_mask] = mapped_categories
 
@@ -571,6 +593,7 @@ def parse_arguments():
     parser.add_argument('--min_shelterbelt_length', default=15, type=int, help='Minimum skeleton length (in pixels) to classify a cluster as linear (default: 15)')
     parser.add_argument('--max_shelterbelt_width', default=6, type=int, help='Maximum skeleton width (in pixels) to classify a cluster as linear (default: 6)')
     parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees (default: 20)')
+    parser.add_argument('--max_gap_size', default=1, type=int, help='Maximum gap (pixels) to bridge when clustering Other Trees pixels into patches (default: 1)')
     parser.add_argument('--crop_pixels', default=None, type=int, help='Number of pixels to crop from each edge of the output (default: no cropping)')
 
     return parser
@@ -583,4 +606,4 @@ if __name__ == '__main__':
     # Run patch_metrics on the buffer file
     ds, df = patch_metrics(args.buffer_data, args.outdir, args.stub, args.plot, args.save_csv,
                           args.save_tif, args.save_labels, args.save_gpkg, args.min_shelterbelt_length,
-                          args.max_shelterbelt_width, args.min_patch_size, args.crop_pixels)
+                          args.max_shelterbelt_width, args.min_patch_size, args.max_gap_size, args.crop_pixels)

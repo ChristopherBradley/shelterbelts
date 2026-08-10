@@ -68,9 +68,7 @@ _cropland_cmap = _farmland_cmap(_grassland_base, 40)  # tif/GEE: cropland intent
 shelter_categories_labels = linear_categories_labels | _grassland_labels | _cropland_labels
 shelter_categories_cmap = linear_categories_cmap | _grassland_cmap | _cropland_cmap
 
-# PNG-friendly variant: cropland gets its own (pink-based) colours instead of reusing grassland's,
-# so grass and crops stay visually distinct. Everything else, including the 33-39/43-49 tree-source
-# blends, is identical to shelter_categories_cmap above.
+# Cropland gets a unique colour in the cmap_png, but the same colour as grassland in the main cmap (for tifs) to reduce information overload. 
 _cropland_cmap_png = _farmland_cmap(_cropland_base, 40)
 shelter_categories_cmap_png = linear_categories_cmap | _grassland_cmap | _cropland_cmap_png
 
