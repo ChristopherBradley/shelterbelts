@@ -326,6 +326,8 @@ def train_neural_network(training_file, outdir=".", stub="TEST", output_column='
     >>> df = train_neural_network(training_csv_sample, outdir='/tmp',
     ...                           stub='example', epochs=1, limit=500)  # doctest: +SKIP
     """
+    os.makedirs(outdir, exist_ok=True)
+
     if training_file.endswith('.feather'):
         df = pd.read_feather(training_file)
     else:

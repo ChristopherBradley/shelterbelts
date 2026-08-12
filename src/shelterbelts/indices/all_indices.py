@@ -36,6 +36,7 @@ from shelterbelts.utils.filepaths import (
     hydrolines_gdb,
     roads_gdb,
     IS_GADI,
+    ensure_env_on_path,
 )
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
 
@@ -412,14 +413,7 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
                   "Tip: For more accurate gullies in Australia, download the National Surface Hydrolines GDB from Geoscience and specify the path in utils.filepaths.hydrolines_gdb.")
     if ds_gullies is None:
         # terrain_tiles calls gdalwarp as a subprocess so we need to ensure the conda env bin and PROJ db are findable
-        import sys
-        _env_bin = os.path.dirname(sys.executable)
-        if _env_bin not in os.environ.get('PATH', ''):
-            os.environ['PATH'] = _env_bin + os.pathsep + os.environ.get('PATH', '')
-        if 'PROJ_DATA' not in os.environ:
-            _proj_data = os.path.join(os.path.dirname(_env_bin), 'share', 'proj')
-            if os.path.exists(_proj_data):
-                os.environ['PROJ_DATA'] = _proj_data
+        ensure_env_on_path()
         terrain_tiles(lat, lon, buffer, outdir=tmpdir, stub=stub, tmpdir=tmpdir, verbose=debug)
         terrain_tif = os.path.join(tmpdir, f"{stub}_terrain.tif")
         ds_catch = catchments(terrain_tif, outdir=tmpdir, stub=stub, savetif=debug, plot=debug)
