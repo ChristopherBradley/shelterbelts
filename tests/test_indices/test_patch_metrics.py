@@ -74,9 +74,7 @@ def test_patch_metrics_csv_matches_returned_df():
 
 
 def test_scattered_trees_match_tree_categories():
-    """patch_metrics should not invent new Scattered Trees, since which trees are scattered
-    was already decided by tree_categories using the same min_patch_size and max_gap_size.
-    """
+    """patch_metrics should not invent new Scattered Trees (should be the same as the original tree categories)"""
     ds, _ = patch_metrics(
         f"data/{stub}_gullies_and_roads_buffer_categories.tif",
         outdir="outdir",
@@ -91,9 +89,5 @@ def test_scattered_trees_match_tree_categories():
 
     scattered_tree = da_tree.values == 11
     scattered_linear = ds['linear_categories'].values == 11
-    assert scattered_tree.sum() > 0, "no scattered trees in the tree_categories test data"
-    assert np.array_equal(scattered_linear, scattered_tree), (
-        f"{(scattered_linear & ~scattered_tree).sum()} pixels became Scattered Trees in "
-        f"linear_categories that weren't in tree_categories, and "
-        f"{(scattered_tree & ~scattered_linear).sum()} went the other way"
-    )
+    assert scattered_tree.sum() > 0
+    assert np.array_equal(scattered_linear, scattered_tree)
