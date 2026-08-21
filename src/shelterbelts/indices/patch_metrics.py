@@ -497,14 +497,27 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
         label_ids = assigned_labels[remaining_mask]
 
         if 'label' not in df_patch_metrics.columns:
-            mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
+            mapped_categories = np.full(len(label_ids), 11) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
         else:
             label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # I don't think this done anything now that I have to split_disconnected_clusters before skeleton_stats
-            mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
+            mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 0))(label_ids)  # 0 marks fragments that split_disconnected_clusters left below min_patch_size, so skeleton_stats skipped them
             # Ensure majority_filter produces edge pixels rather than core pixels
             mapped_categories = np.where(mapped_categories == 12, 13, mapped_categories)
 
         da_linear.data[remaining_mask] = mapped_categories
+
+        # Those fragments take the category of their nearest categorised neighbour, rather than
+        # becoming scattered trees, which small_cluster_filter has already decided.
+        orphan_mask = np.zeros_like(remaining_mask)
+        orphan_mask[remaining_mask] = (mapped_categories == 0)
+        if orphan_mask.any():
+            categorised = np.isin(da_linear.data, [12, 13, 15, 16, 17, 18, 19])
+            if categorised.any():
+                _, (inds_y, inds_x) = ndimage.distance_transform_edt(~categorised, return_indices=True)
+                nearest = da_linear.data[inds_y, inds_x][orphan_mask]
+                da_linear.data[orphan_mask] = np.where(nearest == 12, 13, nearest)
+            else:
+                da_linear.data[orphan_mask] = 11
 
     # Save the shelterbelt centrelines as a vector GeoPackage
     if save_gpkg and len(df_patch_metrics) > 0:
