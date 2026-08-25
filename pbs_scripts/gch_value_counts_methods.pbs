@@ -1,0 +1,48 @@
+#!/bin/bash
+# Final phase of the GCH threshold-sensitivity rerun, for ONE method: mask the merged region rasters
+# to the ag area — ag 4 km tiles AND non-nodata NLUM pixels (outside -> 255) — then Australia-wide
+# value_counts on both the raw and the masked set. Use the masked numbers for ag-area totals; the
+# unmasked ones count the 0-filled gaps between scattered ag tiles as 'Not Trees'.
+#   qsub -v method=less_percentmethod gch_value_counts_methods.pbs
+#   qsub -v method=more_windmethod    gch_value_counts_methods.pbs
+#   qsub -v method=less_windmethod    gch_value_counts_methods.pbs
+#PBS -N gch_vc_methods
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=06:00:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+set -e
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+
+case "$method" in
+  *percentmethod) dist=shelter_densities ;;
+  *windmethod)    dist=shelter_distances ;;
+  *) echo "Unknown or missing method: '$method'"; exit 1 ;;
+esac
+
+BASE=/scratch/xe2/cb8590/gch_v2_ag_indices
+SRC=${BASE}/indices_${method}
+MASKED=${BASE}/indices_${method}_masked
+OUT=/scratch/xe2/cb8590/tif_value_counts_gch_ag_${method}
+mkdir -p "$OUT" "$MASKED"
+
+echo "=== [${method}] masking all regions -> $MASKED ==="
+python gch_mask.py --indices_dir "$SRC" --out_dir "$MASKED"
+
+for d in shelter_categories $dist opportunities; do
+  suf=_merged_${d}.tif
+  for set in raw masked; do
+    [ "$set" = raw ] && folder="$SRC" || folder="$MASKED"
+    [ "$set" = raw ] && tag="" || tag="_masked"
+    ls ${folder}/*${suf} >/dev/null 2>&1 || { echo "skip (no ${suf} in $folder)"; continue; }
+    echo "=== [${method}] value_counts ${set}: $d global ==="
+    python tif_value_counts.py --tif_folder "$folder" --suffix "$suf" \
+        --output_csv "${OUT}/gch_${method}${suf%.tif}${tag}_value_counts.csv"
+  done
+done
+echo "=== [${method}] DONE -> $OUT ==="

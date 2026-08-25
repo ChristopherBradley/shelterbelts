@@ -9,20 +9,17 @@
 #PBS -q normal
 
 # Parameterised multi-method indices runner. Pass via `qsub -v`:
-#   folder=<dir of expanded tifs>  outdir=<output dir>  param_stub=<stub>  method=<one of the 6 below>
-# The 6 methods mirror the commented parameter sets from the 2020 ag grazing tuning. All include
-# --opportunities. wind methods need BARRA (gdata/ob53) and emit shelter_distances.tif; percent
-# methods emit shelter_densities.tif.
+#   folder=<dir of expanded tifs>  outdir=<output dir>  param_stub=<stub>  method=<one of the 2 below>
+# These 2 methods bracket the GCH default (gch_region.pbs: WINDWARD, edge_size 4), giving a
+# sensitivity range of edge_size 3/4/5 and min_core_size 500/1000/2000.
+# All include --opportunities. The wind method needs BARRA (gdata/ob53) and emits
+# shelter_distances.tif; the percent method emits shelter_densities.tif.
 #
 # COST / WALLTIME (measured on the 2025 ag full-run, 10m tiles):
-#   per-tile SU  — less_percent 0.0023, default_percent 0.0028, more_percent 0.0035,
-#                  less_wind 0.0032, default_wind 0.0040, more_wind 0.0087 (the expensive outlier).
-#   more_windmethod (wind_method ANY = 8 directions) is ~2-3x costlier than the others AND
-#   EXCEEDS this 10h walltime on any region with more than ~1800 tiles — in the 2025 run 31 large
-#   regions timed out (~20 SU each for a partial run) and had to be resubmitted to finish.
-#   ==> For big regions with more_windmethod, bump walltime to 20-48h (or split the region),
-#       otherwise expect timeouts + resubmits. The other 5 methods finish comfortably within 10h
-#       even for the largest ~2500-tile regions (~6-9 SU each).
+#   per-tile SU — less_percent 0.0023, more_wind (now WINDWARD, not ANY) ~0.004.
+#   Both finish comfortably within this 10h walltime even for the largest ~2500-tile regions
+#   (~6-9 SU each). NB: the old more_windmethod used wind_method ANY (8 directions), which was
+#   ~2-3x costlier and timed out on regions above ~1800 tiles; with WINDWARD that no longer applies.
 
 export GDAL_CACHEMAX=64
 export GDAL_NUM_THREADS=1
@@ -33,12 +30,8 @@ conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
 tmpdir="$PBS_JOBFS"
 
 case "$method" in
-  default_percentmethod) method_args="--cover_threshold 50 --crop_pixels 20 --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20" ;;
-  more_percentmethod)    method_args="--cover_threshold 50 --crop_pixels 20 --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --edge_size 5 --density_threshold 3 --min_core_size 10000" ;;
-  less_percentmethod)    method_args="--cover_threshold 50 --crop_pixels 20 --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --edge_size 2 --density_threshold 10 --min_core_size 100" ;;
-  default_windmethod)    method_args="--cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20" ;;
-  more_windmethod)       method_args="--cover_threshold 50 --crop_pixels 20 --wind_method ANY --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --edge_size 5 --min_core_size 10000 --wind_threshold 15" ;;
-  less_windmethod)       method_args="--cover_threshold 50 --crop_pixels 20 --wind_method MOST_COMMON --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --edge_size 2 --min_core_size 100 --wind_threshold 25" ;;
+  less_percentmethod)    method_args="--cover_threshold 50 --crop_pixels 20 --buffer_width 3 --max_shelterbelt_width 5 --min_shelterbelt_length 25 --min_patch_size 25 --edge_size 3 --density_threshold 10 --min_core_size 500" ;;
+  more_windmethod)       method_args="--cover_threshold 50 --crop_pixels 20 --wind_method WINDWARD --buffer_width 5 --max_shelterbelt_width 7 --min_shelterbelt_length 15 --min_patch_size 15 --edge_size 5 --min_core_size 2000 --wind_threshold 15" ;;
   *) echo "Unknown or missing method: '$method'"; exit 1 ;;
 esac
 
