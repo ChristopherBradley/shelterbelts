@@ -118,15 +118,7 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)  # Tried out a few different optimizers and this worked best for my use case
 
     class RecordAccuracy(keras.callbacks.Callback):
-        """Record accuracy per epoch from predictions rather than a compiled metric.
-
-        Passing metrics= to compile() aborts the process on conda-forge's macOS
-        tensorflow builds (debug assertion in down_cast). Calling model.predict()
-        from this callback avoids that, but predict() builds its own tf.data
-        iterator, which some Linux tensorflow builds abort on when called while
-        fit()'s own iterator is still active. A direct call bypasses tf.data
-        entirely and works everywhere.
-        """
+        """Monkeypatch trying to avoid errors on Apple Silicon & still work on Linux & Apple Intel."""
         def on_epoch_end(self, epoch, logs=None):
             if logs is None:
                 return
