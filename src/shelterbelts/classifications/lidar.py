@@ -5,7 +5,6 @@ import glob
 import gc
 import json
 import argparse
-import subprocess
 
 import geopandas as gpd
 
@@ -16,26 +15,29 @@ import geopandas as gpd
 from shapely.geometry import box as shapely_box
 
 
+from shelterbelts.utils.filepaths import ensure_env_on_path
 from shelterbelts.utils.visualisation import tif_categorical
 from shelterbelts.classifications.binary_trees import cmap_woody_veg
 from shelterbelts.classifications._crown_dalponteCIRC_numba import crowns_to_gpkg
 from shelterbelts.classifications.bounding_boxes import bounding_boxes as _bounding_boxes
 
+# Make sure pdal executable is available.
+ensure_env_on_path()
 
 def _get_laz_bounds(laz_file, epsg=None):
-    """Read LAZ header bounds via pdal info."""
-    result = subprocess.run(
-        ['pdal', 'info', '--metadata', laz_file],
-        capture_output=True, text=True, check=True,
-    )
-    meta = json.loads(result.stdout)['metadata']
-    minx, miny, maxx, maxy = meta['minx'], meta['miny'], meta['maxx'], meta['maxy']
+    """Read LAZ header bounds from the file header, without reading any points."""
+    # Uses the python-pdal bindings rather than the `pdal` command line tool, so that the
+    # bounds always come from the same library the pipelines below run on, and no PDAL
+    # executable has to be findable on PATH.
+    reader = pdal.Pipeline(json.dumps([{"type": "readers.las", "filename": laz_file}]))
+    info = reader.quickinfo['readers.las']
+    bounds = info['bounds']
+    minx, miny, maxx, maxy = bounds['minx'], bounds['miny'], bounds['maxx'], bounds['maxy']
+    srs = info.get('srs', {})
     if epsg:
         crs = f"EPSG:{epsg}"
-    elif 'srs' in meta and meta['srs'].get('wkt'):
-        crs = meta['srs']['wkt']
     else:
-        crs = meta.get('spatialreference', '')
+        crs = srs.get('wkt') or srs.get('compoundwkt') or ''
     return minx, miny, maxx, maxy, crs
 
 

@@ -1,0 +1,73 @@
+#!/bin/bash
+# GCH v2 ag indices — process one ~200 km region end to end: cut 4 km GCH percent+height tiles
+# from the binned mosaic, run the height-aware WINDWARD indices pipeline, merge to region rasters,
+# combine patch_metrics CSVs + centreline gpkgs, then (optionally) delete per-tile intermediates.
+#
+# Requires phase-1 binning (gch_bin) already populated $BASE/binned.
+# Submit via gch_region.sh, or directly:
+#   qsub -v region=lat_34_lon_148,cleanup=1 gch_region.pbs
+#PBS -N gch_region
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=4GB
+#PBS -P xe2
+#PBS -l walltime=12:00:00
+#PBS -l storage=gdata/xe2+gdata/ob53+scratch/xe2
+#PBS -q normal
+
+set -e
+export GDAL_CACHEMAX=64
+export GDAL_NUM_THREADS=1
+
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+ANALYSIS=/home/147/cb8590/Projects/shelterbelts/analysis
+INDICES=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/indices
+CLASSIF=/home/147/cb8590/Projects/shelterbelts/src/shelterbelts/classifications
+
+BASE=/scratch/xe2/cb8590/gch_v2_ag_indices
+input_dir=${BASE}/inputs/${region}
+outdir=${BASE}/indices/${region}
+tmpdir="$PBS_JOBFS"
+cleanup=${cleanup:-1}
+
+echo "=== [${region}] cut ==="
+cd "$ANALYSIS"
+python gch_cut.py --region "$region" --out_dir "$input_dir"
+
+# Skip cleanly if the region had no GCH-covered tiles (e.g. offshore-only).
+if [ ! -d "${input_dir}/percent" ] || [ -z "$(ls -A ${input_dir}/percent 2>/dev/null)" ]; then
+    echo "[${region}] no cut tiles — nothing to do"; exit 0
+fi
+
+echo "=== [${region}] indices (height WINDWARD) ==="
+cd "$INDICES"
+python all_indices.py "${input_dir}/percent" --outdir "$outdir" --tmpdir "$tmpdir" \
+    --param_stub "$region" --height_dir "${input_dir}/height" \
+    --cover_threshold 1 --crop_pixels 50 --wind_method WINDWARD \
+    --buffer_width 4 --max_shelterbelt_width 6 --min_shelterbelt_length 20 --min_patch_size 20 \
+    --edge_size 4 --min_core_size 500 --distance_threshold 20 \
+    --opportunities --save_gpkg --save_patch_csv
+
+echo "=== [${region}] merge ==="
+cd "$CLASSIF"
+for suf in _shelter_categories.tif _shelter_distances.tif _opportunities.tif; do
+    if ls ${outdir}/*${suf} >/dev/null 2>&1; then
+        python merge_tifs.py "$outdir" --suffix "$suf" --subdir '' --tmpdir "$tmpdir" --crs EPSG:3857 --dont_reproject
+    fi
+done
+python -c "from shelterbelts.indices.patch_metrics import combine_patch_metrics_csvs; combine_patch_metrics_csvs('$outdir', output_csv='${BASE}/indices/${region}_patch_metrics.csv')"
+cd "$ANALYSIS"
+python -c "from gch_prep import combine_centrelines; combine_centrelines('$outdir', '${BASE}/indices/${region}_centrelines.gpkg')"
+
+if [ "$cleanup" = "1" ]; then
+    # Only delete once the merged region deliverables exist, so a failed merge never loses data.
+    if [ -f "${BASE}/indices/${region}_merged_shelter_categories.tif" ] \
+       && [ -f "${BASE}/indices/${region}_patch_metrics.csv" ]; then
+        echo "=== [${region}] cleanup per-tile intermediates (keep merged region outputs) ==="
+        rm -rf "$input_dir" "$outdir"   # inputs (percent/height) + all per-tile outputs; merged kept in parent
+    else
+        echo "=== [${region}] merge outputs missing — skipping cleanup to preserve data ==="
+    fi
+fi
+echo "=== [${region}] DONE ==="

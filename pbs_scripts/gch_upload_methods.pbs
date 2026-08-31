@@ -1,0 +1,18 @@
+#!/bin/bash
+# PBS wrapper for analysis/upload_indices_gch_methods.sh — needs internet (GCS + Earth Engine
+# API calls), so this must run on copyq rather than normal. Chained after gch_value_counts_methods.pbs
+# via job dependency since uploads use the MASKED rasters that step produces.
+#   qsub -v methods=less_windmethod gch_upload_methods.pbs
+#   qsub -v methods=less_windmethod,dry=1 gch_upload_methods.pbs   # preview without uploading
+#PBS -N gch_upload_methods
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l walltime=04:00:00
+#PBS -l ncpus=1
+#PBS -l mem=4GB
+#PBS -l jobfs=1GB
+#PBS -l storage=scratch/xe2+gdata/xe2
+#PBS -j oe
+set -e
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+METHODS="$methods" ./upload_indices_gch_methods.sh ${dry:+dry}

@@ -1,0 +1,20 @@
+#!/bin/bash
+# Phase 1: bin a slice [start:end] of the needed GCH v2 tiles to 10 m percent+height (global lattice).
+# ~2.3 GB peak per tile, ~45 s per tile -> run at 4 GB. Idempotent (skips tiles already binned).
+#   qsub -v start=0,end=200 gch_bin.pbs
+#PBS -N gch_bin
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=2GB
+#PBS -P xe2
+#PBS -l walltime=06:00:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+set -e
+export GDAL_NUM_THREADS=1
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+list_arg=""
+[ -n "${list}" ] && list_arg="--list ${list}"
+python gch_bin.py --start ${start} --end ${end} ${list_arg}

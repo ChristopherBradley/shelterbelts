@@ -71,7 +71,9 @@ You can find installation instructions on the README of the `GitHub repository <
 Parameter Reference
 -------------------
 
-The main parameters for categorising shelterbelts are:
+The main parameters for categorising shelterbelts are below. "Less" and "More" are preset bundles of these
+thresholds (e.g. the "less wind method" / "more wind method" layers in the Earth Engine app) that make the
+classifier detect fewer or more shelterbelts overall — they are not related to wind speed, despite the layer names.
 
 .. list-table::
    :header-rows: 1
@@ -79,22 +81,22 @@ The main parameters for categorising shelterbelts are:
 
    * - Parameter
      - Default
-     - Low
-     - High
+     - Less
+     - More
      - Description
    * - ``min_patch_size``
      - 20
-     - 15
      - 25
+     - 15
      - Minimum area (pixels) to classify as a patch rather than scattered trees
    * - ``min_core_size``
      - 1000
-     - 100
-     - 10000
+     - 500
+     - 2000
      - Minimum patch size (pixels) to classify as a core area
    * - ``edge_size``
+     - 4
      - 3
-     - 2
      - 5
      - Distance (pixels) defining the edge region around patch cores
    * - ``buffer_width``
@@ -114,18 +116,18 @@ The main parameters for categorising shelterbelts are:
      - Percentage tree cover within ``distance_threshold`` that counts as sheltered
    * - ``wind_threshold``
      - 20
-     - 15
      - 25
+     - 15
      - Wind speed threshold in km/h
    * - ``wind_method``
      - WINDWARD
      - MOST_COMMON
-     - ANY
+     - WINDWARD
      - Method to determine primary wind direction
    * - ``min_shelterbelt_length``
      - 20
-     - 15
      - 25
+     - 15
      - Minimum skeleton length (pixels) to classify a cluster as linear
    * - ``max_shelterbelt_width``
      - 6

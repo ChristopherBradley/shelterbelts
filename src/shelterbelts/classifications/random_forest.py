@@ -56,6 +56,8 @@ def random_forest(training_file, outdir=".", stub="TEST", output_column='tree_co
       with the NN; the trees don't strictly need scaled inputs)
     - {stub}_metrics.csv — per-class metrics
     """
+    os.makedirs(outdir, exist_ok=True)
+
     if training_file.endswith('.feather'):
         df = pd.read_feather(training_file)
     else:

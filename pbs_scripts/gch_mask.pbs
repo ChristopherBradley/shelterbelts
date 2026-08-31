@@ -1,0 +1,31 @@
+#!/bin/bash
+# Mask all 148 merged region rasters to the ag area — ag 4 km tiles AND non-nodata NLUM pixels
+# (outside -> 255) — then re-run Australia-wide value_counts on the masked set
+# (shelter_categories + opportunities).
+#PBS -N gch_mask
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=2GB
+#PBS -P xe2
+#PBS -l walltime=05:00:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+set -e
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+
+echo "=== masking all regions ==="
+python gch_mask.py   # all regions -> indices_masked/
+
+MASKED=/scratch/xe2/cb8590/gch_v2_ag_indices/indices_masked
+OUT=/scratch/xe2/cb8590/tif_value_counts_gch_ag_masked
+mkdir -p "$OUT"
+
+for d in shelter_categories opportunities; do
+  suf=_merged_${d}.tif
+  echo "=== value_counts (masked): $d global ==="
+  python tif_value_counts.py --tif_folder "$MASKED" --suffix "$suf" \
+      --output_csv "${OUT}/gch_windmethod${suf%.tif}_value_counts.csv"
+done
+echo "=== DONE -> $OUT ==="

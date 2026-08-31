@@ -5,9 +5,24 @@ import geopandas as gpd
 
 pdal = pytest.importorskip('pdal')
 
-from shelterbelts.classifications.lidar import lidar
+from shelterbelts.classifications.lidar import lidar, _get_laz_bounds
 from shelterbelts.classifications._crown_dalponteCIRC_numba import crowns_to_gpkg
 from shelterbelts.utils.filepaths import laz_sample, dem_h_sample
+
+
+def test_laz_bounds_without_pdal_on_path(monkeypatch):
+    """Reading LAZ bounds uses the python-pdal bindings, not a `pdal` executable on PATH.
+
+    An environment created outside the default conda prefix, or a notebook kernel started
+    without activating one, can import pdal fine while having no pdal on PATH at all.
+    """
+    monkeypatch.setenv('PATH', '')
+
+    minx, miny, maxx, maxy, crs = _get_laz_bounds(laz_sample)
+
+    assert minx < maxx and miny < maxy
+    assert 'GDA94 / MGA zone 55' in crs
+    assert _get_laz_bounds(laz_sample, epsg=28355)[4] == 'EPSG:28355'
 
 
 def test_lidar_category5_binary():

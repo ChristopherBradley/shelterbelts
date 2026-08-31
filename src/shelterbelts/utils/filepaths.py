@@ -1,7 +1,30 @@
 """Utilities for file paths and data location management."""
 
+import os
+import sys
 from pathlib import Path
 import rioxarray as rxr
+
+
+def ensure_env_on_path():
+    """Prepend this environment's bin directories to PATH"""
+    # sys.executable lives in <prefix>/bin on POSIX and <prefix> on Windows
+    bin_dirs = [Path(sys.executable).parent]
+    if os.name == 'nt':
+        bin_dirs += [Path(sys.prefix) / 'Library' / 'bin', Path(sys.prefix) / 'Scripts']
+
+    path_entries = os.environ.get('PATH', '').split(os.pathsep)
+    for bin_dir in reversed(bin_dirs):
+        if bin_dir.is_dir() and str(bin_dir) not in path_entries:
+            path_entries.insert(0, str(bin_dir))
+    os.environ['PATH'] = os.pathsep.join(path_entries)
+
+    # gdalwarp aborts with "Cannot find proj.db" if it inherits a PROJ_DATA belonging to a different environment.
+    if 'PROJ_DATA' not in os.environ:
+        for proj_data in [Path(sys.prefix) / 'share' / 'proj', Path(sys.prefix) / 'Library' / 'share' / 'proj']:
+            if proj_data.is_dir():
+                os.environ['PROJ_DATA'] = str(proj_data)
+                break
 
 
 def _find_repo_root():

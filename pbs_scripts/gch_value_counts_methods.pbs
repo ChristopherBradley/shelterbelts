@@ -1,0 +1,55 @@
+#!/bin/bash
+# Final phase of the GCH "final app" method rerun, for ONE method: mask the merged region rasters
+# to the ag 4km BARRA tiles only (outside -> 255) — this is the raster used for the GEE app, so it
+# must NOT also carry the finer 250m NLUM mask. The NLUM per-pixel restriction is instead applied
+# only when computing the "masked" value_counts (via tif_value_counts.py's --nlum_tif), so ag-area
+# totals stay comparable across runs without baking NLUM into the persisted/uploaded tif. The
+# unmasked "raw" pass counts the 0-filled gaps between scattered ag tiles as 'Not Trees'.
+# Only counts whichever of {shelter_categories, dist, opportunities} that method actually merged
+# (gch_region_methods.pbs merges a different subset per method) — the inner loop skips the rest.
+#   qsub -v method=less_windmethod       gch_value_counts_methods.pbs
+#   qsub -v method=default_windmethod    gch_value_counts_methods.pbs
+#   qsub -v method=more_windmethod       gch_value_counts_methods.pbs
+#   qsub -v method=default_percentmethod gch_value_counts_methods.pbs
+#PBS -N gch_vc_methods
+#PBS -l mem=4GB
+#PBS -l ncpus=1
+#PBS -l jobfs=1GB
+#PBS -P xe2
+#PBS -l walltime=06:00:00
+#PBS -l storage=gdata/xe2+scratch/xe2
+#PBS -q normal
+set -e
+source /g/data/xe2/cb8590/miniconda/etc/profile.d/conda.sh
+conda activate /g/data/xe2/cb8590/miniconda/envs/shelterbelts
+cd /home/147/cb8590/Projects/shelterbelts/analysis
+
+case "$method" in
+  *percentmethod) dist=shelter_densities ;;
+  *windmethod)    dist=shelter_distances ;;
+  *) echo "Unknown or missing method: '$method'"; exit 1 ;;
+esac
+
+BASE=/scratch/xe2/cb8590/gch_v2_ag_indices
+NLUM_TIF=/g/data/xe2/cb8590/Outlines/NLUM_v7_probSurf_2021_331_5_W_CER.tif
+SRC=${BASE}/indices_${method}
+MASKED=${BASE}/indices_${method}_masked
+OUT=/scratch/xe2/cb8590/tif_value_counts_gch_ag_${method}
+mkdir -p "$OUT" "$MASKED"
+
+echo "=== [${method}] masking all regions (ag tiles only, no NLUM) -> $MASKED ==="
+python gch_mask.py --indices_dir "$SRC" --out_dir "$MASKED" --nlum_tif ''
+
+for d in shelter_categories $dist opportunities; do
+  suf=_merged_${d}.tif
+  for set in raw masked; do
+    [ "$set" = raw ] && folder="$SRC" || folder="$MASKED"
+    [ "$set" = raw ] && tag="" || tag="_masked"
+    [ "$set" = raw ] && nlum_arg="" || nlum_arg="--nlum_tif $NLUM_TIF"
+    ls ${folder}/*${suf} >/dev/null 2>&1 || { echo "skip (no ${suf} in $folder)"; continue; }
+    echo "=== [${method}] value_counts ${set}: $d global ==="
+    python tif_value_counts.py --tif_folder "$folder" --suffix "$suf" \
+        --output_csv "${OUT}/gch_${method}${suf%.tif}${tag}_value_counts.csv" $nlum_arg
+  done
+done
+echo "=== [${method}] DONE -> $OUT ==="

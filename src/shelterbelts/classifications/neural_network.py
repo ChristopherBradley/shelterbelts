@@ -118,13 +118,13 @@ def train_model(X_train, y_train, X_test, y_test, learning_rate, epochs, batch_s
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)  # Tried out a few different optimizers and this worked best for my use case
 
     class RecordAccuracy(keras.callbacks.Callback):
-        """Bespoke accuracy class to avoid errors on Apple Silicon. May reduce performance on other operating systems."""
+        """Monkeypatch trying to avoid errors on Apple Silicon & still work on Linux & Apple Intel."""
         def on_epoch_end(self, epoch, logs=None):
             if logs is None:
                 return
             for name, X, y in (('categorical_accuracy', X_train, y_train),
                                ('val_categorical_accuracy', X_test, y_test)):
-                predicted = self.model.predict(X, verbose=0).argmax(axis=1)
+                predicted = self.model(X, training=False).numpy().argmax(axis=1)
                 logs[name] = float((predicted == y.argmax(axis=1)).mean())
 
     model.compile(optimizer=optimizer, loss = 'CategoricalCrossentropy')
@@ -326,6 +326,8 @@ def train_neural_network(training_file, outdir=".", stub="TEST", output_column='
     >>> df = train_neural_network(training_csv_sample, outdir='/tmp',
     ...                           stub='example', epochs=1, limit=500)  # doctest: +SKIP
     """
+    os.makedirs(outdir, exist_ok=True)
+
     if training_file.endswith('.feather'):
         df = pd.read_feather(training_file)
     else:
