@@ -41,9 +41,7 @@ After the predictions, pixels were categorised using the following method:
 
 ## Parameter Reference
 
-The main parameters for categorising shelterbelts are below. "Less" and "More" are preset bundles of these thresholds
-(e.g. the "less wind method" / "more wind method" layers in the Earth Engine app) that make the classifier detect
-fewer or more shelterbelts overall — they are not related to wind speed, despite the layer names.
+The main parameters for categorising shelterbelts are below. "Less" and "More" refer to how these parameters influence the resulting number of shelterbelts in the output. 
 
 | Parameter | Default | Less Threshold | More Threshold | Description |
 |-----------|---------|-----------------|-----------------|-------------|

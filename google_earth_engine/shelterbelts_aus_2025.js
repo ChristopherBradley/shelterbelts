@@ -149,15 +149,17 @@ Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
 
 
 ///////////////////////////////////////////////////////////
-// Parameter combinations — each has its own asset collections for
-// planting opportunities, shelter distances, and shelter categories.
+// Parameter combinations — every combo has a shelter categories asset collection, but only the
+// default combo also has shelter distances + planting opportunities (keeps the layer panel to
+// 6 layers total instead of 4 x 3 — the other 3 combos are for comparing the category map only).
 var paramCombos = [
   {key: 'default_windmethod',    label: 'default wind method'},
   {key: 'less_windmethod',       label: 'less wind method'},
   {key: 'more_windmethod',       label: 'more wind method'},
-  {key: 'default_percentmethod', label: 'default percent method', distanceAsset: 'shelter_densities'},
+  {key: 'default_percentmethod', label: 'default percent method'},
 ];
 var defaultComboKey = 'default_windmethod';
+var assetVersionTag = 'v3';
 
 var distanceMax = 20;
 var ylGn = ['ffffe5', 'f7fcb9', 'd9f0a3', 'addd8e', '78c679', '41ab5d', '238443', '006837', '004529'];
@@ -196,18 +198,23 @@ Map.addLayer(
   'WorldCover 2020', false, 1
 );
 
-// Planting opportunities (added in reverse combo order, so the panel shows them in combo order)
-paramCombos.slice().reverse().forEach(function(combo) {
-  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
-  var opportunitiesImg = ee.ImageCollection(assetPrefix + 'opportunities').mosaic();
+function comboAssetPrefix(combo) {
+  return 'projects/ee-christopher-bradley/assets/Aus2025_ag_gch_' + combo.key + '_' + assetVersionTag + '_';
+}
+
+// Planting opportunities — default combo only
+(function() {
+  var combo = paramCombos.filter(function(c) { return c.key === defaultComboKey; })[0];
+  var opportunitiesImg = ee.ImageCollection(comboAssetPrefix(combo) + 'opportunities').mosaic();
   opportunitiesByCombo[combo.key] = styleCategoricalImage(
     opportunitiesImg, 'Planting opportunities 2025 (' + combo.label + ')', false, shelterPalette, 1);
-});
+})();
 
-// Shelter distances (added in reverse combo order)
-paramCombos.slice().reverse().forEach(function(combo) {
-  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
-  var shelterDistancesImg = ee.ImageCollection(assetPrefix + (combo.distanceAsset || 'shelter_distances')).mosaic();
+// Shelter distances — default combo only (default_percentmethod would use shelter_densities, but
+// it doesn't get a distance/density layer at all in this trimmed 6-layer set)
+(function() {
+  var combo = paramCombos.filter(function(c) { return c.key === defaultComboKey; })[0];
+  var shelterDistancesImg = ee.ImageCollection(comboAssetPrefix(combo) + 'shelter_distances').mosaic();
   var shelterDistances = shelterDistancesImg.updateMask(shelterDistancesImg.gt(0));
   shelterDistancesByCombo[combo.key] = shelterDistances;
   Map.addLayer(
@@ -215,13 +222,12 @@ paramCombos.slice().reverse().forEach(function(combo) {
     {min: 1, max: distanceMax, palette: ylGnInvertedForDistance},
     'Shelter distances 2025 (' + combo.label + ')', false, 1
   );
-});
+})();
 
-// Shelter categories (added in reverse combo order, last one added ends up on top)
+// Shelter categories (added in reverse combo order, last one added ends up on top) — every combo
 paramCombos.slice().reverse().forEach(function(combo) {
   var isDefault = combo.key === defaultComboKey;
-  var assetPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_' + combo.key + '_';
-  var shelterCategoriesImg = ee.ImageCollection(assetPrefix + 'shelter_categories').mosaic();
+  var shelterCategoriesImg = ee.ImageCollection(comboAssetPrefix(combo) + 'shelter_categories').mosaic();
   shelterCategoriesByCombo[combo.key] = styleCategoricalImage(
     shelterCategoriesImg, 'Shelter categories 2025 (' + combo.label + ')', isDefault, shelterPalette, 1);
 });
@@ -359,11 +365,14 @@ Map.add(legend);
 paramCombos.forEach(function(combo) {
   exportLayers['Shelter categories 2025 (' + combo.label + ') (10m)'] = shelterCategoriesByCombo[combo.key];
 });
-paramCombos.forEach(function(combo) {
-  exportLayers['Shelter distances 2025 (' + combo.label + ') (10m)'] = shelterDistancesByCombo[combo.key];
+// Distances + opportunities only exist for the default combo (see comboAssetPrefix / paramCombos note)
+Object.keys(shelterDistancesByCombo).forEach(function(key) {
+  var combo = paramCombos.filter(function(c) { return c.key === key; })[0];
+  exportLayers['Shelter distances 2025 (' + combo.label + ') (10m)'] = shelterDistancesByCombo[key];
 });
-paramCombos.forEach(function(combo) {
-  exportLayers['Planting opportunities 2025 (' + combo.label + ') (10m)'] = opportunitiesByCombo[combo.key];
+Object.keys(opportunitiesByCombo).forEach(function(key) {
+  var combo = paramCombos.filter(function(c) { return c.key === key; })[0];
+  exportLayers['Planting opportunities 2025 (' + combo.label + ') (10m)'] = opportunitiesByCombo[key];
 });
 exportLayers['WorldCover 2020 (10m)'] = wc;
 exportLayers['Canopy Height v2 (1m)'] = chm;

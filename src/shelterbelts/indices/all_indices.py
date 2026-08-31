@@ -43,12 +43,7 @@ from shelterbelts.utils.visualisation import tif_categorical, visualise_categori
 
 
 def _valid_tif(path):
-    """Cheap corruption check: the file must exist, be non-empty, and openable by rasterio.
-
-    Used to decide whether a previous run's output for a tile can be trusted (vs a truncated
-    file left behind by a job that died mid-write), so a resume/skip check never mistakes a
-    corrupted leftover for a completed tile.
-    """
+    """Check a tif hasn't been corrupted by a previous job that failed halfway through."""
     if not os.path.exists(path) or os.path.getsize(path) == 0:
         return False
     try:
@@ -545,20 +540,15 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
     if limit:
         percent_tifs = percent_tifs[:limit]
 
-    if limit is None: # Don't remove tifs if we've specified a limit because this argument is just used for testing when I want reproducible results.
-        # Remove tifs that have already been fully and validly processed (sometimes I have to run
-        # the pipeline multiple times if jobs don't finish). A tile only counts as done if every
-        # output this configuration always produces exists and is a readable, non-empty file --
-        # checking mere existence of *any* same-stem tif let a single corrupted/truncated leftover
-        # (e.g. from a node dying mid-write) permanently poison the resume check: that tile was
-        # never regenerated on later runs, and either crashed the merge step downstream or, worse,
-        # silently disappeared from the merged region raster with no error at all.
+    # Don't remove tifs if we've specified a limit (so we have reproducible results when testing)
+    if limit is None: 
+        # Remove tifs that have already been procesed and finished successfully (if I need to rerun the same job twice)
         dist_suffix = 'shelter_distances' if (wind_method and wind_method not in ("None", "MULTI_LAYER")) else 'shelter_densities'
         required_tif_suffixes = ['linear_categories', 'shelter_categories', dist_suffix]
         if opportunities:
             required_tif_suffixes.append('opportunities')
-        # patch_metrics.csv / centrelines.gpkg are only written when patches/geometries are found,
-        # so their absence is legitimate -- only flag them as corrupt if present but empty.
+
+        # patch_metrics.csv / centrelines.gpkg don't have to get written if no tree patches are found in the tile (some ocean or desert tiles).
         optional_files = []
         if save_patch_csv:
             optional_files.append('_patch_metrics.csv')

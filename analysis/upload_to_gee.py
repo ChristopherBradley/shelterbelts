@@ -27,6 +27,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import ee
 from google.cloud import storage
 
+# "Anyone can read" — the same box you'd tick in the Code Editor's Share dialog. An
+# ImageCollection's own ACL governs read access to every Image inside it (EE rejects
+# setIamPolicy called directly on a child of a collection), so setting it once here on the
+# collection itself covers all images ever ingested into it, past and future.
+PUBLIC_POLICY = {'bindings': [{'role': 'roles/viewer', 'members': ['allUsers']}]}
+
 
 def _service_account_email(key_file):
     with open(key_file) as f:
@@ -51,7 +57,7 @@ def init_clients(project, key_file=None):
     return gcs
 
 
-def ensure_collection(collection_id):
+def ensure_collection(collection_id, public):
     """Create the ImageCollection asset if it doesn't already exist."""
     try:
         ee.data.getAsset(collection_id)
@@ -59,6 +65,12 @@ def ensure_collection(collection_id):
     except ee.EEException:
         ee.data.createAsset({'type': 'IMAGE_COLLECTION'}, collection_id)
         print(f"Created collection: {collection_id}")
+    if public:
+        try:
+            ee.data.setIamPolicy(collection_id, PUBLIC_POLICY)
+        except Exception as e:
+            print(f"  WARNING: could not set public ACL on {collection_id}: "
+                  f"{type(e).__name__}: {str(e)[:200]}")
 
 
 def asset_exists(asset_id):
@@ -186,6 +198,9 @@ def main():
                              '(default: 3600). As long as images keep appearing it keeps waiting, so a '
                              'slow EE ingestion queue no longer causes a premature "0 ingested" report.')
     parser.add_argument('--dry-run', action='store_true', help='List what would happen without uploading/ingesting')
+    parser.add_argument('--private', action='store_true',
+                         help="Skip setting 'Anyone can read' on the collection (default: public, "
+                              "so the app doesn't need per-layer sharing set by hand in the Code Editor).")
     args = parser.parse_args()
 
     tifs = sorted(f for f in glob.glob(os.path.join(args.folder, '*.tif')) if f.endswith(args.suffix))
@@ -203,7 +218,7 @@ def main():
 
     gcs = init_clients(args.project, args.key)
     bucket = gcs.bucket(args.bucket)
-    ensure_collection(args.collection)
+    ensure_collection(args.collection, public=not args.private)
 
     # --- Stage 1: upload tifs to GCS in parallel ---
     print(f"\nUploading {len(tifs)} tifs to gs://{args.bucket}/{args.gcs_prefix}/ ...")

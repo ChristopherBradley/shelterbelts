@@ -74,8 +74,11 @@ def nlum_valid(transform, H, W, nlum_tif=NLUM_TIF, block_rows=2048):
 
 def mask_region(region, bboxs_gdf, indices_dir=INDICES_DIR, out_dir=OUT_DIR, datatypes=DATATYPES,
                 nlum_tif=NLUM_TIF):
-    ref = os.path.join(indices_dir, f'{region}_merged_shelter_categories.tif')
-    if not os.path.exists(ref):
+    # Use whichever datatype actually exists as the reference transform/shape — a method may only
+    # merge a subset of DATATYPES (e.g. default_windmethod skips shelter_categories).
+    ref = next((os.path.join(indices_dir, f'{region}_merged_{d}.tif') for d in datatypes
+                if os.path.exists(os.path.join(indices_dir, f'{region}_merged_{d}.tif'))), None)
+    if ref is None:
         print(f"  [{region}] no merged raster, skip", flush=True)
         return 0
     sub, _ = region_tiles(bboxs_gdf, region)          # ag 4 km tiles in EPSG:3857

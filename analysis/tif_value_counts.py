@@ -14,6 +14,10 @@ Usage:
     # A single tif:
     python tif_value_counts.py --tif <file.tif> --output_csv <csv>
 
+    # Apply an extra NLUM per-pixel mask at count time only (source tif untouched):
+    python tif_value_counts.py --tif_folder <dir> --suffix <suffix> \
+        --nlum_tif <nlum.tif> --output_csv <csv>
+
 Output CSV columns:
     zone, value, label, count, percent, is_nodata
 """
@@ -31,6 +35,8 @@ from rasterio.windows import Window
 from rasterio.windows import transform as window_transform
 from rasterio.features import rasterize
 from shapely.geometry import box
+
+from gch_mask import nlum_valid
 
 # Using uint8 rasters
 N_VALUES = 256
@@ -91,10 +97,12 @@ def _accumulate(block, counts, n_values=N_VALUES, zone_ids=None,
 
 
 def count_tif(tif_path, n_values=N_VALUES, chunk_rows=CHUNK_ROWS,
-              zone_shapes=None, zone_dtype=np.uint16):
+              zone_shapes=None, zone_dtype=np.uint16, nlum_tif=None, nodata=NODATA):
     """Count pixel values for one raster, optionally split by zone.
 
     Streams the raster in row-chunks so peak memory is bounded by one chunk.
+    If `nlum_tif` is given, pixels outside its non-nodata footprint are counted
+    as `nodata` for this pass only — the source tif on disk is never modified.
     Returns (counts, zone_counts):
       counts      : length-n_values int64 array (global for this tif).
       zone_counts : {zone_id: length-n_values array}, or {} if no zones.
@@ -103,6 +111,10 @@ def count_tif(tif_path, n_values=N_VALUES, chunk_rows=CHUNK_ROWS,
     zone_counts = {}
     with rasterio.open(tif_path) as src:
         height, width = src.height, src.width
+
+        valid = None
+        if nlum_tif:
+            valid = nlum_valid(src.transform, height, width, nlum_tif)
 
         tile_shapes = None
         if zone_shapes is not None:
@@ -115,6 +127,9 @@ def count_tif(tif_path, n_values=N_VALUES, chunk_rows=CHUNK_ROWS,
             nrows = min(chunk_rows, height - row)
             window = Window(0, row, width, nrows)
             block = src.read(1, window=window)
+            if valid is not None:
+                block = block.copy()
+                block[~valid[row:row + nrows]] = nodata
 
             zone_ids = None
             if zone_shapes is not None:
@@ -156,7 +171,7 @@ def counts_to_rows(zone_name, counts, nodata=NODATA, labels=None):
 
 def run(tif_folder=None, suffix="", tif=None, output_csv=None,
         zones_file=None, zone_col=None, n_values=N_VALUES, nodata=NODATA,
-        labels=None, limit=None):
+        labels=None, limit=None, nlum_tif=None):
     """Count pixel values across one tif or a folder, optionally by zone."""
     if tif:
         tif_files = [tif]
@@ -183,7 +198,8 @@ def run(tif_folder=None, suffix="", tif=None, output_csv=None,
     for i, path in enumerate(tif_files, 1):
         t0 = time.time()
         counts, zone_counts = count_tif(path, n_values=n_values,
-                                        zone_shapes=zone_shapes)
+                                        zone_shapes=zone_shapes, nlum_tif=nlum_tif,
+                                        nodata=nodata)
         total += counts
         for zid, zc in zone_counts.items():
             zone_totals.setdefault(zid, np.zeros(n_values, dtype=np.int64))
@@ -229,8 +245,12 @@ if __name__ == "__main__":
                         help="Where to write the zone/value/count/percent CSV.")
     parser.add_argument("--limit", type=int, default=None,
                         help="Only process the first N tifs (for testing).")
+    parser.add_argument("--nlum_tif", default=None,
+                        help="Optional NLUM raster; pixels outside its non-nodata footprint are "
+                             "additionally counted as nodata for this pass, without touching the "
+                             "source tif on disk.")
     args = parser.parse_args()
 
     run(tif_folder=args.tif_folder, suffix=args.suffix, tif=args.tif,
         output_csv=args.output_csv, zones_file=args.zones_file,
-        zone_col=args.zone_col, limit=args.limit)
+        zone_col=args.zone_col, limit=args.limit, nlum_tif=args.nlum_tif)
