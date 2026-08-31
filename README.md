@@ -41,19 +41,21 @@ After the predictions, pixels were categorised using the following method:
 
 ## Parameter Reference
 
-The main parameters for categorising shelterbelts are below:
+The main parameters for categorising shelterbelts are below. "Less" and "More" are preset bundles of these thresholds
+(e.g. the "less wind method" / "more wind method" layers in the Earth Engine app) that make the classifier detect
+fewer or more shelterbelts overall — they are not related to wind speed, despite the layer names.
 
-| Parameter | Default | Low Threshold | High Threshold | Description |
-|-----------|---------|---------------|----------------|-------------|
-| `min_patch_size` | 20 | 15 | 25 | Minimum area (pixels) to classify as a patch rather than scattered trees |
-| `min_core_size` | 1000 | 100 | 10000 | Minimum patch size (pixels) to classify as a core area |
-| `edge_size` | 3 | 2 | 5 | Distance (pixels) defining the edge region around patch cores |
+| Parameter | Default | Less Threshold | More Threshold | Description |
+|-----------|---------|-----------------|-----------------|-------------|
+| `min_patch_size` | 20 | 25 | 15 | Minimum area (pixels) to classify as a patch rather than scattered trees |
+| `min_core_size` | 1000 | 500 | 2000 | Minimum patch size (pixels) to classify as a core area |
+| `edge_size` | 4 | 3 | 5 | Distance (pixels) defining the edge region around patch cores |
 | `buffer_width` | 4 | 3 | 5 | Number of pixels away from the feature that still counts as within the buffer |
 | `distance_threshold` | 20 | 10 | 30 | Distance from trees that counts as sheltered |
 | `density_threshold` | 5 | 3 | 10 | Percentage tree cover within distance_threshold that counts as sheltered |
-| `wind_threshold` | 20 | 15 | 25 | Wind speed threshold in km/h |
-| `wind_method` | WINDWARD | MOST_COMMON | ANY | Method to determine primary wind direction |
-| `min_shelterbelt_length` | 20 | 15 | 25 | Minimum skeleton length (in pixels) to classify a cluster as linear |
+| `wind_threshold` | 20 | 25 | 15 | Wind speed threshold in km/h |
+| `wind_method` | WINDWARD | MOST_COMMON | WINDWARD | Method to determine primary wind direction |
+| `min_shelterbelt_length` | 20 | 25 | 15 | Minimum skeleton length (in pixels) to classify a cluster as linear |
 | `max_shelterbelt_width` | 6 | 5 | 7 | Maximum skeleton width (in pixels) to classify a cluster as linear |
 
 Parameters can be modified when calling functions directly in Python or via command-line arguments. For example:

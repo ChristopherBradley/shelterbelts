@@ -6,6 +6,7 @@ import pathlib
 
 import pandas as pd
 import geopandas as gpd
+import rasterio
 import rioxarray as rxr
 import xarray as xr
 from shapely.geometry import box
@@ -39,6 +40,23 @@ from shelterbelts.utils.filepaths import (
     ensure_env_on_path,
 )
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
+
+
+def _valid_tif(path):
+    """Cheap corruption check: the file must exist, be non-empty, and openable by rasterio.
+
+    Used to decide whether a previous run's output for a tile can be trusted (vs a truncated
+    file left behind by a job that died mid-write), so a resume/skip check never mistakes a
+    corrupted leftover for a completed tile.
+    """
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return False
+    try:
+        with rasterio.open(path):
+            pass
+        return True
+    except Exception:
+        return False
 
 
 def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, wind_method=None,
@@ -143,9 +161,9 @@ GEE_legend = {
 def indices_tif(percent_tif, outdir=".",
                      tmpdir=".", stub=None,
                      wind_method=None, wind_threshold=20,
-                     cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
-                     distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
+                     cover_threshold=1, min_patch_size=20, edge_size=4, max_gap_size=1,
+                     distance_threshold=20, density_threshold=5, buffer_width=4, strict_core_area=True,
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
                      opportunities=False, height_tif=None, save_gpkg=False, save_patch_csv=False,
                      worldcover_data=None, gullies_data=None, roads_data=None,
                      debug=False):
@@ -334,9 +352,9 @@ _AUSTRALIA_BOUNDS = (-44, 113, -10, 154)  # (lat_min, lon_min, lat_max, lon_max)
 def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
                    wind_method=None, wind_threshold=20,
                    height_threshold=1.0, cover_threshold=1,
-                   min_patch_size=20, edge_size=3, max_gap_size=1,
-                   distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                   crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
+                   min_patch_size=20, edge_size=4, max_gap_size=1,
+                   distance_threshold=20, density_threshold=5, buffer_width=4, strict_core_area=True,
+                   crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
                    opportunities=False,
                    debug=False):
     """
@@ -450,9 +468,9 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
 def indices_csv(csv, outdir=".",
                      tmpdir=".", stub=None,
                      wind_method=None, wind_threshold=20,
-                     cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
-                     distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6,
+                     cover_threshold=1, min_patch_size=20, edge_size=4, max_gap_size=1,
+                     distance_threshold=20, density_threshold=5, buffer_width=4, strict_core_area=True,
+                     crop_pixels=0, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6,
                      opportunities=False, height_tif=None, save_gpkg=False, save_patch_csv=False,
                      debug=False):
     """
@@ -494,9 +512,9 @@ def indices_csv(csv, outdir=".",
 
 def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
                       wind_method=None, wind_threshold=20,
-                      cover_threshold=1, min_patch_size=20, edge_size=3, max_gap_size=1,
-                      distance_threshold=20, density_threshold=5, buffer_width=3, strict_core_area=True,
-                      crop_pixels=0, limit=None, tiles_per_csv=1000, min_core_size=1000, min_shelterbelt_length=15, max_shelterbelt_width=6, suffix='tif',
+                      cover_threshold=1, min_patch_size=20, edge_size=4, max_gap_size=1,
+                      distance_threshold=20, density_threshold=5, buffer_width=4, strict_core_area=True,
+                      crop_pixels=0, limit=None, tiles_per_csv=1000, min_core_size=1000, min_shelterbelt_length=20, max_shelterbelt_width=6, suffix='tif',
                       opportunities=False, height_dir=None, save_gpkg=False, save_patch_csv=False,
                       debug=False):
     """
@@ -528,13 +546,37 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
         percent_tifs = percent_tifs[:limit]
 
     if limit is None: # Don't remove tifs if we've specified a limit because this argument is just used for testing when I want reproducible results.
-        # Remove tifs that have already been processed (sometimes I have to run the pipeline multiple times if jobs don't finish)
-        processed = glob.glob(f'{outdir}/*.tif')
-        processed_stems = [pathlib.Path(tif).stem for tif in processed]
-        percent_tifs = [
-            tif for tif in percent_tifs
-            if not any(s.startswith(pathlib.Path(tif).stem[:50]) for s in processed_stems)
-        ]
+        # Remove tifs that have already been fully and validly processed (sometimes I have to run
+        # the pipeline multiple times if jobs don't finish). A tile only counts as done if every
+        # output this configuration always produces exists and is a readable, non-empty file --
+        # checking mere existence of *any* same-stem tif let a single corrupted/truncated leftover
+        # (e.g. from a node dying mid-write) permanently poison the resume check: that tile was
+        # never regenerated on later runs, and either crashed the merge step downstream or, worse,
+        # silently disappeared from the merged region raster with no error at all.
+        dist_suffix = 'shelter_distances' if (wind_method and wind_method not in ("None", "MULTI_LAYER")) else 'shelter_densities'
+        required_tif_suffixes = ['linear_categories', 'shelter_categories', dist_suffix]
+        if opportunities:
+            required_tif_suffixes.append('opportunities')
+        # patch_metrics.csv / centrelines.gpkg are only written when patches/geometries are found,
+        # so their absence is legitimate -- only flag them as corrupt if present but empty.
+        optional_files = []
+        if save_patch_csv:
+            optional_files.append('_patch_metrics.csv')
+        if save_gpkg:
+            optional_files.append('_centrelines.gpkg')
+
+        def _tile_done(percent_tif):
+            stub = pathlib.Path(percent_tif).stem[:50]
+            for suf in required_tif_suffixes:
+                if not _valid_tif(os.path.join(outdir, f'{stub}_{suf}.tif')):
+                    return False
+            for suf in optional_files:
+                f = os.path.join(outdir, f'{stub}{suf}')
+                if os.path.exists(f) and os.path.getsize(f) == 0:
+                    return False
+            return True
+
+        percent_tifs = [tif for tif in percent_tifs if not _tile_done(tif)]
         print(f"Reduced to {len(percent_tifs)} percent_tifs", flush=True)
 
     df = pd.DataFrame(percent_tifs, columns=["filename"])
@@ -603,16 +645,16 @@ def parse_arguments():
     parser.add_argument("--wind_threshold", type=int, default=20, help="Wind speed threshold in km/h")
     parser.add_argument("--cover_threshold", type=int, default=1, help="Percentage tree cover within a pixel to classify as tree (default: 1)")
     parser.add_argument("--min_patch_size", type=int, default=20, help="Minimum area (pixels) to classify as a patch rather than scattered trees")
-    parser.add_argument("--edge_size", type=int, default=3, help="Distance (pixels) defining the edge region around patch cores")
+    parser.add_argument("--edge_size", type=int, default=4, help="Distance (pixels) defining the edge region around patch cores")
     parser.add_argument("--max_gap_size", type=int, default=1, help="Maximum gap (pixels) to bridge when connecting tree clusters")
     parser.add_argument("--distance_threshold", type=int, default=20, help="Distance from trees that counts as sheltered")
     parser.add_argument("--density_threshold", type=int, default=5, help="Percentage tree cover within distance_threshold that counts as sheltered")
-    parser.add_argument("--buffer_width", type=int, default=3, help="Number of pixels away from the feature that still counts as within the buffer")
+    parser.add_argument("--buffer_width", type=int, default=4, help="Number of pixels away from the feature that still counts as within the buffer")
     parser.add_argument("--crop_pixels", type=int, default=0, help="Number of pixels to crop from each edge of the output")
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action='store_false', default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument("--limit", type=int, default=None, help="Number of tifs to process (default: all)")
     parser.add_argument("--min_core_size", type=int, default=1000, help="Minimum area (pixels) to classify as a core area")
-    parser.add_argument("--min_shelterbelt_length", type=int, default=15, help="Minimum skeleton length (in pixels) to classify a cluster as linear")
+    parser.add_argument("--min_shelterbelt_length", type=int, default=20, help="Minimum skeleton length (in pixels) to classify a cluster as linear")
     parser.add_argument("--max_shelterbelt_width", type=int, default=6, help="Maximum skeleton width (in pixels) to classify a cluster as linear")
     parser.add_argument("--suffix", default='tif', help="Suffix of each of the input tif files")
     parser.add_argument("--height_tif", default=None, help="Canopy-height GeoTIFF (metres) for a single input tif; shelter distance is then measured in tree heights")

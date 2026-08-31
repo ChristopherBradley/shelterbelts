@@ -321,7 +321,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
 
 
 def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True, save_tif=True, save_labels=True,
-                  save_gpkg=True, min_shelterbelt_length=15, max_shelterbelt_width=6, min_patch_size=20, max_gap_size=1, crop_pixels=None):
+                  save_gpkg=True, min_shelterbelt_length=20, max_shelterbelt_width=6, min_patch_size=20, max_gap_size=1, crop_pixels=None):
     """Calculate patch metrics and cleanup the tree pixel categories.
 
     Parameters
@@ -590,7 +590,7 @@ def parse_arguments():
     parser.add_argument('--no-save-tif', dest='save_tif', action='store_false', default=True, help='Disable GeoTIFF output (default: enabled)')
     parser.add_argument('--no-save-labels', dest='save_labels', action='store_false', default=True, help='Disable label raster output (default: enabled)')
     parser.add_argument('--no-save-gpkg', dest='save_gpkg', action='store_false', default=True, help='Disable centreline GeoPackage output (default: enabled)')
-    parser.add_argument('--min_shelterbelt_length', default=15, type=int, help='Minimum skeleton length (in pixels) to classify a cluster as linear (default: 15)')
+    parser.add_argument('--min_shelterbelt_length', default=20, type=int, help='Minimum skeleton length (in pixels) to classify a cluster as linear (default: 20)')
     parser.add_argument('--max_shelterbelt_width', default=6, type=int, help='Maximum skeleton width (in pixels) to classify a cluster as linear (default: 6)')
     parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees (default: 20)')
     parser.add_argument('--max_gap_size', default=1, type=int, help='Maximum gap (pixels) to bridge when clustering Other Trees pixels into patches (default: 1)')

@@ -24,6 +24,7 @@ _tree_source_labels = {
     8: 'Linear Patches',
     9: 'Non-linear Patches',
 }
+# 32/42 is generic 'sheltered' for the density method, but 'sheltered by Patch Core' for the distance methods
 _grassland_labels = {30: 'Unsheltered Grassland', 31: 'Unsheltered Grassland', 32: 'Sheltered Grassland'}
 _cropland_labels = {40: 'Unsheltered Cropland', 41: 'Unsheltered Cropland', 42: 'Sheltered Cropland'}
 for _digit, _name in _tree_source_labels.items():

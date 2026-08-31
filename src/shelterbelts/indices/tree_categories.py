@@ -87,7 +87,7 @@ def core_trees(woody_veg, edge_size=3, min_core_size=200, strict_core_area=False
     return core_area, core_kernel
 
 
-def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=3, max_gap_size=1, strict_core_area=True, save_tif=True, plot=True):
+def tree_categories(input_data, outdir='.', stub=None, min_patch_size=20, min_core_size=1000, edge_size=4, max_gap_size=1, strict_core_area=True, save_tif=True, plot=True):
     """
     Classifies a boolean woody vegetation map into four categories based on the
     Fragstats landscape ecology approach:
@@ -254,7 +254,7 @@ def parse_arguments():
     parser.add_argument('--stub', default=None, help='Prefix for output filenames (default: derived from input)')
     parser.add_argument('--min_patch_size', default=20, type=int, help='Minimum area (pixels) to classify as a patch rather than scattered trees (default: 20)')
     parser.add_argument('--min_core_size', default=1000, type=int, help='Minimum area (pixels) to classify as a core area (default: 1000)')
-    parser.add_argument('--edge_size', default=3, type=int, help='Distance (pixels) defining the edge region around patch cores (default: 3)')
+    parser.add_argument('--edge_size', default=4, type=int, help='Distance (pixels) defining the edge region around patch cores (default: 4)')
     parser.add_argument('--max_gap_size', default=1, type=int, help='Maximum gap (pixels) to bridge when connecting tree clusters (default: 1)')
     parser.add_argument('--no-strict-core-area', dest='strict_core_area', action="store_false", default=True, help='Disable strict core area enforcement (default: enabled)')
     parser.add_argument('--no-save-tif', dest='save_tif', action="store_false", default=True, help='Disable saving GeoTIFF output (default: enabled)')
