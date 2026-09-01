@@ -238,7 +238,7 @@ def opportunities_da(da_trees, da_roads, da_gullies, da_ridges, da_dem, da_world
     opportunities[gully_opportunities.astype(bool)] = 15
     opportunities[ridge_opportunities.astype(bool)] = 16
     opportunities[road_opportunities.astype(bool)] = 17
-    opportunities[contour_opportunities.astype(bool)] = 18
+    opportunities[contour_opportunities.astype(bool)] = 14  # 'Other Trees' - unlike 18 'Linear Patches', not otherwise produced by this function
     
     # Creating the xarray
     ds = da_trees.to_dataset(name='woody_veg')
@@ -342,7 +342,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         Dataset containing:
 
         - **woody_veg**: Original binary tree/no-tree classification
-        - **opportunities**: Opportunity categories (values 0, 15, 16, 17, 18)
+        - **opportunities**: Opportunity categories (values 0, 15, 16, 17, 14)
 
     Notes
     -----

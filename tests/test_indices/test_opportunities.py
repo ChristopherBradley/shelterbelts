@@ -43,7 +43,7 @@ def test_opportunities_da_basic():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 15, 16, 17, 18})
+    assert unique_vals.issubset({0, 14, 15, 16, 17})
 
 
 def test_opportunities_da_width():
@@ -103,7 +103,7 @@ def test_opportunities_with_file_paths():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 15, 16, 17, 18})
+    assert unique_vals.issubset({0, 14, 15, 16, 17})
 
 
 def test_opportunities_does_not_mutate_input():
@@ -128,7 +128,7 @@ def test_opportunities_crop_and_rasterize():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 15, 16, 17, 18})
+    assert unique_vals.issubset({0, 14, 15, 16, 17})
 
 
 def test_opportunities_contour_spacing():
@@ -160,7 +160,7 @@ def test_opportunities_equal_area():
 
     assert set(ds.data_vars) == {'woody_veg', 'opportunities'}
     unique_vals = set(np.unique(ds['opportunities'].values))
-    assert unique_vals.issubset({0, 15, 16, 17, 18})
+    assert unique_vals.issubset({0, 14, 15, 16, 17})
 
 
 def _opportunities_for_shelter():
@@ -173,7 +173,7 @@ def _opportunities_for_shelter():
 
 
 # Opportunity codes: 0 = nothing, 15-18 = opportunity trees, 32-39/42-49 = would-be sheltered farmland
-_VALID_OPPORTUNITY_CODES = {0, 15, 16, 17, 18} | set(range(30, 50))
+_VALID_OPPORTUNITY_CODES = {0, 14, 15, 16, 17} | set(range(30, 50))
 
 
 def test_opportunity_shelter_density():

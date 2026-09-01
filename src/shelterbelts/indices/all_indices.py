@@ -4,6 +4,7 @@ import argparse
 import math
 import pathlib
 
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 import rasterio
@@ -55,7 +56,7 @@ def _valid_tif(path):
 
 
 def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, wind_method=None,
-                        wind_threshold=20, distance_threshold=20, density_threshold=5,
+                        wind_threshold=20, distance_threshold=20, density_threshold=5, height_tif=None,
                         outdir='.', stub='TEST', savetif=True, plot=False):
     """Calculate farmland that would become sheltered if trees were planted at the opportunity locations.
 
@@ -67,8 +68,12 @@ def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, w
         The 'linear_categories' classification the original shelter was derived from.
     ds_shelter : xarray.Dataset
         The original 'shelter_categories'.
-    ds_wind, wind_method, wind_threshold, distance_threshold, density_threshold
-        Passed to :func:`shelter_categories`; use the same values as the original shelter step.
+    ds_wind, wind_method, wind_threshold, distance_threshold, density_threshold, height_tif
+        Passed to :func:`shelter_categories`; use the same values as the original shelter step, so
+        pre-existing trees shelter by the same amount in both the original and re-run categories.
+        Newly-planted opportunity trees have no real height yet, so they always get the fixed
+        distance_threshold reach regardless of height_tif (see fixed_height_mask in
+        :func:`shelter_categories`).
     outdir, stub, savetif, plot
         Where/whether to save the combined ``{stub}_opportunities.tif`` and PNG.
 
@@ -80,6 +85,7 @@ def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, w
     """
     da_opp = ds_opportunities['opportunities']
     opportunity_trees = da_opp > 0
+    opportunity_digits = set(int(v) % 10 for v in np.unique(da_opp.values) if v > 0)
 
     if bool(opportunity_trees.any()):
         # Add the opportunity pixels as trees on a copy of linear trees before re-running the shelter-categories
@@ -89,7 +95,8 @@ def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, w
         ds_planted = shelter_categories(
             da_planted.to_dataset(name='linear_categories'), wind_data=ds_wind, wind_method=wind_method,
             wind_threshold=wind_threshold, distance_threshold=distance_threshold,
-            density_threshold=density_threshold, savetif=False, plot=False)
+            density_threshold=density_threshold, height_tif=height_tif, fixed_height_mask=opportunity_trees,
+            savetif=False, plot=False)
         new = ds_planted['shelter_categories']
         orig = ds_shelter['shelter_categories']
 
@@ -100,6 +107,30 @@ def opportunity_shelter(ds_opportunities, ds_linear, ds_shelter, ds_wind=None, w
         da_opp = xr.where(newly_grassland, new, da_opp)
         da_opp = xr.where(newly_cropland, new, da_opp)
         ds_opportunities['opportunities'] = da_opp.astype('uint8').rio.write_crs(ds_opportunities['opportunities'].rio.crs)
+
+        # Sanity check: with matching height/fixed-height treatment above, the only categories that
+        # should ever appear are the raw opportunity-tree codes seeded by opportunities_da (10 + a
+        # digit in opportunity_digits) and the grassland/cropland codes they shelter. Wind-based
+        # shelter attributes each sheltered pixel to its specific source digit (30/40 + digit); the
+        # density method has no per-tree attribution at all, so it always uses the generic 32/42
+        # regardless of which opportunity digit caused the shelter (see _label_farmland).
+        # Anything else means a pre-existing tree category has leaked in, as previously happened when
+        # the re-run shelter_categories() call didn't share the original's height_tif.
+        if ds_wind is not None:
+            expected_categories = (
+                {0} | {10 + d for d in opportunity_digits}
+                | {30 + d for d in opportunity_digits} | {40 + d for d in opportunity_digits}
+            )
+        else:
+            expected_categories = {0, 32, 42} | {10 + d for d in opportunity_digits}
+        values, counts = np.unique(da_opp.values, return_counts=True)
+        unexpected = {int(v): int(c) for v, c in zip(values, counts) if int(v) not in expected_categories}
+        if unexpected:
+            raise ValueError(
+                f"[{stub}] opportunities raster has categories {unexpected} that don't derive from "
+                f"the seeded opportunity digits {sorted(opportunity_digits)} (expected only "
+                f"{sorted(expected_categories)}) - a pre-existing tree category has likely leaked in."
+            )
 
     if savetif:
         filename = os.path.join(outdir, f"{stub}_opportunities.tif")
@@ -328,7 +359,7 @@ def indices_tif(percent_tif, outdir=".",
         opportunity_shelter(
             ds_opportunities, ds_linear, ds_shelter, ds_wind=ds_wind, wind_method=wind_method,
             wind_threshold=wind_threshold, distance_threshold=distance_threshold, density_threshold=density_threshold,
-            outdir=outdir, stub=stub, savetif=True, plot=debug,
+            height_tif=height_tif, outdir=outdir, stub=stub, savetif=True, plot=debug,
         )
 
     # Trying to avoid memory accumulation

@@ -175,7 +175,7 @@ def test_indices_tif_opportunities():
 
     opp = rxr.open_rasterio(opp_tif).isel(band=0).values
     # 0=nothing, 15-18=planting opportunities (tree category by feature), 3X/4X=would-be sheltered grass/crop
-    assert set(np.unique(opp).tolist()).issubset({0, 15, 16, 17, 18} | set(range(30, 50)))
+    assert set(np.unique(opp).tolist()).issubset({0, 14, 15, 16, 17} | set(range(30, 50)))
 
     # Every would-be-sheltered pixel must have been unsheltered farmland in the original shelter
     orig = ds['shelter_categories'].values
