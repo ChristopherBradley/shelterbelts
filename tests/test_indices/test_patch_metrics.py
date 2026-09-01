@@ -1,6 +1,8 @@
 import os
 
+import numpy as np
 import pandas as pd
+import rioxarray as rxr
 
 from shelterbelts.indices.patch_metrics import patch_metrics, linear_categories_labels
 
@@ -69,3 +71,23 @@ def test_patch_metrics_csv_matches_returned_df():
     pd.testing.assert_frame_equal(
         csv_df.reset_index(drop=True), df.reset_index(drop=True), check_dtype=False
     )
+
+
+def test_scattered_trees_match_tree_categories():
+    """patch_metrics should not invent new Scattered Trees (should be the same as the original tree categories)"""
+    ds, _ = patch_metrics(
+        f"data/{stub}_gullies_and_roads_buffer_categories.tif",
+        outdir="outdir",
+        stub=stub,
+        plot=False,
+        save_csv=False,
+        save_tif=False,
+        save_labels=False,
+        save_gpkg=False,
+    )
+    da_tree = rxr.open_rasterio(f"data/{stub}_tree_categories.tif").isel(band=0)
+
+    scattered_tree = da_tree.values == 11
+    scattered_linear = ds['linear_categories'].values == 11
+    assert scattered_tree.sum() > 0
+    assert np.array_equal(scattered_linear, scattered_tree)

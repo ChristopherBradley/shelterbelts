@@ -152,8 +152,14 @@ def assign_labels(da_filtered, min_patch_size=20, max_gap_size=1):
     return assigned_labels
 
 
-def split_disconnected_clusters(assigned_labels, connectivity=2):
-    """Split disconnected parts of each label into separate labels."""
+def gap_kernel(max_gap_size=1):
+    """The circular kernel tree_clusters uses to bridge gaps between nearby trees."""
+    y, x = np.ogrid[-max_gap_size:max_gap_size+1, -max_gap_size:max_gap_size+1]
+    return (x**2 + y**2 <= max_gap_size**2)
+
+
+def split_disconnected_clusters(assigned_labels, max_gap_size=1):
+    """Split each label wherever its parts are further apart than max_gap_size."""
     new_labels = assigned_labels.copy()
     next_label = new_labels.max() + 1
 
@@ -161,21 +167,18 @@ def split_disconnected_clusters(assigned_labels, connectivity=2):
         if lbl == 0:
             continue
 
-        mask = (assigned_labels == lbl)
-        labeled_mask, n_components = ndimage.label(mask, structure=np.ones((3,3)) if connectivity==2 else None)
+        # Bridge gaps the same way tree_clusters did when these labels were assigned
+        components = tree_clusters(assigned_labels == lbl, max_gap_size)
 
-        # If more than one component, assign new labels
-        for comp_id in range(1, n_components + 1):
-            if comp_id == 1:
-                # Keep the first component as original label
-                continue
-            new_labels[labeled_mask == comp_id] = next_label
+        # Keep the first component as the original label
+        for comp_id in range(2, components.max() + 1):
+            new_labels[components == comp_id] = next_label
             next_label += 1
 
     return new_labels
 
 
-def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
+def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True, max_gap_size=1):
     """
     Minimal function to create skeleton raster and ellipse outline raster for debugging.
 
@@ -202,6 +205,7 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
 
     results = []
     paths = {}  # ordered skeleton centreline (row, col) per label, for vector output
+    gaps = gap_kernel(max_gap_size)
     width_raster = np.zeros_like(tree_mask, dtype=float)
     props = regionprops(assigned_labels)
 
@@ -214,7 +218,9 @@ def skeleton_stats(assigned_labels, min_patch_size=20, save_labels=True):
         if mask.sum() < min_patch_size:
             continue  # I might want to reindex these lbl's so they become consecutive again
 
-        skel = skeletonize(mask)
+        # Skeletonise across the bridged gaps, so a cluster of several blobs has a traceable centreline
+        _, num_components = ndimage.label(mask, structure=np.ones((3, 3)))
+        skel = skeletonize(ndimage.binary_dilation(mask, structure=gaps) if num_components > 1 else mask)
         skeleton_raster[skel] = lbl
 
         # Ellipse parameters
@@ -436,10 +442,10 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
 
     # Assign labels and a cluster-wise majority filter on the labels (but doesn't change the da yet)
     assigned_labels = assign_labels(da_filtered, min_patch_size, max_gap_size)
-    assigned_labels = split_disconnected_clusters(assigned_labels)  # The ellipses go haywire if the clusters are not connected
+    assigned_labels = split_disconnected_clusters(assigned_labels, max_gap_size)  # The ellipses go haywire if the clusters are not connected
 
     # Find the skeleton of each cluster
-    df_patch_metrics, centreline_paths, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels, min_patch_size=min_patch_size, save_labels=save_labels)
+    df_patch_metrics, centreline_paths, ellipse_outline_raster, skeleton_raster, shortest_path_raster, perpendicular_raster, widths_raster = skeleton_stats(assigned_labels, min_patch_size=min_patch_size, save_labels=save_labels, max_gap_size=max_gap_size)
 
     # Save these intermediate rasters
     if save_tif and save_labels:
@@ -497,14 +503,26 @@ def patch_metrics(buffer_data, outdir=".", stub="TEST", plot=True, save_csv=True
         label_ids = assigned_labels[remaining_mask]
 
         if 'label' not in df_patch_metrics.columns:
-            mapped_categories = [11] * len(label_ids) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
+            mapped_categories = np.full(len(label_ids), 11) # Assuming the cluster has been cut off by water or another non-tree category, in which case we assign it to scattered_trees.
         else:
             label_to_category = dict(zip(df_patch_metrics['label'], df_patch_metrics['category_id']))  # I don't think this done anything now that I have to split_disconnected_clusters before skeleton_stats
-            mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 11))(label_ids)
+            mapped_categories = np.vectorize(lambda x: label_to_category.get(x, 0))(label_ids)  # 0 marks fragments that split_disconnected_clusters left below min_patch_size, so skeleton_stats skipped them
             # Ensure majority_filter produces edge pixels rather than core pixels
             mapped_categories = np.where(mapped_categories == 12, 13, mapped_categories)
 
         da_linear.data[remaining_mask] = mapped_categories
+
+        # Small fragments take the category of their nearest categorised neighbour, rather than becoming scattered trees
+        orphan_mask = np.zeros_like(remaining_mask)
+        orphan_mask[remaining_mask] = (mapped_categories == 0)
+        if orphan_mask.any():
+            categorised = np.isin(da_linear.data, [12, 13, 15, 16, 17, 18, 19])
+            if categorised.any():
+                _, (inds_y, inds_x) = ndimage.distance_transform_edt(~categorised, return_indices=True)
+                nearest = da_linear.data[inds_y, inds_x][orphan_mask]
+                da_linear.data[orphan_mask] = np.where(nearest == 12, 13, nearest)
+            else:
+                da_linear.data[orphan_mask] = 11
 
     # Save the shelterbelt centrelines as a vector GeoPackage
     if save_gpkg and len(df_patch_metrics) > 0:
