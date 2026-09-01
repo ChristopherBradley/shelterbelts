@@ -7,6 +7,8 @@
 #PBS -l walltime=02:00:00
 #PBS -l storage=gdata/xe2+scratch/xe2
 #PBS -q normal
+#PBS -o /scratch/xe2/cb8590/pbs_logs/
+#PBS -e /scratch/xe2/cb8590/pbs_logs/
 
 # Count the number of pixels of each value across a set of uint8 GeoTIFFs, 
 # like a pd.value_counts aggregated over many rasters.
