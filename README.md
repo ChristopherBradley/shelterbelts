@@ -103,6 +103,14 @@ Run one last Sentinel-2 test:
 `module load dea/20231204`  
 `pytest tests/test_classifications/test_sentinel_nci.py`
 
+# Contributing
+
+Contributions are welcome, including bug fixes, new features, and documentation improvements.
+
+- For bug reports & feature requests: open an issue at https://github.com/ChristopherBradley/shelterbelts/issues
+- To make a pull request: fork the repo, create a branch, and make sure `pytest tests` passes before submitting
+- For other usage questions, open an issue or reach out via email to christopher.bradley@anu.edu.au
+
 # Generating the Documentation
 Generate the html: 
 `make clean && make html`
