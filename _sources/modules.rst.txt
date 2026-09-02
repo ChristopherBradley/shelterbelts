@@ -22,9 +22,7 @@ Indices
 =======
 
 The pipeline runs in this order: tree categories → cover categories → buffer
-categories → patch metrics → shelter categories → class metrics. Shelter
-categorisation runs last (on the full tree classification) so sheltered farmland
-can be attributed to the type of tree providing the shelter.
+categories → patch metrics → shelter categories → class metrics.
 
 Tree Categories
 ---------------

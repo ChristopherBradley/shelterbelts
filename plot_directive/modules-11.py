@@ -1,5 +1,6 @@
 import rioxarray as rxr
-from shelterbelts.indices.opportunities import opportunities, opportunity_cmap, opportunity_labels
+from shelterbelts.indices.opportunities import opportunities
+from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 from shelterbelts.utils.filepaths import get_filename
 from shelterbelts.utils.visualisation import visualise_categories_sidebyside
 
@@ -16,7 +17,7 @@ ds_roads = opportunities(tree_file, roads_data=roads_file, gullies_data=da_zero,
 ds_gullies = opportunities(tree_file, roads_data=da_zero, gullies_data=gullies_file, **common, contour_spacing=0)
 visualise_categories_sidebyside(
     ds_roads['opportunities'], ds_gullies['opportunities'],
-    colormap=opportunity_cmap, labels=opportunity_labels,
+    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="Just roads", title2="Just gullies"
 )
 
@@ -24,7 +25,7 @@ ds_w1 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_fil
 ds_w5 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, width=5)
 visualise_categories_sidebyside(
     ds_w1['opportunities'], ds_w5['opportunities'],
-    colormap=opportunity_cmap, labels=opportunity_labels,
+    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="width=1", title2="width=5"
 )
 
@@ -32,6 +33,6 @@ ds_cs5 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_fi
 ds_cs20 = opportunities(tree_file, roads_data=roads_file, gullies_data=gullies_file, **common, contour_spacing=20)
 visualise_categories_sidebyside(
     ds_cs5['opportunities'], ds_cs20['opportunities'],
-    colormap=opportunity_cmap, labels=opportunity_labels,
+    colormap=shelter_categories_cmap, labels=shelter_categories_labels,
     title1="contour_spacing=5", title2="contour_spacing=20"
 )
