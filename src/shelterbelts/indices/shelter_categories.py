@@ -354,9 +354,7 @@ def shelter_categories(linear_data, wind_data=None, height_tif=None, fixed_heigh
         pixel_size = 10  # metres
         shelter_heights = (shelter_heights / pixel_size) * distance_threshold
         if fixed_height_mask is not None:
-            # Trees with no real canopy height yet (e.g. hypothetical newly-planted opportunity
-            # trees) fall back to the same fixed reach used when no height_tif is given at all,
-            # rather than being treated as if they had zero/NaN height.
+            # Opportunity trees get a fixed height
             shelter_heights = xr.where(fixed_height_mask & shelter, distance_threshold, shelter_heights)
     else:
         shelter_heights = shelter.where(shelter, other=np.nan) * distance_threshold
