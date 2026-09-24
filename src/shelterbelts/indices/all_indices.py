@@ -653,6 +653,9 @@ def indices_tifs(folder, outdir=".", tmpdir=".", param_stub='',
         # Popen a subprocess to hopefully avoid memory accumulation
         p = subprocess.Popen(cmd)
         p.wait()
+        if p.returncode != 0:
+            # Keep going with the remaining chunks, and record the failed one in the .o pbs file.
+            print(f"WARNING: chunk subprocess {i}/{len(csv_filenames)} exited with returncode {p.returncode}: {filename}", flush=True)
 
 
 def parse_arguments():

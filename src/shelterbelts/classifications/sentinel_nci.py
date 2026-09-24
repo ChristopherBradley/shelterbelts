@@ -38,6 +38,17 @@ def define_query_range(lat_range, lon_range, time_range, input_crs='epsg:4326', 
     return query
 
 
+def usable_cloud_mask(ds):
+    """Skip scenes whose s2cloudless mask file is missing or empty on disk, e.g. 51JWH 2021-04-27. Otherwise the CPLE_OpenFailedError can kill a whole batch."""
+    try:
+        m = ds.measurements.get('oa_s2cloudless_mask')
+        if m is None or ds.local_path is None:
+            return True
+        return (ds.local_path.parent / m['path']).stat().st_size > 0
+    except Exception:
+        return True  # can't tell (remote uri, odd layout) -> let load_ard try it
+
+
 def load_and_process_data(dc, query):
     """Download all 10 bands from the DEA Datacube"""
     with contextlib.redirect_stdout(io.StringIO()): # Silence the print statements
@@ -46,6 +57,7 @@ def load_and_process_data(dc, query):
             products=['ga_s2am_ard_3', 'ga_s2bm_ard_3', 'ga_s2cm_ard_3'],
             cloud_mask='s2cloudless',
             min_gooddata=0.9,
+            predicate=usable_cloud_mask,
             measurements=['nbart_blue', 'nbart_green', 'nbart_red',
                           'nbart_red_edge_1', 'nbart_red_edge_2', 'nbart_red_edge_3',
                           'nbart_nir_1', 'nbart_nir_2',

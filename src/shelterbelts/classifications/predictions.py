@@ -115,6 +115,11 @@ def _compute_model_weightings(ds):
     return model_weightings
 
 
+def _predicted_path(outdir, stub):
+    """Final output path for a tile"""
+    return f'{outdir}/{stub}_predicted.tif'
+
+
 def tif_prediction_ds(ds, outdir='.', stub='prediction', model=None, scaler=None, savetif=True, confidence=False, weighted_average=False):
     """Run the neural-network tree classifier on a prepared Sentinel Dataset.
 
@@ -204,10 +209,12 @@ def tif_prediction_ds(ds, outdir='.', stub='prediction', model=None, scaler=None
     da = pred_map.astype('uint8')
 
     if savetif:
-        filename = f'{outdir}/{stub}_predicted.tif'
+        filename = _predicted_path(outdir, stub)
         os.makedirs(outdir, exist_ok=True)
+        # Use a private temp name so a job killed mid-write can never leave a truncated file at the final path
+        tmp_filename = f'{outdir}/.{stub}_predicted.tif.tmp'
         with rasterio.open(
-            filename,
+            tmp_filename,
             "w",
             driver="GTiff",
             height=da.shape[0],
@@ -220,6 +227,7 @@ def tif_prediction_ds(ds, outdir='.', stub='prediction', model=None, scaler=None
         ) as dst:
             dst.write(da.values, 1)
             dst.write_colormap(1, cmap)
+        os.replace(tmp_filename, filename) # Atomic operation to avoid corrupted output files 
         print(f"Saved: {filename}", flush=True)
 
     return da
@@ -237,8 +245,15 @@ def tif_prediction(sentinel_filename, outdir, model_filename, scaler_filename, s
     return tif_prediction_ds(ds, outdir, tile_id, model, scaler, savetif)
 
 
-def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False, weighted_average=False, nci_only=False, dc=None):
-    """Download a year of Sentinel-2 imagery for a bbox and run the tree classifier."""
+def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, confidence=False, weighted_average=False, nci_only=False, dc=None, overwrite=False):
+    """Download a year of Sentinel-2 imagery for a bbox and run the tree classifier.
+
+    Skips the tile when {outdir}/{stub}_predicted.tif already exists (unless overwrite=True).
+    """
+    filename = _predicted_path(outdir, stub)
+    if not overwrite and os.path.exists(filename):
+        print(f"Skipping (exists): {filename}", flush=True)
+        return None
     start_date = f"{year}-01-01"
     end_date = f"{year}-12-31"
 
@@ -260,7 +275,7 @@ def tif_prediction_bbox(stub, year, outdir, bounds, src_crs, model, scaler, conf
     return None
 
 
-def run_worker(rows, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, multi_model=False, confidence=False):
+def run_worker(rows, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, multi_model=False, confidence=False, overwrite=False):
     """Load the requested model once per worker and run predictions on every row."""
     model, scaler = None, None
 
@@ -275,13 +290,13 @@ def run_worker(rows, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, multi
 
     for row in rows:
         try:
-            tif_prediction_bbox(*row, model, scaler, confidence=confidence, weighted_average=multi_model, dc=dc)  # Passing the datacube to avoid reconnecting each time, saves ~10% compute.
+            tif_prediction_bbox(*row, model, scaler, confidence=confidence, weighted_average=multi_model, dc=dc, overwrite=overwrite)  # Passing the datacube to avoid reconnecting each time, saves ~10% compute.
         except Exception:
             print(f"Error in row {row}:", flush=True)
             traceback.print_exc(file=sys.stdout)
 
 
-def predictions(gpkg, outdir, year=2020, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, limit=None, multi_model=False, confidence=False):
+def predictions(gpkg, outdir, year=2020, nn_dir=_bundled_models_dir, nn_stub=_bundled_nn_stub, limit=None, multi_model=False, confidence=False, overwrite=False):
     """
     Run the Sentinel-download + tree classifier over every polygon in a GeoPackage.
 
@@ -300,9 +315,12 @@ def predictions(gpkg, outdir, year=2020, nn_dir=_bundled_models_dir, nn_stub=_bu
     limit : int, optional
         Process only the first limit rows. By default it processes all rows in the gpkg.
     multi_model : bool, optional
-        Take a weighted average of multiple models trained in different zones.
+        Take a weighted average of multiple models trained in different zones. Note this overrides the nn_dir and nn_stub arguments. 
     confidence : bool, optional
         Write a 0-100 percent tree-confidence tif instead of a binary tif.
+    overwrite : bool, optional
+        Regenerate tiles whose predicted tif already exists in outdir. By default they are
+        skipped, so rerunning a gpkg only processes the tiles that are still missing.
     """
     gdf = gpd.read_file(gpkg)
     crs = gdf.crs
@@ -317,7 +335,7 @@ def predictions(gpkg, outdir, year=2020, nn_dir=_bundled_models_dir, nn_stub=_bu
     if limit:
         rows = rows[:int(limit)]
 
-    run_worker(rows, nn_dir, nn_stub, multi_model, confidence)
+    run_worker(rows, nn_dir, nn_stub, multi_model, confidence, overwrite)
 
 
 def parse_arguments():
@@ -330,11 +348,12 @@ def parse_arguments():
     parser.add_argument("--nn_dir", type=str, default=_bundled_models_dir, help=f"Directory containing model keras/scaler pairs (default: {_bundled_models_dir})")
     parser.add_argument("--nn_stub", type=str, default=_bundled_nn_stub, help=f"Stub identifying which model family to use (default: {_bundled_nn_stub})")
     parser.add_argument("--limit", type=int, default=None, help="Number of rows to process")
-    parser.add_argument("--multi_model", action="store_true", help="Use a separate model for each koppen region. Default: False")
+    parser.add_argument("--multi_model", action="store_true", help="Use a separate model for each koppen region. Note this overrides the nn_dir and nn_stub arguments. Default: False")
     parser.add_argument("--confidence", action="store_true", help="Output a percentage likelihood that it's a tree, instead of a binary label. Default: False")
+    parser.add_argument("--overwrite", action="store_true", help="Regenerate tiles whose predicted tif already exists in outdir. Default: skip them, so a rerun only processes missing tiles")
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = parse_arguments()
-    predictions(args.gpkg, args.outdir, int(args.year), args.nn_dir, args.nn_stub, args.limit, args.multi_model, args.confidence)
+    predictions(args.gpkg, args.outdir, int(args.year), args.nn_dir, args.nn_stub, args.limit, args.multi_model, args.confidence, args.overwrite)
