@@ -138,11 +138,10 @@ function styleCategoricalImage(img, layerName, checkbox, palette, transparency) 
   });
   var styled = remapped.updateMask(mask);
 
-  Map.addLayer(styled,
-               {min: 0, max: targetIndices.length - 1, palette: paletteHex},
-               layerName, checkbox, transparency);
+  var visParams = {min: 0, max: targetIndices.length - 1, palette: paletteHex};
+  Map.addLayer(styled, visParams, layerName, checkbox, transparency);
 
-  return styled;
+  return {image: styled, visParams: visParams};
 }
 
 Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
@@ -153,13 +152,18 @@ Map.setCenter(148.471268, -34.389131, 12);  // (lon, lat, zoom)
 // default combo also has shelter distances + planting opportunities (keeps the layer panel to
 // 6 layers total instead of 4 x 3 — the other 3 combos are for comparing the category map only).
 var paramCombos = [
-  {key: 'default_windmethod',    label: 'default wind method'},
-  {key: 'less_windmethod',       label: 'less wind method'},
-  {key: 'more_windmethod',       label: 'more wind method'},
-  {key: 'default_percentmethod', label: 'default percent method'},
+  {key: 'default_windmethod',    label: 'default thresholds'},
+  {key: 'less_windmethod',       label: 'low thresholds'},
+  {key: 'more_windmethod',       label: 'high thresholds'},
+  {key: 'default_percentmethod', label: 'density method'},
 ];
 var defaultComboKey = 'default_windmethod';
 var assetVersionTag = 'v3';
+// Opportunities alone is bumped to v4: a fix to opportunity_shelter() (it was dropping height_tif
+// on its internal shelter_categories() re-run, letting pre-existing trees' shelter leak into the
+// opportunities output) required recomputing just that layer for default_windmethod. shelter_categories
+// and shelter_distances are unaffected by the bug and stay on v3 to avoid a redundant re-upload.
+var opportunitiesVersionTag = 'v4';
 
 var distanceMax = 20;
 var ylGn = ['ffffe5', 'f7fcb9', 'd9f0a3', 'addd8e', '78c679', '41ab5d', '238443', '006837', '004529'];
@@ -168,6 +172,11 @@ var ylGnInvertedForDistance = ylGn.slice().reverse();
 var opportunitiesByCombo = {};
 var shelterDistancesByCombo = {};
 var shelterCategoriesByCombo = {};
+// visParams for each image above, so the download step can bake colours into the exported GeoTIFF
+// via .visualize() (Earth Engine has no way to embed a GDAL colour table directly).
+var opportunitiesVisByCombo = {};
+var shelterDistancesVisByCombo = {};
+var shelterCategoriesVisByCombo = {};
 
 // NOTE: the GEE Layers panel shows the most-recently-added layer at the TOP,
 // i.e. panel order is the REVERSE of the order Map.addLayer is called in.
@@ -178,11 +187,9 @@ var shelterCategoriesByCombo = {};
 // Canopy Height Model v2 (Meta & WRI) — added first so it ends up at the bottom
 var viridis = ['440154','482878','3e4989','31688e','26828e','1f9e89','35b779','6ece58','b5de2b','fde725'];
 var chm = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
-Map.addLayer(
-  chm.updateMask(chm.gt(0)),
-  {min: 0, max: 25, palette: viridis},
-  'Meta Canopy Height v2', false, 0.8
-);
+var chmStyled = chm.updateMask(chm.gt(0));
+var chmVis = {min: 0, max: 25, palette: viridis};
+Map.addLayer(chmStyled, chmVis, 'Global Canopy Height v2', false, 0.8);
 
 ///////////////////////////////////////////////////////////
 // WorldCover 2020
@@ -192,22 +199,24 @@ var wcPalette = ['006400', 'ffbb22', 'ffff4c', 'f096ff', 'fa0000',
 var wcIndices = wcClasses.map(function(_, i) { return i; });
 var wc = ee.ImageCollection('ESA/WorldCover/v100').first().select('Map');
 var wcRemapped = wc.remap(wcClasses, wcIndices, -1);
-Map.addLayer(
-  wcRemapped.updateMask(wcRemapped.neq(-1)),
-  {min: 0, max: wcClasses.length - 1, palette: wcPalette},
-  'WorldCover 2020', false, 1
-);
+var wcStyled = wcRemapped.updateMask(wcRemapped.neq(-1));
+var wcVis = {min: 0, max: wcClasses.length - 1, palette: wcPalette};
+Map.addLayer(wcStyled, wcVis, 'WorldCover 2020', false, 1);
 
 function comboAssetPrefix(combo) {
   return 'projects/ee-christopher-bradley/assets/Aus2025_ag_gch_' + combo.key + '_' + assetVersionTag + '_';
 }
 
-// Planting opportunities — default combo only
+// Planting opportunities — default combo only. Uses opportunitiesVersionTag (not comboAssetPrefix's
+// assetVersionTag) since this layer alone was bumped to v4 — see opportunitiesVersionTag above.
 (function() {
   var combo = paramCombos.filter(function(c) { return c.key === defaultComboKey; })[0];
-  var opportunitiesImg = ee.ImageCollection(comboAssetPrefix(combo) + 'opportunities').mosaic();
-  opportunitiesByCombo[combo.key] = styleCategoricalImage(
-    opportunitiesImg, 'Planting opportunities 2025 (' + combo.label + ')', false, shelterPalette, 1);
+  var opportunitiesPrefix = 'projects/ee-christopher-bradley/assets/Aus2025_ag_gch_' + combo.key + '_' + opportunitiesVersionTag + '_';
+  var opportunitiesImg = ee.ImageCollection(opportunitiesPrefix + 'opportunities').mosaic();
+  var result = styleCategoricalImage(
+    opportunitiesImg, 'GCH v2 planting opportunities', false, shelterPalette, 1);
+  opportunitiesByCombo[combo.key] = result.image;
+  opportunitiesVisByCombo[combo.key] = result.visParams;
 })();
 
 // Shelter distances — default combo only (default_percentmethod would use shelter_densities, but
@@ -216,20 +225,20 @@ function comboAssetPrefix(combo) {
   var combo = paramCombos.filter(function(c) { return c.key === defaultComboKey; })[0];
   var shelterDistancesImg = ee.ImageCollection(comboAssetPrefix(combo) + 'shelter_distances').mosaic();
   var shelterDistances = shelterDistancesImg.updateMask(shelterDistancesImg.gt(0));
+  var shelterDistancesVis = {min: 1, max: distanceMax, palette: ylGnInvertedForDistance};
   shelterDistancesByCombo[combo.key] = shelterDistances;
-  Map.addLayer(
-    shelterDistances,
-    {min: 1, max: distanceMax, palette: ylGnInvertedForDistance},
-    'Shelter distances 2025 (' + combo.label + ')', false, 1
-  );
+  shelterDistancesVisByCombo[combo.key] = shelterDistancesVis;
+  Map.addLayer(shelterDistances, shelterDistancesVis, 'GCH v2 shelter distances', false, 1);
 })();
 
 // Shelter categories (added in reverse combo order, last one added ends up on top) — every combo
 paramCombos.slice().reverse().forEach(function(combo) {
   var isDefault = combo.key === defaultComboKey;
   var shelterCategoriesImg = ee.ImageCollection(comboAssetPrefix(combo) + 'shelter_categories').mosaic();
-  shelterCategoriesByCombo[combo.key] = styleCategoricalImage(
-    shelterCategoriesImg, 'Shelter categories 2025 (' + combo.label + ')', isDefault, shelterPalette, 1);
+  var result = styleCategoricalImage(
+    shelterCategoriesImg, 'GCH v2 shelter categories (' + combo.label + ')', isDefault, shelterPalette, 1);
+  shelterCategoriesByCombo[combo.key] = result.image;
+  shelterCategoriesVisByCombo[combo.key] = result.visParams;
 });
 
 var opportunities2025 = opportunitiesByCombo[defaultComboKey];
@@ -362,20 +371,27 @@ Map.add(legend);
 
 //////////////////////////////////////////////////////////////////////
 // Export layers — ordered to match the layer panel (top to bottom)
+// exportVis holds the matching visParams for each layer so the download step can bake colours into
+// the exported GeoTIFF via .visualize() (Earth Engine can't embed a GDAL colour table directly).
+var exportVis = {};
 paramCombos.forEach(function(combo) {
-  exportLayers['Shelter categories 2025 (' + combo.label + ') (10m)'] = shelterCategoriesByCombo[combo.key];
+  var name = 'GCH v2 shelter categories (' + combo.label + ') (10m)';
+  exportLayers[name] = shelterCategoriesByCombo[combo.key];
+  exportVis[name] = shelterCategoriesVisByCombo[combo.key];
 });
 // Distances + opportunities only exist for the default combo (see comboAssetPrefix / paramCombos note)
 Object.keys(shelterDistancesByCombo).forEach(function(key) {
-  var combo = paramCombos.filter(function(c) { return c.key === key; })[0];
-  exportLayers['Shelter distances 2025 (' + combo.label + ') (10m)'] = shelterDistancesByCombo[key];
+  exportLayers['GCH v2 shelter distances'] = shelterDistancesByCombo[key];
+  exportVis['GCH v2 shelter distances'] = shelterDistancesVisByCombo[key];
 });
 Object.keys(opportunitiesByCombo).forEach(function(key) {
-  var combo = paramCombos.filter(function(c) { return c.key === key; })[0];
-  exportLayers['Planting opportunities 2025 (' + combo.label + ') (10m)'] = opportunitiesByCombo[key];
+  exportLayers['GCH v2 planting opportunities'] = opportunitiesByCombo[key];
+  exportVis['GCH v2 planting opportunities'] = opportunitiesVisByCombo[key];
 });
-exportLayers['WorldCover 2020 (10m)'] = wc;
-exportLayers['Canopy Height v2 (1m)'] = chm;
+exportLayers['WorldCover 2020 (10m)'] = wcStyled;
+exportVis['WorldCover 2020 (10m)'] = wcVis;
+exportLayers['Global Canopy Height v2 (1m)'] = chmStyled;
+exportVis['Global Canopy Height v2 (1m)'] = chmVis;
 
 //////////////////////////////////////////////////////////////////////
 // Export panel
@@ -454,7 +470,12 @@ var exportButton = ui.Button({
         return;
       }
       statusLabel.setValue('Generating link...');
-      exportLayers[name].getDownloadURL({
+      // Bake the same palette shown on the map into the exported pixels (as RGB), since Earth
+      // Engine has no way to attach a GDAL colour table to a GeoTIFF export directly. Note this
+      // means the download carries colour, not the original numeric category codes.
+      var vis = exportVis[name];
+      var imageToExport = vis ? exportLayers[name].visualize(vis) : exportLayers[name];
+      imageToExport.getDownloadURL({
         region: geometry,
         scale: 10,
         format: 'GeoTIFF',
@@ -464,7 +485,7 @@ var exportButton = ui.Button({
           statusLabel.setValue('Error: try a smaller region.');
         } else {
           statusLabel.setValue('Link ready (expires after download):');
-          downloadLink.setValue('Download GeoTIFF');
+          downloadLink.setValue('Download GeoTIFF (RGB)');
           downloadLink.setUrl(url);
           downloadLink.style().set('shown', true);
         }
