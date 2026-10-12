@@ -205,7 +205,7 @@ def _crown_dalponteCIRC(Chm, Trees, th_seed, th_crown, th_tree, max_crown):
 
 # def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=10, th_seed=0.45, th_crown=0.55):  # Defaults from Dalponte and Coomes 2016 
 
-def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th_seed=0.01, th_crown=0.4, save_gpkg=True):  # Defaults from Pucino et al. 2026
+def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th_seed=0.01, th_crown=0.4, window_m=5, save_gpkg=True):  # Defaults from Pucino et al. 2026
     """Delineate individual tree crowns from a CHM tif using the Dalponte CIRC algorithm.
 
     Smooths the CHM, detects local maxima as tree tops, runs circular region
@@ -224,6 +224,9 @@ def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th
         Minimum height in metres for a pixel to be considered a tree.
     max_crown_m : float, optional
         Maximum crown radius in metres.
+    window_m : float, optional
+        Size in metres of the search window for detecting tree tops. Smaller
+        values resolve tree tops closer together, at the cost of more noise.
     save_gpkg : bool, optional
         Save the crown polygons to a GeoPackage. If False, only the
         GeoDataFrame is returned. Default True.
@@ -246,7 +249,7 @@ def crowns_to_gpkg(chm_tif, outdir, stub, height_threshold=2, max_crown_m=30, th
     kernel = np.ones((3, 3)) / 9.0
     chm = convolve(chm_raw, kernel).astype(np.float32)
 
-    ws_pixels = max(1, int(5 / resolution))
+    ws_pixels = max(1, int(window_m / resolution))
     chm_max = maximum_filter(chm, footprint=np.ones((ws_pixels, ws_pixels)))
     tree_maxima = (chm == chm_max) & (chm > height_threshold)
     tree_markers, num_trees = label(tree_maxima)

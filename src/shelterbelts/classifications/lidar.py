@@ -125,7 +125,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
 
     chm_resolution = resolution
     if not binary:
-        chm_resolution = 1
+        chm_resolution = min(1, resolution)
 
     # Create a raster of the number of points with the classification per pixel
     counts_tif = os.path.join(outdir, f'{stub}_counts_res{chm_resolution}_cat{classification_code}.tif')
@@ -166,11 +166,12 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
 
     if not binary:
         # Create the percent cover tif
+        coarsen_factor = max(1, int(round(resolution / chm_resolution)))
         percent_cover = (
-            da_tree.coarsen(x=resolution, y=resolution, boundary="trim")
+            da_tree.coarsen(x=coarsen_factor, y=coarsen_factor, boundary="trim")
               .mean() * 100
         ).astype(np.uint8)
-        percent_cover = percent_cover.rio.write_transform(percent_cover.rio.transform(recalc=True)) 
+        percent_cover = percent_cover.rio.write_transform(percent_cover.rio.transform(recalc=True))
         tree_tif = os.path.join(outdir, f'{stub}_percentcover_res{resolution}_cat{classification_code}.tif')
         percent_cover.rio.to_raster(tree_tif)
         print("Saved:", tree_tif)
@@ -183,7 +184,7 @@ def use_existing_classifications(infile, outdir, stub, resolution=1, classificat
     return counts, da_tree
 
 
-def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True):
+def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True, crown_window_m=5, max_crown_m=30, th_seed=0.01, th_crown=0.4):
     """Create a canopy height model and corresponding woody_veg tif from a laz file"""
 
     # Some of the ACT 2015 laz files don't have an EPSG specified
@@ -198,7 +199,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     chm_resolution = resolution
     if not binary:
-        chm_resolution = 1  # Create a 1m chm, then coarsen later to the actual resolution when calculating percent cover
+        chm_resolution = min(1, resolution)  # Create a 1m (or finer) chm, then coarsen later to the actual resolution when calculating percent cover
 
     # Check for vegetation classifications before building ground_steps so smrf ignores class 5 points
     veg_filter = []
@@ -249,7 +250,8 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
     print(f"Saved: {chm_tif}", flush=True)
 
     if delineate_crowns:
-        gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold)
+        gdf_crowns = crowns_to_gpkg(chm_tif, outdir, stub, height_threshold, max_crown_m=max_crown_m,
+                                     th_seed=th_seed, th_crown=th_crown, window_m=crown_window_m, save_gpkg=save_crowns_gpkg)
         with rxr.open_rasterio(chm_tif) as chm_src:
             chm_raw = chm_src.isel(band=0).drop_vars('band').load()
         if gdf_crowns is not None and len(gdf_crowns) > 0:
@@ -299,8 +301,9 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     if not binary:
         # Create the percent cover tif
+        coarsen_factor = max(1, int(round(resolution / chm_resolution)))
         percent_cover = (
-            da_tree.coarsen(x=resolution, y=resolution, boundary="trim")
+            da_tree.coarsen(x=coarsen_factor, y=coarsen_factor, boundary="trim")
               .mean() * 100
         ).astype(np.uint8)
         percent_cover = percent_cover.rio.write_transform(percent_cover.rio.transform(recalc=True))  # update the transformation, or else using rasterio to create a tif file will be 10x too small
@@ -315,7 +318,7 @@ def pdal_chm(infile, outdir, stub, resolution=1, height_threshold=2, epsg=None, 
 
     return chm, da_tree
 
-def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True):
+def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True, crown_window_m=5, max_crown_m=30, th_seed=0.01, th_crown=0.4):
     """Apply :func:`lidar` to every .laz file in laz_folder."""
     laz_files = glob.glob(os.path.join(laz_folder,'*.laz'))
     if limit is not None:
@@ -324,12 +327,13 @@ def lidar_folder(laz_folder, outdir='.', resolution=10, height_threshold=2, cate
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = os.path.basename(laz_file).split('.')[0]
-        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg,
+                         crown_window_m=crown_window_m, max_crown_m=max_crown_m, th_seed=th_seed, th_crown=th_crown)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
 
-def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, column='filepath', save_crowns_gpkg=True):
+def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, limit=None, dem=None, delineate_crowns=False, veg_only=True, uint8=False, column='filepath', save_crowns_gpkg=True, crown_window_m=5, max_crown_m=30, th_seed=0.01, th_crown=0.4):
     """Apply :func:`lidar` to every row in a GeoPackage, reading laz paths from column."""
     gdf = gpd.read_file(gpkg_file)
     if limit is not None:
@@ -338,11 +342,12 @@ def lidar_gpkg(gpkg_file, outdir='.', resolution=10, height_threshold=2, categor
         if os.path.getsize(laz_file) == 0:
             continue  # Some laz files from elvis are empty and this would break the pdal script
         stub = os.path.basename(laz_file).split('.')[0]
-        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
+        chm, da = lidar(laz_file, outdir, stub, resolution, height_threshold, category5, epsg, binary, cleanup, just_chm, dem=dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg,
+                         crown_window_m=crown_window_m, max_crown_m=max_crown_m, th_seed=th_seed, th_crown=th_crown)
         del chm, da  # Trying to avoid memory accumulation
         gc.collect()
 
-def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True):
+def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, category5=False, epsg=None, binary=False, cleanup=False, just_chm=False, dem=None, delineate_crowns=False, veg_only=True, uint8=False, save_crowns_gpkg=True, crown_window_m=5, max_crown_m=30, th_seed=0.01, th_crown=0.4):
     """
     Convert a LAZ point cloud into a canopy-height and tree-cover raster.
 
@@ -366,8 +371,9 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
         Output directory for saving results.
     stub : str, optional
         Prefix for output filenames.
-    resolution : int, optional
-        Pixel size in metres.
+    resolution : float, optional
+        Pixel size in metres. Values below 1 also make the CHM (and hence the
+        delineated crowns) that resolution, rather than the default 1m.
     height_threshold : float, optional
         Canopy-height cutoff in metres for the binary tree mask (only used
         when category5=False).
@@ -394,6 +400,15 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
     save_crowns_gpkg : bool, optional
         Save the delineated crowns to a GeoPackage (only used when delineate_crowns=True).
         Set to False to skip writing the gpkg and only use the returned GeoDataFrame in memory.
+    crown_window_m : float, optional
+        Size in metres of the search window for detecting tree tops (only used
+        when delineate_crowns=True). Smaller values resolve tree tops closer together.
+    max_crown_m : float, optional
+        Maximum crown radius in metres (only used when delineate_crowns=True).
+    th_seed : float, optional
+        Dalponte CIRC seed growing threshold, between 0 and 1 (only used when delineate_crowns=True).
+    th_crown : float, optional
+        Dalponte CIRC crown growing threshold, between 0 and 1 (only used when delineate_crowns=True).
 
     Returns
     -------
@@ -437,8 +452,15 @@ def lidar(laz_file, outdir='.', stub='TEST', resolution=10, height_threshold=2, 
             print("No existing classifications, generating our own canopy height model instead")
 
     # Do our own classifications
-    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=resolved_dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg)
+    chm, da_tree = pdal_chm(laz_file, outdir, stub, resolution, height_threshold, epsg, binary, cleanup, just_chm, dem=resolved_dem, delineate_crowns=delineate_crowns, veg_only=veg_only, uint8=uint8, save_crowns_gpkg=save_crowns_gpkg,
+                             crown_window_m=crown_window_m, max_crown_m=max_crown_m, th_seed=th_seed, th_crown=th_crown)
     return chm, da_tree
+
+
+def _resolution_arg(value):
+    """Parse a resolution, keeping whole numbers as ints so filenames stay res1 rather than res1.0."""
+    resolution = float(value)
+    return int(resolution) if resolution.is_integer() else resolution
 
 
 def parse_arguments():
@@ -448,7 +470,7 @@ def parse_arguments():
     parser.add_argument("laz_file", help="The input .laz point cloud file. If the suffix is not .laz then assume it's a folder of laz files instead.")
     parser.add_argument("--outdir", default=".", help="Output directory for saving results (default: current directory)")
     parser.add_argument("--stub", default="TEST", help="Prefix for output filenames (default: TEST)")
-    parser.add_argument("--resolution", type=int, default=10, help="Pixel size in the output rasters (default: 10)")
+    parser.add_argument("--resolution", type=_resolution_arg, default=10, help="Pixel size in the output rasters. Values below 1 also make the CHM that resolution (default: 10)")
     parser.add_argument("--height_threshold", type=float, default=2, help="Cutoff for creating the binary tif (default: 2)")
     parser.add_argument("--epsg", default=None, help="Option to specify the epsg if the .laz doesn't already have it encoded. Default: None")
     parser.add_argument("--category5", action="store_true", help="Use preclassified high vegetation (LAS 1.4 category 5). Default: False")
@@ -459,6 +481,10 @@ def parse_arguments():
     parser.add_argument("--dem", default=None, help="Path to a DEM GeoTiff, or a folder of DEM GeoTiffs (the best-matching tile is selected automatically). Default: None")
     parser.add_argument("--delineate_crowns", action="store_true", help="Delineate individual tree crowns and save as a GeoPackage. Default: False")
     parser.add_argument("--no_save_crowns_gpkg", action="store_true", help="Skip saving the delineated crowns to a GeoPackage (only used with --delineate_crowns). Default: False")
+    parser.add_argument("--crown_window_m", type=float, default=5, help="Search window size (m) for detecting tree tops. Default: 5")
+    parser.add_argument("--max_crown_m", type=float, default=30, help="Maximum crown radius in metres. Default: 30")
+    parser.add_argument("--th_seed", type=float, default=0.01, help="Dalponte CIRC seed growing threshold. Default: 0.01")
+    parser.add_argument("--th_crown", type=float, default=0.4, help="Dalponte CIRC crown growing threshold. Default: 0.4")
     parser.add_argument("--no_veg_only", action="store_true", help="Use all points for the CHM even when vegetation classifications exist. Default: False")
     parser.add_argument("--uint8", action="store_true", help="Convert the CHM to uint8. Default: False")
     return parser.parse_args()
@@ -485,6 +511,10 @@ if __name__ == '__main__':
             veg_only=not args.no_veg_only,
             uint8=args.uint8,
             save_crowns_gpkg=not args.no_save_crowns_gpkg,
+            crown_window_m=args.crown_window_m,
+            max_crown_m=args.max_crown_m,
+            th_seed=args.th_seed,
+            th_crown=args.th_crown,
         )
     elif args.laz_file.endswith('.gpkg'):
         lidar_gpkg(
@@ -503,6 +533,10 @@ if __name__ == '__main__':
             veg_only=not args.no_veg_only,
             uint8=args.uint8,
             save_crowns_gpkg=not args.no_save_crowns_gpkg,
+            crown_window_m=args.crown_window_m,
+            max_crown_m=args.max_crown_m,
+            th_seed=args.th_seed,
+            th_crown=args.th_crown,
         )
     else:
         lidar_folder(
@@ -522,4 +556,8 @@ if __name__ == '__main__':
             veg_only=not args.no_veg_only,
             uint8=args.uint8,
             save_crowns_gpkg=not args.no_save_crowns_gpkg,
+            crown_window_m=args.crown_window_m,
+            max_crown_m=args.max_crown_m,
+            th_seed=args.th_seed,
+            th_crown=args.th_crown,
         )
