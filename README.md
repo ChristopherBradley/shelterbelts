@@ -1,5 +1,5 @@
 # shelterbelts
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22246005.svg)](https://doi.org/10.5281/zenodo.22246005)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22246004.svg)](https://doi.org/10.5281/zenodo.22246004)
 
 This repo is for using satellite imagery to map and categorise shelterbelts across Australia, in preparation for measuring impacts on agricultural productivity at scale.
 
