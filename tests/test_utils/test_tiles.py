@@ -28,6 +28,18 @@ def test_crop_and_rasterize_hydrolines():
         assert len(gdf) > 0, "Should have cropped some hydrolines"
         assert 'gullies' in ds.data_vars
 
+def test_crop_and_rasterize_excludes_canals():
+    """Test that canals and pipelines are left out of the gullies by default."""
+    tif_file = get_filename('bacchus_marsh_grid.tif')
+    hydrolines_gpkg = get_filename('bacchus_marsh_hydrolines_cropped.gpkg')  # 27 canals, 6 pipelines, 20 watercourses, 3 connectors
+
+    _, ds = crop_and_rasterize(tif_file, hydrolines_gpkg, save_gpkg=False, savetif=False)
+    _, ds_all = crop_and_rasterize(tif_file, hydrolines_gpkg, save_gpkg=False, savetif=False, exclude_featuretypes=None)
+
+    # Check outputs
+    assert ds['hydrolines'].sum() == 500, "Should only include the watercourses and connectors"
+    assert ds_all['hydrolines'].sum() == 1401, "Should include the canals and pipelines when nothing is excluded"
+
 def test_crop_and_rasterize_roads():
     """Test crop_and_rasterize with roads GeoPackage."""
     tif_file = get_filename('g2_26729_tree_categories.tif')

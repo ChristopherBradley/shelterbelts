@@ -218,7 +218,7 @@ def class_accuracies_stratified(df_test, model, scaler, outdir, stub, non_input_
     rf_metrics_table.to_csv(filename)
     print("Saved", filename)
 
-    # Reshape to match metrics from Stewart et al. 2025
+    # Reshape to match metrics from Stewart 2024a
     koppen_classes = rf_metrics_table['koppen_class'].unique()
     dfs = []
     for koppen_class in koppen_classes:

@@ -16,7 +16,7 @@ from shapely.geometry import box
 import gc
 import subprocess, sys
 
-from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize
+from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize, NON_GULLY_FEATURETYPES
 from shelterbelts.apis.barra_daily import barra_daily
 from shelterbelts.apis.canopy_height import canopy_height
 from shelterbelts.apis.worldcover import worldcover_centrepoint
@@ -320,7 +320,7 @@ def indices_tif(percent_tif, outdir=".",
     if gullies_data is not None:
         ds_hydrolines = gullies_data
     else:
-        gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies')
+        gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies', exclude_featuretypes=NON_GULLY_FEATURETYPES)
 
     if roads_data is not None:
         ds_roads = roads_data
@@ -449,7 +449,8 @@ def indices_latlon(lat, lon, buffer=0.05, outdir=".", tmpdir=".", stub=None,
     ds_gullies = None
     if in_australia and os.path.exists(hydrolines_gdb):
         _, ds_gul = crop_and_rasterize(da_trees, hydrolines_gdb, outdir=tmpdir, stub=stub,
-            savetif=debug, save_gpkg=debug, feature_name='gullies')
+            savetif=debug, save_gpkg=debug, feature_name='gullies',
+            exclude_featuretypes=NON_GULLY_FEATURETYPES)
         if bool(ds_gul['gullies'].values.any()):
             ds_gullies = ds_gul
         else:

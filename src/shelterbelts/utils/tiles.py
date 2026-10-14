@@ -177,7 +177,10 @@ def merged_ds(mosaic, out_meta, layer_name='canopy_height'):
     return ds
 
 
-def crop_and_rasterize(geotif, feature_gdb, outdir=".", stub="TEST", save_gpkg=True, savetif=True, layer='HydroLines', feature_name=None):
+# These are included in the national hydrolines dataset, but not relevant to riparian zones.
+NON_GULLY_FEATURETYPES = ('Canal Line', 'Water Pipeline')
+
+def crop_and_rasterize(geotif, feature_gdb, outdir=".", stub="TEST", save_gpkg=True, savetif=True, layer='HydroLines', feature_name=None, exclude_featuretypes=NON_GULLY_FEATURETYPES):
     """Crop vector features to the region of interest and rasterize them.
     
     This function generalizes rasterization of any vector features (hydrolines, roads, etc.)
@@ -203,6 +206,8 @@ def crop_and_rasterize(geotif, feature_gdb, outdir=".", stub="TEST", save_gpkg=T
     feature_name : str, optional
         Name for the rasterized feature (e.g., 'gullies', 'roads'). 
         Defaults to layer name converted to lowercase
+    exclude_featuretypes : iterable of str, optional
+        FEATURETYPE values to drop before rasterizing.
 
     Returns
     -------
@@ -233,6 +238,13 @@ def crop_and_rasterize(geotif, feature_gdb, outdir=".", stub="TEST", save_gpkg=T
     else: 
         # This file is about 2GB, but can be spatially indexed so loads really fast
         gdf = gpd.read_file(feature_gdb, layer=layer, bbox=bbox_gdf)
+
+    if exclude_featuretypes and 'FEATURETYPE' in gdf.columns:
+        n_before = len(gdf)
+        gdf = gdf[~gdf['FEATURETYPE'].isin(exclude_featuretypes)]
+        if n_before != len(gdf):
+            print(f"  dropped {n_before - len(gdf)} of {n_before} {layer} features "
+                  f"of type {', '.join(exclude_featuretypes)}")
 
     if save_gpkg:
         cropped_path = os.path.join(outdir, f"{stub}_{layer}_cropped.gpkg")

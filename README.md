@@ -21,7 +21,7 @@ View the pypi package at: https://pypi.org/project/shelterbelts
 
 
 ### Current Methods
-The tree predictions come from annual Sentinel-2 imagery largely following a method by Stewart et al. (2025), using a tree/no-tree training dataset provided by Nicolas Pucino.
+The tree predictions come from annual Sentinel-2 imagery largely following a method by Stewart (2024a), using a tree/no-tree training dataset provided by Nicolas Pucino.
 
 After the predictions, pixels were categorised using the following method:
 - Assign trees from model confidence (50% threshold)

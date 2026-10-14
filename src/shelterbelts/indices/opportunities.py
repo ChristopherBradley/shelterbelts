@@ -21,7 +21,7 @@ from skimage.measure import find_contours
 
 
 from shelterbelts.utils.visualisation import tif_categorical, visualise_categories
-from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize
+from shelterbelts.utils.tiles import merge_tiles_bbox, merged_ds, crop_and_rasterize, NON_GULLY_FEATURETYPES
 from shelterbelts.indices.catchments import catchments  # This takes a while to import
 from shelterbelts.indices.shelter_categories import shelter_categories_cmap, shelter_categories_labels
 from shelterbelts.classifications.bounding_boxes import bounding_boxes
@@ -431,7 +431,7 @@ def opportunities(percent_tif, roads_data=None, gullies_data=None, ridges_data=N
         da_gullies = rxr.open_rasterio(gullies_data).isel(band=0).drop_vars('band')
     else:
         if not ridges or num_catchments is None:
-            gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies')
+            gdf_hydrolines, ds_hydrolines = crop_and_rasterize(da_percent, hydrolines_gdb, outdir=tmpdir, stub=stub, savetif=False, save_gpkg=False, feature_name='gullies', exclude_featuretypes=NON_GULLY_FEATURETYPES)
             da_gullies = ds_hydrolines['gullies']
 
     # Load ridges
