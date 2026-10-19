@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
-# Copied from https://github.com/johnburley3000/paddocktimeseries/blob/main/manuscript/compile_eartharxiv.sh.
+# Adapted from compile_eartharxiv.sh (originally copied from
+# https://github.com/johnburley3000/paddocktimeseries/blob/main/manuscript/compile_eartharxiv.sh)
+# but swapped some text to EcoEvoRxiv instead of EarthArXiv.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTFILE="Shelterbelts_EarthArXiv_preprint.pdf"
-TEMP_MD="$(mktemp "$SCRIPT_DIR/.eartharxiv-paper.XXXXXX")"
-HEADER_TEX="$(mktemp "$SCRIPT_DIR/.eartharxiv-header.XXXXXX")"
+OUTFILE="Shelterbelts_EcoEvoRxiv_preprint.pdf"
+TEMP_MD="$(mktemp "$SCRIPT_DIR/.ecoevorxiv-paper.XXXXXX")"
+HEADER_TEX="$(mktemp "$SCRIPT_DIR/.ecoevorxiv-header.XXXXXX")"
 
 cleanup() {
   rm -f "$TEMP_MD" "$HEADER_TEX"
 }
 trap cleanup EXIT
 
-# Convert the JOSS heading to the EarthArXiv-required Abstract heading without
-# changing the shared paper.md source.
+# Convert the JOSS heading to an Abstract heading (standard preprint
+# convention) without changing the shared paper.md source.
 # add page-break after abstract
 awk '
 BEGIN { changed=0; pagebreak=0 }
@@ -33,16 +35,16 @@ changed && !pagebreak && $0 == "# Statement of Need" {
 { print }
 ' "$SCRIPT_DIR/paper.md" > "$TEMP_MD"
 
-# EarthArXiv permits this statement in the header of every page instead of a
-# separate cover sheet. Redefining the plain style includes the title page.
+# Generic preprint disclaimer header
+# Redefining the plain style includes the title page.
 printf '%s\n' \
   '\usepackage{fancyhdr}' \
   '\setlength{\headheight}{14pt}' \
   '\pagestyle{fancy}' \
   '\fancyhf{}' \
-  '\fancyhead[C]{\scriptsize Non-peer-reviewed preprint submitted to EarthArXiv}' \
+  '\fancyhead[C]{\scriptsize Non-peer-reviewed preprint submitted to EcoEvoRxiv}' \
   '\fancyfoot[C]{\thepage}' \
-  '\fancypagestyle{plain}{\fancyhf{}\fancyhead[C]{\scriptsize Non-peer-reviewed preprint submitted to EarthArXiv}\fancyfoot[C]{\thepage}}' \
+  '\fancypagestyle{plain}{\fancyhf{}\fancyhead[C]{\scriptsize Non-peer-reviewed preprint submitted to EcoEvoRxiv}\fancyfoot[C]{\thepage}}' \
   > "$HEADER_TEX"
 
 TEMP_MD_NAME="$(basename "$TEMP_MD")"
@@ -73,7 +75,7 @@ docker run --rm \
 
 SIZE_BYTES="$(wc -c < "$SCRIPT_DIR/$OUTFILE" | tr -d ' ')"
 if (( SIZE_BYTES > 40000000 )); then
-  echo "Error: $OUTFILE exceeds EarthArXiv's 40 MB file-size limit." >&2
+  echo "Error: $OUTFILE exceeds 40 MB (EarthArXiv's confirmed limit, likely shared with EcoEvoRxiv via the same Janeway platform — check ecoevorxiv.org to confirm)." >&2
   exit 1
 fi
 
